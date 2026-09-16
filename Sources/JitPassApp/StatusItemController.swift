@@ -18,6 +18,12 @@ final class StatusItemController {
     private let item: NSStatusItem
     private let model = MenuModel()
     private lazy var panel = MenuPanel(content: PanelView(model: model, actions: panelActions))
+    private lazy var auditWindow = ReportWindow(
+        title: "JitPass Audit",
+        content: AuditView(model: model, actions: auditActions),
+        size: NSSize(width: 720, height: 480),
+        minSize: NSSize(width: 520, height: 320)
+    )
     private lazy var scanWindow = ReportWindow(
         title: "JitPass Scan",
         content: ScanReportView(model: model, actions: scanActions),
@@ -55,7 +61,7 @@ final class StatusItemController {
             revoke: { [weak self] id in self?.revokeGrant(id) },
             runScan: { [weak self] in self?.openScan() },
             openScan: { [weak self] in self?.openScan() },
-            openAudit: { [weak self] in self?.runInTerminal("jit audit") },
+            openAudit: { [weak self] in self?.openAudit() },
             quit: { NSApp.terminate(nil) }
         )
     }
@@ -71,6 +77,42 @@ final class StatusItemController {
             openInTerminal: { [weak self] in self?.openScanInTerminal() },
             fix: { [weak self] command in self?.runInTerminal(command) }
         )
+    }
+
+    private var auditActions: AuditActions {
+        AuditActions(
+            setFilter: { [weak self] filter in
+                self?.model.auditFilter = filter
+                self?.reloadAudit()
+            },
+            openInTerminal: { [weak self] in self?.runInTerminal("jit audit") }
+        )
+    }
+
+    // MARK: - Audit
+
+    private func openAudit() {
+        panel.dismiss()
+        auditWindow.present()
+        reloadAudit()
+    }
+
+    /// Re-reads `jit audit` with the current filter, off the main thread.
+    /// Called on open, on every filter change, and on every stream event
+    /// while the window is showing, so the tail is never behind the CLI.
+    private func reloadAudit() {
+        guard !model.auditLoading else {
+            return
+        }
+        model.auditLoading = true
+        let filter = model.auditFilter
+        Task.detached {
+            let report = JitCLI.audit(filter)
+            await MainActor.run { [weak self] in
+                self?.model.audit = report
+                self?.model.auditLoading = false
+            }
+        }
     }
 
     // MARK: - Scan
@@ -181,6 +223,9 @@ final class StatusItemController {
         model.lastEvent = event
         model.grants = (try? client.grants()) ?? []
         pollStatus()
+        if auditWindow.isVisible {
+            reloadAudit()
+        }
     }
 
     private func scheduleReconnect() {
