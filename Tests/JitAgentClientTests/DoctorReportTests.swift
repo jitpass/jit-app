@@ -29,6 +29,9 @@ final class DoctorReportTests: XCTestCase {
         XCTAssertEqual(r.problems[0].summary, "profile \"mcp-caido-2\": CAIDO_URL missing")
         XCTAssertEqual(r.problems[0].command, "jit vault set mcp-caido-2/CAIDO_URL")
         XCTAssertEqual(r.warnings[0].command, "jit vault orphans --prune")
+        XCTAssertEqual(r.warnings[0].commands, ["jit vault orphans --prune", "jit unmount ~/x/.env"])
+        XCTAssertTrue(r.problems[0].isGlobalProfileProblem)
+        XCTAssertFalse(r.warnings[0].isGlobalProfileProblem)
         XCTAssertEqual(r.warnings[0].summary, "the mount at ~/x/.env is still registered, but its profile is gone")
     }
 
