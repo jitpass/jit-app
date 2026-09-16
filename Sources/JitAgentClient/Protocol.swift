@@ -17,6 +17,7 @@ public enum AgentOp: String, Codable, Sendable, CaseIterable {
     case lock
     case unlock
     case grantList = "grant_list"
+    case grantCreate = "grant_create"
     case grantRevoke = "grant_revoke"
     case history
     /// The one streaming op (jitpass/jit#106): one `AgentResponse` line
@@ -29,17 +30,36 @@ public struct AgentRequest: Codable, Sendable {
     public var op: AgentOp
     public var minProtocol: Int?
     public var grantID: String?
+    /// `grant_create`: the exact process to cover, the profile NAMES (the
+    /// agent resolves them to secrets itself, so the prompt and the grant
+    /// derive from the same facts), the project whose profiles to consult,
+    /// and the requested lifetime, capped by the agent.
+    public var targetPID: Int32?
+    public var grantProfiles: [String]?
+    public var projectRoot: String?
+    public var ttlSeconds: Int64?
 
-    public init(op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil) {
+    public init(
+        op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil,
+        targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil
+    ) {
         self.op = op
         self.minProtocol = minProtocol
         self.grantID = grantID
+        self.targetPID = targetPID
+        self.grantProfiles = grantProfiles
+        self.projectRoot = projectRoot
+        self.ttlSeconds = ttlSeconds
     }
 
     enum CodingKeys: String, CodingKey {
         case op
         case minProtocol = "min_protocol"
         case grantID = "grant_id"
+        case targetPID = "target_pid"
+        case grantProfiles = "grant_profiles"
+        case projectRoot = "project_root"
+        case ttlSeconds = "ttl_seconds"
     }
 }
 

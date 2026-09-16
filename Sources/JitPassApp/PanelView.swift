@@ -50,6 +50,7 @@ struct PanelView: View {
             case .notRunning:
                 action("Start Service", key: "u", actions.unlock)
             }
+            action("New Grant…", key: "g", actions.newGrant)
             action("Run Scan", key: "r", actions.runScan)
             action("Open Audit", key: "a", actions.openAudit)
             divider
@@ -140,6 +141,7 @@ struct PanelActions {
     var lock: () -> Void = {}
     var unlock: () -> Void = {}
     var revoke: (String) -> Void = { _ in }
+    var newGrant: () -> Void = {}
     var runScan: () -> Void = {}
     var openScan: () -> Void = {}
     var openAudit: () -> Void = {}

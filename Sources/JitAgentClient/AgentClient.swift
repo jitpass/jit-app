@@ -33,8 +33,16 @@ public struct AgentClient: Sendable {
         self.timeout = timeout
     }
 
+    /// How long a call that puts a Touch ID prompt on screen may wait: the
+    /// agent's own challenge ceiling is about two minutes.
+    public static let promptTimeout: TimeInterval = 150
+
     public func send(_ request: AgentRequest) throws -> AgentResponse {
-        let fd = try connect()
+        try send(request, timeout: timeout)
+    }
+
+    public func send(_ request: AgentRequest, timeout: TimeInterval?) throws -> AgentResponse {
+        let fd = try connect(timeout: timeout)
         defer { close(fd) }
 
         // Go's json.Encoder terminates each document with a newline; mirror it.
@@ -162,5 +170,18 @@ public extension AgentClient {
 
     func history() throws -> [SessionEvent] {
         try send(AgentRequest(op: .history)).events ?? []
+    }
+
+    /// Creates an exact-process grant. The agent puts a disclosed Touch ID
+    /// on screen naming the process and the profiles, so this blocks until
+    /// the human answers; callers run it off the main thread.
+    func createGrant(pid: Int32, profiles: [String], projectRoot: String?, ttl: TimeInterval) throws -> GrantStatus {
+        let request = AgentRequest(
+            op: .grantCreate, targetPID: pid, grantProfiles: profiles, projectRoot: projectRoot, ttlSeconds: Int64(ttl)
+        )
+        guard let grant = try send(request, timeout: Self.promptTimeout).grants?.first else {
+            throw AgentClientError.agent("grant created but not reported back")
+        }
+        return grant
     }
 }

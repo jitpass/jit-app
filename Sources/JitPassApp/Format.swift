@@ -39,6 +39,16 @@ enum Format {
         return parts.joined(separator: " · ")
     }
 
+    /// An agent error as one readable sentence.
+    static func error(_ error: Error) -> String {
+        switch error as? AgentClientError {
+        case let .agent(message): message
+        case .notRunning: "the service is not running"
+        case .timeout: "no answer from the service; the prompt may still be on screen"
+        default: "\(error)"
+        }
+    }
+
     static func event(_ event: SessionEvent) -> String {
         AuditReport.title(for: event) + " · " + clock(event.date)
     }
