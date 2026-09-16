@@ -30,6 +30,12 @@ final class StatusItemController {
         size: NSSize(width: 520, height: 560),
         minSize: NSSize(width: 520, height: 480)
     )
+    lazy var grantsWindow = ReportWindow(
+        title: "JitPass Grants",
+        content: GrantsView(model: model, actions: grantsActions),
+        size: NSSize(width: 560, height: 320),
+        minSize: NSSize(width: 480, height: 240)
+    )
     lazy var settingsWindow = ReportWindow(
         title: "JitPass Settings",
         content: SettingsView(model: model, actions: settingsActions),
@@ -76,7 +82,7 @@ final class StatusItemController {
         PanelActions(
             lock: { [weak self] in self?.lockNow() },
             unlock: { [weak self] in self?.unlockNow() },
-            revoke: { [weak self] id in self?.revokeGrant(id) },
+            openGrants: { [weak self] in self?.openGrants() },
             newGrant: { [weak self] in self?.openGrantSheet() },
             runScan: { [weak self] in self?.openScan() },
             openScan: { [weak self] in self?.openScan() },
@@ -188,7 +194,7 @@ final class StatusItemController {
         pollStatus()
     }
 
-    private func revokeGrant(_ id: String) {
+    func revokeGrant(_ id: String) {
         try? client.revokeGrant(id: id)
         model.grants = (try? client.grants()) ?? []
     }
