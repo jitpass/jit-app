@@ -65,7 +65,13 @@ struct GrantSheetView: View {
             .font(.subheadline).foregroundStyle(.secondary)
 
             if let error = model.grantError {
-                Text(error).font(.subheadline).foregroundStyle(Color(StatusMark.red))
+                Text(error)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(StatusMark.red).opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             }
 
             HStack {
@@ -135,26 +141,35 @@ struct GrantSheetView: View {
         return parts.joined(separator: " · ")
     }
 
-    /// Checkboxes in a bordered box, the way a settings list looks; it
-    /// scrolls only past eight, so a short list never shows a scroller.
+    /// Checkbox rows in a bordered box that scrolls past six. A profile
+    /// doctor reports as broken is shown but not offered: the agent would
+    /// refuse it, and this says why before a Touch ID is spent.
     private var profileList: some View {
-        let rows = VStack(alignment: .leading, spacing: 6) {
-            ForEach(model.grantProfiles, id: \.self) { name in
-                Toggle(name, isOn: binding(for: name)).toggleStyle(.checkbox)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(model.grantProfiles, id: \.self) { name in
+                    profileRow(name)
+                }
             }
+            .padding(.vertical, 4)
         }
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        return Group {
-            if model.grantProfiles.count > 8 {
-                ScrollView { rows }.frame(height: 8 * 24)
-            } else {
-                rows
-            }
-        }
+        .frame(height: min(CGFloat(model.grantProfiles.count), 6) * 26 + 8)
         .background(Color.primary.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
+    }
+
+    private func profileRow(_ name: String) -> some View {
+        let broken = model.brokenProfiles[name]
+        return HStack(spacing: 8) {
+            Toggle(name, isOn: binding(for: name)).toggleStyle(.checkbox).disabled(broken != nil)
+            Spacer()
+            if let broken {
+                Text("✗ \(broken)").font(.system(size: 11)).foregroundStyle(Color(StatusMark.red))
+            }
+        }
+        .frame(height: 26)
+        .padding(.horizontal, 10)
     }
 
     private func field(_ label: String, @ViewBuilder _ content: () -> some View) -> some View {
