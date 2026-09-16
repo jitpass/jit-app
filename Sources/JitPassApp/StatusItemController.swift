@@ -30,6 +30,12 @@ final class StatusItemController {
         size: NSSize(width: 420, height: 420),
         minSize: NSSize(width: 420, height: 360)
     )
+    lazy var settingsWindow = ReportWindow(
+        title: "JitPass Settings",
+        content: SettingsView(model: model, actions: settingsActions),
+        size: NSSize(width: 460, height: 340),
+        minSize: NSSize(width: 460, height: 300)
+    )
     lazy var scanWindow = ReportWindow(
         title: "JitPass Scan",
         content: ScanReportView(model: model, actions: scanActions),
@@ -69,6 +75,8 @@ final class StatusItemController {
             runScan: { [weak self] in self?.openScan() },
             openScan: { [weak self] in self?.openScan() },
             openAudit: { [weak self] in self?.openAudit() },
+            openSettings: { [weak self] in self?.openSettings() },
+            about: { [weak self] in self?.showAbout() },
             quit: { NSApp.terminate(nil) }
         )
     }
@@ -97,6 +105,7 @@ final class StatusItemController {
             let status = try client.status()
             model.state = SessionState(response: status)
             model.consentEnabled = status.consentEnabled
+            model.ttlSeconds = status.ttlSeconds
         } catch AgentClientError.notRunning {
             model.state = .notRunning
             model.grants = []

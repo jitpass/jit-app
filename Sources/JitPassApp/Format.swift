@@ -39,6 +39,17 @@ enum Format {
         return parts.joined(separator: " · ")
     }
 
+    /// 300 -> "5m", 3600 -> "1h": the form `jit service ttl` prints and takes.
+    static func duration(seconds: Int64?) -> String {
+        guard let seconds, seconds > 0 else {
+            return ""
+        }
+        if seconds % 3600 == 0 {
+            return "\(seconds / 3600)h"
+        }
+        return "\(seconds / 60)m"
+    }
+
     /// An agent error as one readable sentence.
     static func error(_ error: Error) -> String {
         switch error as? AgentClientError {

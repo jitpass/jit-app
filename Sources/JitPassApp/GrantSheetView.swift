@@ -40,14 +40,7 @@ struct GrantSheetView: View {
                 if model.grantProfiles.isEmpty {
                     Text("no global profiles under ~/.jit/profiles").foregroundStyle(.secondary)
                 } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 4) {
-                            ForEach(model.grantProfiles, id: \.self) { name in
-                                Toggle(name, isOn: binding(for: name)).toggleStyle(.checkbox)
-                            }
-                        }
-                    }
-                    .frame(maxHeight: 120)
+                    profileList
                 }
             }
 
@@ -86,6 +79,28 @@ struct GrantSheetView: View {
         .frame(width: 420)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onAppear { actions.reloadProcesses(showAll) }
+    }
+
+    /// Checkboxes in a bordered box, the way a settings list looks; it
+    /// scrolls only past eight, so a short list never shows a scroller.
+    private var profileList: some View {
+        let rows = VStack(alignment: .leading, spacing: 6) {
+            ForEach(model.grantProfiles, id: \.self) { name in
+                Toggle(name, isOn: binding(for: name)).toggleStyle(.checkbox)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        return Group {
+            if model.grantProfiles.count > 8 {
+                ScrollView { rows }.frame(height: 8 * 24)
+            } else {
+                rows
+            }
+        }
+        .background(Color.primary.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
     }
 
     private func field(_ label: String, @ViewBuilder _ content: () -> some View) -> some View {

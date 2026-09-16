@@ -54,6 +54,9 @@ struct PanelView: View {
             action("Run Scan", key: "r", actions.runScan)
             action("Open Audit", key: "a", actions.openAudit)
             divider
+            action("Settings…", key: ",", actions.openSettings)
+            plainAction("About JitPass", actions.about)
+            divider
             action("Quit JitPass", key: "q", actions.quit)
                 .padding(.bottom, 5)
         }
@@ -118,6 +121,20 @@ struct PanelView: View {
             .padding(.vertical, 5)
     }
 
+    private func plainAction(_ title: String, _ perform: @escaping () -> Void) -> some View {
+        Button(action: perform) {
+            HStack {
+                Text(title)
+                Spacer()
+            }
+            .font(.system(size: 13))
+            .frame(height: 24)
+            .padding(.horizontal, 14)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(HoverRowStyle())
+    }
+
     private func action(_ title: String, key: Character, _ perform: @escaping () -> Void) -> some View {
         Button(action: perform) {
             HStack {
@@ -145,6 +162,8 @@ struct PanelActions {
     var runScan: () -> Void = {}
     var openScan: () -> Void = {}
     var openAudit: () -> Void = {}
+    var openSettings: () -> Void = {}
+    var about: () -> Void = {}
     var quit: () -> Void = {}
 }
 
