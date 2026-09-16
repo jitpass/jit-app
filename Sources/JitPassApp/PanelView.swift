@@ -41,17 +41,6 @@ struct PanelView: View {
                 .buttonStyle(HoverRowStyle())
             }
 
-            if let event = model.lastEvent {
-                Text("Last event: " + Format.event(event))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 14)
-                    .padding(.top, 6)
-                    .padding(.bottom, 2)
-            }
-
             divider
             switch model.state {
             case .unlocked:
