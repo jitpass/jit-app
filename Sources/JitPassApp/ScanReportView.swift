@@ -45,7 +45,8 @@ struct ScanReportView: View {
             } else if let s = model.scan?.summary {
                 Circle().fill(Severity.color(s.riskLevel)).frame(width: 12, height: 12)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Exposure \(s.exposureScore) / 100 · \(s.riskLevel)").font(.system(size: 15, weight: .bold))
+                    Text("Exposure \(s.exposureScore) / 100 · \(s.riskLevel)")
+                        .font(.system(size: 15, weight: .bold))
                     Text(
                         "\(s.totalFindings) findings · \(s.secretsProtected) of \(s.secretsTotal) secrets protected · \(s.filesScanned) files"
                     )
