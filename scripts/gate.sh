@@ -15,8 +15,11 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Develope
 swiftformat . > /dev/null
 swiftformat --lint . > /dev/null
 swiftlint --strict --quiet
-swift build -c release 2>&1 | grep -E 'error:|Build complete' | { ! grep -q 'error:'; }
-swift test 2>&1 | grep -E 'error:|Executed [0-9]+ tests' | tail -1 | grep -q 'with 0 failures'
+log=$(mktemp)
+swift build -c release > "$log" 2>&1 || { grep -E 'error:' "$log" || cat "$log"; exit 1; }
+swift test > "$log" 2>&1 || { grep -E 'error:|failed' "$log" || cat "$log"; exit 1; }
+grep -E 'Executed [0-9]+ tests' "$log" | tail -1
+rm -f "$log"
 echo "gate: green"
 
 if [ "${1:-}" = "--run" ]; then
