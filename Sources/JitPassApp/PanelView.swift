@@ -44,7 +44,7 @@ struct PanelView: View {
             if let event = model.lastEvent {
                 Text("Last event: " + Format.event(event))
                     .font(.system(size: 11))
-                    .foregroundStyle(Palette.secondary)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 14)
@@ -68,11 +68,8 @@ struct PanelView: View {
                 .padding(.bottom, 5)
         }
         .frame(width: 300)
-        .foregroundStyle(Palette.primary)
-        .background(Palette.panel)
+        .background(VisualEffectBackground(material: .menu, cornerRadius: 10))
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Palette.edge, lineWidth: 0.5))
-        .preferredColorScheme(.dark)
     }
 
     // MARK: - Pieces
@@ -82,7 +79,7 @@ struct PanelView: View {
             StatusMarkView(state: model.state, size: 34)
             VStack(alignment: .leading, spacing: 2) {
                 Text(model.state.headline).font(.system(size: 15, weight: .bold))
-                Text(model.state.detail).font(.system(size: 12)).foregroundStyle(Palette.secondary)
+                Text(model.state.detail).font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
     }
@@ -114,11 +111,11 @@ struct PanelView: View {
     private func grantRow(_ grant: GrantStatus) -> some View {
         HStack(spacing: 12) {
             Color.clear.frame(width: 16)
-            Text(Format.grant(grant)).foregroundStyle(Palette.secondary).lineLimit(1)
+            Text(Format.grant(grant)).foregroundStyle(.secondary).lineLimit(1)
             Spacer()
             Button("Revoke") { actions.revoke(grant.id) }
                 .buttonStyle(.plain)
-                .foregroundStyle(Palette.accent)
+                .foregroundStyle(Color.accentColor)
         }
         .font(.system(size: 11))
         .frame(height: 20)
@@ -126,7 +123,7 @@ struct PanelView: View {
     }
 
     private var divider: some View {
-        Rectangle().fill(Palette.edge).frame(height: 1)
+        Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             .padding(.horizontal, 14)
             .padding(.vertical, 5)
     }
@@ -136,7 +133,7 @@ struct PanelView: View {
             HStack {
                 Text(title)
                 Spacer()
-                Text("⌘ " + String(key).uppercased()).foregroundStyle(Palette.tertiary).font(.system(size: 12))
+                Text("⌘ " + String(key).uppercased()).foregroundStyle(.tertiary).font(.system(size: 12))
             }
             .font(.system(size: 13))
             .frame(height: 24)
@@ -172,22 +169,10 @@ enum Severity {
     }
 }
 
-/// The mockup's inks. Panel and edge are the dark translucent surface; the
-/// state colours live in StatusMark so the menu bar icon and the panel
-/// header can never disagree.
-enum Palette {
-    static let panel = Color(red: 52 / 255, green: 48 / 255, blue: 88 / 255).opacity(0.94)
-    static let edge = Color.white.opacity(0.14)
-    static let primary = Color.white
-    static let secondary = Color.white.opacity(0.6)
-    static let tertiary = Color.white.opacity(0.45)
-    static let accent = Color(StatusMark.accent)
-}
-
 private struct HoverRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Color.white.opacity(0.1) : .clear)
+            .background(configuration.isPressed ? Color.primary.opacity(0.1) : .clear)
     }
 }
 
