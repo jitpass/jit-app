@@ -1,0 +1,45 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: #4da3ff; } a:hover { color: #7fbfff; }
+  </style>
+</helmet>
+<div style="width: 760px; height: 600px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #5a6cf0 0%, #7b5fe6 30%, #b25bd6 55%, #f0596b 78%, #4a7a5a 100%);">
+  <div style="width: 640px; height: 520px; display: flex; flex-direction: column; background: rgba(38,38,42,0.72); backdrop-filter: blur(40px) saturate(1.4); border-radius: 11px; box-shadow: 0 0 0 0.5px rgba(255,255,255,0.18), 0 18px 48px rgba(0,0,0,0.45); color: #ffffff; font-size: 13px; overflow: hidden;">
+    <div style="display: flex; align-items: center; height: 28px; padding: 0 10px; gap: 8px; background: rgba(255,255,255,0.04); box-shadow: 0 0.5px 0 rgba(255,255,255,0.1);">
+      <span style="width: 12px; height: 12px; border-radius: 6px; background: #ff5f57;"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #febc2e;"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: #28c840;"></span>
+      <span style="flex: 1; text-align: center; font-weight: 600; color: rgba(255,255,255,0.75);">JitPass Scan</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 8px 16px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="width: 12px; height: 12px; border-radius: 6px; background: #e5484d;"></span>
+        <span style="font-size: 15px; font-weight: 700;">Exposure 100 / 100 · critical</span>
+        <span style="flex: 1;"></span>
+        <span style="padding: 4px 12px; border-radius: 6px; background: rgba(255,255,255,0.14);">Rescan</span>
+        <span style="padding: 4px 12px; border-radius: 6px; background: rgba(255,255,255,0.14);">Open in Terminal</span>
+      </div>
+      <span style="color: rgba(255,255,255,0.6); font-size: 12px;">38 findings · 39 of 47 secrets protected · 45,138 files</span>
+    </div>
+    <div style="height: 1px; background: rgba(255,255,255,0.12); margin: 0 16px 10px 16px;"></div>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 30px 0 16px;">
+      <div style="display: flex; gap: 8px; align-items: baseline;"><span style="font-weight: 600;">jit will protect these</span><span style="color: rgba(255,255,255,0.6);">22</span></div>
+      <div style="display: flex; gap: 8px; align-items: flex-start;"><span style="color: #f0b545; font-size: 9px; padding-top: 4px;">●</span><div style="flex: 1; display: flex; flex-direction: column; gap: 1px;"><span style="font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 12px;">~/Documents/acme-repos/acme-platform/apps/backoffice/.env</span><span style="font-size: 11px; color: rgba(255,255,255,0.6);">Env file present · 10 plaintext variables (10 active, 0 commented out)</span></div><span style="color: #4da3ff; font-size: 12px;">Fix</span></div>
+      <div style="display: flex; gap: 8px; align-items: flex-start;"><span style="color: #f0b545; font-size: 9px; padding-top: 4px;">●</span><div style="flex: 1; display: flex; flex-direction: column; gap: 1px;"><span style="font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 12px;">~/Documents/acme-repos/acme-platform/apps/docs/.env</span><span style="font-size: 11px; color: rgba(255,255,255,0.6);">Env file present · 4 plaintext variables (4 active, 0 commented out)</span></div><span style="color: #4da3ff; font-size: 12px;">Fix</span></div>
+      <div style="display: flex; gap: 8px; align-items: flex-start;"><span style="color: #e5484d; font-size: 9px; padding-top: 4px;">●</span><div style="flex: 1; display: flex; flex-direction: column; gap: 1px;"><span style="font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 12px;">~/.claude.json</span><span style="font-size: 11px; color: rgba(255,255,255,0.6);">Mcp embedded secret · plain URL in MCP server "caido"'s env block</span></div><span style="color: #4da3ff; font-size: 12px;">Fix</span></div>
+      <div style="display: flex; gap: 8px; align-items: baseline; padding-top: 8px;"><span style="font-weight: 600;">Only you can fix these</span><span style="color: rgba(255,255,255,0.6);">16</span></div>
+      <div style="display: flex; gap: 8px; align-items: flex-start;"><span style="color: #e5484d; font-size: 9px; padding-top: 4px;">●</span><div style="flex: 1; display: flex; flex-direction: column; gap: 1px;"><span style="font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 12px;">~/.zsh_history</span><span style="font-size: 11px; color: rgba(255,255,255,0.6);">Shell history secret · value matches JSON Web Token (JWT)'s known token format</span></div></div>
+      <div style="display: flex; gap: 8px; align-items: flex-start;"><span style="color: #e5484d; font-size: 9px; padding-top: 4px;">●</span><div style="flex: 1; display: flex; flex-direction: column; gap: 1px;"><span style="font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 12px;">~/Security-Ops/ai_tooling/mcp_servers/urlscan/.env</span><span style="font-size: 11px; color: rgba(255,255,255,0.6);">Exposed secret · value matches Database connection string with embedded credentials</span></div></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>
