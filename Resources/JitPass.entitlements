@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<!-- Hardened runtime only, no App Sandbox: the sandbox would block the
-	     agent's Unix socket under ~/Library/Application Support. The Secure
-	     Enclave keychain entitlement lands here in phase 3 of the design doc. -->
-	<key>com.apple.security.automation.apple-events</key>
-	<true/>
+	     agent's Unix socket under ~/Library/Application Support. No Apple
+	     Events either: the terminal is driven by opening a .command file, not
+	     by scripting it. The Secure Enclave keychain entitlement lands here in
+	     phase 3 of the design doc. -->
 </dict>
 </plist>

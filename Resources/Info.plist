@@ -26,7 +26,5 @@
 	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2026 Meni Tasa</string>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>JitPass opens jit commands in Terminal on your request.</string>
 </dict>
 </plist>
