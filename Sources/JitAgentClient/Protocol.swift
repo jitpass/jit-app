@@ -19,6 +19,10 @@ public enum AgentOp: String, Codable, Sendable, CaseIterable {
     case grantList = "grant_list"
     case grantRevoke = "grant_revoke"
     case history
+    /// The one streaming op (jitpass/jit#106): one `AgentResponse` line
+    /// acknowledges, then one `SessionEvent` line per event until the peer
+    /// hangs up. Never `wrap`, `unwrap` or `reveal_pid`; see the test.
+    case subscribe
 }
 
 public struct AgentRequest: Codable, Sendable {

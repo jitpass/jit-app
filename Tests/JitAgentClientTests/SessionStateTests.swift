@@ -17,9 +17,17 @@ final class SessionStateTests: XCTestCase {
 
     func testUnlockedCountsDown() {
         let s = SessionState(response: response(unlocked: true, expires: 252))
-        XCTAssertEqual(s, .unlocked(expiresIn: 252))
+        XCTAssertEqual(s, .unlocked(expiresIn: 252, ceilingAt: nil))
         XCTAssertEqual(s.headline, "Unlocked")
-        XCTAssertEqual(s.detail, "locks in 4:12")
+        XCTAssertEqual(s.detail, "locks in 4:12", "no ceiling from an older agent, so none is claimed")
+    }
+
+    func testUnlockedNamesTheCeilingWhenReported() {
+        var r = response(unlocked: true, expires: 252)
+        r.ceilingInSeconds = 3600
+        let now = Date(timeIntervalSince1970: 1_789_200_000)
+        let s = SessionState(response: r, now: now)
+        XCTAssertEqual(s.detail, "locks in 4:12 · no later than \(SessionState.clock(now.addingTimeInterval(3600)))")
     }
 
     func testLockedCarriesTheCause() {

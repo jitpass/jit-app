@@ -5,14 +5,8 @@ import Foundation
 import JitAgentClient
 
 enum Format {
-    static let clockFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        return f
-    }()
-
     static func clock(_ date: Date) -> String {
-        clockFormatter.string(from: date)
+        SessionState.clock(date)
     }
 
     static func event(_ event: SessionEvent) -> String {

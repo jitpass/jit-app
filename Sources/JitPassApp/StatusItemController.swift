@@ -7,14 +7,27 @@ import JitAgentClient
 /// Owns the NSStatusItem and rebuilds its menu from the agent's answers.
 /// Every menu action is one socket op the CLI can also send; nothing here
 /// decides anything on its own.
+///
+/// Two feeds drive it. A `subscribe` stream delivers every session event
+/// as the agent records it, which is when grants and the event tail change.
+/// A one-second `status` poll keeps the countdown honest; it is the one
+/// thing a stream cannot carry, since nothing is recorded as time passes.
 @MainActor
 final class StatusItemController {
     private let client: AgentClient
     private let item: NSStatusItem
-    private var refreshTimer: Timer?
+    private var tick: Timer?
+    private var stream: Subscription?
+    private var reconnect: Timer?
+
     private var state: SessionState = .notRunning
     private var grants: [GrantStatus] = []
     private var lastEvent: SessionEvent?
+
+    /// How long to wait before re-opening a stream that ended. Long enough
+    /// not to hammer a restarting agent, short enough that the tail is never
+    /// visibly behind the CLI.
+    private let reconnectDelay: TimeInterval = 2
 
     init(client: AgentClient) {
         self.client = client
@@ -22,22 +35,33 @@ final class StatusItemController {
     }
 
     func start() {
-        refresh()
-        // A 1 s tick keeps the countdown honest; the subscribe op in the
-        // design doc replaces this with push once the agent grows it.
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+        resync()
+        openStream()
+        tick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.pollStatus() }
         }
     }
 
-    // MARK: - Data
+    // MARK: - Feeds
 
-    private func refresh() {
-        do {
-            let status = try client.status()
-            state = SessionState(response: status)
+    /// One full read of everything the menu shows. Runs at start and on
+    /// every stream (re)connect, because whatever was recorded while no
+    /// stream was open is only in `history`.
+    private func resync() {
+        pollStatus()
+        guard case .notRunning = state else {
             grants = (try? client.grants()) ?? []
-            lastEvent = (try? client.history())?.last
+            lastEvent = (try? client.history())?.first
+            render()
+            return
+        }
+        grants = []
+        render()
+    }
+
+    private func pollStatus() {
+        do {
+            state = try SessionState(response: client.status())
         } catch AgentClientError.notRunning {
             state = .notRunning
             grants = []
@@ -45,6 +69,37 @@ final class StatusItemController {
             // Keep the last known state on a transient error; the next tick retries.
         }
         render()
+    }
+
+    private func openStream() {
+        stream?.cancel()
+        stream = client.subscribe(
+            onEvent: { [weak self] event in
+                Task { @MainActor in self?.apply(event) }
+            },
+            onEnd: { [weak self] _ in
+                Task { @MainActor in self?.scheduleReconnect() }
+            }
+        )
+    }
+
+    /// A recorded event is the only time the grants list or the tail can
+    /// change, so this is where they are re-read. Grants are re-listed rather
+    /// than patched: the agent is the record, and one round trip is cheap.
+    private func apply(_ event: SessionEvent) {
+        lastEvent = event
+        grants = (try? client.grants()) ?? []
+        pollStatus()
+    }
+
+    private func scheduleReconnect() {
+        reconnect?.invalidate()
+        reconnect = Timer.scheduledTimer(withTimeInterval: reconnectDelay, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                self?.resync()
+                self?.openStream()
+            }
+        }
     }
 
     // MARK: - Rendering
@@ -104,17 +159,22 @@ final class StatusItemController {
     // MARK: - Actions (each is exactly one CLI-equivalent op)
 
     @objc private func lockNow() {
-        _ = try? client.lock(); refresh()
+        _ = try? client.lock()
+        pollStatus()
     }
 
     @objc private func unlockNow() {
-        _ = try? client.unlock(); refresh()
+        _ = try? client.unlock()
+        pollStatus()
     }
 
     @objc private func revokeGrant(_ sender: NSMenuItem) {
-        guard let id = sender.representedObject as? String else { return }
+        guard let id = sender.representedObject as? String else {
+            return
+        }
         try? client.revokeGrant(id: id)
-        refresh()
+        grants = (try? client.grants()) ?? []
+        render()
     }
 
     @objc private func runScan() {

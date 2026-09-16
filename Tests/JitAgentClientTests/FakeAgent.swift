@@ -13,7 +13,12 @@ final class FakeAgent {
     private let listenFD: Int32
     private let thread: Thread
 
-    init(path: String, handler: @escaping Handler) throws {
+    /// - Parameters:
+    ///   - stream: lines written after the reply, one per event, for a
+    ///     `subscribe` request.
+    ///   - holdOpen: keep the connection open after the stream until the
+    ///     peer hangs up, as the real agent does.
+    init(path: String, stream: [String] = [], holdOpen: Bool = false, handler: @escaping Handler) throws {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         var addr = try UnixSocket.address(for: path)
         let bound = UnixSocket.withSockaddr(&addr) { bind(fd, $0, $1) }
@@ -28,6 +33,12 @@ final class FakeAgent {
                     return
                 }
                 Self.serve(conn, handler)
+                for line in stream {
+                    try? UnixSocket.writeAll(conn, Data((line + "\n").utf8))
+                }
+                if holdOpen {
+                    _ = try? UnixSocket.read(conn) { _ in false }
+                }
                 close(conn)
             }
         }
@@ -43,6 +54,8 @@ final class FakeAgent {
         let reply = request
             .flatMap { try? JSONDecoder().decode(AgentRequest.self, from: $0) }
             .map(handler) ?? #"{"ok":false,"error":"bad request"}"#
-        try? UnixSocket.writeAll(conn, Data(reply.utf8))
+        // Go's json.Encoder ends every document with a newline; the stream
+        // reader depends on it to split the acknowledgement from the events.
+        try? UnixSocket.writeAll(conn, Data((reply + "\n").utf8))
     }
 }

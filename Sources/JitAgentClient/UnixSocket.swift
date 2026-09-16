@@ -75,6 +75,29 @@ enum UnixSocket {
         }
     }
 
+    /// Reads newline-delimited documents until EOF or a read error, handing
+    /// each complete line to `onLine`. A trailing partial line is dropped:
+    /// the agent always ends a document with a newline, so a partial one is
+    /// a connection cut mid-write.
+    static func readLines(_ fd: Int32, onLine: (Data) -> Void) throws {
+        var pending = Data()
+        var chunk = [UInt8](repeating: 0, count: 64 * 1024)
+        while true {
+            let n = Darwin.read(fd, &chunk, chunk.count)
+            if n < 0 {
+                throw errnoError("read")
+            }
+            if n == 0 {
+                return
+            }
+            pending.append(chunk, count: n)
+            while let newline = pending.firstIndex(of: 0x0A) {
+                onLine(pending[pending.startIndex ..< newline])
+                pending.removeSubrange(pending.startIndex ... newline)
+            }
+        }
+    }
+
     static func errnoError(_ call: String) -> AgentClientError {
         if errno == EAGAIN || errno == EWOULDBLOCK {
             return .timeout

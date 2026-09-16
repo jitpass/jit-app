@@ -57,12 +57,73 @@ public struct AgentClient: Sendable {
         return response
     }
 
+    /// Opens a `subscribe` stream. `onEvent` is called on a private thread
+    /// for every event the agent records, in order; `onEnd` once, when the
+    /// stream stops for any reason other than `cancel()`, with the error if
+    /// there was one. The caller decides whether to reconnect, after
+    /// re-syncing from `history()`, since anything recorded in the gap is
+    /// only there. No timeout is applied to the stream itself: silence is
+    /// the normal state of an idle session.
+    public func subscribe(
+        onEvent: @escaping @Sendable (SessionEvent) -> Void,
+        onEnd: @escaping @Sendable (Error?) -> Void
+    ) -> Subscription {
+        let subscription = Subscription()
+        let thread = Thread { [self] in
+            do {
+                let fd = try connect(timeout: nil)
+                defer { close(fd) }
+                subscription.attach(fd)
+                var payload = try JSONEncoder().encode(AgentRequest(op: .subscribe))
+                payload.append(0x0A)
+                try UnixSocket.writeAll(fd, payload)
+                let decoder = JSONDecoder()
+                var acknowledged = false
+                var refusal: AgentClientError?
+                try UnixSocket.readLines(fd) { line in
+                    if refusal != nil {
+                        return
+                    }
+                    if !acknowledged {
+                        acknowledged = true
+                        if let ack = try? decoder.decode(AgentResponse.self, from: line), !ack.ok {
+                            refusal = .agent(ack.error ?? "subscribe refused")
+                        }
+                        return
+                    }
+                    if let event = try? decoder.decode(SessionEvent.self, from: line) {
+                        onEvent(event)
+                    }
+                }
+                if let refusal {
+                    throw refusal
+                }
+                if !subscription.isCancelled {
+                    onEnd(nil)
+                }
+            } catch {
+                if !subscription.isCancelled {
+                    onEnd(error)
+                }
+            }
+        }
+        thread.name = "jitpass.subscribe"
+        thread.start()
+        return subscription
+    }
+
     private func connect() throws -> Int32 {
+        try connect(timeout: timeout)
+    }
+
+    private func connect(timeout: TimeInterval?) throws -> Int32 {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else {
             throw UnixSocket.errnoError("socket")
         }
-        UnixSocket.setTimeout(fd, timeout)
+        if let timeout {
+            UnixSocket.setTimeout(fd, timeout)
+        }
         var addr = try UnixSocket.address(for: socketPath)
         let rc = UnixSocket.withSockaddr(&addr) { Darwin.connect(fd, $0, $1) }
         guard rc == 0 else {
