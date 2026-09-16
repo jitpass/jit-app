@@ -43,10 +43,13 @@ final class SubscribeTests: XCTestCase {
         let server = try FakeAgent(path: path) { _ in #"{"ok":false,"error":"subscribe: this request needs agent protocol 9"}"# }
         defer { server.stop() }
         let ended = expectation(description: "onEnd")
-        let sub = AgentClient(socketPath: path).subscribe(onEvent: { _ in XCTFail("no events after a refusal") }) { error in
-            XCTAssertEqual(error as? AgentClientError, .agent("subscribe: this request needs agent protocol 9"))
-            ended.fulfill()
-        }
+        let sub = AgentClient(socketPath: path).subscribe(
+            onEvent: { _ in XCTFail("no events after a refusal") },
+            onEnd: { error in
+                XCTAssertEqual(error as? AgentClientError, .agent("subscribe: this request needs agent protocol 9"))
+                ended.fulfill()
+            }
+        )
         defer { sub.cancel() }
         wait(for: [ended], timeout: 5)
     }
@@ -68,10 +71,13 @@ final class SubscribeTests: XCTestCase {
 
     func testNotRunningEndsImmediately() {
         let ended = expectation(description: "onEnd")
-        let sub = AgentClient(socketPath: path).subscribe(onEvent: { _ in }) { error in
-            XCTAssertEqual(error as? AgentClientError, .notRunning)
-            ended.fulfill()
-        }
+        let sub = AgentClient(socketPath: path).subscribe(
+            onEvent: { _ in },
+            onEnd: { error in
+                XCTAssertEqual(error as? AgentClientError, .notRunning)
+                ended.fulfill()
+            }
+        )
         defer { sub.cancel() }
         wait(for: [ended], timeout: 5)
     }

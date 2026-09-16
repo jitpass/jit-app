@@ -34,9 +34,12 @@ public enum SessionState: Equatable, Sendable {
     /// The secondary line under the headline.
     public var detail: String {
         switch self {
-        case .notRunning: "run jit unlock to start it"
-        case let .locked(reason?): reason
-        case .locked: "session ended"
+        case .notRunning:
+            return "run jit unlock to start it"
+        case let .locked(reason?):
+            return reason
+        case .locked:
+            return "session ended"
         case let .unlocked(expiresIn, ceilingAt):
             let base = "locks in \(Self.countdown(expiresIn))"
             guard let ceilingAt else {
