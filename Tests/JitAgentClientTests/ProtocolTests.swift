@@ -34,6 +34,27 @@ final class ProtocolTests: XCTestCase {
         XCTAssertTrue(g.rootAlive)
     }
 
+    func testHistoryArrivesUnderEvents() throws {
+        // The Go response field is Events (json "events"); a client reading
+        // "history" would silently see an empty tail forever.
+        let json = #"{"ok":true,"events":[{"unix_time":1789200000,"kind":"lock","cause":"5m idle timeout"}]}"#
+        let r = try JSONDecoder().decode(AgentResponse.self, from: Data(json.utf8))
+        XCTAssertEqual(r.events?.first?.cause, "5m idle timeout")
+    }
+
+    func testStatusCeilingAndSettingsDecodeWhenPresent() throws {
+        let json = #"""
+        {"ok":true,"unlocked":true,"expires_in_seconds":252,
+         "ceiling_in_seconds":26520,"ttl_seconds":300,"consent_enabled":true}
+        """#
+        let r = try JSONDecoder().decode(AgentResponse.self, from: Data(json.utf8))
+        XCTAssertEqual(r.ceilingInSeconds, 26520)
+        XCTAssertEqual(r.ttlSeconds, 300)
+        XCTAssertEqual(r.consentEnabled, true)
+        let old = try JSONDecoder().decode(AgentResponse.self, from: Data(#"{"ok":true,"unlocked":true}"#.utf8))
+        XCTAssertNil(old.ceilingInSeconds, "an older agent omits the field; it must read as unknown, not zero")
+    }
+
     func testRequestEncodesSnakeCaseAndOmitsNil() throws {
         let data = try JSONEncoder().encode(AgentRequest(op: .grantRevoke, grantID: "g-1"))
         let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])

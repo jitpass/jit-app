@@ -103,7 +103,12 @@ public struct AgentResponse: Codable, Sendable {
     public var lastUnlock: SessionEvent?
     public var lastLock: SessionEvent?
     public var grants: [GrantStatus]?
-    public var history: [SessionEvent]?
+    /// Answers `history`; the Go field is `Events`, so the key is `events`.
+    public var events: [SessionEvent]?
+    /// Set on `status` by an agent at or after jitpass/jit#105; nil before.
+    public var ceilingInSeconds: Int64?
+    public var ttlSeconds: Int64?
+    public var consentEnabled: Bool?
 
     public init(ok: Bool) {
         self.ok = ok
@@ -115,6 +120,9 @@ public struct AgentResponse: Codable, Sendable {
         case expiresInSeconds = "expires_in_seconds"
         case lastUnlock = "last_unlock"
         case lastLock = "last_lock"
-        case grants, history
+        case grants, events
+        case ceilingInSeconds = "ceiling_in_seconds"
+        case ttlSeconds = "ttl_seconds"
+        case consentEnabled = "consent_enabled"
     }
 }

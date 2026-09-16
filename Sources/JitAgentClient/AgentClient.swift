@@ -100,6 +100,6 @@ public extension AgentClient {
     }
 
     func history() throws -> [SessionEvent] {
-        try send(AgentRequest(op: .history)).history ?? []
+        try send(AgentRequest(op: .history)).events ?? []
     }
 }
