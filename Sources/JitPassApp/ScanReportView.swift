@@ -27,6 +27,8 @@ struct ScanReportView: View {
                     .padding(.bottom, 12)
                     .padding(.trailing, 14)
                 }
+            } else if !model.scanning {
+                chooser
             } else {
                 Spacer()
             }
@@ -34,6 +36,26 @@ struct ScanReportView: View {
         .padding(16)
         .frame(minWidth: 480, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+    }
+
+    /// The first thing the window shows: nothing is scanned until the user
+    /// says where. A whole-home scan takes seconds and reads everything, so
+    /// it is a choice, not a default.
+    private var chooser: some View {
+        VStack(spacing: 14) {
+            Spacer()
+            Text("What should jit scan?").font(.headline)
+            Text(
+                "A folder scan looks only there. The whole Mac covers your home folder,\nshell configs, credential files and agent caches."
+            )
+            .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            HStack(spacing: 10) {
+                Button("Choose Folder…", action: actions.chooseFolder).keyboardShortcut(.defaultAction)
+                Button("Scan Whole Mac", action: actions.scanWholeMac)
+            }
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var header: some View {
@@ -50,7 +72,7 @@ struct ScanReportView: View {
                 }
                 Spacer(minLength: 16)
                 Button("Scan Folder…", action: actions.chooseFolder).disabled(model.scanning)
-                Button("Rescan", action: actions.rescan).disabled(model.scanning)
+                Button("Rescan", action: actions.rescan).disabled(model.scanning || model.scan == nil)
                 Button("Open in Terminal", action: actions.openInTerminal)
             }
             HStack(spacing: 6) {
