@@ -38,10 +38,18 @@ public struct AgentRequest: Codable, Sendable {
     public var grantProfiles: [String]?
     public var projectRoot: String?
     public var ttlSeconds: Int64?
+    /// Tree mode (jitpass/jit#110): `grantName` is the process name to
+    /// cover under the session root at `targetPID`, and `anchorExplicit`
+    /// says this app is not inside that tree and is naming it on purpose;
+    /// the agent then accepts only a genuine session root and puts this
+    /// app's name on the prompt.
+    public var grantName: String?
+    public var anchorExplicit: Bool?
 
     public init(
         op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil,
-        targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil
+        targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil,
+        grantName: String? = nil, anchorExplicit: Bool? = nil
     ) {
         self.op = op
         self.minProtocol = minProtocol
@@ -50,6 +58,8 @@ public struct AgentRequest: Codable, Sendable {
         self.grantProfiles = grantProfiles
         self.projectRoot = projectRoot
         self.ttlSeconds = ttlSeconds
+        self.grantName = grantName
+        self.anchorExplicit = anchorExplicit
     }
 
     enum CodingKeys: String, CodingKey {
@@ -60,6 +70,8 @@ public struct AgentRequest: Codable, Sendable {
         case grantProfiles = "grant_profiles"
         case projectRoot = "project_root"
         case ttlSeconds = "ttl_seconds"
+        case grantName = "grant_name"
+        case anchorExplicit = "anchor_explicit"
     }
 }
 

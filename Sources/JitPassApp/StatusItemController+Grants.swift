@@ -10,10 +10,23 @@ extension StatusItemController {
         GrantActions(
             reloadProcesses: { [weak self] all in
                 self?.model.grantProcesses = RunningProcesses.list(all: all)
+                self?.model.grantSessionRoots = RunningProcesses.sessionRoots()
                 self?.model.grantProfiles = ProfileStore.globalNames()
                 self?.model.brokenProfiles = self?.model.doctor?.brokenProfiles ?? JitCLI.doctor()?.brokenProfiles ?? [:]
             },
-            grant: { [weak self] pid, profiles, ttl in self?.createGrant(pid: pid, profiles: profiles, ttl: ttl) },
+            grant: { [weak self] pid, profiles, ttl in
+                self?.createGrant(profiles: profiles, ttl: ttl) { try $0.createGrant(
+                    pid: pid,
+                    profiles: profiles,
+                    projectRoot: nil,
+                    ttl: ttl
+                ) }
+            },
+            grantTree: { [weak self] anchor, name, profiles, ttl in
+                self?.createGrant(profiles: profiles, ttl: ttl) {
+                    try $0.createTreeGrant(anchorPID: anchor, name: name, profiles: profiles, projectRoot: nil, ttl: ttl)
+                }
+            },
             cancel: { [weak self] in self?.grantWindow.orderOut(nil) }
         )
     }
@@ -41,13 +54,14 @@ extension StatusItemController {
     }
 
     /// One `grant_create`, off the main thread because the agent holds the
-    /// call open while its Touch ID prompt is on screen.
-    func createGrant(pid: Int32, profiles: [String], ttl: TimeInterval) {
+    /// call open while its Touch ID prompt is on screen. `make` is the
+    /// exact-process or tree variant.
+    func createGrant(profiles _: [String], ttl _: TimeInterval, make: @escaping @Sendable (AgentClient) throws -> GrantStatus) {
         model.grantBusy = true
         model.grantError = nil
         let client = client
         Task.detached {
-            let result = Result { try client.createGrant(pid: pid, profiles: profiles, projectRoot: nil, ttl: ttl) }
+            let result = Result { try make(client) }
             await MainActor.run { [weak self] in
                 guard let self else {
                     return

@@ -17,6 +17,9 @@ struct GrantSheetView: View {
     @State private var hours: Double = 8
     @State private var showAll = false
     @State private var search = ""
+    @State private var tree = false
+    @State private var treeName = "claude"
+    @State private var anchorPID: Int32?
 
     private static let durations: [(label: String, hours: Double)] = [("1h", 1), ("8h", 8), ("24h", 24), ("7d", 168)]
 
@@ -27,19 +30,46 @@ struct GrantSheetView: View {
                 Text("Let a program use secrets unattended, until a deadline.").font(.subheadline).foregroundStyle(.secondary)
             }
 
-            field("Process") {
-                HStack(spacing: 8) {
-                    TextField("filter by name or folder", text: $search).textFieldStyle(.roundedBorder)
-                    Toggle("show all", isOn: $showAll).toggleStyle(.checkbox).font(.subheadline)
-                        .onChange(of: showAll) { _, all in actions.reloadProcesses(all) }
-                    Button {
-                        actions.reloadProcesses(showAll)
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .help("Refresh the list")
+            field("Cover") {
+                Picker("Cover", selection: $tree) {
+                    Text("one running process").tag(false)
+                    Text("any process by name, under an app").tag(true)
                 }
-                processList
+                .pickerStyle(.segmented).labelsHidden()
+            }
+
+            if tree {
+                field("Name") {
+                    TextField("claude", text: $treeName).textFieldStyle(.roundedBorder).frame(width: 200)
+                }
+                field("Under") {
+                    Picker("Under", selection: $anchorPID) {
+                        Text("choose a terminal or editor…").tag(Int32?.none)
+                        ForEach(model.grantSessionRoots) { root in
+                            Text("\(root.name) · running \(RunningProcess.age(root.elapsed))").tag(Int32?.some(root.pid))
+                        }
+                    }
+                    .labelsHidden()
+                    Text("Covers every \(treeName.isEmpty ? "process" : treeName) started under that app, now or later, for the duration.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+
+            if !tree {
+                field("Process") {
+                    HStack(spacing: 8) {
+                        TextField("filter by name or folder", text: $search).textFieldStyle(.roundedBorder)
+                        Toggle("show all", isOn: $showAll).toggleStyle(.checkbox).font(.subheadline)
+                            .onChange(of: showAll) { _, all in actions.reloadProcesses(all) }
+                        Button {
+                            actions.reloadProcesses(showAll)
+                        } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                        .help("Refresh the list")
+                    }
+                    processList
+                }
             }
 
             field("Profiles") {
@@ -59,7 +89,8 @@ struct GrantSheetView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("• covers the chosen profiles' secrets as they are now")
-                Text("• that exact process only; ends when it exits or at the deadline")
+                Text(tree ? "• every matching process under that app; ends if the app quits or at the deadline"
+                    : "• that exact process only; ends when it exits or at the deadline")
                 Text("• survives screen lock; revoke any time from the menu")
             }
             .font(.subheadline).foregroundStyle(.secondary)
@@ -78,19 +109,27 @@ struct GrantSheetView: View {
                 Spacer()
                 Button("Cancel", action: actions.cancel).keyboardShortcut(.cancelAction)
                 Button(model.grantBusy ? "Waiting for Touch ID…" : "Grant with Touch ID") {
-                    guard let pid else {
-                        return
+                    if tree, let anchorPID {
+                        actions.grantTree(anchorPID, treeName, Array(profiles).sorted(), hours * 3600)
+                    } else if let pid {
+                        actions.grant(pid, Array(profiles).sorted(), hours * 3600)
                     }
-                    actions.grant(pid, Array(profiles).sorted(), hours * 3600)
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(pid == nil || profiles.isEmpty || model.grantBusy)
+                .disabled(!canGrant)
             }
         }
         .padding(18)
         .frame(width: 520)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onAppear { actions.reloadProcesses(showAll) }
+    }
+
+    private var canGrant: Bool {
+        guard !profiles.isEmpty, !model.grantBusy else {
+            return false
+        }
+        return tree ? (anchorPID != nil && !treeName.isEmpty) : pid != nil
     }
 
     private var visibleProcesses: [RunningProcess] {
@@ -196,5 +235,6 @@ struct GrantSheetView: View {
 struct GrantActions {
     var reloadProcesses: (Bool) -> Void = { _ in }
     var grant: (Int32, [String], TimeInterval) -> Void = { _, _, _ in }
+    var grantTree: (Int32, String, [String], TimeInterval) -> Void = { _, _, _, _ in }
     var cancel: () -> Void = {}
 }

@@ -79,6 +79,26 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(obj["ttl_seconds"] as? Int, 28800)
     }
 
+    func testTreeGrantEncodesNameAndExplicitAnchor() throws {
+        let request = AgentRequest(
+            op: .grantCreate,
+            targetPID: 501,
+            grantProfiles: ["jamf"],
+            ttlSeconds: 3600,
+            grantName: "claude",
+            anchorExplicit: true
+        )
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        XCTAssertEqual(obj["grant_name"] as? String, "claude")
+        XCTAssertEqual(obj["anchor_explicit"] as? Bool, true)
+        XCTAssertEqual(obj["target_pid"] as? Int, 501)
+        let exact = try JSONSerialization.jsonObject(with: JSONEncoder().encode(AgentRequest(
+            op: .grantCreate,
+            targetPID: 7
+        ))) as? [String: Any]
+        XCTAssertNil(exact?["anchor_explicit"], "an exact-process grant never claims an explicit anchor")
+    }
+
     func testAppNeverSpeaksWrapOrUnwrap() {
         // The op set is the app's whole vocabulary. Keeping DEK ops out of it
         // is what guarantees no plaintext or key can reach this process.
