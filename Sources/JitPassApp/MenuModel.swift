@@ -26,6 +26,8 @@ final class MenuModel: ObservableObject {
     @Published var auditLoading = false
     @Published var grantProcesses: [RunningProcess] = []
     @Published var grantProfiles: [String] = []
+    /// Profiles doctor reports as broken, with why; never offered.
+    @Published var brokenProfiles: [String: String] = [:]
     @Published var grantBusy = false
     @Published var grantError: String?
     @Published var settingsBusy = false
