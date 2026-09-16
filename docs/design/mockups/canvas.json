@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 760, "h": 700, "title": "Dropdown, unlocked" },
+    { "file": "Locked.dc.html", "x": 840, "y": 0, "w": 560, "h": 520, "title": "Dropdown, locked" },
+    { "file": "NewGrant.dc.html", "x": 0, "y": 820, "w": 560, "h": 520, "title": "New Grant sheet" },
+    { "file": "Consent.dc.html", "x": 640, "y": 820, "w": 560, "h": 520, "title": "Consent prompt (phase 4)" },
+    { "file": "Notification.dc.html", "x": 1280, "y": 820, "w": 560, "h": 300, "title": "Notifications" }
+  ],
+  "annotations": [
+    { "id": "note-palette", "x": 0, "y": -110, "w": 460, "text": "Dark translucent menu, same anatomy as the reference: shield + headline, state rows, last event, actions with shortcuts. Green shield = unlocked, grey = locked, amber = a question. No secret value is ever shown." }
+  ],
+  "launch": { "view": "canvas" }
+}

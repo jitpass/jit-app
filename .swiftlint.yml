@@ -1,0 +1,22 @@
+included:
+  - Sources
+  - Tests
+disabled_rules:
+  - trailing_comma
+  - todo
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - first_where
+  - sorted_first_last
+  - unneeded_parentheses_in_closure_argument
+line_length:
+  warning: 140
+  error: 180
+identifier_name:
+  min_length: 2
+  excluded: [id, fd, tv, n, s, r, g, f, x, y]
+file_header:
+  required_pattern: |
+    \/\/ Copyright 2026 Meni Tasa
+    \/\/ SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1\.0\.0

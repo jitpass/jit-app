@@ -1,0 +1,6 @@
+--swiftversion 5.10
+--indent 4
+--maxwidth 140
+--commas inline
+--header "Copyright 2026 Meni Tasa\nSPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0"
+--exclude .build,dist,docs
