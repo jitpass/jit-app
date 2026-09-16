@@ -9,17 +9,18 @@ import SwiftUI
 /// brought to the front when shown and the app stays an accessory otherwise.
 @MainActor
 final class ReportWindow: NSWindow {
-    init(title: String, content: some View) {
+    init(title: String, content: some View, size: NSSize, minSize: NSSize) {
         super.init(
-            contentRect: .zero,
-            styleMask: [.titled, .closable, .miniaturizable],
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
         self.title = title
         isReleasedWhenClosed = false
+        contentMinSize = minSize
         contentView = NSHostingView(rootView: content)
-        setContentSize(contentView?.fittingSize ?? .zero)
+        setContentSize(size)
         center()
     }
 

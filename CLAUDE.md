@@ -7,12 +7,14 @@ before touching anything that speaks to the socket.
 ## Commands
 
 ```sh
-swift build
-swift test
+scripts/gate.sh                    # format, lint, build, test: the ONLY way to build for a commit
+scripts/gate.sh --run              # same, then bundle and relaunch the dev build
 swift run JitPass
-scripts/bundle.sh release          # dist/JitPass.app
-swiftformat --lint . && swiftlint --strict
 ```
+
+Never chain the build through `grep` or `;` by hand: that swallowed a
+compile error twice and pushed commits that did not build. `gate.sh` fails
+on the first failing step.
 
 CI (`.github/workflows/ci.yml`) is the canonical gate: format, lint, SPDX
 headers, build, test, bundle. Run `swiftformat .` before `--lint`; the
