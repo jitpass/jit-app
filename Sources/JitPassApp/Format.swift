@@ -39,6 +39,17 @@ enum Format {
         return parts.joined(separator: " · ")
     }
 
+    static func doctorSummary(_ report: DoctorReport) -> String {
+        var parts: [String] = []
+        if let tool = report.tool {
+            parts.append("jit \(tool.version)" + (tool.signature.map { " · \($0)" } ?? ""))
+        }
+        if let profiles = report.profilesChecked, let secrets = report.secretsChecked {
+            parts.append("\(profiles) profiles, \(secrets) secrets checked")
+        }
+        return parts.joined(separator: " · ")
+    }
+
     /// 300 -> "5m", 3600 -> "1h": the form `jit service ttl` prints and takes.
     static func duration(seconds: Int64?) -> String {
         guard let seconds, seconds > 0 else {

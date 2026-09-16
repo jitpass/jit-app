@@ -30,6 +30,8 @@ final class MenuModel: ObservableObject {
     @Published var brokenProfiles: [String: String] = [:]
     @Published var grantBusy = false
     @Published var grantError: String?
+    @Published var doctor: DoctorReport?
+    @Published var doctorRunning = false
     @Published var settingsBusy = false
     @Published var settingsMessage: String?
     @Published var launchAtLogin = false
@@ -61,6 +63,13 @@ final class MenuModel: ObservableObject {
 
     var consentValue: String? {
         consentEnabled.map { $0 ? "On" : "Off" }
+    }
+
+    var doctorValue: String {
+        if doctorRunning {
+            return "checking…"
+        }
+        return doctor?.verdict ?? "not checked"
     }
 
     var exposureValue: String {

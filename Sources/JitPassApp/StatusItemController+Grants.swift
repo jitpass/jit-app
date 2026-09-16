@@ -11,7 +11,7 @@ extension StatusItemController {
             reloadProcesses: { [weak self] all in
                 self?.model.grantProcesses = RunningProcesses.list(all: all)
                 self?.model.grantProfiles = ProfileStore.globalNames()
-                self?.model.brokenProfiles = JitCLI.doctor()?.brokenProfiles ?? [:]
+                self?.model.brokenProfiles = self?.model.doctor?.brokenProfiles ?? JitCLI.doctor()?.brokenProfiles ?? [:]
             },
             grant: { [weak self] pid, profiles, ttl in self?.createGrant(pid: pid, profiles: profiles, ttl: ttl) },
             cancel: { [weak self] in self?.grantWindow.orderOut(nil) }
