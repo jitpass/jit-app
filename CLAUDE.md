@@ -53,6 +53,17 @@ tools alone, but `swift test` and `swiftlint` need Xcode's toolchain: if
 - **Dependencies: none.** Foundation and AppKit. Adding a package needs the
   same justification jit's `TECH_STACK.md` §2 demands.
 
+## Release rules
+
+Same as jit's: never ship unsigned (the workflow's preflight refuses rather
+than skipping), sign by TEAM ID never by identity name (this machine's
+keychain holds a second, unrelated team), verify the PUBLISHED zip and not
+`dist/`, publish as a draft and undraft only after that verification. The
+bundle CAN be stapled, unlike jit's bare binary, so the cask needs no online
+ticket fetch. Local credentials live in `~/.apple-signing`; the five Apple
+secrets are set on this repo; `HOMEBREW_TAP_GITHUB_TOKEN` is not, so the
+cask is pushed to the tap by hand until it is.
+
 ## Conventions
 
 - Every `.swift` file carries the SPDX header (CI fails without it).

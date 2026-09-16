@@ -24,4 +24,8 @@ jobs:
       - name: Test
         run: swift test
       - name: Bundle
-        run: scripts/bundle.sh release && ls -R dist/JitPass.app
+        run: |
+          scripts/bundle.sh release && ls -R dist/JitPass.app
+          scripts/cask.sh 0.0.0 0000 > /dev/null
+      - name: Scripts pass shellcheck
+        run: brew install shellcheck && shellcheck -s bash scripts/*.sh
