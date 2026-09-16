@@ -26,6 +26,12 @@ enum Terminal {
     /// prefer them when several are running.
     static let scriptRunners = ["iTerm2", "Warp", "Terminal"]
 
+    /// Single-quotes a path for the script, escaping embedded quotes, so a
+    /// folder name with spaces or quotes survives the shell.
+    static func quoted(_ path: String) -> String {
+        "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     static func run(_ command: String) {
         guard let script = writeScript(command) else {
             return

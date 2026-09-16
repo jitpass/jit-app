@@ -63,7 +63,12 @@ final class StatusItemController {
     private var scanActions: ScanActions {
         ScanActions(
             rescan: { [weak self] in self?.runScan() },
-            openInTerminal: { [weak self] in self?.runInTerminal("jit scan --full") },
+            chooseFolder: { [weak self] in self?.chooseScanFolder() },
+            scanWholeMac: { [weak self] in
+                self?.model.scanScope = nil
+                self?.runScan()
+            },
+            openInTerminal: { [weak self] in self?.openScanInTerminal() },
             fix: { [weak self] command in self?.runInTerminal(command) }
         )
     }
@@ -79,6 +84,28 @@ final class StatusItemController {
         }
     }
 
+    /// The standard folder picker; a choice limits the next scan to it,
+    /// exactly as `jit scan <path>` would.
+    private func chooseScanFolder() {
+        let picker = NSOpenPanel()
+        picker.canChooseDirectories = true
+        picker.canChooseFiles = false
+        picker.allowsMultipleSelection = false
+        picker.prompt = "Scan"
+        picker.message = "Choose a folder to scan for plaintext secrets."
+        picker.directoryURL = model.scanScope.map { URL(fileURLWithPath: $0) }
+        guard picker.runModal() == .OK, let url = picker.url else {
+            return
+        }
+        model.scanScope = url.path
+        runScan()
+    }
+
+    private func openScanInTerminal() {
+        let scope = model.scanScope.map { " " + Terminal.quoted($0) } ?? ""
+        runInTerminal("jit scan --full" + scope)
+    }
+
     /// Runs `jit scan` off the main thread and publishes the report. The
     /// scan is read-only and never prompts, which is what makes it safe to
     /// start from a click.
@@ -90,8 +117,9 @@ final class StatusItemController {
         }
         model.scanning = true
         model.scanError = nil
+        let scope = model.scanScope
         Task.detached {
-            let result = Result { try JitCLI.scan() }
+            let result = Result { try JitCLI.scan(path: scope) }
             await MainActor.run { [weak self] in
                 guard let self else {
                     return
