@@ -1,13 +1,64 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 760, "h": 700, "title": "Dropdown, unlocked" },
-    { "file": "Locked.dc.html", "x": 840, "y": 0, "w": 560, "h": 520, "title": "Dropdown, locked" },
-    { "file": "NewGrant.dc.html", "x": 0, "y": 820, "w": 560, "h": 520, "title": "New Grant sheet" },
-    { "file": "Consent.dc.html", "x": 640, "y": 820, "w": 560, "h": 520, "title": "Consent prompt (phase 4)" },
-    { "file": "Notification.dc.html", "x": 1280, "y": 820, "w": 560, "h": 300, "title": "Notifications" }
+    {
+      "file": "Main.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 760,
+      "h": 700,
+      "title": "Dropdown, unlocked"
+    },
+    {
+      "file": "Locked.dc.html",
+      "x": 840,
+      "y": 0,
+      "w": 560,
+      "h": 520,
+      "title": "Dropdown, locked"
+    },
+    {
+      "file": "NewGrant.dc.html",
+      "x": 0,
+      "y": 820,
+      "w": 560,
+      "h": 520,
+      "title": "New Grant sheet"
+    },
+    {
+      "file": "Consent.dc.html",
+      "x": 640,
+      "y": 820,
+      "w": 560,
+      "h": 520,
+      "title": "Consent prompt (phase 4)"
+    },
+    {
+      "file": "Notification.dc.html",
+      "x": 1280,
+      "y": 820,
+      "w": 560,
+      "h": 300,
+      "title": "Notifications"
+    },
+    {
+      "file": "ScanReport.dc.html",
+      "x": 1440,
+      "y": 0,
+      "w": 760,
+      "h": 600,
+      "title": "Scan window"
+    }
   ],
   "annotations": [
-    { "id": "note-palette", "x": 0, "y": -110, "w": 460, "text": "Dark translucent menu, same anatomy as the reference: shield + headline, state rows, last event, actions with shortcuts. Green shield = unlocked, grey = locked, amber = a question. No secret value is ever shown." }
+    {
+      "id": "note-palette",
+      "x": 0,
+      "y": -110,
+      "w": 520,
+      "text": "Native material everywhere: the system's translucent menu / window background that takes the wallpaper tint and follows light or dark mode. No painted colour. Only the mark and the finding dots carry jit's state colours: green fine, amber needs a look, red act now. Panel is menu-sized (300 wide)."
+    }
   ],
-  "launch": { "view": "canvas" }
+  "launch": {
+    "view": "canvas"
+  }
 }
