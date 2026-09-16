@@ -63,6 +63,22 @@ final class ProtocolTests: XCTestCase {
         XCTAssertNil(obj["min_protocol"])
     }
 
+    func testGrantCreateEncodesEveryField() throws {
+        let request = AgentRequest(
+            op: .grantCreate,
+            targetPID: 48211,
+            grantProfiles: ["jamf", "aws-ci"],
+            projectRoot: "/Users/me/app",
+            ttlSeconds: 28800
+        )
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        XCTAssertEqual(obj["op"] as? String, "grant_create")
+        XCTAssertEqual(obj["target_pid"] as? Int, 48211)
+        XCTAssertEqual(obj["grant_profiles"] as? [String], ["jamf", "aws-ci"])
+        XCTAssertEqual(obj["project_root"] as? String, "/Users/me/app")
+        XCTAssertEqual(obj["ttl_seconds"] as? Int, 28800)
+    }
+
     func testAppNeverSpeaksWrapOrUnwrap() {
         // The op set is the app's whole vocabulary. Keeping DEK ops out of it
         // is what guarantees no plaintext or key can reach this process.

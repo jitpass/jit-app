@@ -23,6 +23,10 @@ final class MenuModel: ObservableObject {
     @Published var audit: AuditReport?
     @Published var auditFilter = AuditFilter(since: "24h")
     @Published var auditLoading = false
+    @Published var grantProcesses: [RunningProcess] = []
+    @Published var grantProfiles: [String] = []
+    @Published var grantBusy = false
+    @Published var grantError: String?
 
     var serviceValue: String {
         switch state {
