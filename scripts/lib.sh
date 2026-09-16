@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 #
 # Shared constants for the release scripts. Sourced, never run.
+# shellcheck disable=SC2034  # every name here is used by the scripts that source it
 
 # The Apple Team ID every release must be signed under. The same value jit's
 # upgradeTeamIDs[0] names: a bundle signed by any other team is not a
