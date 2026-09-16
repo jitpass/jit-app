@@ -8,6 +8,8 @@
 	<string>JitPass</string>
 	<key>CFBundleExecutable</key>
 	<string>JitPass</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.jitpass.app</string>
 	<key>CFBundleInfoDictionaryVersion</key>

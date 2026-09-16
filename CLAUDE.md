@@ -66,6 +66,14 @@ ticket fetch. Local credentials live in `~/.apple-signing`; the five Apple
 secrets are set on this repo; `HOMEBREW_TAP_GITHUB_TOKEN` is not, so the
 cask is pushed to the tap by hand until it is.
 
+## Icon
+
+`Resources/AppIcon.icns` is generated, never hand-edited: `swift
+scripts/icon.swift <dir>` draws the jitpass mark (dot in a soft ring, from
+jitpass.com/icon.svg) on the macOS plate at every iconset size, and
+`iconutil -c icns` compiles it. Regenerate and commit the icns when the mark
+changes; the menu bar item draws the same mark in `StatusMark`.
+
 ## Conventions
 
 - Every `.swift` file carries the SPDX header (CI fails without it).
