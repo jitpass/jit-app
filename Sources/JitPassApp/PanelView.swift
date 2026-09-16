@@ -169,10 +169,29 @@ enum Severity {
     }
 }
 
+/// A menu row's highlight: the accent colour under the pointer with white
+/// text, inset and rounded the way macOS draws its own menu items.
 private struct HoverRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? Color.primary.opacity(0.1) : .clear)
+        HoverHighlight(pressed: configuration.isPressed) { configuration.label }
+    }
+}
+
+private struct HoverHighlight<Label: View>: View {
+    var pressed: Bool
+    @ViewBuilder var label: () -> Label
+    @State private var hovering = false
+
+    var body: some View {
+        let lit = hovering || pressed
+        label()
+            .foregroundStyle(lit ? Color.white : Color.primary)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(lit ? Color.accentColor : .clear)
+                    .padding(.horizontal, 5)
+            )
+            .onHover { hovering = $0 }
     }
 }
 
