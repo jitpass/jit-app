@@ -23,6 +23,13 @@ struct ScanReportView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         section("jit will protect these", report.migratable, fixable: true)
                         section("Only you can fix these", report.manual, fixable: false)
+                        if !report.scaffolding.isEmpty {
+                            section("Test fixtures and examples", report.scaffolding, fixable: false)
+                            Text(
+                                "Real-looking values in test files or documentation. The scanner counts them in the score; check they are not live."
+                            )
+                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.bottom, 12)
                     .padding(.trailing, 14)
@@ -77,7 +84,7 @@ struct ScanReportView: View {
             }
             HStack(spacing: 6) {
                 if !model.scanning, let s = model.scan?.summary {
-                    Text(Format.scanSummary(s))
+                    Text(Format.scanSummary(s, wholeMac: model.scanScope == nil))
                     Text("·")
                 }
                 if let scope = model.scanScope {

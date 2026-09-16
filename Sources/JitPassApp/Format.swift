@@ -24,8 +24,19 @@ enum Format {
         return ([first.capitalized] + words.dropFirst()).joined(separator: " ")
     }
 
-    static func scanSummary(_ s: ScanSummary) -> String {
-        "\(s.totalFindings) findings · \(s.secretsProtected) of \(s.secretsTotal) secrets protected · \(s.filesScanned) files"
+    /// The protected-secrets tally is machine-wide (it reads the vault), so
+    /// it is shown only for a whole-Mac scan; a folder scan would put a
+    /// global number under a local scope. A zero file count is not a fact
+    /// worth printing.
+    static func scanSummary(_ s: ScanSummary, wholeMac: Bool) -> String {
+        var parts = ["\(s.totalFindings) findings"]
+        if wholeMac {
+            parts.append("\(s.secretsProtected) of \(s.secretsTotal) secrets protected")
+        }
+        if s.filesScanned > 0 {
+            parts.append("\(s.filesScanned) files")
+        }
+        return parts.joined(separator: " · ")
     }
 
     static func event(_ event: SessionEvent) -> String {
