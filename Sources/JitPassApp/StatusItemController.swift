@@ -27,8 +27,8 @@ final class StatusItemController {
     lazy var grantWindow = ReportWindow(
         title: "New Grant",
         content: GrantSheetView(model: model, actions: grantActions),
-        size: NSSize(width: 420, height: 420),
-        minSize: NSSize(width: 420, height: 360)
+        size: NSSize(width: 520, height: 560),
+        minSize: NSSize(width: 520, height: 480)
     )
     lazy var settingsWindow = ReportWindow(
         title: "JitPass Settings",

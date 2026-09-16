@@ -16,6 +16,7 @@ struct GrantSheetView: View {
     @State private var profiles: Set<String> = []
     @State private var hours: Double = 8
     @State private var showAll = false
+    @State private var search = ""
 
     private static let durations: [(label: String, hours: Double)] = [("1h", 1), ("8h", 8), ("24h", 24), ("7d", 168)]
 
@@ -27,13 +28,18 @@ struct GrantSheetView: View {
             }
 
             field("Process") {
-                Picker("Process", selection: $pid) {
-                    Text("choose…").tag(Int32?.none)
-                    ForEach(model.grantProcesses) { Text($0.label).tag(Int32?.some($0.pid)) }
+                HStack(spacing: 8) {
+                    TextField("filter by name or folder", text: $search).textFieldStyle(.roundedBorder)
+                    Toggle("show all", isOn: $showAll).toggleStyle(.checkbox).font(.subheadline)
+                        .onChange(of: showAll) { _, all in actions.reloadProcesses(all) }
+                    Button {
+                        actions.reloadProcesses(showAll)
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .help("Refresh the list")
                 }
-                .labelsHidden()
-                Toggle("show all", isOn: $showAll).toggleStyle(.checkbox).font(.subheadline)
-                    .onChange(of: showAll) { _, all in actions.reloadProcesses(all) }
+                processList
             }
 
             field("Profiles") {
@@ -76,9 +82,57 @@ struct GrantSheetView: View {
             }
         }
         .padding(18)
-        .frame(width: 420)
+        .frame(width: 520)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onAppear { actions.reloadProcesses(showAll) }
+    }
+
+    private var visibleProcesses: [RunningProcess] {
+        let needle = search.lowercased()
+        guard !needle.isEmpty else {
+            return model.grantProcesses
+        }
+        return model.grantProcesses.filter { $0.name.lowercased().contains(needle) || $0.folder.lowercased().contains(needle) }
+    }
+
+    /// Two-line rows in a real list: what and where on the first line, the
+    /// terminal, age and pid on the second, so two claudes are told apart
+    /// by the folder they work in rather than by number.
+    private var processList: some View {
+        List(visibleProcesses, selection: $pid) { process in
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(process.name).fontWeight(.semibold)
+                    if !process.folder.isEmpty {
+                        Text(process.folder).lineLimit(1).truncationMode(.middle)
+                    }
+                }
+                Text(Self.secondLine(process)).font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 2)
+            .tag(Int32?.some(process.pid))
+        }
+        .frame(height: 170)
+        .scrollContentBackground(.hidden)
+        .background(Color.primary.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        .overlay {
+            if visibleProcesses.isEmpty {
+                Text(model.grantProcesses.isEmpty ? "nothing running that jit usually grants to; try show all" : "no match")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private static func secondLine(_ process: RunningProcess) -> String {
+        var parts: [String] = []
+        if !process.under.isEmpty {
+            parts.append("under \(process.under)")
+        }
+        parts.append("running \(RunningProcess.age(process.elapsed))")
+        parts.append("pid \(process.pid)")
+        return parts.joined(separator: " · ")
     }
 
     /// Checkboxes in a bordered box, the way a settings list looks; it
