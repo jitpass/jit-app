@@ -11,6 +11,9 @@ enum StatusMark {
     static let green = NSColor(srgbRed: 0x3E / 255, green: 0xCF / 255, blue: 0x8E / 255, alpha: 1)
     static let red = NSColor(srgbRed: 0xE5 / 255, green: 0x48 / 255, blue: 0x4D / 255, alpha: 1)
     static let amber = NSColor(srgbRed: 0xF0 / 255, green: 0xB5 / 255, blue: 0x45 / 255, alpha: 1)
+    /// The one colour for the one thing you can act on, matching the
+    /// terminal's cyan role.
+    static let accent = NSColor(srgbRed: 0x7F / 255, green: 0xD4 / 255, blue: 0xFF / 255, alpha: 1)
 
     static func color(for state: SessionState) -> NSColor {
         switch state {
