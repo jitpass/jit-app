@@ -1,8 +1,8 @@
 // Copyright 2026 Meni Tasa
 // SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 
-import XCTest
 @testable import JitAgentClient
+import XCTest
 
 final class ProtocolTests: XCTestCase {
     func testStatusResponseDecodes() throws {

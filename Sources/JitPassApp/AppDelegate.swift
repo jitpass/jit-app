@@ -7,7 +7,7 @@ import JitAgentClient
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController?
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_: Notification) {
         statusItem = StatusItemController(client: AgentClient())
         statusItem?.start()
     }

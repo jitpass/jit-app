@@ -65,7 +65,9 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         case cause
     }
 
-    public var date: Date { Date(timeIntervalSince1970: TimeInterval(unixTime)) }
+    public var date: Date {
+        Date(timeIntervalSince1970: TimeInterval(unixTime))
+    }
 }
 
 public struct GrantStatus: Codable, Sendable, Equatable, Identifiable {
@@ -87,7 +89,9 @@ public struct GrantStatus: Codable, Sendable, Equatable, Identifiable {
         case rootAlive = "root_alive"
     }
 
-    public var expires: Date { Date(timeIntervalSince1970: TimeInterval(expiresUnix)) }
+    public var expires: Date {
+        Date(timeIntervalSince1970: TimeInterval(expiresUnix))
+    }
 }
 
 public struct AgentResponse: Codable, Sendable {
@@ -101,7 +105,9 @@ public struct AgentResponse: Codable, Sendable {
     public var grants: [GrantStatus]?
     public var history: [SessionEvent]?
 
-    public init(ok: Bool) { self.ok = ok }
+    public init(ok: Bool) {
+        self.ok = ok
+    }
 
     enum CodingKeys: String, CodingKey {
         case ok, error, unlocked

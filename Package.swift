@@ -9,7 +9,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "JitPass", targets: ["JitPassApp"]),
-        .library(name: "JitAgentClient", targets: ["JitAgentClient"]),
+        .library(name: "JitAgentClient", targets: ["JitAgentClient"])
     ],
     targets: [
         // The socket client: pure Foundation, no AppKit, fully testable.
@@ -22,6 +22,6 @@ let package = Package(
         .testTarget(
             name: "JitAgentClientTests",
             dependencies: ["JitAgentClient"]
-        ),
+        )
     ]
 )

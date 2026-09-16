@@ -15,14 +15,25 @@ swiftformat --lint . && swiftlint --strict
 ```
 
 CI (`.github/workflows/ci.yml`) is the canonical gate: format, lint, SPDX
-headers, build, test, bundle. Xcode is not required; the project is a plain
-Swift Package with no `.xcodeproj` checked in (and `.gitignore` refuses one).
+headers, build, test, bundle. Run `swiftformat .` before `--lint`; the
+formatter's own defaults are the style, the config only sets width and the
+header. The project is a plain Swift Package with no `.xcodeproj` checked in
+(and `.gitignore` refuses one). `swift build` works with the command line
+tools alone, but `swift test` and `swiftlint` need Xcode's toolchain: if
+`xcode-select -p` still points at the CLT, prefix commands with
+`DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`.
 
 ## Architecture rules
 
 - **`JitAgentClient` has no AppKit import and `JitPassApp` has no socket
   code.** The library is what tests cover; the app is rendering plus one
-  method call per menu item.
+  method call per menu item. Inside the library, `UnixSocket` holds every
+  POSIX call and `AgentClient` holds only protocol logic; the test fake
+  (`FakeAgent`) is built on the same `UnixSocket` helpers so the framing
+  cannot drift between the two.
+- **User-facing strings are composed in `Format`, never inline in menu
+  building.** One place to change wording, and the controller stays a list
+  of rows.
 - **The app's op vocabulary is `AgentOp`, and it never contains `wrap`,
   `unwrap` or `reveal_pid`.** `testAppNeverSpeaksWrapOrUnwrap` enforces it.
   That is the whole guarantee that no plaintext or data key reaches this

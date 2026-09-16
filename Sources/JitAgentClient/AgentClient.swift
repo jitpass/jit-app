@@ -34,87 +34,72 @@ public struct AgentClient: Sendable {
     }
 
     public func send(_ request: AgentRequest) throws -> AgentResponse {
-        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw AgentClientError.io("socket: \(errnoString())") }
+        let fd = try connect()
         defer { close(fd) }
 
-        var tv = timeval(tv_sec: Int(timeout), tv_usec: Int32((timeout - floor(timeout)) * 1_000_000))
-        _ = withUnsafePointer(to: &tv) {
-            setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, $0, socklen_t(MemoryLayout<timeval>.size))
-        }
-        _ = withUnsafePointer(to: &tv) {
-            setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, $0, socklen_t(MemoryLayout<timeval>.size))
-        }
-
-        var addr = sockaddr_un()
-        addr.sun_family = sa_family_t(AF_UNIX)
-        let pathBytes = Array(socketPath.utf8)
-        let capacity = MemoryLayout.size(ofValue: addr.sun_path) - 1
-        guard pathBytes.count <= capacity else { throw AgentClientError.io("socket path too long") }
-        withUnsafeMutableBytes(of: &addr.sun_path) { raw in
-            raw.copyBytes(from: pathBytes)
-            raw[pathBytes.count] = 0
-        }
-        let connected = withUnsafePointer(to: &addr) {
-            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
-                connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
-            }
-        }
-        guard connected == 0 else {
-            if errno == ENOENT || errno == ECONNREFUSED { throw AgentClientError.notRunning }
-            throw AgentClientError.io("connect: \(errnoString())")
-        }
-
+        // Go's json.Encoder terminates each document with a newline; mirror it.
         var payload = try JSONEncoder().encode(request)
-        payload.append(0x0A) // Go's json.Encoder terminates with a newline; mirror it.
-        try payload.withUnsafeBytes { buf in
-            var sent = 0
-            while sent < buf.count {
-                let n = write(fd, buf.baseAddress! + sent, buf.count - sent)
-                if n < 0 {
-                    if errno == EAGAIN || errno == EWOULDBLOCK { throw AgentClientError.timeout }
-                    throw AgentClientError.io("write: \(errnoString())")
-                }
-                sent += n
-            }
-        }
+        payload.append(0x0A)
+        try UnixSocket.writeAll(fd, payload)
 
-        // The agent writes one JSON document and closes. Accumulate until it
-        // parses, so a reply split across reads is handled and a slow prompt
-        // surfaces as a timeout rather than a corrupt decode.
-        var received = Data()
-        var chunk = [UInt8](repeating: 0, count: 64 * 1024)
-        while true {
-            let n = read(fd, &chunk, chunk.count)
-            if n < 0 {
-                if errno == EAGAIN || errno == EWOULDBLOCK { throw AgentClientError.timeout }
-                throw AgentClientError.io("read: \(errnoString())")
-            }
-            if n == 0 { break }
-            received.append(chunk, count: n)
-            if let response = try? JSONDecoder().decode(AgentResponse.self, from: received) {
-                return try Self.check(response)
-            }
+        // The agent writes one JSON document and closes. Stop as soon as the
+        // buffer parses, so a reply split across reads is handled and a slow
+        // prompt surfaces as a timeout rather than a corrupt decode.
+        let decoder = JSONDecoder()
+        let received = try UnixSocket.read(fd) { (try? decoder.decode(AgentResponse.self, from: $0)) != nil }
+        guard !received.isEmpty else {
+            throw AgentClientError.io("empty reply")
         }
-        guard !received.isEmpty else { throw AgentClientError.io("empty reply") }
-        return try Self.check(JSONDecoder().decode(AgentResponse.self, from: received))
-    }
-
-    static func check(_ response: AgentResponse) throws -> AgentResponse {
-        guard response.ok else { throw AgentClientError.agent(response.error ?? "unknown error") }
+        let response = try decoder.decode(AgentResponse.self, from: received)
+        guard response.ok else {
+            throw AgentClientError.agent(response.error ?? "unknown error")
+        }
         return response
     }
 
-    private func errnoString() -> String { String(cString: strerror(errno)) }
+    private func connect() throws -> Int32 {
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else {
+            throw UnixSocket.errnoError("socket")
+        }
+        UnixSocket.setTimeout(fd, timeout)
+        var addr = try UnixSocket.address(for: socketPath)
+        let rc = UnixSocket.withSockaddr(&addr) { Darwin.connect(fd, $0, $1) }
+        guard rc == 0 else {
+            close(fd)
+            if errno == ENOENT || errno == ECONNREFUSED {
+                throw AgentClientError.notRunning
+            }
+            throw UnixSocket.errnoError("connect")
+        }
+        return fd
+    }
 }
 
-// MARK: - Typed convenience calls, one per row the app renders.
+// MARK: - Typed calls, one per row the app renders
 
 public extension AgentClient {
-    func status() throws -> AgentResponse { try send(AgentRequest(op: .status)) }
-    func lock() throws -> AgentResponse { try send(AgentRequest(op: .lock)) }
-    func unlock() throws -> AgentResponse { try send(AgentRequest(op: .unlock)) }
-    func grants() throws -> [GrantStatus] { try send(AgentRequest(op: .grantList)).grants ?? [] }
-    func revokeGrant(id: String) throws { _ = try send(AgentRequest(op: .grantRevoke, grantID: id)) }
-    func history() throws -> [SessionEvent] { try send(AgentRequest(op: .history)).history ?? [] }
+    func status() throws -> AgentResponse {
+        try send(AgentRequest(op: .status))
+    }
+
+    func lock() throws -> AgentResponse {
+        try send(AgentRequest(op: .lock))
+    }
+
+    func unlock() throws -> AgentResponse {
+        try send(AgentRequest(op: .unlock))
+    }
+
+    func grants() throws -> [GrantStatus] {
+        try send(AgentRequest(op: .grantList)).grants ?? []
+    }
+
+    func revokeGrant(id: String) throws {
+        _ = try send(AgentRequest(op: .grantRevoke, grantID: id))
+    }
+
+    func history() throws -> [SessionEvent] {
+        try send(AgentRequest(op: .history)).history ?? []
+    }
 }
