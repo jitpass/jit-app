@@ -39,12 +39,15 @@ struct AuditView: View {
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
     }
 
-    /// The app's own bookkeeping reads (`jit status`, `jit audit`) are in
-    /// the log, as every command is, but showing them here buries the events
-    /// the window exists for under the act of looking. The terminal keeps
-    /// them.
+    /// The app's own bookkeeping reads (`jit status`, `jit audit`, `jit
+    /// doctor`) are in the log, as every command is, but showing them here
+    /// buries the events the window exists for under the act of looking,
+    /// and doctor's "failed" is only its exit code for "found something".
+    /// The terminal keeps them.
+    static let ownReads: Set<String> = ["jit status", "jit audit", "jit doctor"]
+
     static func isOwnRead(_ row: AuditRow) -> Bool {
-        row.kind == "cmd" && row.launchedBy == "JitPass" && (row.title == "jit status" || row.title == "jit audit")
+        row.kind == "cmd" && row.launchedBy == "JitPass" && ownReads.contains(row.title)
     }
 
     private var filters: some View {
@@ -76,7 +79,8 @@ struct AuditView: View {
                         Text(Format.clock(row.date))
                             .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
                         Text(Glyph.forRow(row)).foregroundStyle(Glyph.color(row)).frame(width: 12)
-                        Text(row.kind).font(.system(size: 11)).foregroundStyle(.secondary).frame(width: 44, alignment: .leading)
+                        Text(row.kind).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                            .frame(width: 60, alignment: .leading)
                         Text(row.title).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
                         if !row.detail.isEmpty {
                             Text(row.detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
