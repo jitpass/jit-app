@@ -33,7 +33,7 @@ struct ScanReportView: View {
         }
         .padding(16)
         .frame(minWidth: 480, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
     }
 
     private var header: some View {

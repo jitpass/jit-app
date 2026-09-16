@@ -19,6 +19,10 @@ final class ReportWindow: NSWindow {
         self.title = title
         isReleasedWhenClosed = false
         contentMinSize = minSize
+        // The content draws its own translucent material; the window must
+        // not paint an opaque background under it.
+        isOpaque = false
+        backgroundColor = .clear
         contentView = NSHostingView(rootView: content)
         setContentSize(size)
         center()

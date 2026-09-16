@@ -4,9 +4,9 @@
 import AppKit
 import SwiftUI
 
-/// The system's own translucent material, the one real menus are drawn on,
-/// so the panel takes the wallpaper tint and the light or dark appearance
-/// exactly as an NSMenu would.
+/// The system's own translucent material, so a surface takes the wallpaper
+/// tint and the light or dark appearance exactly as native chrome does:
+/// `.menu` for the dropdown, `.underWindowBackground` for report windows.
 struct VisualEffectBackground: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .menu
     var cornerRadius: CGFloat = 10
