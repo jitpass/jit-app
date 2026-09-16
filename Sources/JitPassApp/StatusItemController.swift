@@ -36,6 +36,12 @@ final class StatusItemController {
         size: NSSize(width: 460, height: 340),
         minSize: NSSize(width: 460, height: 300)
     )
+    lazy var doctorWindow = ReportWindow(
+        title: "JitPass Doctor",
+        content: DoctorView(model: model, actions: doctorActions),
+        size: NSSize(width: 640, height: 480),
+        minSize: NSSize(width: 520, height: 320)
+    )
     lazy var scanWindow = ReportWindow(
         title: "JitPass Scan",
         content: ScanReportView(model: model, actions: scanActions),
@@ -74,6 +80,7 @@ final class StatusItemController {
             newGrant: { [weak self] in self?.openGrantSheet() },
             runScan: { [weak self] in self?.openScan() },
             openScan: { [weak self] in self?.openScan() },
+            openDoctor: { [weak self] in self?.openDoctor() },
             openAudit: { [weak self] in self?.openAudit() },
             openSettings: { [weak self] in self?.openSettings() },
             about: { [weak self] in self?.showAbout() },
@@ -163,6 +170,7 @@ final class StatusItemController {
         }
         if !panel.isVisible {
             resync()
+            runDoctor()
         }
         panel.toggle(under: button)
     }

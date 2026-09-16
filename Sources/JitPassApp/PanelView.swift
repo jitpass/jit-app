@@ -34,6 +34,11 @@ struct PanelView: View {
                 if let consent = model.consentValue {
                     row("hand.raised", "Consent", consent)
                 }
+                Button(action: actions.openDoctor) {
+                    row("stethoscope", "Doctor", model.doctorValue, dot: doctorDot)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(HoverRowStyle())
                 Button(action: actions.openScan) {
                     row("scope", "Exposure", model.exposureValue, dot: exposureDot)
                         .contentShape(Rectangle())
@@ -75,6 +80,16 @@ struct PanelView: View {
                 Text(model.state.detail).font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var doctorDot: Color? {
+        guard !model.doctorRunning, let doctor = model.doctor else {
+            return nil
+        }
+        if !doctor.problems.isEmpty {
+            return Color(StatusMark.red)
+        }
+        return doctor.warnings.isEmpty ? Color(StatusMark.green) : Color(StatusMark.amber)
     }
 
     /// The mockup's dot for a value that carries a state: green for a low
@@ -161,6 +176,7 @@ struct PanelActions {
     var newGrant: () -> Void = {}
     var runScan: () -> Void = {}
     var openScan: () -> Void = {}
+    var openDoctor: () -> Void = {}
     var openAudit: () -> Void = {}
     var openSettings: () -> Void = {}
     var about: () -> Void = {}
