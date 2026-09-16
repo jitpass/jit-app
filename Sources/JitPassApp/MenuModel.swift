@@ -15,6 +15,9 @@ final class MenuModel: ObservableObject {
     @Published var lastEvent: SessionEvent?
     @Published var consentEnabled: Bool?
     @Published var cli: CLIStatus?
+    @Published var scan: ScanReport?
+    @Published var scanning = false
+    @Published var scanError: String?
 
     var serviceValue: String {
         switch state {
@@ -42,5 +45,15 @@ final class MenuModel: ObservableObject {
 
     var consentValue: String? {
         consentEnabled.map { $0 ? "On" : "Off" }
+    }
+
+    var exposureValue: String {
+        if scanning {
+            return "scanning…"
+        }
+        guard let s = scan?.summary else {
+            return "not scanned yet"
+        }
+        return "\(s.exposureScore) / 100 · \(s.riskLevel)"
     }
 }

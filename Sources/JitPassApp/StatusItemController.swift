@@ -18,6 +18,7 @@ final class StatusItemController {
     private let item: NSStatusItem
     private let model = MenuModel()
     private lazy var panel = MenuPanel(content: PanelView(model: model, actions: panelActions))
+    private lazy var scanWindow = ReportWindow(title: "JitPass Scan", content: ScanReportView(model: model, actions: scanActions))
     private var tick: Timer?
     private var stream: Subscription?
     private var reconnect: Timer?
@@ -47,10 +48,56 @@ final class StatusItemController {
             lock: { [weak self] in self?.lockNow() },
             unlock: { [weak self] in self?.unlockNow() },
             revoke: { [weak self] id in self?.revokeGrant(id) },
-            runScan: { [weak self] in self?.runInTerminal("jit scan") },
+            runScan: { [weak self] in self?.runScan() },
+            openScan: { [weak self] in self?.openScan() },
             openAudit: { [weak self] in self?.runInTerminal("jit audit") },
             quit: { NSApp.terminate(nil) }
         )
+    }
+
+    private var scanActions: ScanActions {
+        ScanActions(
+            rescan: { [weak self] in self?.runScan() },
+            openInTerminal: { [weak self] in self?.runInTerminal("jit scan --full") },
+            fix: { [weak self] command in self?.runInTerminal(command) }
+        )
+    }
+
+    // MARK: - Scan
+
+    /// Opens the report and, if nothing has been scanned yet, scans.
+    private func openScan() {
+        panel.dismiss()
+        scanWindow.present()
+        if model.scan == nil, !model.scanning {
+            runScan()
+        }
+    }
+
+    /// Runs `jit scan` off the main thread and publishes the report. The
+    /// scan is read-only and never prompts, which is what makes it safe to
+    /// start from a click.
+    private func runScan() {
+        panel.dismiss()
+        scanWindow.present()
+        guard !model.scanning else {
+            return
+        }
+        model.scanning = true
+        model.scanError = nil
+        Task.detached {
+            let result = Result { try JitCLI.scan() }
+            await MainActor.run { [weak self] in
+                guard let self else {
+                    return
+                }
+                model.scanning = false
+                switch result {
+                case let .success(report): model.scan = report
+                case let .failure(error): model.scanError = "scan failed: \(error)"
+                }
+            }
+        }
     }
 
     // MARK: - Feeds

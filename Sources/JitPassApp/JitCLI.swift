@@ -10,13 +10,34 @@ import JitAgentClient
 enum JitCLI {
     static let candidates = ["/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
 
+    static var executable: String? {
+        candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
     static func status() -> CLIStatus? {
-        guard let jit = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
+        guard let data = run(["status", "--format", "json"]) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(CLIStatus.self, from: data)
+    }
+
+    /// A whole-machine scan. Read-only in every mode and prompt-free, so it
+    /// is safe to run from a GUI; it takes seconds, so callers run it off
+    /// the main thread.
+    static func scan() throws -> ScanReport {
+        guard let data = run(["scan", "--format", "ndjson"]) else {
+            throw ScanReportError.noSummary
+        }
+        return try ScanReport.parse(data)
+    }
+
+    private static func run(_ arguments: [String]) -> Data? {
+        guard let jit = executable else {
             return nil
         }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: jit)
-        process.arguments = ["status", "--format", "json"]
+        process.arguments = arguments
         let out = Pipe()
         process.standardOutput = out
         process.standardError = FileHandle.nullDevice
@@ -27,6 +48,6 @@ enum JitCLI {
         }
         let data = out.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        return try? JSONDecoder().decode(CLIStatus.self, from: data)
+        return data
     }
 }

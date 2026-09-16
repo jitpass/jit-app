@@ -34,6 +34,11 @@ struct PanelView: View {
                 if let consent = model.consentValue {
                     row("hand.raised", "Consent", consent)
                 }
+                Button(action: actions.openScan) {
+                    row("scope", "Exposure", model.exposureValue, dot: exposureDot)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(HoverRowStyle())
             }
 
             if let event = model.lastEvent {
@@ -82,11 +87,23 @@ struct PanelView: View {
         }
     }
 
-    private func row(_ symbol: String, _ label: String, _ value: String) -> some View {
+    /// The mockup's dot for a value that carries a state: green for a low
+    /// score, amber for medium, red for high or critical, none while unknown.
+    private var exposureDot: Color? {
+        guard !model.scanning, let risk = model.scan?.summary.riskLevel else {
+            return nil
+        }
+        return Severity.color(risk)
+    }
+
+    private func row(_ symbol: String, _ label: String, _ value: String, dot: Color? = nil) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol).font(.system(size: 12)).frame(width: 16)
             Text(label)
             Spacer()
+            if let dot {
+                Circle().fill(dot).frame(width: 8, height: 8)
+            }
             Text(value)
         }
         .font(.system(size: 13))
@@ -138,8 +155,21 @@ struct PanelActions {
     var unlock: () -> Void = {}
     var revoke: (String) -> Void = { _ in }
     var runScan: () -> Void = {}
+    var openScan: () -> Void = {}
     var openAudit: () -> Void = {}
     var quit: () -> Void = {}
+}
+
+/// Severity and risk-level colours, jit's own: red is a state the user
+/// must act on, amber needs a look, green is fine.
+enum Severity {
+    static func color(_ level: String) -> Color {
+        switch level {
+        case "critical", "high": Color(StatusMark.red)
+        case "medium", "low": Color(StatusMark.amber)
+        default: Color(StatusMark.green)
+        }
+    }
 }
 
 /// The mockup's inks. Panel and edge are the dark translucent surface; the
