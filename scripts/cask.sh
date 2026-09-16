@@ -23,7 +23,7 @@ cask "jit-app" do
   homepage "https://github.com/jitpass/jit-app"
 
   depends_on cask: "jitpass/tap/jitpass"
-  depends_on macos: ">= :sonoma"
+  depends_on macos: :sonoma
   depends_on arch: :arm64
 
   app "$APP_NAME.app"
