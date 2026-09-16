@@ -49,6 +49,15 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
         return parts.enumerated().filter { $0.offset % 2 == 1 }.map { String($0.element) }.filter { !$0.isEmpty }
     }
 
+    /// "<file>" or "<path>" inside a command, which the user has to supply
+    /// before it can run; nil when the command is complete.
+    public static func placeholder(in command: String) -> String? {
+        guard let open = command.firstIndex(of: "<"), let close = command[open...].firstIndex(of: ">") else {
+            return nil
+        }
+        return String(command[open ... close])
+    }
+
     /// True for a global profile whose reference is broken: the manifest
     /// under ~/.jit/profiles can simply be removed if the profile is no
     /// longer wanted, which touches no secret.

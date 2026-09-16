@@ -50,6 +50,13 @@ enum Format {
         return parts.joined(separator: " · ")
     }
 
+    /// "2026-09-16" for a file name.
+    static func dateStamp(_ date: Date = Date()) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f.string(from: date)
+    }
+
     /// 300 -> "5m", 3600 -> "1h": the form `jit service ttl` prints and takes.
     static func duration(seconds: Int64?) -> String {
         guard let seconds, seconds > 0 else {
