@@ -71,6 +71,7 @@ extension StatusItemController {
                 case .failure: model.settingsMessage = "jit is not installed where the app can find it."
                 }
                 pollStatus()
+                runDoctor()
             }
         }
     }

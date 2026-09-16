@@ -43,6 +43,7 @@ extension StatusItemController {
                 case .success:
                     grantWindow.orderOut(nil)
                     model.grants = (try? client.grants()) ?? []
+                    runDoctor()
                 case let .failure(error):
                     model.grantError = Format.error(error)
                 }
