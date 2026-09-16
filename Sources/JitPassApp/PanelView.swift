@@ -15,9 +15,9 @@ struct PanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-                .padding(.horizontal, 20)
-                .padding(.top, 18)
-                .padding(.bottom, 14)
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
             VStack(spacing: 0) {
                 if let vault = model.vaultValue {
@@ -38,13 +38,13 @@ struct PanelView: View {
 
             if let event = model.lastEvent {
                 Text("Last event: " + Format.event(event))
-                    .font(.system(size: 13))
+                    .font(.system(size: 11))
                     .foregroundStyle(Palette.secondary)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    .padding(.bottom, 4)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 6)
+                    .padding(.bottom, 2)
             }
 
             divider
@@ -60,12 +60,12 @@ struct PanelView: View {
             action("Open Audit", key: "a", actions.openAudit)
             divider
             action("Quit JitPass", key: "q", actions.quit)
-                .padding(.bottom, 8)
+                .padding(.bottom, 5)
         }
-        .frame(width: 400)
+        .frame(width: 300)
         .foregroundStyle(Palette.primary)
         .background(Palette.panel)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Palette.edge, lineWidth: 0.5))
         .preferredColorScheme(.dark)
     }
@@ -73,45 +73,45 @@ struct PanelView: View {
     // MARK: - Pieces
 
     private var header: some View {
-        HStack(spacing: 14) {
-            StatusMarkView(state: model.state, size: 46)
+        HStack(spacing: 10) {
+            StatusMarkView(state: model.state, size: 34)
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.state.headline).font(.system(size: 18, weight: .bold))
-                Text(model.state.detail).font(.system(size: 14)).foregroundStyle(Palette.secondary)
+                Text(model.state.headline).font(.system(size: 15, weight: .bold))
+                Text(model.state.detail).font(.system(size: 12)).foregroundStyle(Palette.secondary)
             }
         }
     }
 
     private func row(_ symbol: String, _ label: String, _ value: String) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 15)).frame(width: 20)
+            Image(systemName: symbol).font(.system(size: 12)).frame(width: 16)
             Text(label)
             Spacer()
             Text(value)
         }
-        .font(.system(size: 15))
-        .frame(height: 34)
-        .padding(.horizontal, 20)
+        .font(.system(size: 13))
+        .frame(height: 26)
+        .padding(.horizontal, 14)
     }
 
     private func grantRow(_ grant: GrantStatus) -> some View {
         HStack(spacing: 12) {
-            Color.clear.frame(width: 20)
+            Color.clear.frame(width: 16)
             Text(Format.grant(grant)).foregroundStyle(Palette.secondary).lineLimit(1)
             Spacer()
             Button("Revoke") { actions.revoke(grant.id) }
                 .buttonStyle(.plain)
                 .foregroundStyle(Palette.accent)
         }
-        .font(.system(size: 13))
-        .frame(height: 26)
-        .padding(.horizontal, 20)
+        .font(.system(size: 11))
+        .frame(height: 20)
+        .padding(.horizontal, 14)
     }
 
     private var divider: some View {
         Rectangle().fill(Palette.edge).frame(height: 1)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 5)
     }
 
     private func action(_ title: String, key: Character, _ perform: @escaping () -> Void) -> some View {
@@ -119,11 +119,11 @@ struct PanelView: View {
             HStack {
                 Text(title)
                 Spacer()
-                Text("⌘ " + String(key).uppercased()).foregroundStyle(Palette.tertiary).font(.system(size: 14))
+                Text("⌘ " + String(key).uppercased()).foregroundStyle(Palette.tertiary).font(.system(size: 12))
             }
-            .font(.system(size: 15))
-            .frame(height: 30)
-            .padding(.horizontal, 20)
+            .font(.system(size: 13))
+            .frame(height: 24)
+            .padding(.horizontal, 14)
             .contentShape(Rectangle())
         }
         .buttonStyle(HoverRowStyle())
