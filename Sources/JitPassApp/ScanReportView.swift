@@ -25,10 +25,7 @@ struct ScanReportView: View {
                         section("Only you can fix these", report.manual, fixable: false)
                         if !report.scaffolding.isEmpty {
                             section("Test fixtures and examples", report.scaffolding, fixable: false)
-                            Text(
-                                "Real-looking values in test files or documentation. The scanner counts them in the score; check they are not live."
-                            )
-                            .font(.system(size: 11)).foregroundStyle(.secondary)
+                            Text(Self.scaffoldingNote).font(.system(size: 11)).foregroundStyle(.secondary)
                         }
                     }
                     .padding(.bottom, 12)
@@ -64,6 +61,9 @@ struct ScanReportView: View {
         }
         .frame(maxWidth: .infinity)
     }
+
+    private static let scaffoldingNote = "Real-looking values in test files or documentation. "
+        + "The scanner counts them in the score; check they are not live."
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
