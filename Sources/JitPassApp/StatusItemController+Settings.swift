@@ -9,6 +9,8 @@ import ServiceManagement
 extension StatusItemController {
     var settingsActions: SettingsActions {
         SettingsActions(
+            addExclude: { [weak self] in self?.chooseExcludeFolder() },
+            removeExclude: { [weak self] path in self?.model.scanExcludes = ScanExcludes.remove(path) },
             setTerminal: { [weak self] name in
                 UserDefaults.standard.set(name, forKey: Terminal.preferenceKey)
                 self?.model.terminalApp = name
@@ -17,6 +19,21 @@ extension StatusItemController {
             setTTL: { [weak self] ttl in self?.applyService(["service", "ttl", ttl]) },
             setConsent: { [weak self] on in self?.applyService(["service", "consent", on ? "on" : "off"]) }
         )
+    }
+
+    private func chooseExcludeFolder() {
+        let picker = NSOpenPanel()
+        picker.canChooseDirectories = true
+        picker.canChooseFiles = false
+        picker.allowsMultipleSelection = true
+        picker.prompt = "Exclude"
+        picker.message = "Choose folders every scan should skip."
+        guard picker.runModal() == .OK else {
+            return
+        }
+        for url in picker.urls {
+            model.scanExcludes = ScanExcludes.add(url.path)
+        }
     }
 
     func openSettings() {

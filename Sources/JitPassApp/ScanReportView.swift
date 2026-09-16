@@ -87,6 +87,11 @@ struct ScanReportView: View {
                     Text(Format.scanSummary(s, wholeMac: model.scanScope == nil))
                     Text("·")
                 }
+                if !model.scanExcludes.isEmpty {
+                    Text("excluding \(model.scanExcludes.count) folder" + (model.scanExcludes.count == 1 ? "" : "s"))
+                    Button("edit", action: actions.openSettings).buttonStyle(.link)
+                    Text("·")
+                }
                 if let scope = model.scanScope {
                     Text("in " + Format.home(scope)).lineLimit(1).truncationMode(.middle)
                     Button("whole Mac", action: actions.scanWholeMac).buttonStyle(.link).disabled(model.scanning)
@@ -130,6 +135,7 @@ struct ScanReportView: View {
 
 struct ScanActions {
     var rescan: () -> Void = {}
+    var openSettings: () -> Void = {}
     var chooseFolder: () -> Void = {}
     var scanWholeMac: () -> Void = {}
     var openInTerminal: () -> Void = {}

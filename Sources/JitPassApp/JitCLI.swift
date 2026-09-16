@@ -46,8 +46,9 @@ enum JitCLI {
     /// A whole-machine scan. Read-only in every mode and prompt-free, so it
     /// is safe to run from a GUI; it takes seconds, so callers run it off
     /// the main thread.
-    static func scan(path: String? = nil) throws -> ScanReport {
-        guard let data = run(["scan", "--format", "ndjson"] + (path.map { [$0] } ?? [])) else {
+    static func scan(path: String? = nil, excludes: [String] = []) throws -> ScanReport {
+        let flags = excludes.flatMap { ["--exclude", $0] }
+        guard let data = run(["scan", "--format", "ndjson"] + flags + (path.map { [$0] } ?? [])) else {
             throw ScanReportError.noSummary
         }
         return try ScanReport.parse(data)
