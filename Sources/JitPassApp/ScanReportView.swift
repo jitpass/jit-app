@@ -47,10 +47,8 @@ struct ScanReportView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Exposure \(s.exposureScore) / 100 · \(s.riskLevel)")
                         .font(.system(size: 15, weight: .bold))
-                    Text(
-                        "\(s.totalFindings) findings · \(s.secretsProtected) of \(s.secretsTotal) secrets protected · \(s.filesScanned) files"
-                    )
-                    .font(.system(size: 12)).foregroundStyle(Palette.secondary)
+                    Text(Format.scanSummary(s))
+                        .font(.system(size: 12)).foregroundStyle(Palette.secondary)
                 }
             } else {
                 Text("Exposure").font(.system(size: 15, weight: .bold))
