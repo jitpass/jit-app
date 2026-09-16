@@ -18,7 +18,12 @@ final class StatusItemController {
     private let item: NSStatusItem
     private let model = MenuModel()
     private lazy var panel = MenuPanel(content: PanelView(model: model, actions: panelActions))
-    private lazy var scanWindow = ReportWindow(title: "JitPass Scan", content: ScanReportView(model: model, actions: scanActions))
+    private lazy var scanWindow = ReportWindow(
+        title: "JitPass Scan",
+        content: ScanReportView(model: model, actions: scanActions),
+        size: NSSize(width: 640, height: 520),
+        minSize: NSSize(width: 480, height: 320)
+    )
     private var tick: Timer?
     private var stream: Subscription?
     private var reconnect: Timer?

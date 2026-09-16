@@ -25,35 +25,36 @@ struct ScanReportView: View {
                         section("Only you can fix these", report.manual, fixable: false)
                     }
                     .padding(.bottom, 12)
+                    .padding(.trailing, 14)
                 }
             } else {
                 Spacer()
             }
         }
         .padding(16)
-        .frame(width: 560, height: 480)
+        .frame(minWidth: 480, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 12) {
-            if model.scanning {
-                ProgressView().controlSize(.small)
-                Text("Scanning your Mac…").font(.system(size: 15, weight: .bold))
-            } else if let s = model.scan?.summary {
-                Circle().fill(Severity.color(s.riskLevel)).frame(width: 12, height: 12)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Exposure \(s.exposureScore) / 100 · \(s.riskLevel)")
-                        .font(.system(size: 15, weight: .bold))
-                    Text(Format.scanSummary(s))
-                        .font(.system(size: 12)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                if model.scanning {
+                    ProgressView().controlSize(.small)
+                    Text("Scanning your Mac…").font(.headline)
+                } else if let s = model.scan?.summary {
+                    Circle().fill(Severity.color(s.riskLevel)).frame(width: 12, height: 12)
+                    Text("Exposure \(s.exposureScore) / 100 · \(s.riskLevel)").font(.headline)
+                } else {
+                    Text("Exposure").font(.headline)
                 }
-            } else {
-                Text("Exposure").font(.system(size: 15, weight: .bold))
+                Spacer(minLength: 16)
+                Button("Rescan", action: actions.rescan).disabled(model.scanning)
+                Button("Open in Terminal", action: actions.openInTerminal)
             }
-            Spacer()
-            Button("Rescan", action: actions.rescan).disabled(model.scanning)
-            Button("Open in Terminal", action: actions.openInTerminal)
+            if !model.scanning, let s = model.scan?.summary {
+                Text(Format.scanSummary(s)).font(.subheadline).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -78,6 +79,7 @@ struct ScanReportView: View {
                     if fixable, let fix = f.fixCommand {
                         Button("Fix") { actions.fix(fix) }
                             .buttonStyle(.link).font(.system(size: 12))
+                            .frame(width: 28, alignment: .trailing)
                     }
                 }
             }
