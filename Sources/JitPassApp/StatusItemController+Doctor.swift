@@ -47,9 +47,23 @@ extension StatusItemController {
         }
     }
 
-    /// `jit doctor` is prompt-free (it checks envelopes without decrypting)
-    /// and takes well under a second, so it runs on every panel open as
-    /// well as on demand; off the main thread either way.
+    /// How long a doctor result is trusted before a panel open rechecks.
+    /// Doctor is prompt-free, but it reads the whole vault's envelopes and
+    /// it blocks behind any vault command waiting in a terminal, so it is
+    /// not something to run on every click.
+    static let doctorTTL: TimeInterval = 300
+
+    /// Rechecks only when the last result is older than doctorTTL. Explicit
+    /// callers (Check Again, an action that changes state) use runDoctor.
+    func refreshDoctorIfStale() {
+        if let at = model.doctorAt, Date().timeIntervalSince(at) < Self.doctorTTL, model.doctor != nil {
+            return
+        }
+        runDoctor()
+    }
+
+    /// One `jit doctor --format json`, off the main thread. The previous
+    /// result stays on screen until this one lands.
     func runDoctor() {
         guard !model.doctorRunning else {
             return
@@ -58,8 +72,14 @@ extension StatusItemController {
         Task.detached {
             let report = JitCLI.doctor()
             await MainActor.run { [weak self] in
-                self?.model.doctor = report
-                self?.model.doctorRunning = false
+                guard let self else {
+                    return
+                }
+                if let report {
+                    model.doctor = report
+                    model.doctorAt = Date()
+                }
+                model.doctorRunning = false
             }
         }
     }

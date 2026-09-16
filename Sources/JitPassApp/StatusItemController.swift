@@ -170,7 +170,7 @@ final class StatusItemController {
         }
         if !panel.isVisible {
             resync()
-            runDoctor()
+            refreshDoctorIfStale()
         }
         panel.toggle(under: button)
     }

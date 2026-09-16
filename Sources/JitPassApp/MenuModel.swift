@@ -31,6 +31,7 @@ final class MenuModel: ObservableObject {
     @Published var grantBusy = false
     @Published var grantError: String?
     @Published var doctor: DoctorReport?
+    @Published var doctorAt: Date?
     @Published var doctorRunning = false
     @Published var settingsBusy = false
     @Published var settingsMessage: String?
@@ -65,11 +66,13 @@ final class MenuModel: ObservableObject {
         consentEnabled.map { $0 ? "On" : "Off" }
     }
 
+    /// The last verdict stays on screen while a recheck runs; "checking…"
+    /// appears only before the first result exists.
     var doctorValue: String {
-        if doctorRunning {
-            return "checking…"
+        if let doctor {
+            return doctor.verdict
         }
-        return doctor?.verdict ?? "not checked"
+        return doctorRunning ? "checking…" : "not checked"
     }
 
     var exposureValue: String {
