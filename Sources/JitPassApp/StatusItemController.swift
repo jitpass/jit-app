@@ -53,7 +53,7 @@ final class StatusItemController {
             lock: { [weak self] in self?.lockNow() },
             unlock: { [weak self] in self?.unlockNow() },
             revoke: { [weak self] id in self?.revokeGrant(id) },
-            runScan: { [weak self] in self?.runScan() },
+            runScan: { [weak self] in self?.openScan() },
             openScan: { [weak self] in self?.openScan() },
             openAudit: { [weak self] in self?.runInTerminal("jit audit") },
             quit: { NSApp.terminate(nil) }
@@ -75,13 +75,11 @@ final class StatusItemController {
 
     // MARK: - Scan
 
-    /// Opens the report and, if nothing has been scanned yet, scans.
+    /// Opens the report. Nothing is scanned until the user chooses a scope
+    /// in the window; a whole-home read is never a side effect of a click.
     private func openScan() {
         panel.dismiss()
         scanWindow.present()
-        if model.scan == nil, !model.scanning {
-            runScan()
-        }
     }
 
     /// The standard folder picker; a choice limits the next scan to it,
@@ -110,8 +108,6 @@ final class StatusItemController {
     /// scan is read-only and never prompts, which is what makes it safe to
     /// start from a click.
     private func runScan() {
-        panel.dismiss()
-        scanWindow.present()
         guard !model.scanning else {
             return
         }
