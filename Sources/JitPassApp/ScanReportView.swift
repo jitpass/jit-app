@@ -17,7 +17,7 @@ struct ScanReportView: View {
             header
             Divider().padding(.vertical, 8)
             if let error = model.scanError {
-                Text(error).foregroundStyle(Palette.secondary).padding(.vertical, 20)
+                Text(error).foregroundStyle(.secondary).padding(.vertical, 20)
             } else if let report = model.scan {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
@@ -32,9 +32,7 @@ struct ScanReportView: View {
         }
         .padding(16)
         .frame(width: 560, height: 480)
-        .background(Palette.panel)
-        .foregroundStyle(Palette.primary)
-        .preferredColorScheme(.dark)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private var header: some View {
@@ -48,7 +46,7 @@ struct ScanReportView: View {
                     Text("Exposure \(s.exposureScore) / 100 · \(s.riskLevel)")
                         .font(.system(size: 15, weight: .bold))
                     Text(Format.scanSummary(s))
-                        .font(.system(size: 12)).foregroundStyle(Palette.secondary)
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             } else {
                 Text("Exposure").font(.system(size: 15, weight: .bold))
@@ -63,10 +61,10 @@ struct ScanReportView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(title).font(.system(size: 13, weight: .semibold))
-                Text("\(findings.count)").foregroundStyle(Palette.secondary)
+                Text("\(findings.count)").foregroundStyle(.secondary)
             }
             if findings.isEmpty {
-                Text("nothing").font(.system(size: 12)).foregroundStyle(Palette.secondary)
+                Text("nothing").font(.system(size: 12)).foregroundStyle(.secondary)
             }
             ForEach(findings) { f in
                 HStack(alignment: .top, spacing: 8) {
@@ -74,12 +72,12 @@ struct ScanReportView: View {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(Format.home(f.filePath)).font(.system(size: 12, design: .monospaced)).lineLimit(1).truncationMode(.middle)
                         Text(Format.findingType(f.findingType) + " · " + f.evidence)
-                            .font(.system(size: 11)).foregroundStyle(Palette.secondary).lineLimit(1)
+                            .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer()
                     if fixable, let fix = f.fixCommand {
                         Button("Fix") { actions.fix(fix) }
-                            .buttonStyle(.plain).foregroundStyle(Palette.accent).font(.system(size: 12))
+                            .buttonStyle(.link).font(.system(size: 12))
                     }
                 }
             }
