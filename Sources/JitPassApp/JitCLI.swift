@@ -14,11 +14,25 @@ enum JitCLI {
         candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
+    /// Every `jit status` run is itself a line in `jit audit`, so the panel
+    /// reads it at most once per statusCacheTTL rather than on every open.
+    private static var cachedStatus: (at: Date, value: CLIStatus?)?
+    static let statusCacheTTL: TimeInterval = 30
+
     static func status() -> CLIStatus? {
-        guard let data = run(["status", "--format", "json"]) else {
+        if let cached = cachedStatus, Date().timeIntervalSince(cached.at) < statusCacheTTL {
+            return cached.value
+        }
+        let value = run(["status", "--format", "json"]).flatMap { try? JSONDecoder().decode(CLIStatus.self, from: $0) }
+        cachedStatus = (Date(), value)
+        return value
+    }
+
+    static func audit(_ filter: AuditFilter) -> AuditReport? {
+        guard let data = run(filter.arguments) else {
             return nil
         }
-        return try? JSONDecoder().decode(CLIStatus.self, from: data)
+        return try? JSONDecoder().decode(AuditReport.self, from: data)
     }
 
     /// A whole-machine scan. Read-only in every mode and prompt-free, so it
