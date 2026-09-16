@@ -49,12 +49,24 @@ struct ScanReportView: View {
                     Text("Exposure").font(.headline)
                 }
                 Spacer(minLength: 16)
+                Button("Scan Folder…", action: actions.chooseFolder).disabled(model.scanning)
                 Button("Rescan", action: actions.rescan).disabled(model.scanning)
                 Button("Open in Terminal", action: actions.openInTerminal)
             }
-            if !model.scanning, let s = model.scan?.summary {
-                Text(Format.scanSummary(s)).font(.subheadline).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                if !model.scanning, let s = model.scan?.summary {
+                    Text(Format.scanSummary(s))
+                    Text("·")
+                }
+                if let scope = model.scanScope {
+                    Text("in " + Format.home(scope)).lineLimit(1).truncationMode(.middle)
+                    Button("whole Mac", action: actions.scanWholeMac).buttonStyle(.link).disabled(model.scanning)
+                } else {
+                    Text("whole Mac")
+                }
             }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         }
     }
 
@@ -89,6 +101,8 @@ struct ScanReportView: View {
 
 struct ScanActions {
     var rescan: () -> Void = {}
+    var chooseFolder: () -> Void = {}
+    var scanWholeMac: () -> Void = {}
     var openInTerminal: () -> Void = {}
     var fix: (String) -> Void = { _ in }
 }

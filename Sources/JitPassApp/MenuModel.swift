@@ -18,6 +18,8 @@ final class MenuModel: ObservableObject {
     @Published var scan: ScanReport?
     @Published var scanning = false
     @Published var scanError: String?
+    /// The folder the last scan was limited to; nil means the whole Mac.
+    @Published var scanScope: String?
 
     var serviceValue: String {
         switch state {
