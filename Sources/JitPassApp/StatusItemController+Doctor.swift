@@ -10,8 +10,33 @@ extension StatusItemController {
         DoctorActions(
             recheck: { [weak self] in self?.runDoctor() },
             openInTerminal: { [weak self] in self?.runInTerminal("jit doctor") },
-            run: { [weak self] command in self?.runInTerminal(command) }
+            run: { [weak self] command in self?.runInTerminal(command) },
+            deleteProfile: { [weak self] name in self?.confirmDeleteProfile(name) }
         )
+    }
+
+    /// The one destructive act the app performs itself, and it is a move
+    /// to the Trash of a manifest that holds no secret. Confirmed first,
+    /// named exactly, and followed by a recheck so the row disappears
+    /// because doctor says so, not because the app assumed.
+    private func confirmDeleteProfile(_ name: String) {
+        let alert = NSAlert()
+        alert.messageText = "Delete the profile \u{201C}\(name)\u{201D}?"
+        alert.informativeText = "Moves \(Format.home(ProfileStore.manifest(named: name).path)) to the Trash. "
+            + "Anything that launched through this profile stops receiving its secrets. The vault is not changed."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Move to Trash")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+        do {
+            try ProfileStore.trashGlobal(named: name)
+        } catch {
+            let failed = NSAlert(error: error)
+            failed.runModal()
+        }
+        runDoctor()
     }
 
     func openDoctor() {

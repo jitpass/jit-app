@@ -35,14 +35,25 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
 
     /// The first backticked command in the action, the one thing to type.
     public var command: String? {
-        guard let action, let open = action.firstIndex(of: "`") else {
-            return nil
+        commands.first
+    }
+
+    /// Every backticked command in the action, in order: doctor often
+    /// offers two ("prune clears it, or unmount this one").
+    public var commands: [String] {
+        guard let action else {
+            return []
         }
-        let rest = action[action.index(after: open)...]
-        guard let close = rest.firstIndex(of: "`") else {
-            return nil
-        }
-        return String(rest[..<close])
+        let parts = action.split(separator: "`", omittingEmptySubsequences: false)
+        // Odd-indexed pieces are inside backticks.
+        return parts.enumerated().filter { $0.offset % 2 == 1 }.map { String($0.element) }.filter { !$0.isEmpty }
+    }
+
+    /// True for a global profile whose reference is broken: the manifest
+    /// under ~/.jit/profiles can simply be removed if the profile is no
+    /// longer wanted, which touches no secret.
+    public var isGlobalProfileProblem: Bool {
+        profile != nil && scope == "global"
     }
 }
 

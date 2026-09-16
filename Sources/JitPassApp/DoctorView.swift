@@ -76,11 +76,18 @@ struct DoctorView: View {
                     Text(glyph).foregroundStyle(color).frame(width: 12)
                     VStack(alignment: .leading, spacing: 3) {
                         Text(item.summary).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
-                        if let command = item.command {
+                        ForEach(item.commands, id: \.self) { command in
                             HStack(spacing: 8) {
                                 Text("→ " + command).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                                     .lineLimit(1).truncationMode(.middle)
                                 Button("Run") { actions.run(command) }.buttonStyle(.link).font(.system(size: 11))
+                            }
+                        }
+                        if item.isGlobalProfileProblem, let profile = item.profile {
+                            HStack(spacing: 8) {
+                                Text("or, if you no longer need this profile:").font(.system(size: 11)).foregroundStyle(.secondary)
+                                Button("Delete profile…") { actions.deleteProfile(profile) }
+                                    .buttonStyle(.link).font(.system(size: 11)).foregroundStyle(Color(StatusMark.red))
                             }
                         }
                     }
@@ -94,4 +101,5 @@ struct DoctorActions {
     var recheck: () -> Void = {}
     var openInTerminal: () -> Void = {}
     var run: (String) -> Void = { _ in }
+    var deleteProfile: (String) -> Void = { _ in }
 }
