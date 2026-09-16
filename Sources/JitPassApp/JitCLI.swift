@@ -45,6 +45,37 @@ enum JitCLI {
         return try ScanReport.parse(data)
     }
 
+    /// Runs a settings command and returns its last line, or the error. Both
+    /// restart the service, and `consent off` puts the CLI's own Touch ID
+    /// prompt on screen, so the call may take a while; callers run it off
+    /// the main thread.
+    static func apply(_ arguments: [String]) -> Result<String, Error> {
+        guard let jit = executable else {
+            return .failure(CLIError.notInstalled)
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: jit)
+        process.arguments = arguments
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = out
+        do {
+            try process.run()
+        } catch {
+            return .failure(error)
+        }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        let text = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let last = text.split(separator: "\n").last.map(String.init) ?? ""
+        return process.terminationStatus == 0 ? .success(last) : .failure(CLIError.failed(last))
+    }
+
+    enum CLIError: Error {
+        case notInstalled
+        case failed(String)
+    }
+
     private static func run(_ arguments: [String]) -> Data? {
         guard let jit = executable else {
             return nil

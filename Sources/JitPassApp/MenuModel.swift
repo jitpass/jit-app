@@ -14,6 +14,7 @@ final class MenuModel: ObservableObject {
     @Published var grants: [GrantStatus] = []
     @Published var lastEvent: SessionEvent?
     @Published var consentEnabled: Bool?
+    @Published var ttlSeconds: Int64?
     @Published var cli: CLIStatus?
     @Published var scan: ScanReport?
     @Published var scanning = false
@@ -27,6 +28,10 @@ final class MenuModel: ObservableObject {
     @Published var grantProfiles: [String] = []
     @Published var grantBusy = false
     @Published var grantError: String?
+    @Published var settingsBusy = false
+    @Published var settingsMessage: String?
+    @Published var launchAtLogin = false
+    @Published var terminalApp = ""
 
     var serviceValue: String {
         switch state {

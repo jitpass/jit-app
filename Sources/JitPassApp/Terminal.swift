@@ -26,6 +26,9 @@ enum Terminal {
     /// prefer them when several are running.
     static let scriptRunners = ["iTerm2", "Warp", "Terminal"]
 
+    /// What Settings offers. "" is automatic: the rules above.
+    static let choices = ["", "iTerm2", "Terminal", "Warp", "Ghostty", "kitty", "Alacritty", "WezTerm"]
+
     /// Single-quotes a path for the script, escaping embedded quotes, so a
     /// folder name with spaces or quotes survives the shell.
     static func quoted(_ path: String) -> String {

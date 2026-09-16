@@ -1,0 +1,77 @@
+// Copyright 2026 Meni Tasa
+// SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
+
+import AppKit
+import JitAgentClient
+import ServiceManagement
+
+/// Settings and About.
+extension StatusItemController {
+    var settingsActions: SettingsActions {
+        SettingsActions(
+            setTerminal: { [weak self] name in
+                UserDefaults.standard.set(name, forKey: Terminal.preferenceKey)
+                self?.model.terminalApp = name
+            },
+            setLaunchAtLogin: { [weak self] on in self?.setLaunchAtLogin(on) },
+            setTTL: { [weak self] ttl in self?.applyService(["service", "ttl", ttl]) },
+            setConsent: { [weak self] on in self?.applyService(["service", "consent", on ? "on" : "off"]) }
+        )
+    }
+
+    func openSettings() {
+        panel.dismiss()
+        model.terminalApp = UserDefaults.standard.string(forKey: Terminal.preferenceKey) ?? ""
+        model.launchAtLogin = SMAppService.mainApp.status == .enabled
+        model.settingsMessage = nil
+        settingsWindow.present()
+    }
+
+    func showAbout() {
+        panel.dismiss()
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
+    }
+
+    /// Login-item registration through the system's own service, which
+    /// shows the app under System Settings › General › Login Items.
+    private func setLaunchAtLogin(_ on: Bool) {
+        do {
+            if on {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+            model.launchAtLogin = SMAppService.mainApp.status == .enabled
+            model.settingsMessage = nil
+        } catch {
+            model.settingsMessage = "Launch at login: \(error.localizedDescription)"
+        }
+    }
+
+    /// One `jit service …` invocation, off the main thread: both restart
+    /// the service, and consent-off waits on the CLI's own Touch ID prompt.
+    /// The stream ends with the restart and reconnects on its own.
+    private func applyService(_ arguments: [String]) {
+        guard !model.settingsBusy else {
+            return
+        }
+        model.settingsBusy = true
+        model.settingsMessage = nil
+        Task.detached {
+            let result = JitCLI.apply(arguments)
+            await MainActor.run { [weak self] in
+                guard let self else {
+                    return
+                }
+                model.settingsBusy = false
+                switch result {
+                case let .success(line): model.settingsMessage = line
+                case let .failure(JitCLI.CLIError.failed(line)): model.settingsMessage = line
+                case .failure: model.settingsMessage = "jit is not installed where the app can find it."
+                }
+                pollStatus()
+            }
+        }
+    }
+}
