@@ -27,6 +27,21 @@ struct SettingsView: View {
                 }
                 Toggle("Launch at login", isOn: launchBinding)
             }
+            Section("Scan") {
+                if model.scanExcludes.isEmpty {
+                    Text("No folders are excluded.").foregroundStyle(.secondary)
+                }
+                ForEach(model.scanExcludes, id: \.self) { path in
+                    HStack {
+                        Text(Format.home(path)).lineLimit(1).truncationMode(.middle)
+                        Spacer()
+                        Button("Remove") { actions.removeExclude(path) }.buttonStyle(.link)
+                    }
+                }
+                Button("Exclude a Folder…", action: actions.addExclude)
+                Text("Excluded folders are skipped by every scan, and the report says so.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
             Section("Service") {
                 Picker("Lock the session after", selection: ttlBinding) {
                     ForEach(Self.ttls, id: \.value) { Text($0.label).tag($0.value) }
@@ -74,6 +89,8 @@ struct SettingsView: View {
 }
 
 struct SettingsActions {
+    var addExclude: () -> Void = {}
+    var removeExclude: (String) -> Void = { _ in }
     var setTerminal: (String) -> Void = { _ in }
     var setLaunchAtLogin: (Bool) -> Void = { _ in }
     var setTTL: (String) -> Void = { _ in }

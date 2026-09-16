@@ -9,6 +9,7 @@ extension StatusItemController {
     var scanActions: ScanActions {
         ScanActions(
             rescan: { [weak self] in self?.runScan() },
+            openSettings: { [weak self] in self?.openSettings() },
             chooseFolder: { [weak self] in self?.chooseScanFolder() },
             scanWholeMac: { [weak self] in
                 self?.model.scanScope = nil
@@ -60,8 +61,9 @@ extension StatusItemController {
         model.scanning = true
         model.scanError = nil
         let scope = model.scanScope
+        let excludes = model.scanExcludes
         Task.detached {
-            let result = Result { try JitCLI.scan(path: scope) }
+            let result = Result { try JitCLI.scan(path: scope, excludes: excludes) }
             await MainActor.run { [weak self] in
                 guard let self else {
                     return
