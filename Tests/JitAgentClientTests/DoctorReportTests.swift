@@ -35,6 +35,12 @@ final class DoctorReportTests: XCTestCase {
         XCTAssertEqual(r.warnings[0].summary, "the mount at ~/x/.env is still registered, but its profile is gone")
     }
 
+    func testPlaceholderIsFound() {
+        XCTAssertEqual(DoctorItem.placeholder(in: "jit vault export <file>"), "<file>")
+        XCTAssertEqual(DoctorItem.placeholder(in: "jit migrate <path>"), "<path>")
+        XCTAssertNil(DoctorItem.placeholder(in: "jit vault orphans --prune"))
+    }
+
     func testCleanReportReadsAllGood() throws {
         let r = try JSONDecoder().decode(DoctorReport.self, from: Data(#"{"ok":true}"#.utf8))
         XCTAssertEqual(r.verdict, "all good")

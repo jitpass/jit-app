@@ -80,7 +80,12 @@ struct DoctorView: View {
                             HStack(spacing: 8) {
                                 Text("→ " + command).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                                     .lineLimit(1).truncationMode(.middle)
-                                Button("Run") { actions.run(command) }.buttonStyle(.link).font(.system(size: 11))
+                                if DoctorItem.placeholder(in: command) != nil {
+                                    Button("Choose…") { actions.runWithChosenPath(command) }
+                                        .buttonStyle(.link).font(.system(size: 11))
+                                } else {
+                                    Button("Run") { actions.run(command) }.buttonStyle(.link).font(.system(size: 11))
+                                }
                             }
                         }
                         if item.isGlobalProfileProblem, let profile = item.profile {
@@ -101,5 +106,6 @@ struct DoctorActions {
     var recheck: () -> Void = {}
     var openInTerminal: () -> Void = {}
     var run: (String) -> Void = { _ in }
+    var runWithChosenPath: (String) -> Void = { _ in }
     var deleteProfile: (String) -> Void = { _ in }
 }

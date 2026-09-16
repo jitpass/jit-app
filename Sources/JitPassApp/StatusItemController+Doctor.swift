@@ -11,8 +11,39 @@ extension StatusItemController {
             recheck: { [weak self] in self?.runDoctor() },
             openInTerminal: { [weak self] in self?.runInTerminal("jit doctor") },
             run: { [weak self] command in self?.runInTerminal(command) },
+            runWithChosenPath: { [weak self] command in self?.runWithChosenPath(command) },
             deleteProfile: { [weak self] name in self?.confirmDeleteProfile(name) }
         )
+    }
+
+    /// A command with a <file> or <path> placeholder cannot run as written.
+    /// An export names a file to CREATE, so it gets a save panel; everything
+    /// else names something that exists, so an open panel that accepts a
+    /// file or a folder. The chosen path replaces the placeholder, quoted,
+    /// and the command runs in the terminal like any other.
+    private func runWithChosenPath(_ command: String) {
+        guard let placeholder = DoctorItem.placeholder(in: command) else {
+            return runInTerminal(command)
+        }
+        let chosen: URL?
+        if command.hasPrefix("jit vault export") {
+            let save = NSSavePanel()
+            save.title = "Export the vault"
+            save.nameFieldStringValue = "jit-vault-\(Format.dateStamp()).export"
+            save.canCreateDirectories = true
+            chosen = save.runModal() == .OK ? save.url : nil
+        } else {
+            let open = NSOpenPanel()
+            open.title = "Choose the \(placeholder.dropFirst().dropLast()) for: \(command)"
+            open.canChooseFiles = true
+            open.canChooseDirectories = true
+            open.allowsMultipleSelection = false
+            chosen = open.runModal() == .OK ? open.url : nil
+        }
+        guard let chosen else {
+            return
+        }
+        runInTerminal(command.replacingOccurrences(of: placeholder, with: Terminal.quoted(chosen.path)))
     }
 
     /// The one destructive act the app performs itself, and it is a move
