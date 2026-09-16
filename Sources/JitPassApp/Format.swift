@@ -82,10 +82,18 @@ enum Format {
         AuditReport.title(for: event) + " · " + clock(event.date)
     }
 
-    /// "  claude → jamf, aws-ci  until 17:42", indented to sit under the Grants row.
-    static func grant(_ grant: GrantStatus) -> String {
-        let holder = grant.name ?? "pid \(grant.pid)"
-        let profiles = grant.profiles.joined(separator: ", ")
-        return "  \(holder) → \(profiles)  until \(clock(grant.expires))"
+    /// "under iTerm2 · until 17:42 · 14 serves", or "pid 48211 · …" for an
+    /// exact-process grant; "ending" when the anchor has already exited.
+    static func grantDetail(_ grant: GrantStatus) -> String {
+        var parts: [String] = []
+        parts.append(grant.anchor.map { "under \($0)" } ?? "pid \(grant.pid)")
+        parts.append("until " + clock(grant.expires))
+        if let serves = grant.serves, serves > 0 {
+            parts.append("\(serves) serve" + (serves == 1 ? "" : "s"))
+        }
+        if !grant.rootAlive {
+            parts.append("ending")
+        }
+        return parts.joined(separator: " · ")
     }
 }

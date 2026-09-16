@@ -18,6 +18,20 @@ extension StatusItemController {
         )
     }
 
+    var grantsActions: GrantsActions {
+        GrantsActions(
+            revoke: { [weak self] id in self?.revokeGrant(id) },
+            newGrant: { [weak self] in self?.openGrantSheet() },
+            openInTerminal: { [weak self] in self?.runInTerminal("jit grant list") }
+        )
+    }
+
+    func openGrants() {
+        panel.dismiss()
+        model.grants = (try? client.grants()) ?? []
+        grantsWindow.present()
+    }
+
     // MARK: - Grants
 
     func openGrantSheet() {

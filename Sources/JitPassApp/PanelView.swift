@@ -24,15 +24,13 @@ struct PanelView: View {
                     row("archivebox", "Vault", vault)
                 }
                 row("play.circle", "Service", model.serviceValue)
-                row("key", "Grants", model.grantsValue)
-                ForEach(model.grants) { grant in
-                    grantRow(grant)
+                Button(action: actions.openGrants) {
+                    row("key", "Grants", model.grantsValue, dot: model.grants.isEmpty ? nil : Color(StatusMark.green))
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(HoverRowStyle())
                 if let mounts = model.mountsValue {
                     row("doc.text", "Mounts", mounts)
-                }
-                if let consent = model.consentValue {
-                    row("hand.raised", "Consent", consent)
                 }
                 Button(action: actions.openDoctor) {
                     row("stethoscope", "Doctor", model.doctorValue, dot: doctorDot)
@@ -103,7 +101,7 @@ struct PanelView: View {
 
     private func row(_ symbol: String, _ label: String, _ value: String, dot: Color? = nil) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: symbol).font(.system(size: 12)).frame(width: 16)
+            Image(systemName: symbol).font(.system(size: 12)).imageScale(.medium).frame(width: 16, height: 16)
             Text(label)
             Spacer()
             if let dot {
@@ -113,20 +111,6 @@ struct PanelView: View {
         }
         .font(.system(size: 13))
         .frame(height: 26)
-        .padding(.horizontal, 14)
-    }
-
-    private func grantRow(_ grant: GrantStatus) -> some View {
-        HStack(spacing: 12) {
-            Color.clear.frame(width: 16)
-            Text(Format.grant(grant)).foregroundStyle(.secondary).lineLimit(1)
-            Spacer()
-            Button("Revoke") { actions.revoke(grant.id) }
-                .buttonStyle(.plain)
-                .foregroundStyle(Color.accentColor)
-        }
-        .font(.system(size: 11))
-        .frame(height: 20)
         .padding(.horizontal, 14)
     }
 
@@ -172,7 +156,7 @@ struct PanelView: View {
 struct PanelActions {
     var lock: () -> Void = {}
     var unlock: () -> Void = {}
-    var revoke: (String) -> Void = { _ in }
+    var openGrants: () -> Void = {}
     var newGrant: () -> Void = {}
     var runScan: () -> Void = {}
     var openScan: () -> Void = {}
