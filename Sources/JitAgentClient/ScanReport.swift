@@ -15,6 +15,11 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
     public var remedy: String
     public var fixCommand: String?
     public var archived: Bool
+    /// The file is test scaffolding (a *_test.go, a testdata/ path) or the
+    /// value is a documented example. The scanner still counts them, and the
+    /// score includes them, but a reader wants them set apart.
+    public var testFixture: Bool
+    public var sourceExample: Bool
 
     enum CodingKeys: String, CodingKey {
         case id = "record_id"
@@ -25,11 +30,33 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         case remedy
         case fixCommand = "fix_command"
         case archived
+        case testFixture = "test_fixture"
+        case sourceExample = "source_example"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        findingType = try c.decode(String.self, forKey: .findingType)
+        severity = try c.decode(String.self, forKey: .severity)
+        filePath = try c.decode(String.self, forKey: .filePath)
+        evidence = try c.decode(String.self, forKey: .evidence)
+        remedy = try c.decode(String.self, forKey: .remedy)
+        fixCommand = try c.decodeIfPresent(String.self, forKey: .fixCommand)
+        archived = try c.decodeIfPresent(Bool.self, forKey: .archived) ?? false
+        testFixture = try c.decodeIfPresent(Bool.self, forKey: .testFixture) ?? false
+        sourceExample = try c.decodeIfPresent(Bool.self, forKey: .sourceExample) ?? false
     }
 
     /// True when `jit migrate` can fix it; false means only the user can.
     public var migratable: Bool {
         remedy == "migrate"
+    }
+
+    /// Test scaffolding or a documented example: real-looking, counted by
+    /// the scanner, but almost never a live credential.
+    public var scaffolding: Bool {
+        testFixture || sourceExample
     }
 }
 
@@ -67,11 +94,15 @@ public struct ScanReport: Sendable, Equatable {
     }
 
     public var migratable: [ScanFinding] {
-        findings.filter(\.migratable)
+        findings.filter { $0.migratable && !$0.scaffolding }
     }
 
     public var manual: [ScanFinding] {
-        findings.filter { !$0.migratable }
+        findings.filter { !$0.migratable && !$0.scaffolding }
+    }
+
+    public var scaffolding: [ScanFinding] {
+        findings.filter(\.scaffolding)
     }
 
     /// Parses the ndjson stream. Lines that are neither a finding nor the
