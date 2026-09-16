@@ -21,7 +21,7 @@ final class MenuModel: ObservableObject {
     /// The folder the last scan was limited to; nil means the whole Mac.
     @Published var scanScope: String?
     @Published var audit: AuditReport?
-    @Published var auditFilter = AuditFilter()
+    @Published var auditFilter = AuditFilter(since: "24h")
     @Published var auditLoading = false
 
     var serviceValue: String {
