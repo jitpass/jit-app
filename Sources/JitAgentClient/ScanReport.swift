@@ -35,17 +35,17 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
     }
 
     public init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id)
-        findingType = try c.decode(String.self, forKey: .findingType)
-        severity = try c.decode(String.self, forKey: .severity)
-        filePath = try c.decode(String.self, forKey: .filePath)
-        evidence = try c.decode(String.self, forKey: .evidence)
-        remedy = try c.decode(String.self, forKey: .remedy)
-        fixCommand = try c.decodeIfPresent(String.self, forKey: .fixCommand)
-        archived = try c.decodeIfPresent(Bool.self, forKey: .archived) ?? false
-        testFixture = try c.decodeIfPresent(Bool.self, forKey: .testFixture) ?? false
-        sourceExample = try c.decodeIfPresent(Bool.self, forKey: .sourceExample) ?? false
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        findingType = try container.decode(String.self, forKey: .findingType)
+        severity = try container.decode(String.self, forKey: .severity)
+        filePath = try container.decode(String.self, forKey: .filePath)
+        evidence = try container.decode(String.self, forKey: .evidence)
+        remedy = try container.decode(String.self, forKey: .remedy)
+        fixCommand = try container.decodeIfPresent(String.self, forKey: .fixCommand)
+        archived = try container.decodeIfPresent(Bool.self, forKey: .archived) ?? false
+        testFixture = try container.decodeIfPresent(Bool.self, forKey: .testFixture) ?? false
+        sourceExample = try container.decodeIfPresent(Bool.self, forKey: .sourceExample) ?? false
     }
 
     /// True when `jit migrate` can fix it; false means only the user can.
