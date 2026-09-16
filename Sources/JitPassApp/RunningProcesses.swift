@@ -23,18 +23,6 @@ struct RunningProcess: Identifiable, Hashable {
         pid
     }
 
-    var label: String {
-        var parts = [name]
-        if !folder.isEmpty {
-            parts.append("in \(folder)")
-        }
-        if !under.isEmpty {
-            parts.append("under \(under)")
-        }
-        parts.append("\(Self.age(elapsed)) · pid \(pid)")
-        return parts.joined(separator: " · ")
-    }
-
     /// "1-02:03:04" -> "1d", "02:03:04" -> "2h", "12:34" -> "12m", "45" -> "now".
     static func age(_ elapsed: String) -> String {
         let dayParts = elapsed.split(separator: "-")
