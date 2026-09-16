@@ -20,7 +20,7 @@ struct AuditView: View {
         VStack(alignment: .leading, spacing: 0) {
             filters
             Divider().padding(.vertical, 8)
-            if let rows = model.audit?.rows {
+            if let rows = model.audit?.rows.filter({ !Self.isOwnRead($0) }) {
                 if rows.isEmpty {
                     Text("Nothing matches.").foregroundStyle(.secondary).padding(.vertical, 20)
                     Spacer()
@@ -37,6 +37,14 @@ struct AuditView: View {
         .padding(16)
         .frame(minWidth: 520, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+    }
+
+    /// The app's own bookkeeping reads (`jit status`, `jit audit`) are in
+    /// the log, as every command is, but showing them here buries the events
+    /// the window exists for under the act of looking. The terminal keeps
+    /// them.
+    static func isOwnRead(_ row: AuditRow) -> Bool {
+        row.kind == "cmd" && row.launchedBy == "JitPass" && (row.title == "jit status" || row.title == "jit audit")
     }
 
     private var filters: some View {

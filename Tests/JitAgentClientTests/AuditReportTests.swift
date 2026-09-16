@@ -22,6 +22,16 @@ final class AuditReportTests: XCTestCase {
         XCTAssertEqual(rows[2].detail, "5m0s idle timeout")
     }
 
+    func testTitlesNameWhatHappenedWithoutACaller() {
+        XCTAssertEqual(AuditReport.title(for: SessionEvent(unixTime: 0, kind: "use", op: "serve_mounts")), "served mounts (a secret)")
+        XCTAssertEqual(
+            AuditReport.title(for: SessionEvent(unixTime: 0, kind: "use", op: "unwrap", by: "/usr/bin/aws", labels: ["aws/default"])),
+            "aws used aws/default"
+        )
+        XCTAssertEqual(AuditReport.title(for: SessionEvent(unixTime: 0, kind: "lock", cause: "screen locked")), "locked")
+        XCTAssertEqual(AuditReport.title(for: SessionEvent(unixTime: 0, kind: "start")), "service started")
+    }
+
     func testFilterRendersOnlyWhatIsSet() {
         XCTAssertEqual(AuditFilter().arguments, ["audit", "--format", "json", "--limit", "200"])
         let f = AuditFilter(kinds: ["unlock", "use"], parent: "claude", since: "24h", limit: 50)

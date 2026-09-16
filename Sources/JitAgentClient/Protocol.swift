@@ -52,21 +52,29 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     public var by: String?
     public var launchedBy: String?
     public var cause: String?
+    /// Secret names a use touched, and how many uses one event collapses.
+    public var labels: [String]?
+    public var count: Int?
 
-    public init(unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, launchedBy: String? = nil, cause: String? = nil) {
+    public init(
+        unixTime: Int64, kind: String, op: String? = nil, by: String? = nil,
+        launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil
+    ) {
         self.unixTime = unixTime
         self.kind = kind
         self.op = op
         self.by = by
         self.launchedBy = launchedBy
         self.cause = cause
+        self.labels = labels
+        self.count = count
     }
 
     enum CodingKeys: String, CodingKey {
         case unixTime = "unix_time"
         case kind, op, by
         case launchedBy = "launched_by"
-        case cause
+        case cause, labels, count
     }
 
     public var date: Date {

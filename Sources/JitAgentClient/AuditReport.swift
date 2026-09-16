@@ -52,7 +52,8 @@ public struct AuditReport: Codable, Sendable, Equatable {
                 kind: "cmd",
                 status: cmd.success ? "ok" : "failed",
                 title: cmd.command,
-                detail: cmd.launchedBy.map { "launched by \($0)" } ?? ""
+                detail: cmd.launchedBy.map { "launched by \($0)" } ?? "",
+                launchedBy: cmd.launchedBy
             )
         }
         let fromEvents = authEvents.map { event in
@@ -62,21 +63,39 @@ public struct AuditReport: Codable, Sendable, Equatable {
                 kind: event.kind,
                 status: event.kind,
                 title: Self.title(for: event),
-                detail: event.cause ?? event.launchedBy.map { "launched by \($0)" } ?? ""
+                detail: event.cause ?? event.launchedBy.map { "launched by \($0)" } ?? "",
+                launchedBy: event.launchedBy
             )
         }
         return (fromCommands + fromEvents).sorted { $0.date > $1.date }
     }
 
-    static func title(for event: SessionEvent) -> String {
+    /// The one line that names a session event: who did what. Shared by the
+    /// panel's "last event" and the audit rows so they can never disagree.
+    /// A use with no caller is the agent serving its own mounts, and says so
+    /// rather than printing a question mark.
+    public static func title(for event: SessionEvent) -> String {
         let who = event.by.map { String($0.split(separator: "/").last ?? Substring($0)) } ?? ""
+        let secrets = event.labels?.joined(separator: ", ") ?? ""
         switch event.kind {
-        case "unlock": return who.isEmpty ? "unlocked" : "unlocked by \(who)"
-        case "lock": return "locked"
-        case "use": return who.isEmpty ? "used a secret" : "\(who) used a secret"
-        case "denied": return who.isEmpty ? "denied" : "denied \(who)"
-        case "approved": return who.isEmpty ? "approved" : "approved \(who)"
-        default: return who.isEmpty ? event.kind : "\(event.kind) · \(who)"
+        case "unlock":
+            return who.isEmpty ? "unlocked" : "unlocked by \(who)"
+        case "lock":
+            return "locked"
+        case "use":
+            let what = secrets.isEmpty ? "a secret" : secrets
+            if who.isEmpty {
+                return event.op == "serve_mounts" ? "served mounts (\(what))" : "used \(what)"
+            }
+            return "\(who) used \(what)"
+        case "denied":
+            return who.isEmpty ? "denied" : "denied \(who)"
+        case "approved":
+            return who.isEmpty ? "approved" : "approved \(who)"
+        case "start":
+            return "service started"
+        default:
+            return who.isEmpty ? event.kind : "\(event.kind) · \(who)"
         }
     }
 }
@@ -88,6 +107,7 @@ public struct AuditRow: Sendable, Equatable, Identifiable {
     public var status: String
     public var title: String
     public var detail: String
+    public var launchedBy: String?
 }
 
 /// The filters `jit audit` accepts, rendered to its flags. Empty means

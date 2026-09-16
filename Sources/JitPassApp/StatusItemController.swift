@@ -82,8 +82,11 @@ final class StatusItemController {
     private var auditActions: AuditActions {
         AuditActions(
             setFilter: { [weak self] filter in
-                self?.model.auditFilter = filter
-                self?.reloadAudit()
+                guard let self, filter != model.auditFilter else {
+                    return
+                }
+                model.auditFilter = filter
+                reloadAudit()
             },
             openInTerminal: { [weak self] in self?.runInTerminal("jit audit") }
         )
