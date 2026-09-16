@@ -53,6 +53,15 @@ enum RunningProcesses {
         "tmux", "Code", "Cursor", "Windsurf", "Zed", "Xcode", "JitPass"
     ]
 
+    /// The terminals and editors the system launched directly: the anchors
+    /// a tree grant may name from outside the tree.
+    static func sessionRoots() -> [RunningProcess] {
+        psRows()
+            .filter { $0.ppid <= 1 && sessionApps.contains($0.name) && $0.name != "JitPass" }
+            .map { RunningProcess(pid: $0.pid, name: $0.name, under: "", folder: "", elapsed: $0.elapsed) }
+            .sorted { $0.name < $1.name }
+    }
+
     static func list(all: Bool) -> [RunningProcess] {
         let rows = psRows()
         let byPID = Dictionary(rows.map { ($0.pid, $0) }, uniquingKeysWith: { first, _ in first })
