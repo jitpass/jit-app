@@ -145,4 +145,54 @@ extension StatusItemController {
             self?.notice("rekeyed")
         })
     }
+
+    /// `jit vault duplicates --format json`, after a dialog saying what it
+    /// costs: every value is decrypted to compare, so the unlock and one
+    /// Touch ID per gated class (the consent sheet stays out of the way
+    /// for a process the app spawned). The result opens as a sheet.
+    func compareDuplicates() {
+        let alert = NSAlert()
+        alert.messageText = "Compare every secret?"
+        alert.informativeText = "This runs:\n\njit vault duplicates\n\n"
+            + "jit decrypts every stored value in memory to find copies of the same file. "
+            + "That takes the vault unlock plus one Touch ID per credential class the consent gate covers "
+            + "(aws, git, shell history…); Settings › Protection › \"Ask before each tool's first credential use\" "
+            + "is the switch for the per-class half. A 1Password link asks 1Password too. Nothing is changed."
+        alert.addButton(withTitle: "Compare")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+        runVault("duplicates", refresh: false, work: { JitCLI.vaultDuplicates() }, then: { [weak self] report in
+            self?.model.vaultDuplicates = report
+            self?.model.vaultSheet = .duplicates
+        })
+    }
+
+    /// `jit vault duplicates --prune --yes`: the stale copies whose origin
+    /// is gone and which nothing references, named in the dialog. The
+    /// same Touch IDs again: pruning re-reads the values to be sure.
+    func pruneDuplicates() {
+        guard let report = model.vaultDuplicates, !report.prunablePaths.isEmpty else {
+            return
+        }
+        let paths = report.prunablePaths
+        let alert = NSAlert()
+        alert.messageText = "Prune \(paths.count) stale secret\(paths.count == 1 ? "" : "s")?"
+        alert.informativeText = "This runs:\n\njit vault duplicates --prune --yes\n\nIt deletes for good:\n"
+            + paths.joined(separator: "\n")
+            + "\n\nEvery other finding keeps its printed command. Nothing asks again. Touch ID follows, once per class again."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Prune")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+        runVault("duplicates", work: { JitCLI.execute(["vault", "duplicates", "--prune", "--yes"]) }, then: { [weak self] _ in
+            self?.model.vaultDuplicates = nil
+            self?.model.vaultSheet = nil
+            self?.model.scanStale = true
+            self?.notice("\(paths.count) stale secret\(paths.count == 1 ? "" : "s") pruned")
+        })
+    }
 }

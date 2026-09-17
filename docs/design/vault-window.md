@@ -6,8 +6,12 @@ Status: phases 1 and 2 built 2026-09-17 (`VaultView`, `VaultSheets`,
 sidebar footer (`VaultMaintenanceSheet`, `StatusItemController+VaultMaintenance`,
 `JitAgentClient/VaultOrphans`) with orphans listed by origin and pruned
 after a dialog, backups pruned, export and import with the passphrase on
-stdin, rekey; duplicates opens the terminal; Settings › Protection gained
-the Vault section with clean and delete as terminal buttons. Doctor's own
+stdin, rekey, and duplicates in-app too (`VaultDuplicatesSheet`, the
+report as blocks with the CLI's verdict and command, Prune for the stale
+copies only); Settings › Protection gained the Vault section with clean
+and delete as terminal buttons. The consent sheet lets a jit process the
+app itself spawned through to the Touch ID without asking again
+(`JitCLI.spawned`): the app's own dialog was the question. Doctor's own
 prune and export actions stay where they were. The engine's `used_by` is
 still not done.
 

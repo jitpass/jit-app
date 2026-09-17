@@ -39,6 +39,8 @@ struct VaultView: View {
                 HistorySheet(model: model, actions: actions, path: path)
             case .maintenance:
                 MaintenanceSheet(model: model, actions: actions)
+            case .duplicates:
+                DuplicatesSheet(model: model, actions: actions)
             }
         }
         .onAppear(perform: actions.reload)
@@ -316,5 +318,6 @@ struct VaultActions {
     var exportVault: () -> Void = {}
     var importVault: () -> Void = {}
     var rekey: () -> Void = {}
-    var duplicatesInTerminal: () -> Void = {}
+    var compareDuplicates: () -> Void = {}
+    var pruneDuplicates: () -> Void = {}
 }
