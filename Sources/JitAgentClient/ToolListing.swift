@@ -253,6 +253,26 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         return .unknown
     }
 
+    /// The key when it is an `export` in a shell config, which `jit wrap`
+    /// does not read: the app migrates the file first (the export becomes
+    /// `jit export`, the value lands at `<rc name>/<VAR>`), then wraps with
+    /// that vault path. Nil when the listing already found the key in the
+    /// tool's own place, or when the key is anywhere else.
+    public func shellConfigKey(scan: ScanReport?) -> ShellConfigKey? {
+        guard kind == "shim", !isProtected, keyFound != true, let scan else {
+            return nil
+        }
+        let names = Set(injects.map { $0.name.uppercased() })
+        guard let f = scan.findings.first(where: {
+            $0.findingType == "shell_config_secret" && !$0.scaffolding && !$0.archived
+                && names.contains(($0.keyName ?? "").uppercased())
+        }), let name = f.keyName else {
+            return nil
+        }
+        let base = (f.filePath as NSString).lastPathComponent
+        return ShellConfigKey(file: f.filePath, name: name, profile: base.hasPrefix(".") ? String(base.dropFirst()) : base)
+    }
+
     /// Which global mount a finding's file feeds, by finding type or place.
     static func mountFile(_ f: ScanFinding, matches mount: String) -> Bool {
         switch mount {
@@ -275,33 +295,6 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         case "terraform": path.contains("/.terraform.d/") || path.hasSuffix("/.terraformrc")
         default: false
         }
-    }
-}
-
-/// The answer to "is there a key to protect": already handled, found
-/// somewhere on this Mac, looked and found nothing, or not looked yet.
-public enum ToolKeyState: Sendable, Equatable {
-    case protected
-    case found(String)
-    case none
-    case unknown
-
-    /// A key was found somewhere jit can take it from.
-    public var found: Bool {
-        if case .found = self {
-            return true
-        }
-        return false
-    }
-
-    /// A key sits in a plaintext file, which is the state worth a colour:
-    /// a token in a tool's own keychain login is encrypted at rest, and
-    /// wrapping it is an improvement, not a fix.
-    public var needsAction: Bool {
-        if case let .found(source) = self {
-            return source.hasPrefix("~") || source.hasPrefix("/")
-        }
-        return false
     }
 }
 

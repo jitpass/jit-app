@@ -107,6 +107,7 @@ final class StatusItemController {
     }
 
     func start() {
+        LoginShell.warm()
         item.button?.target = self
         item.button?.action = #selector(togglePanel)
         Notifier.install()
