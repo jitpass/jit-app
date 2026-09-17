@@ -11,6 +11,9 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
     public var findingType: String
     public var severity: String
     public var filePath: String
+    /// The line the secret sits on, 1-based, when the scanner knows it. A
+    /// file-level finding (a whole .env, a credentials file) has none.
+    public var line: Int?
     public var evidence: String
     public var remedy: String
     public var fixCommand: String?
@@ -26,6 +29,7 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         case findingType = "finding_type"
         case severity
         case filePath = "file_path"
+        case line
         case evidence
         case remedy
         case fixCommand = "fix_command"
@@ -40,6 +44,7 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         findingType = try container.decode(String.self, forKey: .findingType)
         severity = try container.decode(String.self, forKey: .severity)
         filePath = try container.decode(String.self, forKey: .filePath)
+        line = try container.decodeIfPresent(Int.self, forKey: .line)
         evidence = try container.decode(String.self, forKey: .evidence)
         remedy = try container.decode(String.self, forKey: .remedy)
         fixCommand = try container.decodeIfPresent(String.self, forKey: .fixCommand)
@@ -105,6 +110,42 @@ public struct ScanReport: Sendable, Equatable {
         findings.filter(\.scaffolding)
     }
 
+    /// The manual findings grouped by file, in first-seen order, so a file
+    /// with three exposed lines is one row with three lines under it rather
+    /// than the same path printed three times.
+    public var manualByFile: [ScanFileGroup] {
+        ScanFileGroup.group(manual)
+    }
+
+    /// The terminal commands that protect everything in `migratable`, in
+    /// one go: every `jit migrate <path>` folded into a single migrate call
+    /// (one plan, one confirmation, one Touch ID), then any other fix (a
+    /// `jit wrap <tool>`) once each, in the order the scan listed them.
+    /// Empty when nothing is migratable.
+    public var protectAllCommands: [String] {
+        let migratePrefix = "jit migrate "
+        var targets: [String] = []
+        var others: [String] = []
+        for f in migratable {
+            guard let fix = f.fixCommand else {
+                continue
+            }
+            if fix.hasPrefix(migratePrefix) {
+                let target = String(fix.dropFirst(migratePrefix.count))
+                if !targets.contains(target) {
+                    targets.append(target)
+                }
+            } else if !others.contains(fix) {
+                others.append(fix)
+            }
+        }
+        var commands: [String] = []
+        if !targets.isEmpty {
+            commands.append(migratePrefix + targets.joined(separator: " "))
+        }
+        return commands + others
+    }
+
     /// Parses the ndjson stream. Lines that are neither a finding nor the
     /// summary are skipped, so a new record type never breaks the app; a
     /// stream with no summary is an error, since it means the scan did not
@@ -146,4 +187,42 @@ private struct ScanRecordType: Decodable {
 
 public enum ScanReportError: Error, Equatable {
     case noSummary
+}
+
+/// One file's findings, for the report's per-file rows.
+public struct ScanFileGroup: Sendable, Equatable, Identifiable {
+    public var filePath: String
+    public var findings: [ScanFinding]
+
+    public var id: String {
+        filePath
+    }
+
+    /// The worst severity in the group, so the row's dot is the one a
+    /// reader must not miss.
+    public var severity: String {
+        findings.map(\.severity).max { Self.rank($0) < Self.rank($1) } ?? "low"
+    }
+
+    static func rank(_ severity: String) -> Int {
+        switch severity {
+        case "critical": 4
+        case "high": 3
+        case "medium": 2
+        case "low": 1
+        default: 0
+        }
+    }
+
+    public static func group(_ findings: [ScanFinding]) -> [ScanFileGroup] {
+        var order: [String] = []
+        var byFile: [String: [ScanFinding]] = [:]
+        for f in findings {
+            if byFile[f.filePath] == nil {
+                order.append(f.filePath)
+            }
+            byFile[f.filePath, default: []].append(f)
+        }
+        return order.map { ScanFileGroup(filePath: $0, findings: byFile[$0] ?? []) }
+    }
 }

@@ -35,7 +35,7 @@ enum JitCLI {
 
     /// Prompt-free: doctor checks envelopes without decrypting anything.
     static func doctor() -> DoctorReport? {
-        guard let data = run(["doctor", "--format", "json"]) else {
+        guard let data = run(["doctor", "--format", "json", "--orphans"]) else {
             return nil
         }
         return try? JSONDecoder().decode(DoctorReport.self, from: data)

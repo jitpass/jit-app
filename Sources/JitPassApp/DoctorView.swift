@@ -4,12 +4,15 @@
 import JitAgentClient
 import SwiftUI
 
-/// Doctor: the same findings list `jit doctor` prints, problems first, each
-/// with the CLI's advice and a Run link for the one command it names. The
-/// app shows and never fixes; every fix runs in the terminal.
+/// Doctor: the same findings `jit doctor` reports, problems first, grouped
+/// by kind under a title and a one-line note, each row with buttons named
+/// for what they do. The app shows and never fixes; every button runs its
+/// command in the terminal, where jit's own confirmations apply. A
+/// destructive one is red and confirmed by the app first.
 struct DoctorView: View {
     @ObservedObject var model: MenuModel
     let actions: DoctorActions
+    @State private var expanded: Set<String> = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -17,9 +20,9 @@ struct DoctorView: View {
             Divider().padding(.vertical, 8)
             if let report = model.doctor {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        section("Problems", report.problems, glyph: "✗", color: Color(StatusMark.red))
-                        section("Warnings", report.warnings, glyph: "○", color: Color(StatusMark.amber))
+                    VStack(alignment: .leading, spacing: 18) {
+                        section("Problems", report.problemGroups, glyph: "✗", color: Color(StatusMark.red))
+                        section("Warnings", report.warningGroups, glyph: "○", color: Color(StatusMark.amber))
                     }
                     .padding(.bottom, 12)
                     .padding(.trailing, 14)
@@ -29,7 +32,7 @@ struct DoctorView: View {
             }
         }
         .padding(16)
-        .frame(minWidth: 520, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
+        .frame(minWidth: 560, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
     }
 
@@ -52,6 +55,9 @@ struct DoctorView: View {
             if let report = model.doctor {
                 Text(Format.doctorSummary(report)).font(.subheadline).foregroundStyle(.secondary)
             }
+            if let message = model.doctorMessage {
+                Text(message).font(.subheadline).foregroundStyle(Color(StatusMark.red))
+            }
         }
     }
 
@@ -62,41 +68,105 @@ struct DoctorView: View {
         return report.warnings.isEmpty ? Color(StatusMark.green) : Color(StatusMark.amber)
     }
 
-    private func section(_ title: String, _ items: [DoctorItem], glyph: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+    private func section(_ title: String, _ groups: [DoctorGroup], glyph: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 6) {
                 Text(title).font(.system(size: 13, weight: .semibold))
-                Text("\(items.count)").foregroundStyle(.secondary)
+                Text("\(groups.reduce(0) { $0 + (DoctorAdvice.listedKinds.contains($1.kind) ? 1 : $1.items.count) })")
+                    .foregroundStyle(.secondary)
             }
-            if items.isEmpty {
+            if groups.isEmpty {
                 Text("none").font(.system(size: 12)).foregroundStyle(.secondary)
             }
-            ForEach(items) { item in
+            ForEach(groups) { group in
                 HStack(alignment: .top, spacing: 8) {
                     Text(glyph).foregroundStyle(color).frame(width: 12)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(item.summary).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
-                        ForEach(item.commands, id: \.self) { command in
-                            HStack(spacing: 8) {
-                                Text("→ " + command).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                                    .lineLimit(1).truncationMode(.middle)
-                                if DoctorItem.placeholder(in: command) != nil {
-                                    Button("Choose…") { actions.runWithChosenPath(command) }
-                                        .buttonStyle(.link).font(.system(size: 11))
-                                } else {
-                                    Button("Run") { actions.run(command) }.buttonStyle(.link).font(.system(size: 11))
-                                }
-                            }
-                        }
-                        if item.isGlobalProfileProblem, let profile = item.profile {
-                            HStack(spacing: 8) {
-                                Text("or, if you no longer need this profile:").font(.system(size: 11)).foregroundStyle(.secondary)
-                                Button("Delete profile…") { actions.deleteProfile(profile) }
-                                    .buttonStyle(.link).font(.system(size: 11)).foregroundStyle(Color(StatusMark.red))
-                            }
-                        }
+                    if DoctorAdvice.listedKinds.contains(group.kind) {
+                        listedGroup(group)
+                    } else {
+                        plainGroup(group)
                     }
                 }
+            }
+        }
+    }
+
+    private func groupHeader(_ group: DoctorGroup, count: Int? = nil) -> some View {
+        HStack(spacing: 6) {
+            Text(group.title).font(.system(size: 12, weight: .semibold))
+            if let count {
+                Text("\(count)").font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if let action = group.groupAction {
+                Button(action.title) { actions.perform(action) }.controlSize(.small)
+            }
+        }
+    }
+
+    /// A group with one row per finding.
+    private func plainGroup(_ group: DoctorGroup) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            groupHeader(group, count: group.items.count > 1 ? group.items.count : nil)
+            if let note = group.note {
+                Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(group.items) { item in
+                row(item)
+            }
+        }
+    }
+
+    /// A group shown as a count with its rows behind a disclosure: the
+    /// orphaned secrets, forty-five paths a reader wants folded.
+    private func listedGroup(_ group: DoctorGroup) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            groupHeader(group, count: group.items.count)
+            if let note = group.note {
+                Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 10) {
+                Button(expanded.contains(group.kind) ? "Hide" : "Show \(group.items.count)") {
+                    if !expanded.insert(group.kind).inserted {
+                        expanded.remove(group.kind)
+                    }
+                }
+                .buttonStyle(.link).font(.system(size: 11))
+                buttons(DoctorAdvice.orphanActions)
+            }
+            if expanded.contains(group.kind) {
+                ForEach(group.items) { item in
+                    Text(item.path ?? item.summary).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.head).padding(.leading, 8)
+                }
+            }
+        }
+    }
+
+    private func row(_ item: DoctorItem) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            if DoctorAdvice.rowIsPath(item) {
+                Text(DoctorAdvice.rowText(item)).font(.system(size: 12, design: .monospaced))
+                    .lineLimit(1).truncationMode(.head)
+            } else {
+                Text(DoctorAdvice.rowText(item)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            buttons(DoctorAdvice.actions(for: item))
+            if item.isGlobalProfileProblem, let profile = item.profile {
+                Button("Delete Profile") { actions.deleteProfile(profile) }
+                    .buttonStyle(.link).font(.system(size: 11)).foregroundStyle(Color(StatusMark.red))
+            }
+        }
+    }
+
+    private func buttons(_ list: [DoctorAction]) -> some View {
+        HStack(spacing: 10) {
+            ForEach(list, id: \.command) { action in
+                Button(action.title) { actions.perform(action) }
+                    .buttonStyle(.link).font(.system(size: 11))
+                    .foregroundStyle(action.destructive ? Color(StatusMark.red) : Color.accentColor)
+                    .help(action.command)
             }
         }
     }
@@ -105,7 +175,6 @@ struct DoctorView: View {
 struct DoctorActions {
     var recheck: () -> Void = {}
     var openInTerminal: () -> Void = {}
-    var run: (String) -> Void = { _ in }
-    var runWithChosenPath: (String) -> Void = { _ in }
+    var perform: (DoctorAction) -> Void = { _ in }
     var deleteProfile: (String) -> Void = { _ in }
 }
