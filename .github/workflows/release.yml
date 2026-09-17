@@ -118,7 +118,11 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          sha=$(cut -d' ' -f1 dist/checksums.txt)
+          # checksums.txt lists the versioned zip AND the unversioned copy; the
+          # cask pins the versioned one. Cutting the whole file once joined both
+          # hashes into one string and broke `brew upgrade` at 1.6.2.1.
+          sha=$(grep " JitPass-${version}-arm64.zip$" dist/checksums.txt | cut -d' ' -f1)
+          [ "$(printf '%s' "$sha" | wc -l)" -eq 0 ] && [ -n "$sha" ] || { echo "::error::no single sha256 for JitPass-${version}-arm64.zip"; exit 1; }
           scripts/cask.sh "$version" "$sha" > Casks/jitpass.rb
           cat Casks/jitpass.rb
           if [ -z "$TAP_TOKEN" ]; then
