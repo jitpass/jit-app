@@ -42,6 +42,11 @@ artifact_name() {
   echo "$APP_NAME-$(version_from_env)-arm64.zip"
 }
 
+# The unversioned copy of the same zip, for the stable /releases/latest link.
+latest_artifact_name() {
+  echo "$APP_NAME-arm64.zip"
+}
+
 die() {
   echo "error: $*" >&2
   exit 1
