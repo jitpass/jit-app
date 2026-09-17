@@ -25,12 +25,82 @@ public struct CLIMountsStatus: Codable, Sendable, Equatable {
     }
 }
 
+/// The zsh history guard: true only when the hook file exists and the rc
+/// file sources it with a live line, which is `guard.Installed`'s meaning.
+public struct CLIGuardStatus: Codable, Sendable, Equatable {
+    public var installed: Bool
+
+    public init(installed: Bool) {
+        self.installed = installed
+    }
+}
+
+/// A captured temporary credential with a known end: what a wrapped SSO
+/// tool's login minted. Metadata only, never a value.
+public struct CLISession: Codable, Sendable, Equatable, Identifiable {
+    public var profile: String
+    public var origin: String?
+    public var expiresUnix: Int64?
+    public var live: Bool
+    public var remainingSeconds: Int64?
+    /// The command that mints a fresh one ("clisso get stage"), when jit
+    /// can name it.
+    public var mint: String?
+
+    enum CodingKeys: String, CodingKey {
+        case profile, origin, live, mint
+        case expiresUnix = "expires_unix"
+        case remainingSeconds = "remaining_seconds"
+    }
+
+    public init(profile: String, origin: String? = nil, expiresUnix: Int64? = nil, live: Bool, mint: String? = nil) {
+        self.profile = profile
+        self.origin = origin
+        self.expiresUnix = expiresUnix
+        self.live = live
+        self.mint = mint
+    }
+
+    public var id: String {
+        profile
+    }
+
+    /// nil when the stamp is unknown (a capture from before jit recorded expiry).
+    public var expires: Date? {
+        (expiresUnix ?? 0) > 0 ? Date(timeIntervalSince1970: TimeInterval(expiresUnix ?? 0)) : nil
+    }
+
+    /// The tool that minted it, read off the mint command's first word.
+    public var mintTool: String? {
+        mint?.split(separator: " ").first.map(String.init)
+    }
+}
+
 public struct CLIStatus: Codable, Sendable, Equatable {
     public var vault: CLIVaultStatus?
     public var mounts: CLIMountsStatus?
+    public var guardStatus: CLIGuardStatus?
+    public var sessions: [CLISession]?
 
-    public init(vault: CLIVaultStatus?, mounts: CLIMountsStatus?) {
+    enum CodingKeys: String, CodingKey {
+        case vault, mounts, sessions
+        case guardStatus = "guard"
+    }
+
+    public init(
+        vault: CLIVaultStatus?,
+        mounts: CLIMountsStatus?,
+        guardStatus: CLIGuardStatus? = nil,
+        sessions: [CLISession]? = nil
+    ) {
         self.vault = vault
         self.mounts = mounts
+        self.guardStatus = guardStatus
+        self.sessions = sessions
+    }
+
+    /// The sessions a tool minted, by the mint command's first word.
+    public func sessions(mintedBy tool: String) -> [CLISession] {
+        (sessions ?? []).filter { $0.mintTool == tool }
     }
 }

@@ -24,6 +24,9 @@ struct ScanReportView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
                         protectSection(report)
+                        if !report.agentCopies.isEmpty {
+                            agentSection(report.agentCacheGroups)
+                        }
                         manualSection(report.manualByFile)
                         if !report.scaffolding.isEmpty {
                             fileSection("Test fixtures and examples", ScanFileGroup.group(report.scaffolding))
@@ -99,6 +102,10 @@ struct ScanReportView: View {
                     Text("Protected").font(.headline)
                 }
                 Spacer(minLength: 16)
+                if model.scan != nil, !model.scanning {
+                    Button("New Scan", action: actions.newScan)
+                        .help("Back to choosing what to scan. The last whole-Mac result stays behind the Protected row.")
+                }
                 if !model.fullDiskAccess {
                     Button("Grant Full Disk Access", action: actions.grantFullDiskAccess)
                         .help("Opens System Settings › Privacy & Security › Full Disk Access. Add JitPass there.")
@@ -159,7 +166,7 @@ struct ScanReportView: View {
 
     private static let manualNote = "jit can't rewrite these safely. Rotate or move each value yourself."
 
-    private func heading(_ title: String, _ count: Int) -> some View {
+    func heading(_ title: String, _ count: Int) -> some View {
         HStack(spacing: 6) {
             Text(title).font(.system(size: 13, weight: .semibold))
             Text("\(count)").foregroundStyle(.secondary)
@@ -229,7 +236,7 @@ struct ScanReportView: View {
     /// Open in the editor (at `line` when there is one) and Reveal in
     /// Finder, on every row: a reader wants to see the file whether jit
     /// can rewrite it or not.
-    private func fileButtons(_ filePath: String, line: Int?) -> some View {
+    func fileButtons(_ filePath: String, line: Int?) -> some View {
         HStack(spacing: 8) {
             Button("Open") { actions.open(filePath, line) }
             Button("Reveal") { actions.reveal(filePath) }
@@ -237,7 +244,7 @@ struct ScanReportView: View {
         .buttonStyle(.link).font(.system(size: 12))
     }
 
-    private func dot(_ severity: String) -> some View {
+    func dot(_ severity: String) -> some View {
         Circle().fill(Severity.color(severity)).frame(width: 7, height: 7).padding(.top, 5)
     }
 
@@ -258,6 +265,7 @@ struct ScanReportView: View {
 
 struct ScanActions {
     var rescan: () -> Void = {}
+    var newScan: () -> Void = {}
     var openSettings: () -> Void = {}
     var chooseFolder: () -> Void = {}
     var scanWholeMac: () -> Void = {}
@@ -267,4 +275,5 @@ struct ScanActions {
     var open: (String, Int?) -> Void = { _, _ in }
     var reveal: (String) -> Void = { _ in }
     var grantFullDiskAccess: () -> Void = {}
+    var cleanCaches: () -> Void = {}
 }

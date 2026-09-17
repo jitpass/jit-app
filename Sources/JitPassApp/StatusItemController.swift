@@ -42,15 +42,29 @@ final class StatusItemController {
         size: NSSize(width: 860, height: 540),
         minSize: NSSize(width: 720, height: 400)
     )
+    lazy var agentsWindow = ReportWindow(
+        title: "JitPass AI Agents",
+        content: AgentsView(model: model, actions: agentsActions),
+        size: NSSize(width: 720, height: 600),
+        minSize: NSSize(width: 600, height: 400)
+    )
+    lazy var toolsWindow = ReportWindow(
+        title: "JitPass Tools",
+        content: ToolsView(model: model, actions: toolsActions),
+        size: NSSize(width: 760, height: 480),
+        minSize: NSSize(width: 640, height: 360)
+    )
     /// The one revealed value's bytes; wiped by `hideReveal()`.
     var revealBuffer: SecretBuffer?
     var revealTimer: Timer?
     var vaultObservers: [NSObjectProtocol] = []
+    /// When the tool listing was last read, for the panel rows.
+    var toolsReadAt: Date?
     lazy var settingsWindow = ReportWindow(
         title: "JitPass Settings",
         content: SettingsView(model: model, actions: settingsActions),
-        size: NSSize(width: 460, height: 340),
-        minSize: NSSize(width: 460, height: 300)
+        size: NSSize(width: 480, height: 360),
+        minSize: NSSize(width: 480, height: 360)
     )
     lazy var doctorWindow = ReportWindow(
         title: "JitPass Doctor",
@@ -95,6 +109,12 @@ final class StatusItemController {
     func start() {
         item.button?.target = self
         item.button?.action = #selector(togglePanel)
+        Notifier.install()
+        Notifier.onActivate = { [weak self] in self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "7d")) }
+        if Notifier.decoysEnabled {
+            Notifier.requestPermission()
+        }
+        refreshDecoyReads()
         resync()
         openStream()
         tick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
@@ -113,11 +133,14 @@ final class StatusItemController {
             unlock: { [weak self] in self?.unlockNow() },
             openGrants: { [weak self] in self?.openGrants() },
             openVault: { [weak self] in self?.openVault() },
+            openTools: { [weak self] in self?.openTools() },
+            openAgents: { [weak self] in self?.openAgents() },
             newGrant: { [weak self] in self?.openGrantSheet() },
             runScan: { [weak self] in self?.openScan() },
             openScan: { [weak self] in self?.openScan() },
             openDoctor: { [weak self] in self?.openDoctor() },
             openAudit: { [weak self] in self?.openAudit() },
+            openDecoys: { [weak self] in self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "7d")) },
             openSettings: { [weak self] in self?.openSettings() },
             openConsent: { [weak self] in self?.openConsent() },
             about: { [weak self] in self?.showAbout() },
@@ -134,6 +157,7 @@ final class StatusItemController {
     private func resync() {
         pollStatus()
         model.cli = JitCLI.status()
+        reloadToolsIfStale()
         guard case .notRunning = model.state else {
             model.grants = (try? client.grants()) ?? []
             model.lastEvent = (try? client.history())?.first
@@ -185,6 +209,19 @@ final class StatusItemController {
         if let consentID = event.consentID {
             resolve(consentID: consentID)
         }
+        if event.isDecoyServe {
+            model.decoyReads24h = (model.decoyReads24h ?? 0) + (event.count ?? 1)
+            if model.notifyDecoys {
+                let who = event.by.map { String($0.split(separator: "/").last ?? Substring($0)) } ?? "an unknown reader"
+                let launcher = event.launchedBy.map { ", launched by \($0)" } ?? ""
+                let file = event.labels?.first ?? "a protected file"
+                Notifier.post(
+                    title: "Decoy served to \(who)",
+                    body: "It read \(file)\(launcher) with no grant covering it, and got fake values.",
+                    id: "decoy-\(event.unixTime)-\(event.byPID ?? 0)"
+                )
+            }
+        }
         model.lastEvent = event
         model.grants = (try? client.grants()) ?? []
         pollStatus()
@@ -222,6 +259,7 @@ final class StatusItemController {
         if !panel.isVisible {
             hideReveal(reason: "panel opened")
             resync()
+            refreshDecoyReads()
             refreshDoctorIfStale()
             refreshScanIfDue()
         }
@@ -244,6 +282,21 @@ final class StatusItemController {
     func revokeGrant(_ id: String) {
         try? client.revokeGrant(id: id)
         model.grants = (try? client.grants()) ?? []
+    }
+
+    /// `jit audit --kind serve --since 24h`, prompt-free, off the main
+    /// thread: the Mounts row's count. The stream keeps it current between
+    /// reads.
+    func refreshDecoyReads() {
+        Task.detached {
+            let report = JitCLI.audit(AuditFilter(kinds: ["serve"], since: "24h", limit: 0))
+            await MainActor.run { [weak self] in
+                guard let report else {
+                    return
+                }
+                self?.model.decoyReads24h = report.authEvents.filter(\.isDecoyServe).reduce(0) { $0 + ($1.count ?? 1) }
+            }
+        }
     }
 
     func runInTerminal(_ command: String) {

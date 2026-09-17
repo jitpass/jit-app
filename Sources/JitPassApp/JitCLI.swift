@@ -73,6 +73,23 @@ enum JitCLI {
         return try JSONDecoder().decode(VaultListing.self, from: data)
     }
 
+    /// Prompt-free: the wrap manifest, profile files, symlinks and envelope
+    /// headers. `--all` adds the catalog so the window can say "installed,
+    /// not wrapped", and `--discover` looks for each unwrapped tool's key
+    /// where `jit wrap` would (its config files, then its own export
+    /// command), reporting where and never what.
+    static func toolList() throws -> ToolListing {
+        // A jit before 1.6.1 has no --discover and prints usage instead of
+        // JSON; the listing without it is the same shape, minus the key
+        // discovery, and the window says "not checked" for those rows.
+        for arguments in [["wrap", "list", "--all", "--discover", "--format", "json"], ["wrap", "list", "--all", "--format", "json"]] {
+            if let data = run(arguments), let listing = try? JSONDecoder().decode(ToolListing.self, from: data) {
+                return listing
+            }
+        }
+        throw CLIError.failed("jit wrap list produced no listing")
+    }
+
     /// Prompt-free: archived versions by stamp, nothing decrypted.
     static func vaultHistory(_ path: String) throws -> VaultHistory {
         guard let data = run(["vault", "history", path, "--format", "json"]) else {
@@ -121,11 +138,19 @@ enum JitCLI {
 
     /// A GUI app's PATH lacks the Homebrew prefixes, and `jit vault link`
     /// looks up the 1Password CLI on PATH; hand every jit the same PATH a
-    /// terminal would give it.
+    /// terminal would give it. The shim dir goes first, as the rc line
+    /// puts it, so doctor's "shim dir on PATH" check and the tool listing's
+    /// installed-path lookup describe the user's shell, not the app's.
     static var environment: [String: String] {
         var env = ProcessInfo.processInfo.environment
         let path = env["PATH"] ?? "/usr/bin:/bin"
-        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + path
+        let home = FileManager.default.homeDirectoryForCurrentUser
+        let shims = home.appendingPathComponent(".jit/shims").path
+        // ~/.local/bin is where the claude, cursor-agent and uv installers
+        // put their binaries; without it the tool listing reports the AI
+        // agents as not installed on a Mac that runs them daily.
+        let local = home.appendingPathComponent(".local/bin").path
+        env["PATH"] = shims + ":/opt/homebrew/bin:/usr/local/bin:" + local + ":" + path
         return env
     }
 
@@ -179,6 +204,30 @@ enum JitCLI {
         return .failure(CLIError.failed(text.split(separator: "\n").last.map(String.init) ?? ""))
     }
 
+    /// Runs one shell line (a catalog verify hint such as `gh auth status`)
+    /// under the app's PATH and returns what it printed, for a result
+    /// sheet. The line is the catalog's, never the user's.
+    static func shell(_ line: String) -> Result<String, Error> {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+        process.arguments = ["-c", line]
+        process.environment = environment
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = out
+        process.standardInput = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return .failure(error)
+        }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        let text = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return process
+            .terminationStatus == 0 ? .success(text) : .failure(CLIError.failed(text.isEmpty ? "exit \(process.terminationStatus)" : text))
+    }
+
     enum CLIError: Error {
         case notInstalled
         case failed(String)
@@ -191,6 +240,10 @@ enum JitCLI {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: jit)
         process.arguments = arguments
+        // The same PATH as every other spawn: doctor checks for the 1Password
+        // CLI with a PATH lookup, and a GUI PATH without /opt/homebrew/bin
+        // had it reporting "op CLI is not installed" on a Mac that has it.
+        process.environment = environment
         let out = Pipe()
         process.standardOutput = out
         process.standardError = FileHandle.nullDevice

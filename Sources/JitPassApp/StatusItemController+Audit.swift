@@ -21,8 +21,11 @@ extension StatusItemController {
 
     // MARK: - Audit
 
-    func openAudit() {
+    func openAudit(filter: AuditFilter? = nil) {
         panel.dismiss()
+        if let filter {
+            model.auditFilter = filter
+        }
         auditWindow.present()
         reloadAudit()
     }
