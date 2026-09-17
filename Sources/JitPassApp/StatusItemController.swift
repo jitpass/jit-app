@@ -68,6 +68,7 @@ final class StatusItemController {
     }()
 
     private var tick: Timer?
+    private var scanCheck: Timer?
     private var stream: Subscription?
     private var reconnect: Timer?
 
@@ -88,6 +89,11 @@ final class StatusItemController {
         openStream()
         tick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.pollStatus() }
+        }
+        model.fullDiskAccess = FullDiskAccess.granted()
+        refreshScanIfDue()
+        scanCheck = Timer.scheduledTimer(withTimeInterval: Self.scanCheckInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.refreshScanIfDue() }
         }
     }
 
@@ -205,6 +211,7 @@ final class StatusItemController {
         if !panel.isVisible {
             resync()
             refreshDoctorIfStale()
+            refreshScanIfDue()
         }
         panel.toggle(under: button)
     }

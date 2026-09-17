@@ -112,4 +112,19 @@ extension ScanReportTests {
         XCTAssertEqual(r.protectAllCommands, ["jit migrate ~/a/.env '~/b dir/.env'", "jit wrap clisso"])
         XCTAssertEqual(try parse([]).protectAllCommands, [])
     }
+
+    /// The same ledger arithmetic as the CLI: 39 of 47 is 82%, one command
+    /// lifts it to 87%, and the rest is the user's; a Mac jit knows nothing
+    /// about is 100%.
+    func testCoverageMatchesTheCLI() throws {
+        let r = try ScanReport.parse(stream([summary]))
+        XCTAssertEqual(r.summary.percent, 82)
+        XCTAssertEqual(r.summary.percentAfterMigrate, 87)
+        XCTAssertEqual(r.summary.secretsManual, 6)
+        XCTAssertEqual(r.summary.toFullLine, "to 100%: one command +5% · 6 secrets only you can fix +13%")
+        let clean = ScanSummary(totalFindings: 0, riskLevel: "low", exposureScore: 0, secretsTotal: 0,
+                                secretsProtected: 0, secretsMigratable: 0, filesScanned: 10, scanTime: nil)
+        XCTAssertEqual(clean.percent, 100)
+        XCTAssertNil(clean.toFullLine)
+    }
 }
