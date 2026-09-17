@@ -2,7 +2,14 @@
 
 Status: phases 1 and 2 built 2026-09-17 (`VaultView`, `VaultSheets`,
 `StatusItemController+Vault`, `JitAgentClient/VaultListing` and
-`SecretBuffer`); phase 3 and the engine's `used_by` are not.
+`SecretBuffer`). Phase 3 built the same day: a Maintenance sheet off the
+sidebar footer (`VaultMaintenanceSheet`, `StatusItemController+VaultMaintenance`,
+`JitAgentClient/VaultOrphans`) with orphans listed by origin and pruned
+after a dialog, backups pruned, export and import with the passphrase on
+stdin, rekey; duplicates opens the terminal; Settings › Protection gained
+the Vault section with clean and delete as terminal buttons. Doctor's own
+prune and export actions stay where they were. The engine's `used_by` is
+still not done.
 
 `design/menu-bar-app.md` (jit repo) says the app is "not a vault browser"
 in v1: names, states and events only, never a value. v0.9.2 honours that so

@@ -93,6 +93,11 @@ final class StatusItemController {
 
     private var tick: Timer?
     private var scanCheck: Timer?
+    /// The minute timer behind the session notifications.
+    var sessionCheck: Timer?
+    /// "profile:expiry:stage" for every session notice already posted, so
+    /// each session is announced once per stage, never per tick.
+    var sessionNotices: Set<String> = []
     private var stream: Subscription?
     private var reconnect: Timer?
 
@@ -110,11 +115,7 @@ final class StatusItemController {
         LoginShell.warm()
         item.button?.target = self
         item.button?.action = #selector(togglePanel)
-        Notifier.install()
-        Notifier.onActivate = { [weak self] in self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "7d")) }
-        if Notifier.decoysEnabled {
-            Notifier.requestPermission()
-        }
+        installNotifications()
         refreshDecoyReads()
         resync()
         openStream()
@@ -283,21 +284,6 @@ final class StatusItemController {
     func revokeGrant(_ id: String) {
         try? client.revokeGrant(id: id)
         model.grants = (try? client.grants()) ?? []
-    }
-
-    /// `jit audit --kind serve --since 24h`, prompt-free, off the main
-    /// thread: the Mounts row's count. The stream keeps it current between
-    /// reads.
-    func refreshDecoyReads() {
-        Task.detached {
-            let report = JitCLI.audit(AuditFilter(kinds: ["serve"], since: "24h", limit: 0))
-            await MainActor.run { [weak self] in
-                guard let report else {
-                    return
-                }
-                self?.model.decoyReads24h = report.authEvents.filter(\.isDecoyServe).reduce(0) { $0 + ($1.count ?? 1) }
-            }
-        }
     }
 
     func runInTerminal(_ command: String) {

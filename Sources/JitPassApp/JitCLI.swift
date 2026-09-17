@@ -90,6 +90,14 @@ enum JitCLI {
         throw CLIError.failed("jit wrap list produced no listing")
     }
 
+    /// Prompt-free: profile manifests and envelope headers only.
+    static func vaultOrphans() throws -> VaultOrphans {
+        guard let data = run(["vault", "orphans", "--format", "json"]) else {
+            throw CLIError.failed("jit vault orphans produced no output")
+        }
+        return try JSONDecoder().decode(VaultOrphans.self, from: data)
+    }
+
     /// Prompt-free: archived versions by stamp, nothing decrypted.
     static func vaultHistory(_ path: String) throws -> VaultHistory {
         guard let data = run(["vault", "history", path, "--format", "json"]) else {

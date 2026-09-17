@@ -35,8 +35,39 @@ extension StatusItemController {
                 if on {
                     Notifier.requestPermission()
                 }
+            },
+            setNotifyChanges: { [weak self] on in
+                UserDefaults.standard.set(on, forKey: Notifier.changesPreferenceKey)
+                self?.model.notifyChanges = on
+                if on {
+                    Notifier.requestPermission()
+                }
+            },
+            vaultClean: { [weak self] in self?.vaultDestructive(
+                "clean",
+                does: "deletes every secret and every backup for good; the vault and its key stay"
+            ) },
+            vaultDelete: { [weak self] in
+                self?.vaultDestructive("delete", does: "destroys the vault directory and its key in the keychain")
             }
         )
+    }
+
+    /// The two commands the window never runs: they go to the terminal
+    /// with jit's own y/N as the last word, after this dialog has said what
+    /// they do.
+    private func vaultDestructive(_ command: String, does: String) {
+        let alert = NSAlert()
+        alert.messageText = "jit vault \(command)?"
+        alert.informativeText = "This opens the terminal and runs:\n\njit vault \(command)\n\n"
+            + "It \(does). jit asks once more before it does."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Open in Terminal")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            return
+        }
+        runInTerminal("jit vault \(command)")
     }
 
     private func chooseExcludeFolder() {
