@@ -39,6 +39,20 @@ final class SubscribeTests: XCTestCase {
         XCTAssertEqual(received.value, ["unlock", "lock"])
     }
 
+    func testBrokerFlagRidesTheSubscribeRequest() throws {
+        let sent = Locked<[Bool?]>([])
+        let server = try FakeAgent(path: path, stream: []) { request in
+            sent.append(request.broker)
+            return self.ack
+        }
+        defer { server.stop() }
+        let ended = expectation(description: "onEnd")
+        let sub = AgentClient(socketPath: path).subscribe(broker: true, onEvent: { _ in }, onEnd: { _ in ended.fulfill() })
+        defer { sub.cancel() }
+        wait(for: [ended], timeout: 5)
+        XCTAssertEqual(sent.value, [true])
+    }
+
     func testRefusalSurfacesAsAnError() throws {
         let server = try FakeAgent(path: path) { _ in #"{"ok":false,"error":"subscribe: this request needs agent protocol 9"}"# }
         defer { server.stop() }
