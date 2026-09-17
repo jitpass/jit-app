@@ -31,6 +31,11 @@ xcrun stapler validate "$APP"
 zip="$DIST/$(artifact_name)"
 rm -f "$zip"
 ditto -c -k --keepParent "$APP" "$zip"
-(cd "$DIST" && shasum -a 256 "$(artifact_name)" > checksums.txt)
+# The same bytes under a name with no version in it, so the website's
+# Download button and jit's own advice can print one link that never goes
+# stale: /releases/latest/download/JitPass-arm64.zip. The cask keeps using
+# the versioned name, pinned by sha256 like before.
+cp "$zip" "$DIST/$(latest_artifact_name)"
+(cd "$DIST" && shasum -a 256 "$(artifact_name)" "$(latest_artifact_name)" > checksums.txt)
 echo "notarized, stapled and packed: $zip"
 cat "$DIST/checksums.txt"

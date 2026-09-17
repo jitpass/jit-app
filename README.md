@@ -38,6 +38,18 @@ release pinned in `jit.version`, fetched and verified at build time. The
 older `jit-app` cask is retired; `brew uninstall --cask jit-app` before
 installing this one.
 
+Without Homebrew, download the notarized app and drag it into Applications:
+
+```
+https://dl.jitpass.com/jitpass/jit-app/releases/latest/download/JitPass-arm64.zip
+```
+
+On first launch the app offers to link `jit` into your PATH (Homebrew's bin
+without a password, `/usr/local/bin` with one), and it checks GitHub once a
+day for a newer release; both live under Settings › General. A copy opened
+straight from the download runs from a temporary location, and the app says
+so and asks to be moved first.
+
 ## Release
 
 Push a tag `vX.Y.Z`. The workflow builds, Developer ID signs, notarizes and

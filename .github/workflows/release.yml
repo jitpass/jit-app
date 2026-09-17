@@ -85,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "$GITHUB_REF_NAME" --draft --generate-notes --title "$GITHUB_REF_NAME" \
-            dist/JitPass-*-arm64.zip dist/checksums.txt
+            dist/JitPass-*-arm64.zip dist/JitPass-arm64.zip dist/checksums.txt
 
       - name: Verify the published asset
         env:
@@ -95,6 +95,11 @@ jobs:
           work=$(mktemp -d)
           gh release download "$GITHUB_REF_NAME" --pattern '*.zip' --pattern 'checksums.txt' --dir "$work" --clobber
           scripts/verify.sh "$work"/JitPass-*-arm64.zip "$work/checksums.txt"
+          # The unversioned copy is what the website's Download button
+          # serves; it must be the bytes just verified, not a stale upload.
+          versioned=$(shasum -a 256 "$work"/JitPass-*-arm64.zip | cut -d' ' -f1)
+          latest=$(shasum -a 256 "$work/JitPass-arm64.zip" | cut -d' ' -f1)
+          [ "$versioned" = "$latest" ] || { echo "::error::JitPass-arm64.zip ($latest) is not the verified zip ($versioned)"; exit 1; }
 
       - name: Undraft
         env:

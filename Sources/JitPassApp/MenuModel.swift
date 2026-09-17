@@ -106,6 +106,15 @@ final class MenuModel: ObservableObject {
     /// The bundle identifier of the editor scan rows open files with; "" is the system default.
     @Published var editorApp = ""
     @Published var editors: [Editor.Choice] = []
+    /// A newer JitPass, as "1.6.3", once the daily check has found one.
+    @Published var updateAvailable: String?
+    @Published var updateChecking = false
+    @Published var updateChecked: Date?
+    @Published var updateMessage: String?
+    @Published var checkForUpdates = true
+    /// Whether a terminal's `jit` is this app's; nil for a build with no
+    /// bundled jit, where the question has no answer.
+    @Published var cliTool: CommandLineTool.State?
 
     var serviceValue: String {
         switch state {

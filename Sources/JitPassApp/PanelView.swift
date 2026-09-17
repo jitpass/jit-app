@@ -71,6 +71,13 @@ struct PanelView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
+                if let update = model.updateAvailable {
+                    Button(action: actions.installUpdate) {
+                        row("arrow.down.circle", "Update", "\(update) available", dot: Color(StatusMark.amber))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
+                }
             }
 
             divider
@@ -219,6 +226,7 @@ struct PanelActions {
     var openSettings: () -> Void = {}
     var openConsent: () -> Void = {}
     var about: () -> Void = {}
+    var installUpdate: () -> Void = {}
     var quit: () -> Void = {}
 }
 
