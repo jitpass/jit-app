@@ -82,26 +82,33 @@ struct ScanReportView: View {
     private static let scaffoldingNote = "Real-looking values in test files or documentation. "
         + "The scanner counts them in the score; check they are not live."
 
+    /// The CLI's headline, not a score: secrets protected over secrets
+    /// known, the bar, and what closes the gap. A folder scan has no
+    /// ledger of its own, so it leads with its findings instead.
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
                 if model.scanning {
                     ProgressView().controlSize(.small)
-                    Text("Scanning your Mac…").font(.headline)
+                    Text(model.scanScope == nil ? "Scanning your Mac…" : "Scanning…").font(.headline)
+                } else if let s = model.scan?.summary, model.scanScope == nil {
+                    Text("\(s.secretsProtected) of \(s.secretsTotal) secrets protected · \(s.percent)%").font(.headline)
                 } else if let s = model.scan?.summary {
-                    Circle().fill(Severity.color(s.riskLevel)).frame(width: 12, height: 12)
-                    Text("Exposure \(s.exposureScore) / 100 · \(s.riskLevel)").font(.headline)
+                    Text("\(s.totalFindings) finding\(s.totalFindings == 1 ? "" : "s")").font(.headline)
                 } else {
-                    Text("Exposure").font(.headline)
+                    Text("Protected").font(.headline)
                 }
                 Spacer(minLength: 16)
                 Button("Scan Folder…", action: actions.chooseFolder).disabled(model.scanning)
                 Button("Rescan", action: actions.rescan).disabled(model.scanning || model.scan == nil)
                 Button("Open in Terminal", action: actions.openInTerminal)
             }
+            if !model.scanning, let s = model.scan?.summary, model.scanScope == nil {
+                coverageBar(s)
+            }
             HStack(spacing: 6) {
-                if !model.scanning, let s = model.scan?.summary {
-                    Text(Format.scanSummary(s, wholeMac: model.scanScope == nil))
+                if let line = summaryLine {
+                    Text(line)
                     Text("·")
                 }
                 if !model.scanExcludes.isEmpty {
@@ -119,6 +126,31 @@ struct ScanReportView: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
         }
+    }
+
+    private var summaryLine: String? {
+        guard !model.scanning, let s = model.scan?.summary else {
+            return nil
+        }
+        let line = Format.scanSummary(s, wholeMac: model.scanScope == nil)
+        return line.isEmpty ? nil : line
+    }
+
+    /// The CLI's ten-cell bar and its "to 100%" line.
+    private func coverageBar(_ s: ScanSummary) -> some View {
+        HStack(spacing: 8) {
+            HStack(spacing: 2) {
+                ForEach(0 ..< 10, id: \.self) { cell in
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(cell < s.percent / 10 ? Color(StatusMark.green) : Color(nsColor: .separatorColor))
+                        .frame(width: 14, height: 6)
+                }
+            }
+            if let line = s.toFullLine {
+                Text(line).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(.vertical, 2)
     }
 
     private static let manualNote = "jit can't rewrite these safely. Rotate or move each value yourself."
