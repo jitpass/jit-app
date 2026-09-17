@@ -127,8 +127,11 @@ extension StatusItemController {
     private func confirmDestructive(_ action: DoctorAction) -> Bool {
         let alert = NSAlert()
         alert.messageText = "\(action.title)?"
-        alert.informativeText = "This opens the terminal and runs:\n\n\(action.command)\n\n"
-            + "It deletes something for good. jit asks once more before it does."
+        // In-app commands carry --yes, so this dialog is the only question;
+        // a terminal one still gets jit's own confirmation.
+        alert.informativeText = action.argv == nil
+            ? "This opens the terminal and runs:\n\n\(action.command)\n\nIt deletes something for good. jit asks once more before it does."
+            : "This runs:\n\n\(action.command)\n\nIt deletes something for good, and nothing asks again."
         alert.alertStyle = .warning
         alert.addButton(withTitle: action.title)
         alert.addButton(withTitle: "Cancel")

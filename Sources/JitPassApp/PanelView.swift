@@ -77,12 +77,21 @@ struct PanelView: View {
 
     // MARK: - Pieces
 
+    /// While a request waits, the header says so and the session state moves
+    /// to the second line, so nothing is lost and the question comes first.
     private var header: some View {
-        HStack(spacing: 10) {
-            StatusMarkView(state: model.state, size: 34)
+        let asking = model.consentRequests.first
+        return HStack(spacing: 10) {
+            StatusMarkView(state: model.state, asking: asking != nil, size: 34)
             VStack(alignment: .leading, spacing: 2) {
-                Text(model.state.headline).font(.system(size: 15, weight: .bold))
-                Text(model.state.detail).font(.system(size: 12)).foregroundStyle(.secondary)
+                if let asking {
+                    Text("Asking").font(.system(size: 15, weight: .bold))
+                    Text("\(asking.program) · \(model.state.headline.lowercased()) · \(model.state.detail)")
+                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                } else {
+                    Text(model.state.headline).font(.system(size: 15, weight: .bold))
+                    Text(model.state.detail).font(.system(size: 12)).foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -217,14 +226,17 @@ private struct HoverHighlight<Label: View>: View {
 /// status item draws.
 struct StatusMarkView: View {
     let state: SessionState
+    var asking = false
     let size: CGFloat
 
     var body: some View {
-        let tint = Color(StatusMark.color(for: state))
+        let tint = Color(StatusMark.color(for: state, asking: asking))
         ZStack {
             Circle().fill(tint.opacity(0.22))
             Circle().fill(tint).padding(size * 0.22)
-            if case .locked = state {
+            if asking {
+                Image(systemName: "questionmark").font(.system(size: size * 0.32, weight: .bold)).foregroundStyle(.white)
+            } else if case .locked = state {
                 Image(systemName: "lock.fill").font(.system(size: size * 0.28, weight: .bold)).foregroundStyle(.white)
             }
         }
