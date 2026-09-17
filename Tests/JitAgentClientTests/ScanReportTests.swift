@@ -58,3 +58,58 @@ final class ScanReportTests: XCTestCase {
         }
     }
 }
+
+extension ScanReportTests {
+    /// One finding record from the fields a test cares about.
+    private static func record(
+        _ id: String, path: String, line: Int? = nil, severity: String = "low",
+        remedy: String = "manual", fix: String? = nil, fixture: Bool = false
+    ) -> String {
+        var fields = [
+            "\"record_type\":\"finding\"", "\"record_id\":\"\(id)\"", "\"finding_type\":\"exposed_secret\"",
+            "\"severity\":\"\(severity)\"", "\"file_path\":\"\(path)\"", "\"evidence\":\"e\"", "\"remedy\":\"\(remedy)\"",
+            "\"line\":" + (line.map(String.init) ?? "null")
+        ]
+        if let fix {
+            fields.append("\"fix_command\":\"\(fix)\"")
+        }
+        if fixture {
+            fields.append("\"test_fixture\":true")
+        }
+        return "{" + fields.joined(separator: ",") + "}"
+    }
+
+    private static let closing = #"{"record_type":"scan_summary","total_findings":0,"risk_level":"low","exposure_score":1,"#
+        + #""secrets_total":0,"secrets_protected":0,"secrets_migratable":0,"files_scanned":1}"#
+
+    private func parse(_ records: [String]) throws -> ScanReport {
+        try ScanReport.parse(Data((records + [Self.closing]).joined(separator: "\n").utf8))
+    }
+
+    func testLineIsDecodedAndManualFindingsGroupByFile() throws {
+        let r = try parse([
+            Self.record("4", path: "/Users/me/r.html", line: 12, severity: "high"),
+            Self.record("5", path: "/Users/me/r.html", line: 40, severity: "critical"),
+            Self.record("6", path: "/Users/me/a.tfvars", severity: "medium")
+        ])
+        XCTAssertEqual(r.findings.map(\.line), [12, 40, nil])
+        let groups = r.manualByFile
+        XCTAssertEqual(groups.map(\.filePath), ["/Users/me/r.html", "/Users/me/a.tfvars"], "first-seen order, one row per file")
+        XCTAssertEqual(groups[0].findings.map(\.line), [12, 40])
+        XCTAssertEqual(groups[0].severity, "critical", "the row carries the worst severity in the file")
+        XCTAssertEqual(groups[1].severity, "medium")
+    }
+
+    func testProtectAllFoldsMigratesIntoOneCommandAndKeepsWrapsOnce() throws {
+        let r = try parse([
+            Self.record("a", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
+            Self.record("b", path: "/Users/me/.clisso", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("c", path: "/Users/me/b dir/.env", remedy: "migrate", fix: "jit migrate '~/b dir/.env'"),
+            Self.record("d", path: "/Users/me/.clisso2", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("e", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
+            Self.record("f", path: "/Users/me/t_test.go", remedy: "migrate", fix: "jit migrate ~/t_test.go", fixture: true)
+        ])
+        XCTAssertEqual(r.protectAllCommands, ["jit migrate ~/a/.env '~/b dir/.env'", "jit wrap clisso"])
+        XCTAssertEqual(try parse([]).protectAllCommands, [])
+    }
+}

@@ -25,6 +25,10 @@ struct SettingsView: View {
                 Picker("Open commands in", selection: terminalBinding) {
                     ForEach(Terminal.choices, id: \.self) { Text($0.isEmpty ? "the terminal you are using" : $0).tag($0) }
                 }
+                Picker("Open files with", selection: editorBinding) {
+                    Text("the system default").tag("")
+                    ForEach(model.editors) { Text($0.name).tag($0.bundleID) }
+                }
                 Toggle("Launch at login", isOn: launchBinding)
             }
             Section("Scan") {
@@ -72,6 +76,10 @@ struct SettingsView: View {
         Binding(get: { model.terminalApp }, set: actions.setTerminal)
     }
 
+    private var editorBinding: Binding<String> {
+        Binding(get: { model.editorApp }, set: actions.setEditor)
+    }
+
     private var launchBinding: Binding<Bool> {
         Binding(get: { model.launchAtLogin }, set: actions.setLaunchAtLogin)
     }
@@ -92,6 +100,7 @@ struct SettingsActions {
     var addExclude: () -> Void = {}
     var removeExclude: (String) -> Void = { _ in }
     var setTerminal: (String) -> Void = { _ in }
+    var setEditor: (String) -> Void = { _ in }
     var setLaunchAtLogin: (Bool) -> Void = { _ in }
     var setTTL: (String) -> Void = { _ in }
     var setConsent: (Bool) -> Void = { _ in }

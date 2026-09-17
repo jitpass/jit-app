@@ -26,6 +26,16 @@ if [ "${1:-}" = "--run" ]; then
   pkill -x JitPass 2> /dev/null || true
   sleep 1
   VERSION="${VERSION:-0.0.0}" scripts/bundle.sh release | tail -1
+  # Sign the dev build with the release identity when the keychain has it.
+  # An ad-hoc signature's identity is the build's own hash, so macOS treats
+  # every rebuild as a new app and asks for Desktop, Documents, Downloads
+  # and the rest again; the Developer ID requirement is the same one the
+  # released app carries, so the grants persist between builds.
+  if scripts/sign.sh > /dev/null 2>&1; then
+    echo "signed as team $(source scripts/lib.sh; echo "$TEAM_ID")"
+  else
+    echo "unsigned (ad hoc): no Developer ID identity, folder prompts repeat per build"
+  fi
   open dist/JitPass.app
   sleep 2
   pgrep -x JitPass > /dev/null && echo "relaunched"

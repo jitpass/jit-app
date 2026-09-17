@@ -15,6 +15,10 @@ extension StatusItemController {
                 UserDefaults.standard.set(name, forKey: Terminal.preferenceKey)
                 self?.model.terminalApp = name
             },
+            setEditor: { [weak self] id in
+                UserDefaults.standard.set(id, forKey: Editor.preferenceKey)
+                self?.model.editorApp = id
+            },
             setLaunchAtLogin: { [weak self] on in self?.setLaunchAtLogin(on) },
             setTTL: { [weak self] ttl in self?.applyService(["service", "ttl", ttl]) },
             setConsent: { [weak self] on in self?.applyService(["service", "consent", on ? "on" : "off"]) }
@@ -39,6 +43,8 @@ extension StatusItemController {
     func openSettings() {
         panel.dismiss()
         model.terminalApp = UserDefaults.standard.string(forKey: Terminal.preferenceKey) ?? ""
+        model.editors = Editor.installed()
+        model.editorApp = Editor.chosen()?.bundleID ?? ""
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
         model.settingsMessage = nil
         settingsWindow.present()
