@@ -42,6 +42,27 @@ final class AgentClientTests: XCTestCase {
         }
     }
 
+    func testConsentListAndAnswerRoundTrip() throws {
+        let seen = Locked<[AgentRequest]>([])
+        let server = try FakeAgent(path: path) { request in
+            seen.append(request)
+            switch request.op {
+            case .consentList:
+                return #"{"ok":true,"events":[{"unix_time":1,"kind":"pending","consent_id":"ab12","by":"aws s3 ls"}]}"#
+            default:
+                return #"{"ok":true}"#
+            }
+        }
+        defer { server.stop() }
+        let client = AgentClient(socketPath: path, timeout: 2)
+        let waiting = try client.consentList()
+        XCTAssertEqual(waiting.map(\.consentID), ["ab12"])
+        try client.answerConsent(id: "ab12", allow: true)
+        XCTAssertEqual(seen.value.last?.op, .consentAnswer)
+        XCTAssertEqual(seen.value.last?.consentID, "ab12")
+        XCTAssertEqual(seen.value.last?.decision, .allow)
+    }
+
     func testPathTooLongIsAnError() {
         let long = "/tmp/" + String(repeating: "x", count: 200)
         XCTAssertThrowsError(try AgentClient(socketPath: long, timeout: 1).status()) { error in

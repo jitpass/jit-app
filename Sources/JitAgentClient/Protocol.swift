@@ -24,6 +24,19 @@ public enum AgentOp: String, Codable, Sendable, CaseIterable {
     /// acknowledges, then one `SessionEvent` line per event until the peer
     /// hangs up. Never `wrap`, `unwrap` or `reveal_pid`; see the test.
     case subscribe
+    /// Consent brokering (jitpass/jit#113): a `subscribe` with `broker` set
+    /// is also streamed a `pending` event for each disclosed challenge before
+    /// its Touch ID appears; `consent_list` returns the ones waiting, and
+    /// `consent_answer` carries the human's answer. An allow only lets the
+    /// agent go on to its own Touch ID; a deny refuses without one.
+    case consentList = "consent_list"
+    case consentAnswer = "consent_answer"
+}
+
+/// The two answers `consent_answer` accepts.
+public enum ConsentDecision: String, Codable, Sendable {
+    case allow
+    case deny
 }
 
 public struct AgentRequest: Codable, Sendable {
@@ -45,11 +58,18 @@ public struct AgentRequest: Codable, Sendable {
     /// app's name on the prompt.
     public var grantName: String?
     public var anchorExplicit: Bool?
+    /// `subscribe`: this stream will answer consent requests. Ignored by an
+    /// agent that predates brokering, whose stream then never carries one.
+    public var broker: Bool?
+    /// `consent_answer`: which pending request, and the answer.
+    public var consentID: String?
+    public var decision: ConsentDecision?
 
     public init(
         op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil,
         targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil,
-        grantName: String? = nil, anchorExplicit: Bool? = nil
+        grantName: String? = nil, anchorExplicit: Bool? = nil,
+        broker: Bool? = nil, consentID: String? = nil, decision: ConsentDecision? = nil
     ) {
         self.op = op
         self.minProtocol = minProtocol
@@ -60,6 +80,9 @@ public struct AgentRequest: Codable, Sendable {
         self.ttlSeconds = ttlSeconds
         self.grantName = grantName
         self.anchorExplicit = anchorExplicit
+        self.broker = broker
+        self.consentID = consentID
+        self.decision = decision
     }
 
     enum CodingKeys: String, CodingKey {
@@ -72,6 +95,9 @@ public struct AgentRequest: Codable, Sendable {
         case ttlSeconds = "ttl_seconds"
         case grantName = "grant_name"
         case anchorExplicit = "anchor_explicit"
+        case broker
+        case consentID = "consent_id"
+        case decision
     }
 }
 
@@ -82,31 +108,44 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     public var kind: String
     public var op: String?
     public var by: String?
+    public var byPID: Int32?
+    /// The identity on `by` came from a process scan, not the kernel; never
+    /// render it as certainty.
+    public var byLikely: Bool?
     public var launchedBy: String?
     public var cause: String?
     /// Secret names a use touched, and how many uses one event collapses.
     public var labels: [String]?
     public var count: Int?
+    /// Links a brokered challenge's `pending` event to the `approved` or
+    /// `denied` that answers it.
+    public var consentID: String?
 
     public init(
-        unixTime: Int64, kind: String, op: String? = nil, by: String? = nil,
-        launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil
+        unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, byPID: Int32? = nil, byLikely: Bool? = nil,
+        launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil
     ) {
         self.unixTime = unixTime
         self.kind = kind
         self.op = op
         self.by = by
+        self.byPID = byPID
+        self.byLikely = byLikely
         self.launchedBy = launchedBy
         self.cause = cause
         self.labels = labels
         self.count = count
+        self.consentID = consentID
     }
 
     enum CodingKeys: String, CodingKey {
         case unixTime = "unix_time"
         case kind, op, by
+        case byPID = "by_pid"
+        case byLikely = "by_likely"
         case launchedBy = "launched_by"
         case cause, labels, count
+        case consentID = "consent_id"
     }
 
     public var date: Date {

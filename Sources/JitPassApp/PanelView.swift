@@ -20,6 +20,13 @@ struct PanelView: View {
                 .padding(.bottom, 8)
 
             VStack(spacing: 0) {
+                if let request = model.consentRequests.first {
+                    Button(action: actions.openConsent) {
+                        row("hand.raised", "Asking", "\(request.program) · answer", dot: Color(StatusMark.amber))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
+                }
                 if let vault = model.vaultValue {
                     row("archivebox", "Vault", vault)
                 }
@@ -163,6 +170,7 @@ struct PanelActions {
     var openDoctor: () -> Void = {}
     var openAudit: () -> Void = {}
     var openSettings: () -> Void = {}
+    var openConsent: () -> Void = {}
     var about: () -> Void = {}
     var quit: () -> Void = {}
 }

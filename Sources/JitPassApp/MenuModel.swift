@@ -13,6 +13,9 @@ final class MenuModel: ObservableObject {
     @Published var state: SessionState = .notRunning
     @Published var grants: [GrantStatus] = []
     @Published var lastEvent: SessionEvent?
+    /// Disclosed challenges the agent has parked with this app, oldest
+    /// first; the consent sheet shows the first.
+    @Published var consentRequests: [ConsentRequest] = []
     @Published var consentEnabled: Bool?
     @Published var ttlSeconds: Int64?
     @Published var cli: CLIStatus?
