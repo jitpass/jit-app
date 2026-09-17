@@ -38,10 +38,17 @@ final class MenuModel: ObservableObject {
     @Published var doctor: DoctorReport?
     @Published var doctorAt: Date?
     @Published var doctorRunning = false
+    /// Why the last in-app doctor action failed, if it did.
+    @Published var doctorMessage: String?
+    /// Whether macOS has granted the app Full Disk Access, checked when the scan window opens.
+    @Published var fullDiskAccess = false
     @Published var settingsBusy = false
     @Published var settingsMessage: String?
     @Published var launchAtLogin = false
     @Published var terminalApp = ""
+    /// The bundle identifier of the editor scan rows open files with; "" is the system default.
+    @Published var editorApp = ""
+    @Published var editors: [Editor.Choice] = []
 
     var serviceValue: String {
         switch state {

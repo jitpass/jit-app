@@ -118,7 +118,7 @@ public struct DoctorReport: Codable, Sendable, Equatable {
             parts.append("\(problems.count) problem" + (problems.count == 1 ? "" : "s"))
         }
         if !warnings.isEmpty {
-            parts.append("\(warnings.count) warning" + (warnings.count == 1 ? "" : "s"))
+            parts.append("\(warningCount) warning" + (warningCount == 1 ? "" : "s"))
         }
         return parts.joined(separator: ", ")
     }
