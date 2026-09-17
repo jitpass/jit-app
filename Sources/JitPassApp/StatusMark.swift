@@ -22,11 +22,14 @@ enum StatusMark {
         }
     }
 
-    static func pillTitle(for state: SessionState) -> String {
+    /// The tooltip on the menu bar item, which shows only the mark: its
+    /// colour is the state, and this names it for anyone who hovers.
+    static func tooltip(for state: SessionState) -> String {
         switch state {
-        case .unlocked: "OK"
+        case let .unlocked(expiresIn, _): "Unlocked · locks in " + SessionState.countdown(expiresIn)
+        case let .locked(reason?): "Locked · " + reason
         case .locked: "Locked"
-        case .notRunning: "Off"
+        case .notRunning: "Service not running"
         }
     }
 

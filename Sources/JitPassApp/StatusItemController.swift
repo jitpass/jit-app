@@ -190,8 +190,9 @@ final class StatusItemController {
 
     private func render() {
         item.button?.image = StatusMark.image(for: model.state)
-        item.button?.imagePosition = .imageLeading
-        item.button?.title = " " + StatusMark.pillTitle(for: model.state)
+        item.button?.imagePosition = .imageOnly
+        item.button?.title = ""
+        item.button?.toolTip = StatusMark.tooltip(for: model.state)
     }
 
     @objc private func togglePanel() {
