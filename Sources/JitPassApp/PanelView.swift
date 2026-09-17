@@ -45,7 +45,7 @@ struct PanelView: View {
                 }
                 .buttonStyle(HoverRowStyle())
                 Button(action: actions.openScan) {
-                    row("scope", "Exposure", model.exposureValue, dot: exposureDot)
+                    row("scope", "Protected", model.protectedValue, dot: protectedDot)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
@@ -106,13 +106,16 @@ struct PanelView: View {
         return doctor.warnings.isEmpty ? Color(StatusMark.green) : Color(StatusMark.amber)
     }
 
-    /// The mockup's dot for a value that carries a state: green for a low
-    /// score, amber for medium, red for high or critical, none while unknown.
-    private var exposureDot: Color? {
-        guard !model.scanning, let risk = model.scan?.summary.riskLevel else {
+    /// Green at 100%, amber when one command closes the gap, red when
+    /// something is left that only the user can fix; none until known.
+    private var protectedDot: Color? {
+        guard let s = model.macScan?.summary else {
             return nil
         }
-        return Severity.color(risk)
+        if s.percent == 100 {
+            return Color(StatusMark.green)
+        }
+        return s.secretsManual > 0 ? Color(StatusMark.red) : Color(StatusMark.amber)
     }
 
     private func row(_ symbol: String, _ label: String, _ value: String, dot: Color? = nil) -> some View {
