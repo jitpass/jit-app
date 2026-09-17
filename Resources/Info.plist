@@ -28,6 +28,16 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>JitPass scans your files for plaintext secrets so it can move them into the encrypted vault. It reads them on your Mac and never sends them anywhere.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>JitPass scans your files for plaintext secrets so it can move them into the encrypted vault. It reads them on your Mac and never sends them anywhere.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>JitPass scans your files for plaintext secrets so it can move them into the encrypted vault. It reads them on your Mac and never sends them anywhere.</string>
+	<key>NSNetworkVolumesUsageDescription</key>
+	<string>JitPass scans your files for plaintext secrets so it can move them into the encrypted vault. It reads them on your Mac and never sends them anywhere.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>JitPass scans your files for plaintext secrets so it can move them into the encrypted vault. It reads them on your Mac and never sends them anywhere.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright 2026 Meni Tasa</string>
 </dict>

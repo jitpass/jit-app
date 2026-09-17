@@ -10,40 +10,86 @@ extension StatusItemController {
         DoctorActions(
             recheck: { [weak self] in self?.runDoctor() },
             openInTerminal: { [weak self] in self?.runInTerminal("jit doctor") },
-            run: { [weak self] command in self?.runInTerminal(command) },
-            runWithChosenPath: { [weak self] command in self?.runWithChosenPath(command) },
+            perform: { [weak self] action in self?.perform(action) },
             deleteProfile: { [weak self] name in self?.confirmDeleteProfile(name) }
         )
     }
 
-    /// A command with a <file> or <path> placeholder cannot run as written.
-    /// An export names a file to CREATE, so it gets a save panel; everything
-    /// else names something that exists, so an open panel that accepts a
-    /// file or a folder. The chosen path replaces the placeholder, quoted,
-    /// and the command runs in the terminal like any other.
-    private func runWithChosenPath(_ command: String) {
-        guard let placeholder = DoctorItem.placeholder(in: command) else {
-            return runInTerminal(command)
+    /// Runs a doctor action in the terminal. One that names a `<file>` or
+    /// `<path>` gets a panel first: a save panel for a file to CREATE (an
+    /// export), an open panel for something that exists. The chosen path
+    /// replaces every placeholder, quoted. A destructive one is confirmed
+    /// here as well, naming the command, because jit's own y/N comes only
+    /// after the terminal has already opened.
+    private func perform(_ action: DoctorAction) {
+        if action.destructive, !confirmDestructive(action) {
+            return
         }
-        let chosen: URL?
-        if command.hasPrefix("jit vault export") {
+        if let argv = action.argv {
+            return applyInApp(argv)
+        }
+        switch action.needs {
+        case .nothing:
+            runInTerminal(action.command)
+        case let .existingPath(placeholder):
+            let open = NSOpenPanel()
+            open.title = "Choose the \(placeholder.dropFirst().dropLast()) for: \(action.command)"
+            open.canChooseFiles = true
+            open.canChooseDirectories = true
+            open.allowsMultipleSelection = false
+            guard open.runModal() == .OK, let url = open.url else {
+                return
+            }
+            runInTerminal(action.command.replacingOccurrences(of: placeholder, with: Terminal.quoted(url.path)))
+        case let .newFile(placeholder):
             let save = NSSavePanel()
             save.title = "Export the vault"
             save.nameFieldStringValue = "jit-vault-\(Format.dateStamp()).export"
             save.canCreateDirectories = true
-            chosen = save.runModal() == .OK ? save.url : nil
-        } else {
-            let open = NSOpenPanel()
-            open.title = "Choose the \(placeholder.dropFirst().dropLast()) for: \(command)"
-            open.canChooseFiles = true
-            open.canChooseDirectories = true
-            open.allowsMultipleSelection = false
-            chosen = open.runModal() == .OK ? open.url : nil
+            guard save.runModal() == .OK, let url = save.url else {
+                return
+            }
+            runInTerminal(action.command.replacingOccurrences(of: placeholder, with: Terminal.quoted(url.path)))
         }
-        guard let chosen else {
+    }
+
+    /// Runs prompt-free jit commands off the main thread, then rechecks so
+    /// the rows disappear because doctor says so. The first failure stops
+    /// the run and is shown under the header.
+    private func applyInApp(_ argv: [[String]]) {
+        guard !model.doctorRunning else {
             return
         }
-        runInTerminal(command.replacingOccurrences(of: placeholder, with: Terminal.quoted(chosen.path)))
+        model.doctorRunning = true
+        model.doctorMessage = nil
+        Task.detached {
+            var failure: String?
+            for arguments in argv {
+                if case let .failure(error) = JitCLI.apply(arguments) {
+                    failure = "jit \(arguments.joined(separator: " ")): \(error.localizedDescription)"
+                    break
+                }
+            }
+            await MainActor.run { [weak self] in
+                guard let self else {
+                    return
+                }
+                model.doctorRunning = false
+                model.doctorMessage = failure
+                runDoctor()
+            }
+        }
+    }
+
+    private func confirmDestructive(_ action: DoctorAction) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "\(action.title)?"
+        alert.informativeText = "This opens the terminal and runs:\n\n\(action.command)\n\n"
+            + "It deletes something for good. jit asks once more before it does."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: action.title)
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     /// The one destructive act the app performs itself, and it is a move
@@ -93,8 +139,9 @@ extension StatusItemController {
         runDoctor()
     }
 
-    /// One `jit doctor --format json`, off the main thread. The previous
-    /// result stays on screen until this one lands.
+    /// One `jit doctor --format json --orphans`, off the main thread. The
+    /// previous result stays on screen until this one lands. --orphans so
+    /// the window can list them; the verdict still counts them once.
     func runDoctor() {
         guard !model.doctorRunning else {
             return

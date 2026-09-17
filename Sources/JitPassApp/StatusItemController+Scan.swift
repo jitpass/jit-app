@@ -16,7 +16,11 @@ extension StatusItemController {
                 self?.runScan()
             },
             openInTerminal: { [weak self] in self?.openScanInTerminal() },
-            fix: { [weak self] command in self?.runInTerminal(command) }
+            protect: { [weak self] command in self?.runInTerminal(command) },
+            protectAll: { [weak self] commands in self?.runInTerminal(commands.joined(separator: "\n")) },
+            open: { path, line in Editor.open(path, line: line) },
+            reveal: { path in Editor.reveal(path) },
+            grantFullDiskAccess: { FullDiskAccess.openSettings() }
         )
     }
 
@@ -26,6 +30,7 @@ extension StatusItemController {
     /// in the window; a whole-home read is never a side effect of a click.
     func openScan() {
         panel.dismiss()
+        model.fullDiskAccess = FullDiskAccess.granted()
         scanWindow.present()
     }
 
