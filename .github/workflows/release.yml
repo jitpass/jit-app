@@ -88,25 +88,28 @@ jobs:
         run: gh release edit "$GITHUB_REF_NAME" --draft=false
 
       # The cask is pushed only AFTER the release is verified and visible, so
-      # the tap can never point at a draft. Without the tap token this step
-      # prints the cask for a manual push instead of failing the release.
-      - name: Update the jit-app cask in jitpass/homebrew-tap
+      # the tap can never point at a draft. This is the `jitpass` cask, the
+      # one install for the app and the jit inside it, owned by this
+      # workflow since phase 2; jit's own release no longer touches it.
+      # Without the tap token this step prints the cask for a manual push
+      # instead of failing the release.
+      - name: Update the jitpass cask in jitpass/homebrew-tap
         env:
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           sha=$(cut -d' ' -f1 dist/checksums.txt)
-          scripts/cask.sh "$version" "$sha" > Casks/jit-app.rb
-          cat Casks/jit-app.rb
+          scripts/cask.sh "$version" "$sha" > Casks/jitpass.rb
+          cat Casks/jitpass.rb
           if [ -z "$TAP_TOKEN" ]; then
-            echo "::warning::HOMEBREW_TAP_GITHUB_TOKEN not set; push Casks/jit-app.rb to jitpass/homebrew-tap by hand"
+            echo "::warning::HOMEBREW_TAP_GITHUB_TOKEN not set; push Casks/jitpass.rb to jitpass/homebrew-tap by hand"
             exit 0
           fi
           tap=$(mktemp -d)
           git clone -q "https://x-access-token:${TAP_TOKEN}@github.com/jitpass/homebrew-tap.git" "$tap"
-          cp Casks/jit-app.rb "$tap/Casks/jit-app.rb"
+          cp Casks/jitpass.rb "$tap/Casks/jitpass.rb"
           cd "$tap"
           git -c user.name="jitpass-release" -c user.email="release@jitpass.com" \
-            commit -q -am "Brew cask update for jit-app version v$version"
+            commit -q -am "Brew cask update for jitpass version $(tr -d '[:space:]' < "$GITHUB_WORKSPACE/jit.version"),$version"
           git push -q
