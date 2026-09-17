@@ -15,48 +15,75 @@ extension StatusItemController {
         )
     }
 
-    /// Runs a doctor action in the terminal. One that names a `<file>` or
-    /// `<path>` gets a panel first: a save panel for a file to CREATE (an
-    /// export), an open panel for something that exists. The chosen path
-    /// replaces every placeholder, quoted. A destructive one is confirmed
-    /// here as well, naming the command, because jit's own y/N comes only
-    /// after the terminal has already opened.
+    /// Runs a doctor action. In the app when it carries `argv`: any path it
+    /// needs is chosen first (a save panel for a file to create, an open
+    /// panel for one that exists), any value or passphrase asked for in a
+    /// hidden field, then the commands run one after the other off the
+    /// main thread and doctor rechecks. In the terminal otherwise: a
+    /// migrate wants its plan read, `sudo` and `brew` want a shell. A
+    /// destructive one is confirmed here first, naming the command.
     private func perform(_ action: DoctorAction) {
         if action.destructive, !confirmDestructive(action) {
             return
         }
-        if let argv = action.argv {
-            return applyInApp(argv)
+        guard let chosen = choosePath(for: action.needs) else {
+            return
         }
-        switch action.needs {
+        let (placeholder, path) = chosen
+        guard let argv = action.argv else {
+            let command = placeholder.map { action.command.replacingOccurrences(of: $0, with: Terminal.quoted(path)) }
+            return runInTerminal(command ?? action.command)
+        }
+        var stdin: String?
+        switch action.input {
+        case let .secret(prompt):
+            stdin = DoctorDialogs.askSecret(prompt, title: action.title)
+        case let .passphrase(prompt):
+            stdin = DoctorDialogs.askPassphrase(prompt, title: action.title)
+        case nil:
+            break
+        }
+        if action.input != nil, stdin == nil {
+            return
+        }
+        let filled = argv.map { arguments in
+            arguments.map { placeholder != nil && $0 == placeholder ? path : $0 }
+        }
+        applyInApp(filled, stdin: stdin, title: action.showsOutput ? action.title : nil)
+    }
+
+    /// Nil when the user cancelled; otherwise the placeholder (if any)
+    /// and the path that replaces it ("" when nothing was needed).
+    private func choosePath(for needs: DoctorAction.Needs) -> (String?, String)? {
+        switch needs {
         case .nothing:
-            runInTerminal(action.command)
+            return (nil, "")
         case let .existingPath(placeholder):
             let open = NSOpenPanel()
-            open.title = "Choose the \(placeholder.dropFirst().dropLast()) for: \(action.command)"
+            open.title = "Choose the \(placeholder.dropFirst().dropLast())"
             open.canChooseFiles = true
             open.canChooseDirectories = true
             open.allowsMultipleSelection = false
             guard open.runModal() == .OK, let url = open.url else {
-                return
+                return nil
             }
-            runInTerminal(action.command.replacingOccurrences(of: placeholder, with: Terminal.quoted(url.path)))
+            return (placeholder, url.path)
         case let .newFile(placeholder):
             let save = NSSavePanel()
             save.title = "Export the vault"
             save.nameFieldStringValue = "jit-vault-\(Format.dateStamp()).export"
             save.canCreateDirectories = true
             guard save.runModal() == .OK, let url = save.url else {
-                return
+                return nil
             }
-            runInTerminal(action.command.replacingOccurrences(of: placeholder, with: Terminal.quoted(url.path)))
+            return (placeholder, url.path)
         }
     }
 
-    /// Runs prompt-free jit commands off the main thread, then rechecks so
-    /// the rows disappear because doctor says so. The first failure stops
-    /// the run and is shown under the header.
-    private func applyInApp(_ argv: [[String]]) {
+    /// Runs the commands off the main thread, then rechecks so the rows
+    /// disappear because doctor says so. The first failure stops the run
+    /// and is shown under the header; with `title`, the output is shown.
+    private func applyInApp(_ argv: [[String]], stdin: String?, title: String?) {
         guard !model.doctorRunning else {
             return
         }
@@ -64,9 +91,15 @@ extension StatusItemController {
         model.doctorMessage = nil
         Task.detached {
             var failure: String?
+            var output: [String] = []
             for arguments in argv {
-                if case let .failure(error) = JitCLI.apply(arguments) {
-                    failure = "jit \(arguments.joined(separator: " ")): \(error.localizedDescription)"
+                switch JitCLI.execute(arguments, stdin: stdin) {
+                case let .success(text):
+                    output.append(text)
+                case let .failure(error):
+                    failure = "jit \(arguments.joined(separator: " ")): \(Self.describe(error))"
+                }
+                if failure != nil {
                     break
                 }
             }
@@ -76,9 +109,19 @@ extension StatusItemController {
                 }
                 model.doctorRunning = false
                 model.doctorMessage = failure
+                if let title, failure == nil {
+                    DoctorDialogs.showOutput(output.joined(separator: "\n\n"), title: title)
+                }
                 runDoctor()
             }
         }
+    }
+
+    private nonisolated static func describe(_ error: Error) -> String {
+        if case let JitCLI.CLIError.failed(line) = error {
+            return line.isEmpty ? "failed" : line
+        }
+        return error.localizedDescription
     }
 
     private func confirmDestructive(_ action: DoctorAction) -> Bool {

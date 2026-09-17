@@ -64,6 +64,16 @@ enum JitCLI {
     /// prompt on screen, so the call may take a while; callers run it off
     /// the main thread.
     static func apply(_ arguments: [String]) -> Result<String, Error> {
+        execute(arguments).map { $0.split(separator: "\n").last.map(String.init) ?? "" }
+    }
+
+    /// Runs jit with `arguments`, feeding `stdin` when given (a secret value
+    /// or a passphrase, for a `--stdin` command), and returns everything it
+    /// printed. Touch ID, when the command needs it, is the CLI's own
+    /// prompt and works from here as it does from a terminal; what does
+    /// not work is a y/N or a hidden prompt, so callers pass --yes and
+    /// --stdin and never run a command that would stop to ask.
+    static func execute(_ arguments: [String], stdin: String? = nil) -> Result<String, Error> {
         guard let jit = executable else {
             return .failure(CLIError.notInstalled)
         }
@@ -73,16 +83,24 @@ enum JitCLI {
         let out = Pipe()
         process.standardOutput = out
         process.standardError = out
+        let input = Pipe()
+        process.standardInput = input
         do {
             try process.run()
         } catch {
             return .failure(error)
         }
+        if let stdin {
+            input.fileHandleForWriting.write(Data((stdin + "\n").utf8))
+        }
+        try? input.fileHandleForWriting.close()
         let data = out.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         let text = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let last = text.split(separator: "\n").last.map(String.init) ?? ""
-        return process.terminationStatus == 0 ? .success(last) : .failure(CLIError.failed(last))
+        if process.terminationStatus == 0 {
+            return .success(text)
+        }
+        return .failure(CLIError.failed(text.split(separator: "\n").last.map(String.init) ?? ""))
     }
 
     enum CLIError: Error {
