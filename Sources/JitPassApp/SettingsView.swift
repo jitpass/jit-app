@@ -45,6 +45,7 @@ struct SettingsView: View {
             Toggle("Notify when a session expires or a scan finds new cached copies", isOn: notifyChangesBinding)
                 .help("A captured SSO session is about to expire or has, so the next aws call fails until you renew; "
                     + "or a whole-Mac scan found a copy of a secret in an AI agent's cache it had not seen before.")
+            SettingsUpdatesSection(model: model, actions: actions)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -195,4 +196,8 @@ struct SettingsActions {
     var setNotifyChanges: (Bool) -> Void = { _ in }
     var vaultClean: () -> Void = {}
     var vaultDelete: () -> Void = {}
+    var setCheckForUpdates: (Bool) -> Void = { _ in }
+    var checkForUpdates: () -> Void = {}
+    var installUpdate: () -> Void = {}
+    var installCommandLineTool: () -> Void = {}
 }

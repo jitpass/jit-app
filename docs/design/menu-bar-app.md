@@ -135,6 +135,46 @@ PR. Phase 3's opt-in must ship with the reverse rekey tested end to end
 before the flag is visible. Making Secure Enclave the default for new vaults
 is a separate, later decision and the only one-way door in this plan.
 
+## Direct download (shipped)
+
+Homebrew is the recommended install and the only one that keeps itself
+current, but a security tool that can only be had through a package manager
+loses the people who came from the website. The release therefore also
+publishes the zip under an unversioned name, `JitPass-arm64.zip`, so one
+link never goes stale:
+
+    https://dl.jitpass.com/jitpass/jit-app/releases/latest/download/JitPass-arm64.zip
+
+The same bytes as the versioned zip, listed in `checksums.txt` and checked
+in the release workflow against the copy just verified; the cask keeps the
+versioned name, pinned by sha256. `dl.jitpass.com` is the one-hop redirect
+the cask already uses (`spike/dl-redirect` in the jit repo), so GitHub stays
+the only origin serving bytes and the download is counted by client class
+and country, nothing more.
+
+What the cask did for a Homebrew install, the app does for itself:
+
+- **PATH.** On first launch, when no `jit` is on the login shell's PATH and
+  no Caskroom says Homebrew owns the link, the app offers once to link
+  `jit` at the bundled copy: Homebrew's bin when it exists and is writable,
+  else `/usr/local/bin` through the system's administrator prompt. Settings
+  › General keeps the same button and shows which `jit` a terminal runs, so
+  an older tarball install sitting earlier on PATH is named rather than
+  silently shadowing the app's.
+- **Updates.** Once a day the app sends one HEAD request to GitHub's
+  `releases/latest` and reads the version from the redirect it answers
+  with: no API token, no rate limit, nothing about the Mac in the request.
+  It is the only network request the app makes and Settings can switch it
+  off. A newer version is an amber Update row in the panel; a Homebrew
+  install is sent to `brew upgrade jitpass`, a downloaded copy to the link
+  above. The app never replaces itself: that is Sparkle-sized machinery
+  and a second signed code path, for a zip that is a drag to replace.
+- **Translocation.** A copy opened from ~/Downloads runs from a randomized
+  read-only path, and every link and launchd plist made from there dies
+  with it. The app says so before anything is set up and asks to be moved.
+
+`jit upgrade` inside the bundle keeps refusing and pointing at the app.
+
 ## Security notes
 
 - The app adds no new privileged path. It is a same-user socket peer, subject

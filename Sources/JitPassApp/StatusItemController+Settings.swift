@@ -49,7 +49,11 @@ extension StatusItemController {
             ) },
             vaultDelete: { [weak self] in
                 self?.vaultDestructive("delete", does: "destroys the vault directory and its key in the keychain")
-            }
+            },
+            setCheckForUpdates: { [weak self] on in self?.setCheckForUpdates(on) },
+            checkForUpdates: { [weak self] in self?.checkForUpdates(manual: true) },
+            installUpdate: { [weak self] in self?.installUpdate() },
+            installCommandLineTool: { [weak self] in self?.installCommandLineTool() }
         )
     }
 
@@ -96,6 +100,8 @@ extension StatusItemController {
         if model.cli == nil {
             model.cli = JitCLI.status()
         }
+        model.updateMessage = nil
+        refreshCommandLineTool()
         settingsWindow.present()
     }
 
