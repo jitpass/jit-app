@@ -93,6 +93,7 @@ final class StatusItemController {
 
     private var tick: Timer?
     private var scanCheck: Timer?
+    var updateCheck: Timer?
     /// The minute timer behind the session notifications.
     var sessionCheck: Timer?
     /// "profile:expiry:stage" for every session notice already posted, so
@@ -127,6 +128,10 @@ final class StatusItemController {
         scanCheck = Timer.scheduledTimer(withTimeInterval: Self.scanCheckInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshScanIfDue() }
         }
+        startUpdateChecks()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            self?.offerCommandLineToolOnce()
+        }
     }
 
     private var panelActions: PanelActions {
@@ -146,6 +151,7 @@ final class StatusItemController {
             openSettings: { [weak self] in self?.openSettings() },
             openConsent: { [weak self] in self?.openConsent() },
             about: { [weak self] in self?.showAbout() },
+            installUpdate: { [weak self] in self?.installUpdate() },
             quit: { NSApp.terminate(nil) }
         )
     }
