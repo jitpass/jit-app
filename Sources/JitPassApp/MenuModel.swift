@@ -40,6 +40,7 @@ final class MenuModel: ObservableObject {
     /// something no run or consent covered. nil until read.
     @Published var decoyReads24h: Int?
     @Published var notifyDecoys = Notifier.decoysEnabled
+    @Published var notifyChanges = Notifier.changesEnabled
     @Published var auditFilter = AuditFilter(since: "24h")
     @Published var auditLoading = false
     @Published var grantProcesses: [RunningProcess] = []
@@ -60,6 +61,9 @@ final class MenuModel: ObservableObject {
     /// value. Reloaded after every vault operation.
     @Published var vaultListing: VaultListing?
     @Published var vaultHistory: VaultHistory?
+    /// `jit vault orphans`, read when the maintenance sheet opens and after
+    /// a prune; nil until then.
+    @Published var vaultOrphans: VaultOrphans?
     /// The path (or action) a vault command is running for; one at a time,
     /// because most of them put a Touch ID prompt on screen.
     @Published var vaultBusy: String?
@@ -301,12 +305,16 @@ enum VaultSheet: Identifiable, Equatable {
     case add(group: String?, replacing: String?)
     case link(group: String?, replacing: String?)
     case history(path: String)
+    /// Orphans, backups, export, import, rekey: the commands that act on
+    /// the vault as a whole.
+    case maintenance
 
     var id: String {
         switch self {
         case let .add(group, replacing): "add:\(group ?? ""):\(replacing ?? "")"
         case let .link(group, replacing): "link:\(group ?? ""):\(replacing ?? "")"
         case let .history(path): "history:\(path)"
+        case .maintenance: "maintenance"
         }
     }
 }
