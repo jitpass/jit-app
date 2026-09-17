@@ -119,6 +119,7 @@ extension StatusItemController {
                 switch result {
                 case let .success(report):
                     if scope == nil {
+                        noteNewCachedCopies(in: report, since: model.macScan)
                         model.macScan = report
                         model.macScanAt = Date()
                         model.scanStale = false
