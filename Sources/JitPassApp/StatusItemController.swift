@@ -36,6 +36,16 @@ final class StatusItemController {
         size: NSSize(width: 560, height: 320),
         minSize: NSSize(width: 480, height: 240)
     )
+    lazy var vaultWindow = ReportWindow(
+        title: "JitPass Vault",
+        content: VaultView(model: model, actions: vaultActions),
+        size: NSSize(width: 860, height: 540),
+        minSize: NSSize(width: 720, height: 400)
+    )
+    /// The one revealed value's bytes; wiped by `hideReveal()`.
+    var revealBuffer: SecretBuffer?
+    var revealTimer: Timer?
+    var vaultObservers: [NSObjectProtocol] = []
     lazy var settingsWindow = ReportWindow(
         title: "JitPass Settings",
         content: SettingsView(model: model, actions: settingsActions),
@@ -102,6 +112,7 @@ final class StatusItemController {
             lock: { [weak self] in self?.lockNow() },
             unlock: { [weak self] in self?.unlockNow() },
             openGrants: { [weak self] in self?.openGrants() },
+            openVault: { [weak self] in self?.openVault() },
             newGrant: { [weak self] in self?.openGrantSheet() },
             runScan: { [weak self] in self?.openScan() },
             openScan: { [weak self] in self?.openScan() },
@@ -209,6 +220,7 @@ final class StatusItemController {
             return
         }
         if !panel.isVisible {
+            hideReveal(reason: "panel opened")
             resync()
             refreshDoctorIfStale()
             refreshScanIfDue()
