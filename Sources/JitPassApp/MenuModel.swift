@@ -36,6 +36,10 @@ final class MenuModel: ObservableObject {
     ) ?? .default
     @Published var scanExcludes: [String] = ScanExcludes.load()
     @Published var audit: AuditReport?
+    /// Decoy serves in the last 24 hours: reads of a protected file by
+    /// something no run or consent covered. nil until read.
+    @Published var decoyReads24h: Int?
+    @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var auditFilter = AuditFilter(since: "24h")
     @Published var auditLoading = false
     @Published var grantProcesses: [RunningProcess] = []
@@ -69,6 +73,24 @@ final class MenuModel: ObservableObject {
     /// the countdown and is dropped with the reveal. The bytes behind it are
     /// a `SecretBuffer` the controller owns and wipes.
     @Published var vaultReveal: VaultReveal?
+    /// The tools jit knows on this Mac, as `jit wrap list --all` reports
+    /// them; reloaded on every open of the Tools window and after a wrap.
+    @Published var toolListing: ToolListing?
+    @Published var toolsMessage: String?
+    @Published var toolsNotice: String?
+    /// The listing is being re-read (it runs each tool's export command,
+    /// so it takes a moment); the header shows it.
+    @Published var toolsRefreshing = false
+    @Published var toolsSelected: String?
+    /// The tool a wrap command is running for; one at a time, since most
+    /// of them put a Touch ID prompt on screen.
+    @Published var toolsBusy: String?
+    @Published var toolsSheet: ToolsSheet?
+    /// The AI Agents window's sheet; the same kinds, its own slot, so two
+    /// windows never fight over one.
+    @Published var agentsSheet: ToolsSheet?
+    /// The guard command running, if one is; the toggle waits on it.
+    @Published var guardBusy = false
     @Published var settingsBusy = false
     @Published var settingsMessage: String?
     @Published var launchAtLogin = false
@@ -101,12 +123,112 @@ final class MenuModel: ObservableObject {
         return cli?.vault.map { "\($0.secretsStored) secrets" }
     }
 
+    /// The Decoys row: reads today when there were any, since that is the
+    /// event the files exist for; else how many files serve them. "Mount"
+    /// is jit's word for the mechanism and stays in the CLI.
     var mountsValue: String? {
-        cli?.mounts.map { "\($0.registered) " + ($0.servingReal ? "serving real values" : "serving decoys") }
+        if let reads = decoyReads24h, reads > 0 {
+            return "\(reads) read\(reads == 1 ? "" : "s") today"
+        }
+        return cli?.mounts
+            .map { "\($0.registered) file\($0.registered == 1 ? "" : "s")" + ($0.servingReal ? " · a run sees real values" : "") }
     }
 
     var consentValue: String? {
         consentEnabled.map { $0 ? "On" : "Off" }
+    }
+
+    /// `jit status`'s verdict on the zsh history guard; nil before the
+    /// first status read.
+    var guardInstalled: Bool? {
+        cli?.guardStatus?.installed
+    }
+
+    /// One fact, the most urgent: an expired session (the next `aws` call
+    /// fails), then keys in the open, then the wrapped count. The dot says
+    /// which it is.
+    var toolsValue: String? {
+        guard let listing = toolListing else {
+            return nil
+        }
+        let expired = (cli?.sessions ?? []).filter { !$0.live }.count
+        if expired > 0 {
+            return "\(expired) expired"
+        }
+        let open = toolsWithKeyInTheOpen.count
+        if open > 0 {
+            return "\(open) to protect"
+        }
+        return "\(listing.wrapped.count) wrapped"
+    }
+
+    /// The AI Agents row: protected over installed, or the count of cached
+    /// copies when a scan found any, since that number is what makes
+    /// someone click.
+    var agentsValue: String? {
+        guard let listing = toolListing else {
+            return nil
+        }
+        let agents = listing.agents
+        guard !agents.isEmpty else {
+            return nil
+        }
+        if let copies = macScan?.agentCopies.count, copies > 0 {
+            return "\(copies) cached cop\(copies == 1 ? "y" : "ies")"
+        }
+        let protected = agents.filter { agentProtected($0) }.count
+        return "\(protected) of \(agents.count)"
+    }
+
+    /// Red when a scan found copies of the user's secrets in an agent's
+    /// cache; amber when an installed agent is unwrapped or consent is
+    /// off; green when every installed agent has all three; nil with no
+    /// agent installed.
+    var agentsState: AgentsState? {
+        guard let listing = toolListing, !listing.agents.isEmpty else {
+            return nil
+        }
+        if let scan = macScan, !scan.agentCopies.isEmpty {
+            return .red
+        }
+        if listing.agents.allSatisfy({ agentProtected($0) }) {
+            return .green
+        }
+        return .amber
+    }
+
+    /// The three facts for one agent: its key is wrapped, or there is no
+    /// key on this Mac to wrap; no cached copies in the last whole-Mac
+    /// scan; consent on.
+    func agentProtected(_ tool: ToolRecord) -> Bool {
+        guard consentEnabled != false, let scan = macScan else {
+            return false
+        }
+        switch tool.keyState(scan: scan) {
+        case .protected, .none: return tool.agentLabel.map { scan.agentCopies(in: $0) == 0 } ?? true
+        case .found, .unknown: return false
+        }
+    }
+
+    /// Installed tools whose key sits in the open: a plaintext file, the
+    /// tool's own login, or a shell export. What "to protect" counts.
+    var toolsWithKeyInTheOpen: [ToolRecord] {
+        (toolListing?.installed ?? []).filter { $0.keyState(scan: macScan).needsAction }
+    }
+
+    /// The Tools row's dot: red for a broken shim, amber for an expired
+    /// session or a key in the open, green when wrapped tools are healthy.
+    var toolsState: AgentsState? {
+        guard let listing = toolListing else {
+            return nil
+        }
+        if !listing.broken.isEmpty {
+            return .red
+        }
+        if (cli?.sessions ?? []).contains(where: { !$0.live }) || !toolsWithKeyInTheOpen.isEmpty {
+            return .amber
+        }
+        return listing.wrapped.isEmpty ? nil : .green
     }
 
     /// The last verdict stays on screen while a recheck runs; "checking…"
@@ -146,6 +268,28 @@ final class MenuModel: ObservableObject {
         }
         return "not scanned yet"
     }
+}
+
+/// The sheet the Tools window has open, if any.
+enum ToolsSheet: Identifiable, Equatable {
+    /// Wrap (or re-wrap) a catalog tool, with the key typed in when jit
+    /// has nothing to discover.
+    case wrap(tool: String)
+    /// What a command printed, verbatim: the CLI is the one that says what
+    /// it found and moved.
+    case result(title: String, text: String)
+
+    var id: String {
+        switch self {
+        case let .wrap(tool): "wrap:" + tool
+        case let .result(title, _): "result:" + title
+        }
+    }
+}
+
+/// A panel row's dot.
+enum AgentsState {
+    case green, amber, red
 }
 
 /// The sheet the Vault window has open, if any.

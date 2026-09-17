@@ -61,9 +61,9 @@ public struct AuditReport: Codable, Sendable, Equatable {
                 id: "auth:\(event.unixTime):\(event.kind):\(event.op ?? "")",
                 date: event.date,
                 kind: event.kind,
-                status: event.kind,
+                status: event.isDecoyServe ? "decoy" : event.kind,
                 title: Self.title(for: event),
-                detail: event.cause ?? event.launchedBy.map { "launched by \($0)" } ?? "",
+                detail: Self.detail(for: event),
                 launchedBy: event.launchedBy
             )
         }
@@ -92,11 +92,36 @@ public struct AuditReport: Codable, Sendable, Equatable {
             return who.isEmpty ? "denied" : "denied \(who)"
         case "approved":
             return who.isEmpty ? "approved" : "approved \(who)"
+        case "serve":
+            // A decoy serve is the one event the whole design exists for:
+            // something read a protected file with no run or consent
+            // covering it, and got fake values. Name the reader and say so.
+            let reader = who.isEmpty ? "an unknown reader" : who
+            return event.isDecoyServe ? "decoy served to \(reader)" : "real values served to \(reader)"
         case "start":
             return "service started"
         default:
             return who.isEmpty ? event.kind : "\(event.kind) · \(who)"
         }
+    }
+
+    /// The second line: the file for a serve (with the read count when the
+    /// agent folded several), the agent's cause otherwise.
+    public static func detail(for event: SessionEvent) -> String {
+        if event.kind == "serve" {
+            var parts: [String] = []
+            if let files = event.labels, !files.isEmpty {
+                parts.append(files.joined(separator: ", "))
+            }
+            if let count = event.count, count > 1 {
+                parts.append("\(count) reads")
+            }
+            if let by = event.launchedBy {
+                parts.append("launched by \(by)")
+            }
+            return parts.joined(separator: " · ")
+        }
+        return event.cause ?? event.launchedBy.map { "launched by \($0)" } ?? ""
     }
 }
 
@@ -125,8 +150,19 @@ public struct AuditFilter: Sendable, Equatable {
         self.limit = limit
     }
 
+    /// The cap the CLI is asked for: the newest `limit` entries for an
+    /// hour or a day, everything for a longer range. A fixed 200 was the
+    /// bug where "last 7 days" showed one busy afternoon, because two
+    /// hundred entries fit in it.
+    public var effectiveLimit: Int {
+        switch since {
+        case "", "7d", "30d": 0
+        default: limit
+        }
+    }
+
     public var arguments: [String] {
-        var args = ["audit", "--format", "json", "--limit", String(limit)]
+        var args = ["audit", "--format", "json", "--limit", String(effectiveLimit)]
         if !kinds.isEmpty {
             args += ["--kind", kinds.joined(separator: ",")]
         }
@@ -137,5 +173,12 @@ public struct AuditFilter: Sendable, Equatable {
             args += ["--since", since]
         }
         return args
+    }
+}
+
+public extension SessionEvent {
+    /// A mount answered a reader outside any grant or consent with decoys.
+    var isDecoyServe: Bool {
+        kind == "serve" && op == "decoy"
     }
 }

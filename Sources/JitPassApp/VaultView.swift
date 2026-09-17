@@ -238,6 +238,10 @@ struct VaultView: View {
                 } else {
                     HStack(spacing: 8) {
                         Text(secret.name).fontWeight(.semibold)
+                        if let expires = secret.expires {
+                            Text(Format.expiry(expires))
+                                .foregroundStyle(expires > Date() ? Color.secondary : Color(StatusMark.amber))
+                        }
                         if model.vaultBusy == secret.path {
                             Text("Touch ID…").foregroundStyle(.secondary)
                         }

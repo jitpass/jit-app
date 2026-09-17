@@ -87,6 +87,12 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
     public var updated: Date? {
         (updatedUnix ?? 0) > 0 ? Date(timeIntervalSince1970: TimeInterval(updatedUnix ?? 0)) : nil
     }
+
+    /// When the value stops being valid: a captured session's end. nil for
+    /// a long-lived secret or one stored before jit recorded expiry.
+    public var expires: Date? {
+        (expiresUnix ?? 0) > 0 ? Date(timeIntervalSince1970: TimeInterval(expiresUnix ?? 0)) : nil
+    }
 }
 
 /// Secrets sharing a first path segment, as the CLI lists them.

@@ -55,6 +55,22 @@ enum Format {
         return formatter.localizedString(for: date, relativeTo: now)
     }
 
+    /// "expires in 2 hours" / "expired 2 hours ago", for a captured session.
+    static func expiry(_ date: Date, now: Date = Date()) -> String {
+        (date > now ? "expires " : "expired ") + ago(date, now: now)
+    }
+
+    /// "16 Sep 13:58" for a list that spans days, "13:58" for one that
+    /// does not: the date on every row, not a header the eye has to find.
+    static func stamp(_ date: Date, withDay: Bool) -> String {
+        guard withDay else {
+            return clock(date)
+        }
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("d MMM")
+        return formatter.string(from: date) + " " + clock(date)
+    }
+
     /// "2026-09-16" for a file name.
     static func dateStamp(_ date: Date = Date()) -> String {
         let f = DateFormatter()
