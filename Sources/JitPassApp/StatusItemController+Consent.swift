@@ -18,13 +18,14 @@ extension StatusItemController {
     }
 
     /// A `pending` event from the stream. This app's own requests (a grant
-    /// it just asked for) are allowed straight through: its sheet already
-    /// explained them, and the agent's Touch ID is still to come.
+    /// it just asked for) and the jit processes it spawned for a click are
+    /// allowed straight through: a dialog here already explained them, and
+    /// the agent's Touch ID is still to come. Allow never grants anything.
     func receive(pending event: SessionEvent) {
         guard let request = ConsentRequest(event: event) else {
             return
         }
-        if request.pid == ProcessInfo.processInfo.processIdentifier {
+        if request.pid == ProcessInfo.processInfo.processIdentifier || request.pid.map(JitCLI.spawned.contains) == true {
             answerConsent(request.id, allow: true)
             return
         }
