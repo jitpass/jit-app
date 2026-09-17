@@ -20,6 +20,12 @@ extension StatusItemController {
                 self?.model.editorApp = id
             },
             setLaunchAtLogin: { [weak self] on in self?.setLaunchAtLogin(on) },
+            setScanSchedule: { [weak self] schedule in
+                UserDefaults.standard.set(schedule.rawValue, forKey: ScanSchedule.preferenceKey)
+                self?.model.scanSchedule = schedule
+                self?.refreshScanIfDue()
+            },
+            grantFullDiskAccess: { FullDiskAccess.openSettings() },
             setTTL: { [weak self] ttl in self?.applyService(["service", "ttl", ttl]) },
             setConsent: { [weak self] on in self?.applyService(["service", "consent", on ? "on" : "off"]) }
         )
@@ -46,6 +52,7 @@ extension StatusItemController {
         model.editors = Editor.installed()
         model.editorApp = Editor.chosen()?.bundleID ?? ""
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
+        model.fullDiskAccess = FullDiskAccess.granted()
         model.settingsMessage = nil
         settingsWindow.present()
     }

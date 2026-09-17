@@ -32,6 +32,22 @@ struct SettingsView: View {
                 Toggle("Launch at login", isOn: launchBinding)
             }
             Section("Scan") {
+                Picker("Scan the whole Mac", selection: scheduleBinding) {
+                    ForEach(ScanSchedule.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                if model.scanSchedule == .off {
+                    Text("Every scan is a click; the Protected row shows the last one.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else if model.fullDiskAccess {
+                    Text("Runs quietly, and again after a Protect. The Protected row in the menu stays current.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 6) {
+                        Text("Waits for Full Disk Access, so it never raises a folder prompt on its own.")
+                        Button("Grant in System Settings", action: actions.grantFullDiskAccess).buttonStyle(.link)
+                    }
+                    .font(.subheadline).foregroundStyle(.secondary)
+                }
                 if model.scanExcludes.isEmpty {
                     Text("No folders are excluded.").foregroundStyle(.secondary)
                 }
@@ -80,6 +96,10 @@ struct SettingsView: View {
         Binding(get: { model.editorApp }, set: actions.setEditor)
     }
 
+    private var scheduleBinding: Binding<ScanSchedule> {
+        Binding(get: { model.scanSchedule }, set: actions.setScanSchedule)
+    }
+
     private var launchBinding: Binding<Bool> {
         Binding(get: { model.launchAtLogin }, set: actions.setLaunchAtLogin)
     }
@@ -102,6 +122,8 @@ struct SettingsActions {
     var setTerminal: (String) -> Void = { _ in }
     var setEditor: (String) -> Void = { _ in }
     var setLaunchAtLogin: (Bool) -> Void = { _ in }
+    var setScanSchedule: (ScanSchedule) -> Void = { _ in }
+    var grantFullDiskAccess: () -> Void = {}
     var setTTL: (String) -> Void = { _ in }
     var setConsent: (Bool) -> Void = { _ in }
 }

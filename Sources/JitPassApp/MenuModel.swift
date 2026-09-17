@@ -24,6 +24,16 @@ final class MenuModel: ObservableObject {
     @Published var scanError: String?
     /// The folder the last scan was limited to; nil means the whole Mac.
     @Published var scanScope: String?
+    /// The last whole-Mac scan, whoever started it: what the Protected row
+    /// shows. A folder scan never replaces it.
+    @Published var macScan: ScanReport?
+    @Published var macScanAt: Date?
+    /// Set when jit changed something (a Protect ran) so the next chance
+    /// rescans even before the schedule says so.
+    @Published var scanStale = false
+    @Published var scanSchedule: ScanSchedule = .init(
+        rawValue: UserDefaults.standard.string(forKey: ScanSchedule.preferenceKey) ?? ""
+    ) ?? .default
     @Published var scanExcludes: [String] = ScanExcludes.load()
     @Published var audit: AuditReport?
     @Published var auditFilter = AuditFilter(since: "24h")
@@ -87,13 +97,18 @@ final class MenuModel: ObservableObject {
         return doctorRunning ? "checking…" : "not checked"
     }
 
-    var exposureValue: String {
+    /// The CLI's headline: secrets protected over secrets known, for the
+    /// whole Mac. Never a folder's number.
+    var protectedValue: String {
+        if let s = macScan?.summary {
+            return "\(s.secretsProtected) of \(s.secretsTotal) · \(s.percent)%"
+        }
         if scanning {
             return "scanning…"
         }
-        guard let s = scan?.summary else {
-            return "not scanned yet"
+        if scanSchedule != .off, !fullDiskAccess {
+            return "needs Full Disk Access"
         }
-        return "\(s.exposureScore) / 100 · \(s.riskLevel)"
+        return "not scanned yet"
     }
 }
