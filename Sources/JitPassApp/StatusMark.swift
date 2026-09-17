@@ -26,9 +26,10 @@ enum StatusMark {
     /// colour is the state, and this names it for anyone who hovers.
     static func tooltip(for state: SessionState) -> String {
         switch state {
-        case .unlocked: "JitPass · unlocked, " + state.detail
-        case .locked: "JitPass · locked"
-        case .notRunning: "JitPass · service not running"
+        case let .unlocked(expiresIn, _): "Unlocked · locks in " + SessionState.countdown(expiresIn)
+        case let .locked(reason?): "Locked · " + reason
+        case .locked: "Locked"
+        case .notRunning: "Service not running"
         }
     }
 
