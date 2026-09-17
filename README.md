@@ -29,8 +29,14 @@ scripts/bundle.sh release  # dist/JitPass.app, unsigned
 ## Install
 
 ```sh
-brew install jitpass/tap/jit-app     # temporary cask; depends on the jitpass CLI cask
+brew install jitpass/tap/jitpass
 ```
+
+One cask installs JitPass.app into /Applications with the `jit` CLI inside
+it, symlinked onto PATH, plus shell completions. The bundled jit is the
+release pinned in `jit.version`, fetched and verified at build time. The
+older `jit-app` cask is retired; `brew uninstall --cask jit-app` before
+installing this one.
 
 ## Release
 
@@ -39,7 +45,7 @@ staples the bundle, publishes a draft, verifies the published zip the way a
 user's Mac will, undrafts, and renders the cask. The same steps run locally:
 
 ```sh
-VERSION=0.1.0 scripts/bundle.sh release
+VERSION=0.1.0 scripts/bundle.sh release   # fetches and verifies the jit in jit.version first
 scripts/sign.sh                      # Developer ID identity for team CZC6BH93GJ
 NOTARY_KEY_FILE=... NOTARY_KEY_ID=... NOTARY_ISSUER_ID=... scripts/notarize.sh
 scripts/verify.sh dist/JitPass-0.1.0-arm64.zip dist/checksums.txt

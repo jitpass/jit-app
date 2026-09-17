@@ -66,6 +66,17 @@ ticket fetch. Local credentials live in `~/.apple-signing`; the five Apple
 secrets are set on this repo; `HOMEBREW_TAP_GITHUB_TOKEN` is not, so the
 cask is pushed to the tap by hand until it is.
 
+## The bundled jit
+
+`jit.version` pins the jit release inside the bundle. `scripts/fetch-jit.sh`
+downloads that tag's tarball from github.com, checks it against the
+release's own `checksums.txt`, verifies the binary's Developer ID team and
+hardened runtime, and stages it under `dist/`; `bundle.sh` copies it to
+`Contents/MacOS/jit` with the completions under `Resources/`. The `jitpass`
+cask (`scripts/cask.sh`) installs the app and symlinks that jit onto PATH;
+its version is `<jit>,<app>`. Bumping jit is: edit `jit.version`, run the
+gate, commit, tag an app release. jit's own release never writes the cask.
+
 ## Icon
 
 `Resources/AppIcon.icns` is generated, never hand-edited: `swift
