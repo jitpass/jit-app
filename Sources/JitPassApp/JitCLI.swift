@@ -143,14 +143,7 @@ enum JitCLI {
     /// installed-path lookup describe the user's shell, not the app's.
     static var environment: [String: String] {
         var env = ProcessInfo.processInfo.environment
-        let path = env["PATH"] ?? "/usr/bin:/bin"
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let shims = home.appendingPathComponent(".jit/shims").path
-        // ~/.local/bin is where the claude, cursor-agent and uv installers
-        // put their binaries; without it the tool listing reports the AI
-        // agents as not installed on a Mac that runs them daily.
-        let local = home.appendingPathComponent(".local/bin").path
-        env["PATH"] = shims + ":/opt/homebrew/bin:/usr/local/bin:" + local + ":" + path
+        env["PATH"] = LoginShell.mergedPath(login: LoginShell.path, app: env["PATH"] ?? "/usr/bin:/bin")
         return env
     }
 

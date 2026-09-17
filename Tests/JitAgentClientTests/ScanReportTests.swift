@@ -113,6 +113,22 @@ extension ScanReportTests {
         XCTAssertEqual(try parse([]).protectAllCommands, [])
     }
 
+    func testProtectPlanUsesTheFindingsOwnPathsAndEachWrapOnce() throws {
+        let r = try parse([
+            Self.record("a", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
+            Self.record("b", path: "/Users/me/.clisso", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("c", path: "/Users/me/b dir/.env", remedy: "migrate", fix: "jit migrate '~/b dir/.env'"),
+            Self.record("d", path: "/Users/me/.clisso2", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("e", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
+            Self.record("f", path: "/Users/me/t_test.go", remedy: "migrate", fix: "jit migrate ~/t_test.go", fixture: true)
+        ])
+        XCTAssertEqual(r.protectPlan, ProtectPlan(migrate: ["/Users/me/a/.env", "/Users/me/b dir/.env"], wrap: ["clisso"]))
+        XCTAssertEqual(r.protectPlan.count, 3)
+        XCTAssertEqual(r.findings[1].wrapTool, "clisso")
+        XCTAssertNil(r.findings[0].wrapTool)
+        XCTAssertTrue(try parse([]).protectPlan.isEmpty)
+    }
+
     /// The same ledger arithmetic as the CLI: 39 of 47 is 82%, one command
     /// lifts it to 87%, and the rest is the user's; a Mac jit knows nothing
     /// about is 100%.
