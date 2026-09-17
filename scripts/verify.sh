@@ -28,5 +28,17 @@ info=$(codesign --display --verbose=2 "$app" 2>&1)
 xcrun stapler validate "$app"
 spctl --assess --type execute --verbose=2 "$app"
 version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/Contents/Info.plist")
-echo "verified: signed by $TEAM_ID, stapled, Gatekeeper-accepted, version $version"
+
+# The bundled jit is what `brew install jitpass` puts on PATH, so it is
+# verified the way jit's own release gate verifies a tarball: signed by the
+# team, and reporting the version the bundle claims to carry.
+jit="$app/Contents/MacOS/jit"
+[ -x "$jit" ] || die "bundle carries no executable jit"
+jitinfo=$(codesign --display --verbose=2 "$jit" 2>&1)
+[[ "$jitinfo" == *"TeamIdentifier=$TEAM_ID"* ]] || die "bundled jit is not signed by team $TEAM_ID"
+want=$(/usr/libexec/PlistBuddy -c "Print :JitVersion" "$app/Contents/Info.plist")
+got=$("$jit" --version)
+[[ "$got" == *"$want"* ]] || die "bundled jit reports '$got', bundle claims $want"
+[ -f "$app/Contents/Resources/completions/_jit" ] || die "bundle carries no shell completions"
+echo "verified: signed by $TEAM_ID, stapled, Gatekeeper-accepted, version $version, jit $want"
 rm -rf "$work"

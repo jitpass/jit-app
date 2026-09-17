@@ -4,11 +4,16 @@
 import Foundation
 import JitAgentClient
 
-/// Runs the installed `jit` for the one read-only report the panel needs.
-/// Resolved from PATH the way a shell would, with the Homebrew prefix as the
-/// fallback a GUI app's PATH usually lacks.
+/// Runs `jit` for the read-only reports the panel needs. The copy inside
+/// this bundle comes first: it is the exact release the app was built and
+/// tested against, and the one the `jitpass` cask puts on PATH. A dev build
+/// run from `.build/` has no bundled copy and falls back to the Homebrew
+/// prefixes a GUI app's PATH usually lacks.
 enum JitCLI {
-    static let candidates = ["/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
+    static var candidates: [String] {
+        let bundled = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("jit").path
+        return [bundled].compactMap { $0 } + ["/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
+    }
 
     static var executable: String? {
         candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
