@@ -32,10 +32,14 @@ struct GrantSheetView: View {
 
             field("Cover") {
                 Picker("Cover", selection: $tree) {
-                    Text("one running process").tag(false)
-                    Text("any process by name, under an app").tag(true)
+                    Text("One process").tag(false)
+                    Text("A program under an app").tag(true)
                 }
                 .pickerStyle(.segmented).labelsHidden()
+                Text(tree
+                    ? "Every copy of a program started under a terminal or editor, now or later."
+                    : "The running process you pick below, until it exits or the deadline passes.")
+                    .font(.subheadline).foregroundStyle(.secondary)
             }
 
             if tree {
@@ -50,8 +54,6 @@ struct GrantSheetView: View {
                         }
                     }
                     .labelsHidden()
-                    Text("Covers every \(treeName.isEmpty ? "process" : treeName) started under that app, now or later, for the duration.")
-                        .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
 

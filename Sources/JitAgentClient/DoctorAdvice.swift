@@ -17,22 +17,42 @@ public struct DoctorAction: Equatable, Sendable {
         case newFile(placeholder: String)
     }
 
+    /// What the app asks the user for and feeds the command on stdin.
+    public enum Input: Equatable, Sendable {
+        /// One hidden value, for `jit vault set --stdin`.
+        case secret(prompt: String)
+        /// A passphrase typed twice, for an export or an import.
+        case passphrase(prompt: String)
+    }
+
     public var title: String
+    /// What a hover shows, and what runs when `argv` is nil.
     public var command: String
     public var destructive: Bool
     public var needs: Needs
     /// When set, the app runs these jit invocations itself, one after the
-    /// other, and rechecks; no terminal. Only for a command that needs no
-    /// Touch ID and no answer from the user, with any y/N pre-answered.
-    /// `command` stays what a hover shows.
+    /// other, and rechecks: no terminal. Every y/N is pre-answered with
+    /// --yes and every hidden prompt replaced by `input` on stdin, so the
+    /// command never stops to ask; Touch ID, when jit wants it, is jit's
+    /// own prompt and works from the app. A `<file>`/`<path>` token in an
+    /// argument is replaced by the path `needs` chose.
     public var argv: [[String]]?
+    public var input: Input?
+    /// The command's output is what the user wanted (a history, a log, a
+    /// list), so the app shows it instead of only rechecking.
+    public var showsOutput: Bool
 
-    public init(_ title: String, _ command: String, destructive: Bool = false, needs: Needs = .nothing, argv: [[String]]? = nil) {
+    public init(
+        _ title: String, _ command: String, destructive: Bool = false, needs: Needs = .nothing,
+        argv: [[String]]? = nil, input: Input? = nil, showsOutput: Bool = false
+    ) {
         self.title = title
         self.command = command
         self.destructive = destructive
         self.needs = needs
         self.argv = argv
+        self.input = input
+        self.showsOutput = showsOutput
     }
 }
 
@@ -132,22 +152,29 @@ public enum DoctorAdvice {
 
     private static let builders: [String: Builder] = [
         "missing": { item in [
-            DoctorAction("Set Value", first(item.commands, "jit vault set")),
+            setValue("Set Value", item),
             DoctorAction("Migrate a File", "jit migrate <path>", needs: .existingPath(placeholder: "<path>"))
         ] },
         "corrupt": { item in [
-            DoctorAction("Show History", first(item.commands, "jit vault history")),
-            DoctorAction("Replace Value", first(item.commands, "jit vault set"), destructive: true)
+            show("Show History", ["vault", "history", item.path ?? ""]),
+            setValue("Replace Value", item, destructive: true)
         ] },
         "orphan": { item in item.path == nil ? orphanActions : [] },
-        "duplicates": { _ in [DoctorAction("Compare", "jit vault duplicates")] },
-        "origin_gone": { item in [DoctorAction("Remove Secrets", first(item.commands, "jit vault rm"), destructive: true)] },
+        "duplicates": { _ in [show("Compare", ["vault", "duplicates"])] },
+        "origin_gone": { item in
+            let rm = first(item.commands, "jit vault rm ")
+            let group = String(rm.dropFirst("jit vault rm ".count))
+            return rm.isEmpty ? [] : [DoctorAction("Remove Secrets", rm, destructive: true, argv: [["vault", "rm", group, "--yes"]])]
+        },
         "service": { item in item.commands.map {
             $0.hasPrefix("jit service log")
-                ? DoctorAction("Show Log", $0)
+                ? show("Show Log", ["service", "log"])
                 : DoctorAction("Restart Service", $0, argv: [["service", "restart"]])
         } },
-        "backup": { _ in [DoctorAction("Export Backup", "jit vault export <file>", needs: .newFile(placeholder: "<file>"))] },
+        "backup": { _ in [DoctorAction(
+            "Export Backup", "jit vault export <file>", needs: .newFile(placeholder: "<file>"),
+            argv: [["vault", "export", "<file>", "--stdin"]], input: .passphrase(prompt: "A passphrase for the backup file")
+        )] },
         "mount": unmount,
         "mount_stale": { item in
             // Clearing a stale registration decrypts nothing and writes
@@ -157,14 +184,16 @@ public enum DoctorAdvice {
             }
             return [DoctorAction("Unmount", "jit unmount \(homePath(path))", argv: [["unmount", "--yes", path]])]
         },
-        "vault_key": { _ in
-            [DoctorAction("Import a Backup", "jit vault import <file>", needs: .existingPath(placeholder: "<file>"))]
-        },
-        "rekey": { _ in [DoctorAction("Finish Rotation", "jit vault rekey")] },
-        "legacy_envelope": { _ in
-            let both = "jit vault export <file> && jit vault import <file>"
-            return [DoctorAction("Re-encrypt", both, needs: .newFile(placeholder: "<file>"))]
-        },
+        "vault_key": { _ in [DoctorAction(
+            "Import a Backup", "jit vault import <file>", needs: .existingPath(placeholder: "<file>"),
+            argv: [["vault", "import", "<file>", "--stdin", "--yes"]], input: .passphrase(prompt: "The backup file's passphrase")
+        )] },
+        "rekey": { _ in [DoctorAction("Finish Rotation", "jit vault rekey", argv: [["vault", "rekey", "--yes"]])] },
+        "legacy_envelope": { _ in [DoctorAction(
+            "Re-encrypt", "jit vault export <file> && jit vault import <file>", needs: .newFile(placeholder: "<file>"),
+            argv: [["vault", "export", "<file>", "--stdin"], ["vault", "import", "<file>", "--stdin", "--yes"]],
+            input: .passphrase(prompt: "A passphrase for the backup file the re-encryption goes through")
+        )] },
         "mcp": migrate,
         "jit_path": migrate,
         "jit_path_upgrade": migrate,
@@ -184,9 +213,27 @@ public enum DoctorAdvice {
         item.commands.map { DoctorAction($0.contains("migrate undo") ? "Undo Migration" : "Migrate Again", $0) }
     }
 
+    /// `jit vault set <path>` with the value typed into the app, hidden,
+    /// and fed on stdin. --yes because a corrupt value is being replaced
+    /// on purpose; the previous version stays in the vault's history.
+    private static func setValue(_ title: String, _ item: DoctorItem, destructive: Bool = false) -> DoctorAction {
+        guard let path = item.path else {
+            return DoctorAction(title, "")
+        }
+        return DoctorAction(
+            title, "jit vault set \(path)", destructive: destructive,
+            argv: [["vault", "set", path, "--stdin", "--yes"]], input: .secret(prompt: "The value for \(path)")
+        )
+    }
+
+    /// A read-only command whose output is the point.
+    private static func show(_ title: String, _ arguments: [String]) -> DoctorAction {
+        DoctorAction(title, "jit " + arguments.joined(separator: " "), argv: [arguments], showsOutput: true)
+    }
+
     public static let orphanActions = [
-        DoctorAction("Inspect", "jit vault orphans"),
-        DoctorAction("Delete All", "jit vault orphans --prune", destructive: true)
+        show("Inspect", ["vault", "orphans"]),
+        DoctorAction("Delete All", "jit vault orphans --prune", destructive: true, argv: [["vault", "orphans", "--prune", "--yes"]])
     ]
 
     /// One action for the whole group: every stale mount unmounted in one

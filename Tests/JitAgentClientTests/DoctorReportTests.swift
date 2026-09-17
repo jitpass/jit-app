@@ -92,31 +92,52 @@ final class DoctorAdviceTests: XCTestCase {
 
     func testDestructiveCommandsAreMarked() {
         let rm = item("origin_gone", action: "nothing, if you still use these: `jit vault rm k8s` if the project is gone")
-        XCTAssertEqual(DoctorAdvice.actions(for: rm), [DoctorAction("Remove Secrets", "jit vault rm k8s", destructive: true)])
+        let remove = DoctorAdvice.actions(for: rm).first
+        XCTAssertEqual(remove?.title, "Remove Secrets")
+        XCTAssertTrue(remove?.destructive ?? false)
+        XCTAssertEqual(remove?.argv, [["vault", "rm", "k8s", "--yes"]], "runs in the app, y/N pre-answered after the app's own confirm")
         XCTAssertTrue(DoctorAdvice.orphanActions.contains { $0.command == "jit vault orphans --prune" && $0.destructive })
         XCTAssertTrue(DoctorAdvice.generic("sudo rm /usr/local/bin/jit").destructive)
         XCTAssertFalse(DoctorAdvice.generic("jit service restart").destructive)
     }
 
     func testFilePickingActions() {
-        let backup = DoctorAdvice.actions(for: item("backup", action: "`jit vault export <file>` makes a copy"))
-        XCTAssertEqual(backup, [DoctorAction("Export Backup", "jit vault export <file>", needs: .newFile(placeholder: "<file>"))])
+        let backup = DoctorAdvice.actions(for: item("backup", action: "`jit vault export <file>` makes a copy")).first
+        XCTAssertEqual(backup?.needs, .newFile(placeholder: "<file>"))
+        XCTAssertEqual(
+            backup?.argv,
+            [["vault", "export", "<file>", "--stdin"]],
+            "the passphrase rides stdin, the panel's path replaces <file>"
+        )
+        XCTAssertEqual(backup?.input, .passphrase(prompt: "A passphrase for the backup file"))
         let legacy = DoctorAdvice.actions(for: item("legacy_envelope", action: "`jit vault export <file>` then `jit vault import <file>`"))
-        XCTAssertEqual(legacy.first?.command, "jit vault export <file> && jit vault import <file>", "one action, both steps")
+            .first
+        XCTAssertEqual(
+            legacy?.argv,
+            [["vault", "export", "<file>", "--stdin"], ["vault", "import", "<file>", "--stdin", "--yes"]],
+            "one action, both steps, one passphrase"
+        )
         let generic = DoctorAdvice.generic("jit migrate <path>")
         XCTAssertEqual(generic.needs, .existingPath(placeholder: "<path>"))
         XCTAssertEqual(generic.title, "Choose…")
     }
 
     func testMissingSecretOffersSetAndMigrate() {
-        let missing = item(
-            "missing",
+        let advice = "`jit vault set mcp/URL`, or `jit migrate <path>` to convert"
+        let missing = DoctorItem(
+            kind: "missing",
+            scope: "global",
             profile: "mcp",
             variable: "URL",
-            action: "`jit vault set mcp/URL`, or `jit migrate <path>` to convert"
+            path: "mcp/URL",
+            detail: "",
+            action: advice
         )
-        XCTAssertEqual(DoctorAdvice.actions(for: missing).map(\.title), ["Set Value", "Migrate a File"])
-        XCTAssertEqual(DoctorAdvice.actions(for: missing)[0].command, "jit vault set mcp/URL")
+        let actions = DoctorAdvice.actions(for: missing)
+        XCTAssertEqual(actions.map(\.title), ["Set Value", "Migrate a File"])
+        XCTAssertEqual(actions[0].argv, [["vault", "set", "mcp/URL", "--stdin", "--yes"]], "typed in the app, fed on stdin")
+        XCTAssertEqual(actions[0].input, .secret(prompt: "The value for mcp/URL"))
+        XCTAssertNil(actions[1].argv, "a migrate shows its plan, so it stays in the terminal")
     }
 
     func testOrphansCountOnceInTheVerdict() throws {
@@ -158,5 +179,33 @@ extension DoctorAdviceTests {
             action: nil
         )
         XCTAssertEqual(DoctorAdvice.rowText(missing), "mcp · URL")
+    }
+}
+
+extension DoctorAdviceTests {
+    /// A command the app runs itself must never stop at a y/N or a hidden
+    /// prompt: every mutating one carries --yes, and every one that reads
+    /// a secret carries --stdin with an input to feed it.
+    func testEveryInAppCommandIsPreAnswered() {
+        let samples: [DoctorItem] = [
+            item("orphan"), item("origin_gone", action: "`jit vault rm g` if gone"), item("rekey"), item("backup"),
+            item("vault_key"), item("legacy_envelope"), item("service", action: "`jit service restart` to start it"),
+            DoctorItem(kind: "corrupt", scope: nil, profile: "p", variable: "V", path: "p/V", detail: nil, action: nil),
+            DoctorItem(kind: "mount_stale", scope: "mount", profile: nil, variable: nil, path: "/x/.env", detail: nil, action: nil)
+        ]
+        let all = samples.flatMap(DoctorAdvice.actions(for:)) + DoctorAdvice.orphanActions
+        XCTAssertGreaterThan(all.filter { $0.argv != nil }.count, 8)
+        for action in all {
+            for arguments in action.argv ?? [] {
+                let mutating = ["rm", "--prune", "import", "rekey", "set", "unmount"].contains { arguments.contains($0) }
+                if mutating {
+                    XCTAssertTrue(arguments.contains("--yes"), "\(arguments) would stop at a y/N")
+                }
+                if arguments.contains("--stdin") {
+                    XCTAssertNotNil(action.input, "\(arguments) reads stdin but nothing feeds it")
+                }
+            }
+        }
+        XCTAssertTrue(DoctorAdvice.orphanActions.contains { $0.showsOutput }, "Inspect shows the list in the app")
     }
 }
