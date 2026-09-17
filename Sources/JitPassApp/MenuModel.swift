@@ -89,6 +89,8 @@ final class MenuModel: ObservableObject {
     /// The AI Agents window's sheet; the same kinds, its own slot, so two
     /// windows never fight over one.
     @Published var agentsSheet: ToolsSheet?
+    /// The scan window's sheet: what an in-app Protect printed.
+    @Published var scanSheet: ToolsSheet?
     /// The guard command running, if one is; the toggle waits on it.
     @Published var guardBusy = false
     @Published var settingsBusy = false

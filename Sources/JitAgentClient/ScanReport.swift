@@ -81,6 +81,15 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         remedy == "migrate"
     }
 
+    /// The tool a `jit wrap <tool>` fix names, if that is the fix.
+    public var wrapTool: String? {
+        guard let fix = fixCommand, fix.hasPrefix("jit wrap ") else {
+            return nil
+        }
+        let tool = fix.dropFirst("jit wrap ".count).trimmingCharacters(in: .whitespaces)
+        return tool.isEmpty ? nil : tool
+    }
+
     /// Test scaffolding or a documented example: real-looking, counted by
     /// the scanner, but almost never a live credential.
     public var scaffolding: Bool {
@@ -194,6 +203,24 @@ public struct ScanReport: Sendable, Equatable {
             commands.append(migratePrefix + targets.joined(separator: " "))
         }
         return commands + others
+    }
+
+    /// What the app's Protect All runs: every migratable file once, in a
+    /// single `jit migrate a b c --yes` (one plan, one Touch ID), then each
+    /// `jit wrap <tool>` once. Paths are the findings' own, absolute, so
+    /// nothing is parsed back out of a shell-quoted command.
+    public var protectPlan: ProtectPlan {
+        var plan = ProtectPlan()
+        for f in migratable {
+            if let tool = f.wrapTool {
+                if !plan.wrap.contains(tool) {
+                    plan.wrap.append(tool)
+                }
+            } else if f.fixCommand?.hasPrefix("jit migrate ") == true, !plan.migrate.contains(f.filePath) {
+                plan.migrate.append(f.filePath)
+            }
+        }
+        return plan
     }
 
     /// Parses the ndjson stream. Lines that are neither a finding nor the

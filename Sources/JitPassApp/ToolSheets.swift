@@ -105,6 +105,13 @@ struct WrapSheet: View {
                 "No token, nothing to store"
             ]
         default:
+            if let key = tool.shellConfigKey(scan: model.macScan) {
+                return [
+                    "Key: exported in \(Format.home(key.file)) · moves to \(key.vaultPath), the export line becomes jit's",
+                    "\(tool.tool) gets it through the shim; your shell keeps it through jit export",
+                    "Touch ID once"
+                ]
+            }
             var lines: [String] = switch tool.keyState(scan: model.macScan) {
             case let .found(source) where source.hasPrefix("~") || source.hasPrefix("/"):
                 ["Key: found in \(Format.home(source)) · moves to \(target), file blanked (backed up)"]

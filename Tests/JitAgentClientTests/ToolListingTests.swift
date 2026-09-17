@@ -157,6 +157,30 @@ final class ToolKeyStateTests: XCTestCase {
         XCTAssertEqual(gh.keyState(scan: nil), .none, "the listing looked and found nothing; no scan needed to say so")
     }
 
+    func testShellConfigKeyNamesTheFileAndTheVaultPathMigrateWillUse() throws {
+        var claude = ToolRecord(
+            tool: "claude", kind: "shim", installedPath: "/u/.local/bin/claude",
+            injects: [ToolInject(name: "ANTHROPIC_API_KEY", vaultPath: "wrap-claude/ANTHROPIC_API_KEY")]
+        )
+        let report = try scan([
+            finding("a", type: "shell_config_secret", path: "/u/.zshrc", key: "ANTHROPIC_API_KEY"),
+            finding("b", type: "exposed_secret", path: "/u/p/.env", key: "OPENAI_API_KEY")
+        ])
+        let key = try XCTUnwrap(claude.shellConfigKey(scan: report))
+        XCTAssertEqual(key.file, "/u/.zshrc")
+        XCTAssertEqual(key.name, "ANTHROPIC_API_KEY")
+        XCTAssertEqual(key.vaultPath, "zshrc/ANTHROPIC_API_KEY", "migrate names the profile after the file, dot dropped")
+        XCTAssertNil(claude.shellConfigKey(scan: nil))
+        claude.keyFound = true
+        claude.keySource = "~/.claude/.credentials.json"
+        XCTAssertNil(claude.shellConfigKey(scan: report), "the tool's own key wins; jit wrap reads that one itself")
+        let openai = ToolRecord(
+            tool: "openai", kind: "shim", installedPath: "/u/.local/bin/openai",
+            injects: [ToolInject(name: "OPENAI_API_KEY", vaultPath: "wrap-openai/OPENAI_API_KEY")]
+        )
+        XCTAssertNil(openai.shellConfigKey(scan: report), "an .env export is a migrate finding, not a shell config")
+    }
+
     func testScanFindsAShellExportByTheVarTheToolReads() throws {
         let claude = ToolRecord(
             tool: "claude", kind: "shim", installedPath: "/u/.local/bin/claude",

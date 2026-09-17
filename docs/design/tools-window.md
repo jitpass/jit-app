@@ -449,4 +449,49 @@ Taken 2026-09-17:
   is a live leak by construction, not a maybe. Amber is reserved for an
   installed agent that is unwrapped or consent being off.
 
-Nothing still open.
+Taken 2026-09-17, later the same day (shipped as JitPass 1.6.1 with jit
+1.6.1, then the polish that followed):
+
+- **Every protect is in-app.** Wrap, Protect (native migrate), Unwrap,
+  Verify, Clean Caches in the two windows, and the scan window's Protect
+  and Protect All on the same dialog: one `jit migrate a b c --yes` for
+  the files, then `jit wrap <tool>` per wrap finding, the output in a
+  sheet, the Mac rescanned after. Renewing an SSO session is the one
+  action left in the terminal, because the mint is interactive.
+- **A key exported from a shell config is a two-step, one click.**
+  `jit wrap` reads a tool's own config and keyring, never `~/.zshrc`, so
+  the Wrap sheet for that case runs `jit migrate <rc> --yes` (the export
+  becomes `jit export`, the value lands at `<rc name>/VAR`) and then
+  `jit wrap add <tool> --env VAR=<rc name>/VAR`. `ToolRecord.shellConfigKey`
+  is the rule; the listing's own discovery wins when it found something.
+- **Key state comes from the engine.** `jit wrap list --all --discover`
+  (jit 1.6.1) says whether a key exists and where, never the value; the
+  scan fills in shell configs and credential files. Amber only for a key
+  in a plaintext file; a token in the tool's keychain is encrypted at
+  rest and stays grey.
+- **The app asks the login shell for PATH**, once, at startup, with a
+  three-second cap and the fixed Homebrew/`~/.local/bin` list as the
+  fallback. The tool listing's "installed" now matches the terminal's,
+  including nvm, rbenv, cargo and go directories.
+- **Mounts became Decoys.** The panel row is "Decoys" with `eye.slash`, a
+  dot and a count when a decoy was served in the last 24 hours, and a user
+  notification per decoy serve (Settings › Protection turns it off). A
+  decoy read is the one event a user wants to hear about unprompted.
+- **Audit rows read as sentences.** Kinds are labelled in plain words,
+  decoy serves say "decoy served to X", the limit scales with the range
+  (7d and 30d are no longer capped at a day of rows) and the time column
+  carries the date when the range spans days.
+- **Settings has three tabs** (General, Protection, Scan); notes are
+  tooltips, not paragraphs.
+- **AI Agents window is sections, not cards.** Agent rows with a key
+  column and a caches column, then inset section cards for what agents
+  read, cached copies and MCP servers.
+- **Grant tools are a catalog kind.** gcloud and sops are `grant` entries
+  in jit's catalog: the credential is a file a migrate category already
+  vaults and serves as a global mount; the wrap makes the tool run under
+  `jit run --with <mount>` by its own name. Protect (migrate the file)
+  comes before Wrap, and the row says so.
+
+Still open: notifications for a captured session expiring and for a
+scan that finds new cached copies (phase 3's second half); the hand-wrap
+sheet for a tool outside the catalog.

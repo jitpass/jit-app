@@ -99,10 +99,12 @@ extension StatusItemController {
         })
     }
 
-    /// The result sheet goes to whichever of the two windows is in front.
+    /// The result sheet goes to whichever window is in front.
     func showResult(title: String, text: String) {
         let sheet = ToolsSheet.result(title: title, text: text)
-        if agentsWindow.isKeyWindow || (agentsWindow.isVisible && !toolsWindow.isVisible) {
+        if scanWindow.isKeyWindow {
+            model.scanSheet = sheet
+        } else if agentsWindow.isKeyWindow || (agentsWindow.isVisible && !toolsWindow.isVisible) {
             model.agentsSheet = sheet
         } else {
             model.toolsSheet = sheet
@@ -160,7 +162,12 @@ extension StatusItemController {
     /// key in the same step, and that one field is the reason wrapping is
     /// in-app at all. Two Touch IDs then, and the sheet said so.
     private func wrapTool(_ tool: String, value: String?) {
-        let path = model.toolListing?.tool(named: tool)?.injects.first?.vaultPath
+        let record = model.toolListing?.tool(named: tool)
+        if value == nil, let key = record?.shellConfigKey(scan: model.macScan) {
+            wrapFromShellConfig(tool, key: key)
+            return
+        }
+        let path = record?.injects.first?.vaultPath
         let work: @Sendable () -> Result<String, Error> = {
             var log: [String] = []
             if let value, !value.isEmpty, let path {
@@ -176,6 +183,30 @@ extension StatusItemController {
             self?.model.toolsSheet = nil
             self?.model.agentsSheet = nil
             self?.showResult(title: "Wrapped \(tool)", text: output)
+        })
+    }
+
+    /// The key is an `export` in a shell config, which `jit wrap` does not
+    /// read: `jit migrate <rc> --yes` moves it (the export line becomes a
+    /// `jit export` of the same profile, so every shell keeps the var),
+    /// then `jit wrap add <tool> --env VAR=<rc name>/VAR` points the shim
+    /// at that copy. One Touch ID: the wrap only checks the path exists.
+    private func wrapFromShellConfig(_ tool: String, key: ShellConfigKey) {
+        let work: @Sendable () -> Result<String, Error> = {
+            var log: [String] = []
+            switch JitCLI.execute(["migrate", key.file, "--yes"]) {
+            case let .success(text): log.append(text)
+            case let .failure(error): return .failure(error)
+            }
+            return JitCLI.execute(["wrap", "add", tool, "--env", key.name + "=" + key.vaultPath])
+                .map { (log + [$0]).joined(separator: "\n\n") }
+        }
+        runTools(tool, work: work, then: { [weak self] output in
+            self?.model.scanStale = true
+            self?.model.toolsSheet = nil
+            self?.model.agentsSheet = nil
+            self?.showResult(title: "Protected \(Format.home(key.file)), wrapped \(tool)", text: output)
+            self?.runScan(wholeMac: true)
         })
     }
 
@@ -300,7 +331,7 @@ extension StatusItemController {
     /// Runs one command off the main thread while the row shows who is
     /// waiting on Touch ID, then reloads the listing and status. One at a
     /// time, like the Vault window.
-    private func runTools(
+    func runTools(
         _ label: String,
         refresh: Bool = true,
         work: @escaping @Sendable () -> Result<String, Error>,
