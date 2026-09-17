@@ -188,11 +188,14 @@ final class StatusItemController {
 
     // MARK: - Rendering
 
-    private func render() {
-        item.button?.image = StatusMark.image(for: model.state)
+    /// The menu bar item itself: mark colour and tooltip. Re-run on every
+    /// state change and whenever a consent request arrives or resolves.
+    func render() {
+        let asking = model.consentRequests.first
+        item.button?.image = StatusMark.image(for: model.state, asking: asking != nil)
         item.button?.imagePosition = .imageOnly
         item.button?.title = ""
-        item.button?.toolTip = StatusMark.tooltip(for: model.state)
+        item.button?.toolTip = StatusMark.tooltip(for: model.state, asking: asking)
     }
 
     @objc private func togglePanel() {
