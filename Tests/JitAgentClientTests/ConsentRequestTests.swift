@@ -54,4 +54,15 @@ final class ConsentRequestTests: XCTestCase {
         event.op = "grant_create"
         XCTAssertTrue(ConsentRequest(event: event)?.purpose.hasPrefix("create a grant") ?? false)
     }
+
+    func testAnUnlockIsToldApartByTheAgentsWording() throws {
+        var event = try pending()
+        event.op = "unwrap"
+        event.cause = "unlock the vault for claude"
+        let request = try XCTUnwrap(ConsentRequest(event: event))
+        XCTAssertTrue(request.isUnlock)
+        XCTAssertTrue(request.purpose.hasPrefix("unlock the vault"))
+        event.cause = "use your aws credential for terraform"
+        XCTAssertFalse(ConsentRequest(event: event)?.isUnlock ?? true)
+    }
 }

@@ -56,12 +56,23 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
         event.byLikely ?? false
     }
 
-    /// What kind of authority the request is for, from the agent's op.
+    /// True for a brokered unlock (jitpass/jit#114): the vault was locked
+    /// and a program reached for a secret. Read from the agent's own
+    /// wording, which every unlock prompt opens with.
+    public var isUnlock: Bool {
+        event.cause?.hasPrefix("unlock the vault") ?? false
+    }
+
+    /// What kind of authority the request is for, from the agent's op and
+    /// wording.
     public var purpose: String {
+        if isUnlock {
+            return "unlock the vault: every secret it holds, until it locks again"
+        }
         switch event.op {
-        case "grant_create": "create a grant: unattended access until a deadline"
-        case "grant_extend": "extend a grant's deadline"
-        default: "use a credential once, remembered until the vault locks"
+        case "grant_create": return "create a grant: unattended access until a deadline"
+        case "grant_extend": return "extend a grant's deadline"
+        default: return "use a credential once, remembered until the vault locks"
         }
     }
 
