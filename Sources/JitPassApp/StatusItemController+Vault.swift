@@ -44,7 +44,8 @@ extension StatusItemController {
             exportVault: { [weak self] in self?.exportVault() },
             importVault: { [weak self] in self?.importVault() },
             rekey: { [weak self] in self?.rekeyVault() },
-            duplicatesInTerminal: { [weak self] in self?.runInTerminal("jit vault duplicates") }
+            compareDuplicates: { [weak self] in self?.compareDuplicates() },
+            pruneDuplicates: { [weak self] in self?.pruneDuplicates() }
         )
     }
 

@@ -119,7 +119,7 @@ struct ToolsView: View {
             if tool.wrapped, !tool.isHealthy {
                 return 0
             }
-            if tool.keyState(scan: model.macScan).needsAction {
+            if tool.keyState(scan: model.macScan).needsAction || expiredSessions(tool) > 0 {
                 return 1
             }
             return tool.isProtected ? 2 : 3
@@ -145,6 +145,9 @@ struct ToolsView: View {
     /// but the shim or profile is broken. Amber: a key is in the open and
     /// one command moves it. Grey: nothing found, nothing to do.
     private func dotColor(_ tool: ToolRecord) -> Color {
+        if expiredSessions(tool) > 0 {
+            return Color(StatusMark.amber)
+        }
         if tool.isProtected {
             return Color(StatusMark.green)
         }
@@ -168,7 +171,17 @@ struct ToolsView: View {
         return key + " · " + cachesText(label)
     }
 
+    /// Sessions this capture tool minted that have run out: the panel's
+    /// "1 expired", so the row has to say the same.
+    private func expiredSessions(_ tool: ToolRecord) -> Int {
+        (model.cli?.sessions(mintedBy: tool.tool) ?? []).filter { !$0.live }.count
+    }
+
     private func keyText(_ tool: ToolRecord) -> String {
+        let expired = expiredSessions(tool)
+        if expired > 0 {
+            return "\(expired) expired session\(expired == 1 ? "" : "s")"
+        }
         if tool.wrapped {
             return tool.isHealthy ? "wrapped" : tool.stateLabel
         }
