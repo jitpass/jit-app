@@ -183,3 +183,92 @@ struct ResultSheet: View {
         .frame(width: 560)
     }
 }
+
+/// Wrap a tool the catalog does not know: its name (what you type in the
+/// terminal), the environment variable it reads its token from, and the
+/// token. The value goes to jit through a pipe, never an argument; the
+/// wrap profile is the same shape a catalog wrap gets.
+struct HandWrapSheet: View {
+    @ObservedObject var model: MenuModel
+    let actions: ToolsActions
+
+    @State private var tool = ""
+    @State private var name = ""
+    @State private var value = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Wrap Another Tool").font(.headline)
+                Text("For a CLI that reads a token from an environment variable. jit stores the token, "
+                    + "puts a shim on PATH under the tool's name, and injects the variable into that process only.")
+                    .font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            SheetField("Tool") {
+                TextField("acme-cli", text: $tool).textFieldStyle(.roundedBorder)
+                    .help("The command name as you type it; the shim takes the same name.")
+            }
+            SheetField("Variable") {
+                TextField("ACME_API_TOKEN", text: $name).textFieldStyle(.roundedBorder)
+                    .help("The environment variable the tool reads.")
+            }
+            SheetField("Token") {
+                SecureField("", text: $value).textFieldStyle(.roundedBorder)
+                Text("Stored at wrap-\(tool.isEmpty ? "<tool>" : tool)/\(name.isEmpty ? "<VAR>" : name). Touch ID once.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            if let installed = installedNote {
+                Text(installed).font(.system(size: 11)).foregroundStyle(Color(StatusMark.amber))
+            }
+            if let message = model.toolsMessage {
+                Text(message)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(StatusMark.red).opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            }
+            HStack {
+                Spacer()
+                Button("Cancel", action: actions.closeSheet).keyboardShortcut(.cancelAction)
+                Button(model.toolsBusy == nil ? "Wrap" : "Waiting for Touch ID…") {
+                    actions.handWrap(tool.trimmingCharacters(in: .whitespaces), name.trimmingCharacters(in: .whitespaces), value)
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!canSubmit || model.toolsBusy != nil)
+            }
+        }
+        .padding(20)
+        .frame(width: 480)
+    }
+
+    /// A catalog tool has its own sheet with discovery; say so rather
+    /// than wrap it blind.
+    private var installedNote: String? {
+        let trimmed = tool.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let record = model.toolListing?.tool(named: trimmed), record.catalog else {
+            return nil
+        }
+        return "\(trimmed) is in jit's catalog: close this and use its own Wrap, which finds the key itself."
+    }
+
+    private var canSubmit: Bool {
+        HandWrap.isValid(tool: tool.trimmingCharacters(in: .whitespaces), name: name.trimmingCharacters(in: .whitespaces))
+            && !value.isEmpty && installedNote == nil
+    }
+}
+
+/// What `jit wrap add` accepts: a tool name with no slash or space, and
+/// an environment variable name.
+enum HandWrap {
+    static func isValid(tool: String, name: String) -> Bool {
+        guard !tool.isEmpty, !tool.contains("/"), !tool.contains(" "), !tool.hasPrefix("-") else {
+            return false
+        }
+        guard let first = name.first, first == "_" || first.isLetter else {
+            return false
+        }
+        return name.allSatisfy { $0 == "_" || $0.isLetter || $0.isNumber }
+    }
+}

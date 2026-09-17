@@ -229,21 +229,15 @@ struct VaultView: View {
             }
             if let secret = selectedSecret {
                 if let reveal = model.vaultReveal, reveal.path == secret.path {
-                    HStack(alignment: .top, spacing: 10) {
-                        Text(reveal.text)
-                            .font(.system(size: 12, design: .monospaced))
-                            .lineLimit(6)
-                            .textSelection(.disabled)
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(Color(StatusMark.amber).opacity(0.15))
-                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                        Text("\(reveal.secondsLeft)s").foregroundStyle(.secondary).monospacedDigit()
-                        Spacer()
-                        Button("Hide", action: actions.hideReveal)
-                    }
+                    revealRow(reveal)
                 } else {
                     HStack(spacing: 8) {
                         Text(secret.name).fontWeight(.semibold)
+                        if !secret.usedBy.isEmpty {
+                            Text("used by " + secret.usedBy.joined(separator: ", "))
+                                .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                                .help("The profiles that reference this secret: what a wrap injects or a mount serves.")
+                        }
                         if let expires = secret.expires {
                             Text(Format.expiry(expires))
                                 .foregroundStyle(expires > Date() ? Color.secondary : Color(StatusMark.amber))
@@ -269,6 +263,23 @@ struct VaultView: View {
         }
         .padding(.horizontal, 16).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The value, its countdown, and Hide. Never selectable: the reveal is
+    /// for reading, the clipboard path is Copy.
+    private func revealRow(_ reveal: VaultReveal) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text(reveal.text)
+                .font(.system(size: 12, design: .monospaced))
+                .lineLimit(6)
+                .textSelection(.disabled)
+                .padding(.horizontal, 8).padding(.vertical, 4)
+                .background(Color(StatusMark.amber).opacity(0.15))
+                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            Text("\(reveal.secondsLeft)s").foregroundStyle(.secondary).monospacedDigit()
+            Spacer()
+            Button("Hide", action: actions.hideReveal)
+        }
     }
 
     @ViewBuilder private func rowMenu(_ secret: VaultSecret) -> some View {

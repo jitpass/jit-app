@@ -22,6 +22,7 @@ extension StatusItemController {
             },
             closeSheet: { [weak self] in self?.model.toolsSheet = nil },
             wrap: { [weak self] tool, value in self?.wrapTool(tool, value: value) },
+            handWrap: { [weak self] tool, name, value in self?.handWrap(tool, name: name, value: value) },
             protect: { [weak self] tool in self?.protectTool(tool) },
             protectFile: { [weak self] path in self?.protectFile(path) },
             unwrap: { [weak self] tool in self?.unwrapTool(tool) },
@@ -182,6 +183,28 @@ extension StatusItemController {
             self?.model.scanStale = true
             self?.model.toolsSheet = nil
             self?.model.agentsSheet = nil
+            self?.showResult(title: "Wrapped \(tool)", text: output)
+        })
+    }
+
+    /// A tool outside the catalog: `jit vault set wrap-<tool>/VAR --stdin`
+    /// with the key from the sheet, then `jit wrap add <tool> --env
+    /// VAR=wrap-<tool>/VAR`, the same shape `jit wrap` gives a catalog
+    /// tool, so Unwrap and the listing treat it like one.
+    private func handWrap(_ tool: String, name: String, value: String) {
+        let path = "wrap-\(tool)/\(name)"
+        let work: @Sendable () -> Result<String, Error> = {
+            var log: [String] = []
+            switch JitCLI.execute(["vault", "set", path, "--stdin", "--yes"], stdin: value) {
+            case let .success(text): log.append(text)
+            case let .failure(error): return .failure(error)
+            }
+            return JitCLI.execute(["wrap", "add", tool, "--env", name + "=" + path])
+                .map { (log + [$0]).joined(separator: "\n\n") }
+        }
+        runTools(tool, work: work, then: { [weak self] output in
+            self?.model.toolsSheet = nil
+            self?.model.toolsSelected = tool
             self?.showResult(title: "Wrapped \(tool)", text: output)
         })
     }

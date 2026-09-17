@@ -12,8 +12,9 @@ copies only); Settings › Protection gained the Vault section with clean
 and delete as terminal buttons. The consent sheet lets a jit process the
 app itself spawned through to the Touch ID without asking again
 (`JitCLI.spawned`): the app's own dialog was the question. Doctor's own
-prune and export actions stay where they were. The engine's `used_by` is
-still not done.
+prune and export actions stay where they were. The engine's `used_by`
+shipped in jit 1.6.2: the selection bar shows "used by wrap-gh, dev-api"
+and the Delete dialog warns before the confirmation.
 
 `design/menu-bar-app.md` (jit repo) says the app is "not a vault browser"
 in v1: names, states and events only, never a value. v0.9.2 honours that so

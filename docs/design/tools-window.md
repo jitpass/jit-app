@@ -500,4 +500,9 @@ cached copies the previous scan of this run did not have. Clicking one
 opens the Tools or AI Agents window. The first scan after launch says
 nothing: the AI Agents dot already carries it.
 
-Still open: the hand-wrap sheet for a tool outside the catalog.
+The hand-wrap sheet followed: "Wrap Another…" in the Tools header takes
+a tool name, the variable it reads and the token, stores the token at
+`wrap-<tool>/VAR` over stdin and runs `jit wrap add <tool> --env
+VAR=wrap-<tool>/VAR`, so the listing, Unwrap and Repair treat it like a
+catalog wrap. A catalog name typed there is sent to its own sheet.
+Nothing in the tools design is still open.
