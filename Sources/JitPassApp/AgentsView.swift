@@ -39,6 +39,9 @@ struct AgentsView: View {
                 if let record = model.toolListing?.tool(named: tool) {
                     WrapSheet(model: model, actions: ToolsActions(closeSheet: actions.closeSheet, wrap: actions.wrap), tool: record)
                 }
+            case .handWrap:
+                // The Tools window's button; never opened from here.
+                EmptyView()
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
             }
