@@ -27,7 +27,15 @@ extension StatusItemController {
             },
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
             setTTL: { [weak self] ttl in self?.applyService(["service", "ttl", ttl]) },
-            setConsent: { [weak self] on in self?.applyService(["service", "consent", on ? "on" : "off"]) }
+            setConsent: { [weak self] on in self?.applyService(["service", "consent", on ? "on" : "off"]) },
+            setGuard: { [weak self] on in self?.setGuard(on) },
+            setNotifyDecoys: { [weak self] on in
+                UserDefaults.standard.set(on, forKey: Notifier.decoyPreferenceKey)
+                self?.model.notifyDecoys = on
+                if on {
+                    Notifier.requestPermission()
+                }
+            }
         )
     }
 
@@ -54,6 +62,9 @@ extension StatusItemController {
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
         model.fullDiskAccess = FullDiskAccess.granted()
         model.settingsMessage = nil
+        if model.cli == nil {
+            model.cli = JitCLI.status()
+        }
         settingsWindow.present()
     }
 

@@ -33,11 +33,33 @@ final class AuditReportTests: XCTestCase {
     }
 
     func testFilterRendersOnlyWhatIsSet() {
-        XCTAssertEqual(AuditFilter().arguments, ["audit", "--format", "json", "--limit", "200"])
+        // No range means everything, so the cap is off; an hour or a day
+        // keeps the cap, a week drops it (200 entries fit in one afternoon).
+        XCTAssertEqual(AuditFilter().arguments, ["audit", "--format", "json", "--limit", "0"])
+        XCTAssertEqual(AuditFilter(since: "1h").effectiveLimit, 200)
+        XCTAssertEqual(AuditFilter(since: "7d").effectiveLimit, 0)
         let f = AuditFilter(kinds: ["unlock", "use"], parent: "claude", since: "24h", limit: 50)
         XCTAssertEqual(
             f.arguments,
             ["audit", "--format", "json", "--limit", "50", "--kind", "unlock,use", "--parent", "claude", "--since", "24h"]
         )
+    }
+}
+
+extension AuditReportTests {
+    /// A decoy serve is named as such: who read what, and that they got
+    /// fake values. The row's status drives the amber glyph.
+    func testDecoyServeIsNamedAndMarked() throws {
+        let json = """
+        {"unix_time": 1789108207, "kind": "serve", "op": "decoy", "by": "/u/.local/bin/python3.13", "by_pid": 55227,
+         "launched_by": "uv", "cause": "no jit run grant or consent approval covered the reader",
+         "labels": ["~/mcp/urlscan/.env"], "count": 2}
+        """
+        let event = try JSONDecoder().decode(SessionEvent.self, from: Data(json.utf8))
+        XCTAssertTrue(event.isDecoyServe)
+        XCTAssertEqual(AuditReport.title(for: event), "decoy served to python3.13")
+        XCTAssertEqual(AuditReport.detail(for: event), "~/mcp/urlscan/.env · 2 reads · launched by uv")
+        let row = AuditReport(commands: [], authEvents: [event]).rows[0]
+        XCTAssertEqual(row.status, "decoy")
     }
 }

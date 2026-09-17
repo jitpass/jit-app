@@ -34,6 +34,20 @@ struct PanelView: View {
                     }
                     .buttonStyle(HoverRowStyle())
                 }
+                if let agents = model.agentsValue {
+                    Button(action: actions.openAgents) {
+                        row("sparkles", "AI Agents", agents, dot: dot(model.agentsState))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
+                }
+                if let tools = model.toolsValue {
+                    Button(action: actions.openTools) {
+                        row("terminal", "Tools", tools, dot: dot(model.toolsState))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
+                }
                 row("play.circle", "Service", model.serviceValue)
                 Button(action: actions.openGrants) {
                     row("key", "Grants", model.grantsValue, dot: model.grants.isEmpty ? nil : Color(StatusMark.green))
@@ -41,7 +55,11 @@ struct PanelView: View {
                 }
                 .buttonStyle(HoverRowStyle())
                 if let mounts = model.mountsValue {
-                    row("doc.text", "Mounts", mounts)
+                    Button(action: actions.openDecoys) {
+                        row("eye.slash", "Decoys", mounts, dot: (model.decoyReads24h ?? 0) > 0 ? Color(StatusMark.amber) : nil)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
                 }
                 Button(action: actions.openDoctor) {
                     row("stethoscope", "Doctor", model.doctorValue, dot: doctorDot)
@@ -97,6 +115,15 @@ struct PanelView: View {
                     Text(model.state.detail).font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    private func dot(_ state: AgentsState?) -> Color? {
+        switch state {
+        case .green: Color(StatusMark.green)
+        case .amber: Color(StatusMark.amber)
+        case .red: Color(StatusMark.red)
+        case nil: nil
         }
     }
 
@@ -181,11 +208,14 @@ struct PanelActions {
     var unlock: () -> Void = {}
     var openGrants: () -> Void = {}
     var openVault: () -> Void = {}
+    var openTools: () -> Void = {}
+    var openAgents: () -> Void = {}
     var newGrant: () -> Void = {}
     var runScan: () -> Void = {}
     var openScan: () -> Void = {}
     var openDoctor: () -> Void = {}
     var openAudit: () -> Void = {}
+    var openDecoys: () -> Void = {}
     var openSettings: () -> Void = {}
     var openConsent: () -> Void = {}
     var about: () -> Void = {}
