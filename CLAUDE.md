@@ -73,9 +73,14 @@ downloads that tag's tarball from github.com, checks it against the
 release's own `checksums.txt`, verifies the binary's Developer ID team and
 hardened runtime, and stages it under `dist/`; `bundle.sh` copies it to
 `Contents/MacOS/jit` with the completions under `Resources/`. The `jitpass`
-cask (`scripts/cask.sh`) installs the app and symlinks that jit onto PATH;
-its version is `<jit>,<app>`. Bumping jit is: edit `jit.version`, run the
-gate, commit, tag an app release. jit's own release never writes the cask.
+cask (`scripts/cask.sh`) installs the app and symlinks that jit onto PATH.
+One product, one number: an app tag is the bundled jit's version, plus a
+fourth part for an app-only release (`v1.5.8` ships jit 1.5.8, `v1.5.8.1`
+is the same jit with an app fix), and `release.yml` refuses a tag that does
+not start with `jit.version`. Bumping jit is: edit `jit.version`, run the
+gate, commit, tag `v<jit>`. An app-only fix is tagged `v<jit>.N`. jit's own
+release never writes the cask. Tags v0.9.x predate this; the cask carried
+`<jit>,<app>` until 1.5.8,0.9.3.
 
 ## Icon
 
