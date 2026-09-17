@@ -492,6 +492,12 @@ Taken 2026-09-17, later the same day (shipped as JitPass 1.6.1 with jit
   `jit run --with <mount>` by its own name. Protect (migrate the file)
   comes before Wrap, and the row says so.
 
-Still open: notifications for a captured session expiring and for a
-scan that finds new cached copies (phase 3's second half); the hand-wrap
-sheet for a tool outside the catalog.
+Phase 3 finished the same evening: a second notification switch in
+Settings › General covers a captured session within fifteen minutes of
+its expiry (and again when it has expired, each once per session, from a
+minute timer that re-reads `jit status`) and a whole-Mac scan that finds
+cached copies the previous scan of this run did not have. Clicking one
+opens the Tools or AI Agents window. The first scan after launch says
+nothing: the AI Agents dot already carries it.
+
+Still open: the hand-wrap sheet for a tool outside the catalog.

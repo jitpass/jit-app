@@ -23,7 +23,7 @@ struct SettingsView: View {
             scan.tabItem { Text("Scan") }
         }
         .padding(.top, 8)
-        .frame(width: 480, height: 360)
+        .frame(width: 480, height: 420)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
     }
 
@@ -42,6 +42,9 @@ struct SettingsView: View {
             Toggle("Notify when a decoy is served", isOn: notifyBinding)
                 .help("Something read a protected file with no run or consent covering it, and got fake values. "
                     + "The Decoys row and the audit show the same events.")
+            Toggle("Notify when a session expires or a scan finds new cached copies", isOn: notifyChangesBinding)
+                .help("A captured SSO session is about to expire or has, so the next aws call fails until you renew; "
+                    + "or a whole-Mac scan found a copy of a secret in an AI agent's cache it had not seen before.")
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -75,6 +78,20 @@ struct SettingsView: View {
             }
             if let message = model.settingsMessage {
                 Text(message).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Section("Vault") {
+                HStack {
+                    Text("Delete every secret, keep the key")
+                    Spacer()
+                    Button("Clean in Terminal…", action: actions.vaultClean)
+                }
+                .help("jit vault clean: every secret and every backup, gone for good; the vault stays usable. jit asks once more.")
+                HStack {
+                    Text("Destroy the vault and its key")
+                    Spacer()
+                    Button("Delete in Terminal…", action: actions.vaultDelete)
+                }
+                .help("jit vault delete: the vault directory and the keychain item. jit asks once more.")
             }
         }
         .formStyle(.grouped)
@@ -150,6 +167,10 @@ struct SettingsView: View {
         Binding(get: { model.notifyDecoys }, set: actions.setNotifyDecoys)
     }
 
+    private var notifyChangesBinding: Binding<Bool> {
+        Binding(get: { model.notifyChanges }, set: actions.setNotifyChanges)
+    }
+
     private var guardBinding: Binding<Bool> {
         Binding(get: { model.guardInstalled ?? false }, set: actions.setGuard)
     }
@@ -171,4 +192,7 @@ struct SettingsActions {
     var setConsent: (Bool) -> Void = { _ in }
     var setGuard: (Bool) -> Void = { _ in }
     var setNotifyDecoys: (Bool) -> Void = { _ in }
+    var setNotifyChanges: (Bool) -> Void = { _ in }
+    var vaultClean: () -> Void = {}
+    var vaultDelete: () -> Void = {}
 }

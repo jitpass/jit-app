@@ -37,7 +37,14 @@ extension StatusItemController {
             loadHistory: { [weak self] path in self?.loadHistory(path) },
             restore: { [weak self] path, stamp in self?.restoreSecret(path, stamp: stamp) },
             delete: { [weak self] paths in self?.deleteSecrets(paths) },
-            openInTerminal: { [weak self] in self?.runInTerminal("jit vault list -l") }
+            openInTerminal: { [weak self] in self?.runInTerminal("jit vault list -l") },
+            loadOrphans: { [weak self] in self?.loadOrphans() },
+            pruneOrphans: { [weak self] in self?.pruneOrphans() },
+            pruneBackups: { [weak self] in self?.pruneBackups() },
+            exportVault: { [weak self] in self?.exportVault() },
+            importVault: { [weak self] in self?.importVault() },
+            rekey: { [weak self] in self?.rekeyVault() },
+            duplicatesInTerminal: { [weak self] in self?.runInTerminal("jit vault duplicates") }
         )
     }
 
@@ -215,7 +222,7 @@ extension StatusItemController {
     /// Runs one vault command off the main thread while the row and the
     /// header show who is waiting on Touch ID, then reloads the listing.
     /// One at a time: two Touch ID prompts at once is a mess.
-    private func runVault<T: Sendable>(
+    func runVault<T: Sendable>(
         _ label: String,
         refresh: Bool = true,
         work: @escaping @Sendable () -> Result<T, Error>,
@@ -260,7 +267,7 @@ extension StatusItemController {
         return Format.error(error)
     }
 
-    private func notice(_ text: String) {
+    func notice(_ text: String) {
         model.vaultNotice = text
         Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 6_000_000_000)

@@ -37,6 +37,8 @@ struct VaultView: View {
                 LinkSecretSheet(model: model, actions: actions, group: group ?? selectedGroup ?? "", replacing: replacing)
             case let .history(path):
                 HistorySheet(model: model, actions: actions, path: path)
+            case .maintenance:
+                MaintenanceSheet(model: model, actions: actions)
             }
         }
         .onAppear(perform: actions.reload)
@@ -115,7 +117,9 @@ struct VaultView: View {
             HStack {
                 Text(backupsLine).font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
-                Button("Open in Terminal", action: actions.openInTerminal).controlSize(.small)
+                Button("Maintenance…") { actions.openSheet(.maintenance) }.controlSize(.small)
+                    .disabled(model.vaultBusy != nil)
+                    .help("Orphans, backups, export, import, rekey, duplicates")
             }
             .padding(.horizontal, 14).padding(.vertical, 8)
         }
@@ -306,4 +310,11 @@ struct VaultActions {
     var restore: (String, Int64) -> Void = { _, _ in }
     var delete: ([String]) -> Void = { _ in }
     var openInTerminal: () -> Void = {}
+    var loadOrphans: () -> Void = {}
+    var pruneOrphans: () -> Void = {}
+    var pruneBackups: () -> Void = {}
+    var exportVault: () -> Void = {}
+    var importVault: () -> Void = {}
+    var rekey: () -> Void = {}
+    var duplicatesInTerminal: () -> Void = {}
 }
