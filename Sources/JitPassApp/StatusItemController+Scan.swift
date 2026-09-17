@@ -9,6 +9,13 @@ extension StatusItemController {
     var scanActions: ScanActions {
         ScanActions(
             rescan: { [weak self] in self?.runScan() },
+            newScan: { [weak self] in
+                // Back to the chooser: the window's report is dropped, the
+                // whole-Mac result the panel shows is not.
+                self?.model.scan = nil
+                self?.model.scanScope = nil
+                self?.model.scanError = nil
+            },
             openSettings: { [weak self] in self?.openSettings() },
             chooseFolder: { [weak self] in self?.chooseScanFolder() },
             scanWholeMac: { [weak self] in
@@ -26,7 +33,8 @@ extension StatusItemController {
             },
             open: { path, line in Editor.open(path, line: line) },
             reveal: { path in Editor.reveal(path) },
-            grantFullDiskAccess: { FullDiskAccess.openSettings() }
+            grantFullDiskAccess: { FullDiskAccess.openSettings() },
+            cleanCaches: { [weak self] in self?.cleanCaches() }
         )
     }
 

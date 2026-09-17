@@ -11,7 +11,26 @@ struct AuditView: View {
     @ObservedObject var model: MenuModel
     let actions: AuditActions
 
-    private static let kinds = ["cmd", "unlock", "use", "grant", "serve", "lock", "service", "error"]
+    /// The CLI's kind values, and what each means to a reader. The value is
+    /// what `--kind` takes; the label is what the picker and the row show.
+    private static let kinds: [(value: String, label: String)] = [
+        ("cmd", "commands"), ("unlock", "unlocks"), ("use", "secret uses"), ("grant", "grants"),
+        ("serve", "file reads"), ("lock", "locks"), ("service", "service"), ("error", "errors")
+    ]
+
+    /// A row's kind word: singular, and "decoy" for the read that got one.
+    static func kindLabel(_ row: AuditRow) -> String {
+        if row.status == "decoy" {
+            return "decoy"
+        }
+        switch row.kind {
+        case "cmd": return "command"
+        case "use": return "use"
+        case "serve": return "read"
+        default: return row.kind
+        }
+    }
+
     private static let sinces: [(label: String, value: String)] = [
         ("last hour", "1h"), ("last 24 hours", "24h"), ("last 7 days", "7d"), ("all", "")
     ]
@@ -26,6 +45,9 @@ struct AuditView: View {
                     Spacer()
                 } else {
                     list(rows)
+                    if let cap = capNote(rows.count) {
+                        Text(cap).font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 6)
+                    }
                 }
             } else if model.auditLoading {
                 Spacer()
@@ -54,7 +76,7 @@ struct AuditView: View {
         HStack(spacing: 10) {
             Picker("Kind", selection: kindBinding) {
                 Text("all kinds").tag("")
-                ForEach(Self.kinds, id: \.self) { Text($0).tag($0) }
+                ForEach(Self.kinds, id: \.value) { Text($0.label).tag($0.value) }
             }
             .frame(width: 130)
             Picker("Since", selection: sinceBinding) {
@@ -71,15 +93,31 @@ struct AuditView: View {
         .labelsHidden()
     }
 
+    /// Says when the list is the CLI's cap rather than the whole range, so
+    /// "last 24 hours" ending at noon is read as a cut, not as a quiet morning.
+    private func capNote(_: Int) -> String? {
+        let limit = model.auditFilter.effectiveLimit
+        guard limit > 0, let report = model.audit, report.commands.count + report.authEvents.count >= limit else {
+            return nil
+        }
+        return "newest \(limit) entries shown; pick a longer range or Open in Terminal for the rest"
+    }
+
+    /// A range longer than a day puts the date on every row.
+    private var spansDays: Bool {
+        !["1h", "24h"].contains(model.auditFilter.since)
+    }
+
     private func list(_ rows: [AuditRow]) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 4) {
                 ForEach(rows) { row in
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(Format.clock(row.date))
-                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary).frame(width: 40, alignment: .leading)
+                        Text(Format.stamp(row.date, withDay: spansDays))
+                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
+                            .frame(width: spansDays ? 92 : 40, alignment: .leading)
                         Text(Glyph.forRow(row)).foregroundStyle(Glyph.color(row)).frame(width: 12)
-                        Text(row.kind).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                        Text(Self.kindLabel(row)).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                             .frame(width: 60, alignment: .leading)
                         Text(row.title).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
                         if !row.detail.isEmpty {

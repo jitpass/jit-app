@@ -18,6 +18,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # One product, one number: the tag is the bundled jit's version, plus
+      # an optional fourth part for an app-only release (v1.5.8, v1.5.8.1).
+      # A tag that disagrees with jit.version would publish a JitPass whose
+      # number lies about the jit inside it.
+      - name: Require the tag to match the pinned jit version
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          jit=$(tr -d '[:space:]' < jit.version)
+          case "$version" in
+            "$jit"|"$jit".[0-9]*) ;;
+            *) echo "::error::tag v$version does not match jit.version ($jit): tag v$jit, or v$jit.N for an app-only release"; exit 1 ;;
+          esac
+
       - name: Require Developer ID signing and notary secrets
         env:
           P12: ${{ secrets.MACOS_SIGN_P12 }}
@@ -111,5 +125,5 @@ jobs:
           cp Casks/jitpass.rb "$tap/Casks/jitpass.rb"
           cd "$tap"
           git -c user.name="jitpass-release" -c user.email="release@jitpass.com" \
-            commit -q -am "Brew cask update for jitpass version $(tr -d '[:space:]' < "$GITHUB_WORKSPACE/jit.version"),$version"
+            commit -q -am "Brew cask update for jitpass version $version"
           git push -q

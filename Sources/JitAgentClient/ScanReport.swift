@@ -23,6 +23,16 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
     /// score includes them, but a reader wants them set apart.
     public var testFixture: Bool
     public var sourceExample: Bool
+    /// For a finding in an AI agent's cache or store: the agent's name
+    /// ("Claude Code") and what that part of its cache holds ("edit
+    /// history"), the scanner's own words (schema 0.21.0).
+    public var agent: String?
+    public var cacheArea: String?
+    /// The file the credential actually lives in, for a cached copy.
+    public var originPath: String?
+    /// The variable or key the finding is about ("ANTHROPIC_API_KEY",
+    /// "github.com/oauth_token"), when the scanner knows it.
+    public var keyName: String?
 
     enum CodingKeys: String, CodingKey {
         case id = "record_id"
@@ -36,6 +46,10 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         case archived
         case testFixture = "test_fixture"
         case sourceExample = "source_example"
+        case agent
+        case cacheArea = "cache_area"
+        case originPath = "origin_path"
+        case keyName = "key_name"
     }
 
     public init(from decoder: Decoder) throws {
@@ -51,6 +65,15 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         archived = try container.decodeIfPresent(Bool.self, forKey: .archived) ?? false
         testFixture = try container.decodeIfPresent(Bool.self, forKey: .testFixture) ?? false
         sourceExample = try container.decodeIfPresent(Bool.self, forKey: .sourceExample) ?? false
+        agent = try container.decodeIfPresent(String.self, forKey: .agent)
+        cacheArea = try container.decodeIfPresent(String.self, forKey: .cacheArea)
+        originPath = try container.decodeIfPresent(String.self, forKey: .originPath)
+        keyName = try container.decodeIfPresent(String.self, forKey: .keyName)
+    }
+
+    /// A verbatim copy of a confirmed credential in an AI agent's cache.
+    public var isAgentCopy: Bool {
+        findingType == "agent_cached_secret"
     }
 
     /// True when `jit migrate` can fix it; false means only the user can.
@@ -102,8 +125,35 @@ public struct ScanReport: Sendable, Equatable {
         findings.filter { $0.migratable && !$0.scaffolding }
     }
 
+    /// Findings only the user can fix, less the agent-cache copies, which
+    /// have their own section and their own command.
     public var manual: [ScanFinding] {
-        findings.filter { !$0.migratable && !$0.scaffolding }
+        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy }
+    }
+
+    public var agentCopies: [ScanFinding] {
+        findings.filter(\.isAgentCopy)
+    }
+
+    /// The cached copies grouped by agent and cache area, in first-seen
+    /// order: "Claude Code · edit history · 9 copies" is what a reader can
+    /// act on, where nine hash-named file rows are not.
+    public var agentCacheGroups: [ScanAgentGroup] {
+        ScanAgentGroup.group(agentCopies)
+    }
+
+    /// Credentials in MCP server configs (.mcp.json, mcp.json, Claude
+    /// Desktop's and Claude Code's), grouped by file. `key_name` is
+    /// "server/KEY"; remedy "migrate" for an env block or --env-file,
+    /// "manual" for args, headers and url, which no process can be handed.
+    public var mcpByFile: [ScanFileGroup] {
+        ScanFileGroup.group(findings.filter { $0.findingType == "mcp_embedded_secret" && !$0.scaffolding })
+    }
+
+    /// How many cached copies sit in one agent's caches, by the scanner's
+    /// label for it.
+    public func agentCopies(in agent: String) -> Int {
+        agentCopies.filter { $0.agent == agent }.count
     }
 
     public var scaffolding: [ScanFinding] {
@@ -224,6 +274,48 @@ public struct ScanFileGroup: Sendable, Equatable, Identifiable {
             byFile[f.filePath, default: []].append(f)
         }
         return order.map { ScanFileGroup(filePath: $0, findings: byFile[$0] ?? []) }
+    }
+}
+
+/// One agent's cache area and the copies found in it.
+public struct ScanAgentGroup: Sendable, Equatable, Identifiable {
+    public var agent: String
+    public var area: String
+    public var findings: [ScanFinding]
+
+    public var id: String {
+        agent + "·" + area
+    }
+
+    public var severity: String {
+        findings.map(\.severity).max { ScanFileGroup.rank($0) < ScanFileGroup.rank($1) } ?? "low"
+    }
+
+    /// The files the copies came from, deduplicated, first-seen order.
+    public var origins: [String] {
+        var seen: Set<String> = []
+        return findings.compactMap(\.originPath).filter { seen.insert($0).inserted }
+    }
+
+    public var files: [String] {
+        var seen: Set<String> = []
+        return findings.map(\.filePath).filter { seen.insert($0).inserted }
+    }
+
+    public static func group(_ findings: [ScanFinding]) -> [ScanAgentGroup] {
+        var order: [String] = []
+        var byKey: [String: ScanAgentGroup] = [:]
+        for f in findings {
+            let agent = f.agent ?? "an AI agent"
+            let area = f.cacheArea ?? "cache"
+            let key = agent + "·" + area
+            if byKey[key] == nil {
+                order.append(key)
+                byKey[key] = ScanAgentGroup(agent: agent, area: area, findings: [])
+            }
+            byKey[key]?.findings.append(f)
+        }
+        return order.compactMap { byKey[$0] }
     }
 }
 

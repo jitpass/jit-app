@@ -16,40 +16,82 @@ struct SettingsView: View {
         ("2 hours", "2h"), ("4 hours", "4h"), ("8 hours", "8h")
     ]
 
-    private static let restartNote = "Changing either restarts the service; the next vault use prompts Touch ID once. "
-        + "Turning consent off asks for Touch ID now."
-
     var body: some View {
+        TabView {
+            general.tabItem { Text("General") }
+            protection.tabItem { Text("Protection") }
+            scan.tabItem { Text("Scan") }
+        }
+        .padding(.top, 8)
+        .frame(width: 480, height: 360)
+        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+    }
+
+    // MARK: - General
+
+    private var general: some View {
         Form {
-            Section("JitPass") {
-                Picker("Open commands in", selection: terminalBinding) {
-                    ForEach(Terminal.choices, id: \.self) { Text($0.isEmpty ? "the terminal you are using" : $0).tag($0) }
-                }
-                Picker("Open files with", selection: editorBinding) {
-                    Text("the system default").tag("")
-                    ForEach(model.editors) { Text($0.name).tag($0.bundleID) }
-                }
-                Toggle("Launch at login", isOn: launchBinding)
+            Picker("Open commands in", selection: terminalBinding) {
+                ForEach(Terminal.choices, id: \.self) { Text($0.isEmpty ? "the terminal you are using" : $0).tag($0) }
             }
-            Section("Scan") {
-                Picker("Scan the whole Mac", selection: scheduleBinding) {
-                    ForEach(ScanSchedule.allCases, id: \.self) { Text($0.label).tag($0) }
+            Picker("Open files with", selection: editorBinding) {
+                Text("the system default").tag("")
+                ForEach(model.editors) { Text($0.name).tag($0.bundleID) }
+            }
+            Toggle("Launch at login", isOn: launchBinding)
+            Toggle("Notify when a decoy is served", isOn: notifyBinding)
+                .help("Something read a protected file with no run or consent covering it, and got fake values. "
+                    + "The Decoys row and the audit show the same events.")
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Protection
+
+    /// The three settings that decide what jit hands out: how long a
+    /// session stays open, whether a tool is asked about first, and
+    /// whether typed credentials reach the history file.
+    private var protection: some View {
+        Form {
+            Picker("Lock the session after", selection: ttlBinding) {
+                ForEach(Self.ttls, id: \.value) { Text($0.label).tag($0.value) }
+            }
+            .disabled(model.settingsBusy)
+            .help("Idle time before the vault locks; the next use prompts Touch ID once. Changing it restarts the service.")
+            Toggle("Ask before each tool's first credential use", isOn: consentBinding)
+                .disabled(model.settingsBusy || model.consentEnabled == nil)
+                .help("A program reaching for a machine credential (aws, git, docker…) is shown to you first. "
+                    + "Turning it off asks for Touch ID now.")
+            Toggle("Keep typed credentials out of zsh history", isOn: guardBinding)
+                .disabled(model.guardBusy || model.guardInstalled == nil)
+                .help("A command carrying a recognized credential stays usable in that session but is never written "
+                    + "to the history file. Open shells keep what they loaded until they exit.")
+            if model.settingsBusy || model.guardBusy {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Applying…").foregroundStyle(.secondary)
                 }
-                if model.scanSchedule == .off {
-                    Text("Every scan is a click; the Protected row shows the last one.")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                } else if model.fullDiskAccess {
-                    Text("Runs quietly, and again after a Protect. The Protected row in the menu stays current.")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                } else {
-                    HStack(spacing: 6) {
-                        Text("Waits for Full Disk Access, so it never raises a folder prompt on its own.")
-                        Button("Grant in System Settings", action: actions.grantFullDiskAccess).buttonStyle(.link)
-                    }
-                    .font(.subheadline).foregroundStyle(.secondary)
-                }
+            }
+            if let message = model.settingsMessage {
+                Text(message).font(.subheadline).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+    }
+
+    // MARK: - Scan
+
+    private var scan: some View {
+        Form {
+            Picker("Scan the whole Mac", selection: scheduleBinding) {
+                ForEach(ScanSchedule.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
+            scanNote
+            Section("Excluded folders") {
                 if model.scanExcludes.isEmpty {
-                    Text("No folders are excluded.").foregroundStyle(.secondary)
+                    Text("none").foregroundStyle(.secondary)
                 }
                 ForEach(model.scanExcludes, id: \.self) { path in
                     HStack {
@@ -59,33 +101,24 @@ struct SettingsView: View {
                     }
                 }
                 Button("Exclude a Folder…", action: actions.addExclude)
-                Text("Excluded folders are skipped by every scan, and the report says so.")
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
-            Section("Service") {
-                Picker("Lock the session after", selection: ttlBinding) {
-                    ForEach(Self.ttls, id: \.value) { Text($0.label).tag($0.value) }
-                }
-                .disabled(model.settingsBusy)
-                Toggle("Ask before each tool's first credential use", isOn: consentBinding)
-                    .disabled(model.settingsBusy || model.consentEnabled == nil)
-                Text(Self.restartNote)
-                    .font(.subheadline).foregroundStyle(.secondary)
-                if model.settingsBusy {
-                    HStack(spacing: 8) {
-                        ProgressView().controlSize(.small)
-                        Text("Applying…").foregroundStyle(.secondary)
-                    }
-                }
-                if let message = model.settingsMessage {
-                    Text(message).font(.subheadline).foregroundStyle(.secondary)
-                }
             }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
-        .frame(width: 460)
-        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+    }
+
+    @ViewBuilder private var scanNote: some View {
+        if model.scanSchedule == .off {
+            Text("Every scan is a click.").font(.subheadline).foregroundStyle(.secondary)
+        } else if model.fullDiskAccess {
+            Text("Runs quietly, and again after a Protect.").font(.subheadline).foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 6) {
+                Text("Waits for Full Disk Access.")
+                Button("Grant in System Settings", action: actions.grantFullDiskAccess).buttonStyle(.link)
+            }
+            .font(.subheadline).foregroundStyle(.secondary)
+        }
     }
 
     private var terminalBinding: Binding<String> {
@@ -111,6 +144,16 @@ struct SettingsView: View {
         )
     }
 
+    /// jit's verdict, never the app's: the toggle reads `status.guard.installed`
+    /// after each change, so a source line disabled by hand reads as off.
+    private var notifyBinding: Binding<Bool> {
+        Binding(get: { model.notifyDecoys }, set: actions.setNotifyDecoys)
+    }
+
+    private var guardBinding: Binding<Bool> {
+        Binding(get: { model.guardInstalled ?? false }, set: actions.setGuard)
+    }
+
     private var consentBinding: Binding<Bool> {
         Binding(get: { model.consentEnabled ?? true }, set: actions.setConsent)
     }
@@ -126,4 +169,6 @@ struct SettingsActions {
     var grantFullDiskAccess: () -> Void = {}
     var setTTL: (String) -> Void = { _ in }
     var setConsent: (Bool) -> Void = { _ in }
+    var setGuard: (Bool) -> Void = { _ in }
+    var setNotifyDecoys: (Bool) -> Void = { _ in }
 }
