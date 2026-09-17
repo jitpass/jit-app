@@ -58,4 +58,7 @@ docs/design/             design doc and mockup sources
 
 ## License
 
-PolyForm Perimeter 1.0.0, the same as jit. See `LICENSE`.
+[PolyForm Perimeter License 1.0.0](./LICENSE), the same source-available
+license as jit: free for personal and internal use; it does not permit
+building a competing product on it. Contributions are made under the
+[CLA](./CLA.md); see [CONTRIBUTING.md](./CONTRIBUTING.md).
