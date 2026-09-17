@@ -203,7 +203,9 @@ extension StatusItemController {
         alert.messageText = paths.count == 1 ? "Delete \(first)?" : "Delete \(paths.count) secrets?"
         alert.informativeText = "This runs:\n\njit vault rm " + paths.joined(separator: " ")
             + "\n\nIt deletes " + (paths.count == 1 ? "the secret" : "every one of them")
-            + " and its history for good, and nothing asks again. Touch ID follows."
+            + " and its history for good, and nothing asks again."
+            + usedByWarning(paths)
+            + " Touch ID follows."
         alert.alertStyle = .warning
         alert.addButton(withTitle: paths.count == 1 ? "Delete" : "Delete \(paths.count)")
         alert.addButton(withTitle: "Cancel")
@@ -216,6 +218,22 @@ extension StatusItemController {
             self?.model.scanStale = true
             self?.notice(paths.count == 1 ? "\(first) deleted" : "\(paths.count) secrets deleted")
         })
+    }
+
+    /// The profiles still pointing at what is about to go, from the
+    /// listing's `used_by`: a wrap or a mount that keeps naming a deleted
+    /// path serves nothing, and the right move there is unwrap or
+    /// `jit migrate remove`, not `rm`.
+    private func usedByWarning(_ paths: [String]) -> String {
+        let secrets = (model.vaultListing?.secrets ?? []).filter { paths.contains($0.path) && !$0.usedBy.isEmpty }
+        guard !secrets.isEmpty else {
+            return ""
+        }
+        let profiles = Array(Set(secrets.flatMap(\.usedBy))).sorted()
+        let names = profiles.joined(separator: ", ")
+        return "\n\nStill used by \(profiles.count == 1 ? "profile" : "profiles") \(names): "
+            + "whatever reads through \(profiles.count == 1 ? "it" : "them") gets nothing afterwards. "
+            + "Unwrap the tool or jit migrate remove the file instead if that is not what you want."
     }
 
     // MARK: - Plumbing

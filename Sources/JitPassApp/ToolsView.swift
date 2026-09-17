@@ -43,6 +43,8 @@ struct ToolsView: View {
                 if let record = model.toolListing?.tool(named: tool) {
                     WrapSheet(model: model, actions: actions, tool: record)
                 }
+            case .handWrap:
+                HandWrapSheet(model: model, actions: actions)
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
             }
@@ -72,6 +74,8 @@ struct ToolsView: View {
             }
             Spacer()
             Button("Refresh", action: actions.reload).disabled(model.toolsRefreshing)
+            Button("Wrap Another…") { actions.openSheet(.handWrap) }.disabled(model.toolsBusy != nil)
+                .help("A tool jit's catalog does not know, which reads a token from an environment variable.")
             Button("Open in Terminal", action: actions.openInTerminal)
         }
     }
@@ -241,6 +245,8 @@ struct ToolsActions {
     var closeSheet: () -> Void = {}
     /// tool, and the key to store first when jit has nothing to discover
     var wrap: (String, String?) -> Void = { _, _ in }
+    /// tool, variable, key: store the key at wrap-<tool>/VAR, then wrap add
+    var handWrap: (String, String, String) -> Void = { _, _, _ in }
     var protect: (String) -> Void = { _ in }
     /// migrate one credential file, for a grant tool whose mount is not there yet
     var protectFile: (String) -> Void = { _ in }
