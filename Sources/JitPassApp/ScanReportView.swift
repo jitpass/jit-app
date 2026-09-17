@@ -99,6 +99,10 @@ struct ScanReportView: View {
                     Text("Protected").font(.headline)
                 }
                 Spacer(minLength: 16)
+                if !model.fullDiskAccess {
+                    Button("Grant Full Disk Access", action: actions.grantFullDiskAccess)
+                        .help("Opens System Settings › Privacy & Security › Full Disk Access. Add JitPass there.")
+                }
                 Button("Scan Folder…", action: actions.chooseFolder).disabled(model.scanning)
                 Button("Rescan", action: actions.rescan).disabled(model.scanning || model.scan == nil)
                 Button("Open in Terminal", action: actions.openInTerminal)
