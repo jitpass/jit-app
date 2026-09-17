@@ -54,6 +54,19 @@ final class StatusItemController {
         size: NSSize(width: 640, height: 520),
         minSize: NSSize(width: 480, height: 320)
     )
+    /// Floats above other windows: it appears in the middle of someone
+    /// else's work, and the program that asked is waiting on the answer.
+    lazy var consentWindow: ReportWindow = {
+        let window = ReportWindow(
+            title: "JitPass",
+            content: ConsentView(model: model, actions: consentActions),
+            size: NSSize(width: 500, height: 380),
+            minSize: NSSize(width: 500, height: 300)
+        )
+        window.level = .floating
+        return window
+    }()
+
     private var tick: Timer?
     private var stream: Subscription?
     private var reconnect: Timer?
@@ -89,6 +102,7 @@ final class StatusItemController {
             openDoctor: { [weak self] in self?.openDoctor() },
             openAudit: { [weak self] in self?.openAudit() },
             openSettings: { [weak self] in self?.openSettings() },
+            openConsent: { [weak self] in self?.openConsent() },
             about: { [weak self] in self?.showAbout() },
             quit: { NSApp.terminate(nil) }
         )
@@ -106,10 +120,12 @@ final class StatusItemController {
         guard case .notRunning = model.state else {
             model.grants = (try? client.grants()) ?? []
             model.lastEvent = (try? client.history())?.first
+            syncConsentRequests()
             render()
             return
         }
         model.grants = []
+        model.consentRequests = []
         render()
     }
 
@@ -131,6 +147,7 @@ final class StatusItemController {
     private func openStream() {
         stream?.cancel()
         stream = client.subscribe(
+            broker: true,
             onEvent: { [weak self] event in
                 Task { @MainActor in self?.apply(event) }
             },
@@ -144,6 +161,13 @@ final class StatusItemController {
     /// change, so this is where they are re-read. Grants are re-listed rather
     /// than patched: the agent is the record, and one round trip is cheap.
     private func apply(_ event: SessionEvent) {
+        if event.kind == "pending" {
+            receive(pending: event)
+            return
+        }
+        if let consentID = event.consentID {
+            resolve(consentID: consentID)
+        }
         model.lastEvent = event
         model.grants = (try? client.grants()) ?? []
         pollStatus()
