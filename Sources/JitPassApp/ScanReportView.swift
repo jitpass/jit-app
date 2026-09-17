@@ -7,9 +7,9 @@ import SwiftUI
 /// The scan report, compact: the score, then "jit will protect these" (one
 /// finding per line, each with a Protect button and one for the lot) and
 /// "Needs you" (one row per file, the flagged lines under it, with Open
-/// and Reveal). The terminal keeps the full evidence, and every protect
-/// stays a terminal command, because `jit migrate` is the guided write
-/// path with its own confirmations.
+/// and Reveal). The terminal keeps the full evidence. Protect runs
+/// `jit migrate` in-app after a dialog that names the command, and shows
+/// what it printed in a sheet.
 struct ScanReportView: View {
     @ObservedObject var model: MenuModel
     let actions: ScanActions
@@ -45,6 +45,11 @@ struct ScanReportView: View {
         .padding(16)
         .frame(minWidth: 480, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .sheet(item: $model.scanSheet) { sheet in
+            if case let .result(title, text) = sheet {
+                ResultSheet(title: title, text: text, close: actions.closeSheet)
+            }
+        }
     }
 
     /// The first thing the window shows: nothing is scanned until the user
@@ -180,7 +185,8 @@ struct ScanReportView: View {
                 heading("jit will protect these", findings.count)
                 Spacer()
                 if findings.count > 1 {
-                    Button("Protect All") { actions.protectAll(report.protectAllCommands) }.controlSize(.small)
+                    Button("Protect All") { actions.protectAll(report.protectPlan) }.controlSize(.small)
+                        .disabled(model.toolsBusy != nil)
                 }
             }
             if findings.isEmpty {
@@ -195,8 +201,9 @@ struct ScanReportView: View {
                     }
                     Spacer()
                     fileButtons(f.filePath, line: f.line)
-                    if let fix = f.fixCommand {
-                        Button("Protect") { actions.protect(fix) }.buttonStyle(.link).font(.system(size: 12))
+                    if f.fixCommand != nil {
+                        Button("Protect") { actions.protect(f) }.buttonStyle(.link).font(.system(size: 12))
+                            .disabled(model.toolsBusy != nil)
                     }
                 }
             }
@@ -270,8 +277,9 @@ struct ScanActions {
     var chooseFolder: () -> Void = {}
     var scanWholeMac: () -> Void = {}
     var openInTerminal: () -> Void = {}
-    var protect: (String) -> Void = { _ in }
-    var protectAll: ([String]) -> Void = { _ in }
+    var protect: (ScanFinding) -> Void = { _ in }
+    var protectAll: (ProtectPlan) -> Void = { _ in }
+    var closeSheet: () -> Void = {}
     var open: (String, Int?) -> Void = { _, _ in }
     var reveal: (String) -> Void = { _ in }
     var grantFullDiskAccess: () -> Void = {}

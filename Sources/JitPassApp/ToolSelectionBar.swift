@@ -116,6 +116,9 @@ struct ToolSelectionBar: View {
     /// Whether there is a key to move, and what Wrap does with it.
     private func notWrappedLine(_ tool: ToolRecord) -> String {
         let target = tool.injects.first?.vaultPath ?? "the vault"
+        if let key = tool.shellConfigKey(scan: model.macScan) {
+            return "key exported in \(Format.home(key.file)) · Wrap moves it to \(key.vaultPath) and hooks the file"
+        }
         switch tool.keyState(scan: model.macScan) {
         case let .found(source) where source.hasPrefix("~") || source.hasPrefix("/"):
             return "key in \(Format.home(source)) · Wrap moves it to \(target) and blanks the file (backed up)"
