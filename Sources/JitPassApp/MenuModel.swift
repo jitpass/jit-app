@@ -52,6 +52,23 @@ final class MenuModel: ObservableObject {
     @Published var doctorMessage: String?
     /// Whether macOS has granted the app Full Disk Access, checked when the scan window opens.
     @Published var fullDiskAccess = false
+    /// The vault as `jit vault list` reports it: paths and headers, never a
+    /// value. Reloaded after every vault operation.
+    @Published var vaultListing: VaultListing?
+    @Published var vaultHistory: VaultHistory?
+    /// The path (or action) a vault command is running for; one at a time,
+    /// because most of them put a Touch ID prompt on screen.
+    @Published var vaultBusy: String?
+    /// Why the last vault operation failed, under the header until the next one.
+    @Published var vaultMessage: String?
+    /// A one-line confirmation ("copied, clears in 45s") that clears itself.
+    @Published var vaultNotice: String?
+    @Published var vaultSheet: VaultSheet?
+    /// The one value on screen, while it is. The String here is the copy the
+    /// app cannot wipe (see docs/design/vault-window.md §3a); it exists for
+    /// the countdown and is dropped with the reveal. The bytes behind it are
+    /// a `SecretBuffer` the controller owns and wipes.
+    @Published var vaultReveal: VaultReveal?
     @Published var settingsBusy = false
     @Published var settingsMessage: String?
     @Published var launchAtLogin = false
@@ -77,7 +94,11 @@ final class MenuModel: ObservableObject {
     }
 
     var vaultValue: String? {
-        cli?.vault.map { "\($0.secretsStored) secrets" }
+        if let listing = vaultListing {
+            let linked = listing.linkedCount
+            return "\(listing.secrets.count) secrets" + (linked > 0 ? " · \(linked) linked" : "")
+        }
+        return cli?.vault.map { "\($0.secretsStored) secrets" }
     }
 
     var mountsValue: String? {
@@ -97,6 +118,20 @@ final class MenuModel: ObservableObject {
         return doctorRunning ? "checking…" : "not checked"
     }
 
+    var vaultSummary: String {
+        guard let listing = vaultListing else {
+            return vaultValue ?? "not read yet"
+        }
+        var parts = ["\(listing.secrets.count) secret" + (listing.secrets.count == 1 ? "" : "s")]
+        if listing.linkedCount > 0 {
+            parts.append("\(listing.linkedCount) linked")
+        }
+        if !listing.backups.isEmpty {
+            parts.append("\(listing.backups.count) backups")
+        }
+        return parts.joined(separator: " · ")
+    }
+
     /// The CLI's headline: secrets protected over secrets known, for the
     /// whole Mac. Never a folder's number.
     var protectedValue: String {
@@ -111,4 +146,28 @@ final class MenuModel: ObservableObject {
         }
         return "not scanned yet"
     }
+}
+
+/// The sheet the Vault window has open, if any.
+enum VaultSheet: Identifiable, Equatable {
+    /// Add a secret; with `replacing`, the path is fixed and the current
+    /// value goes to history.
+    case add(group: String?, replacing: String?)
+    case link(group: String?, replacing: String?)
+    case history(path: String)
+
+    var id: String {
+        switch self {
+        case let .add(group, replacing): "add:\(group ?? ""):\(replacing ?? "")"
+        case let .link(group, replacing): "link:\(group ?? ""):\(replacing ?? "")"
+        case let .history(path): "history:\(path)"
+        }
+    }
+}
+
+/// A value on screen: which row, the text, and seconds left.
+struct VaultReveal: Equatable {
+    var path: String
+    var text: String
+    var secondsLeft: Int
 }
