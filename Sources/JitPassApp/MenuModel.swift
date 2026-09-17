@@ -64,6 +64,8 @@ final class MenuModel: ObservableObject {
     /// `jit vault orphans`, read when the maintenance sheet opens and after
     /// a prune; nil until then.
     @Published var vaultOrphans: VaultOrphans?
+    /// The last `jit vault duplicates` comparison, while its sheet is open.
+    @Published var vaultDuplicates: VaultDuplicates?
     /// The path (or action) a vault command is running for; one at a time,
     /// because most of them put a Touch ID prompt on screen.
     @Published var vaultBusy: String?
@@ -308,6 +310,8 @@ enum VaultSheet: Identifiable, Equatable {
     /// Orphans, backups, export, import, rekey: the commands that act on
     /// the vault as a whole.
     case maintenance
+    /// The duplicates comparison, after its Touch IDs.
+    case duplicates
 
     var id: String {
         switch self {
@@ -315,6 +319,7 @@ enum VaultSheet: Identifiable, Equatable {
         case let .link(group, replacing): "link:\(group ?? ""):\(replacing ?? "")"
         case let .history(path): "history:\(path)"
         case .maintenance: "maintenance"
+        case .duplicates: "duplicates"
         }
     }
 }

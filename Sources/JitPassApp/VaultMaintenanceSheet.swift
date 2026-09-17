@@ -33,8 +33,8 @@ struct MaintenanceSheet: View {
             row("Rekey", value: "new master key, every secret re-wrapped") {
                 Button("Rekey…", action: actions.rekey)
             }
-            row("Duplicates", value: "the same value stored twice; one Touch ID per class") {
-                Button("Open in Terminal", action: actions.duplicatesInTerminal)
+            row("Duplicates", value: "the same file migrated twice; decrypts everything, one Touch ID per class") {
+                Button("Compare…", action: actions.compareDuplicates)
             }
             if let message = model.vaultMessage {
                 Text(message).font(.subheadline).foregroundStyle(Color(StatusMark.red))
