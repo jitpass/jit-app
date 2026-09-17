@@ -18,6 +18,9 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
     public var expiresUnix: Int64?
     public var createdUnix: Int64?
     public var updatedUnix: Int64?
+    /// The profiles that reference it (jit 1.6.2 adds it); empty when
+    /// nothing does, or on an older engine.
+    public var usedBy: [String] = []
 
     enum CodingKeys: String, CodingKey {
         case path
@@ -30,6 +33,7 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         case expiresUnix = "expires_unix"
         case createdUnix = "created_unix"
         case updatedUnix = "updated_unix"
+        case usedBy = "used_by"
     }
 
     public init(
@@ -60,6 +64,7 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         expiresUnix = try container.decodeIfPresent(Int64.self, forKey: .expiresUnix)
         createdUnix = try container.decodeIfPresent(Int64.self, forKey: .createdUnix)
         updatedUnix = try container.decodeIfPresent(Int64.self, forKey: .updatedUnix)
+        usedBy = try container.decodeIfPresent([String].self, forKey: .usedBy) ?? []
     }
 
     public var id: String {

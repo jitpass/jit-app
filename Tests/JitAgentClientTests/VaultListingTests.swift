@@ -7,7 +7,8 @@ import XCTest
 final class VaultListingTests: XCTestCase {
     private let json = #"""
     {"secrets":[
-      {"path":"aws-prod/SECRET_ACCESS_KEY","version":4,"class":"aws","group_id":"954d","origin":"~/.clisso.yaml","updated_unix":1787041732},
+      {"path":"aws-prod/SECRET_ACCESS_KEY","version":4,"class":"aws","group_id":"954d","origin":"~/.clisso.yaml","updated_unix":1787041732,
+       "used_by":["aws-prod","wrap-aws"]},
       {"path":"aws-prod/ACCESS_KEY_ID","version":4,"class":"aws","group_id":"954d","origin":"~/.clisso.yaml","updated_unix":1787041732},
       {"path":"stripe/live","version":4,"class":"manual","storage":"op-ref"},
       {"path":"stripe/dev-key","version":1},
@@ -26,6 +27,8 @@ final class VaultListingTests: XCTestCase {
         XCTAssertEqual(key.secretClass, "aws")
         XCTAssertNotNil(key.updated)
         XCTAssertFalse(key.isLinked)
+        XCTAssertEqual(key.usedBy, ["aws-prod", "wrap-aws"])
+        XCTAssertEqual(listing.secrets[1].usedBy, [], "omitted reads as unreferenced")
         XCTAssertTrue(listing.secrets[2].isLinked)
         // A version-1 envelope and a zero stamp both read as "unknown", not 1970.
         XCTAssertNil(listing.secrets[3].updated)

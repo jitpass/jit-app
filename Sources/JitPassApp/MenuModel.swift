@@ -283,6 +283,9 @@ enum ToolsSheet: Identifiable, Equatable {
     /// Wrap (or re-wrap) a catalog tool, with the key typed in when jit
     /// has nothing to discover.
     case wrap(tool: String)
+    /// Wrap a tool outside the catalog: name, the variable it reads, the
+    /// key. `jit wrap add`.
+    case handWrap
     /// What a command printed, verbatim: the CLI is the one that says what
     /// it found and moved.
     case result(title: String, text: String)
@@ -290,6 +293,7 @@ enum ToolsSheet: Identifiable, Equatable {
     var id: String {
         switch self {
         case let .wrap(tool): "wrap:" + tool
+        case .handWrap: "handwrap"
         case let .result(title, _): "result:" + title
         }
     }
