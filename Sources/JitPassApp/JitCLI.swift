@@ -24,6 +24,11 @@ enum JitCLI {
     private static var cachedStatus: (at: Date, value: CLIStatus?)?
     static let statusCacheTTL: TimeInterval = 30
 
+    /// Drops the cached status, for after something changed the vault.
+    static func forgetStatus() {
+        cachedStatus = nil
+    }
+
     static func status() -> CLIStatus? {
         if let cached = cachedStatus, Date().timeIntervalSince(cached.at) < statusCacheTTL {
             return cached.value
@@ -59,6 +64,76 @@ enum JitCLI {
         return try ScanReport.parse(data)
     }
 
+    /// Prompt-free: `list` reads envelope headers only. `--all` adds the
+    /// migrate backups so the window can count them.
+    static func vaultList() throws -> VaultListing {
+        guard let data = run(["vault", "list", "--all", "--format", "json"]) else {
+            throw CLIError.failed("jit vault list produced no output")
+        }
+        return try JSONDecoder().decode(VaultListing.self, from: data)
+    }
+
+    /// Prompt-free: archived versions by stamp, nothing decrypted.
+    static func vaultHistory(_ path: String) throws -> VaultHistory {
+        guard let data = run(["vault", "history", path, "--format", "json"]) else {
+            throw CLIError.failed("jit vault history produced no output")
+        }
+        return try JSONDecoder().decode(VaultHistory.self, from: data)
+    }
+
+    /// `jit vault get` with stdout piped: jit prints the bare value and a
+    /// newline, and keeps its footer for a terminal's stderr, so the bytes
+    /// need no parsing. The CLI's own Touch ID gates it. The pipe's Data is
+    /// moved into a `SecretBuffer` and zeroed; the buffer is the only copy
+    /// the app holds, and the caller wipes it when the reveal ends.
+    static func reveal(_ path: String) -> Result<SecretBuffer, Error> {
+        guard let jit = executable else {
+            return .failure(CLIError.notInstalled)
+        }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: jit)
+        process.arguments = ["vault", "get", path]
+        process.environment = environment
+        let out = Pipe()
+        let err = Pipe()
+        process.standardOutput = out
+        process.standardError = err
+        process.standardInput = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return .failure(error)
+        }
+        var data = out.fileHandleForReading.readDataToEndOfFile()
+        let stderr = err.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            data.resetBytes(in: 0 ..< data.count)
+            let text = (String(bytes: stderr, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return .failure(CLIError.failed(text.split(separator: "\n").last.map(String.init) ?? ""))
+        }
+        if data.last == UInt8(ascii: "\n") {
+            data[data.count - 1] = 0
+            data.removeLast()
+        }
+        return .success(SecretBuffer(consuming: &data))
+    }
+
+    /// A GUI app's PATH lacks the Homebrew prefixes, and `jit vault link`
+    /// looks up the 1Password CLI on PATH; hand every jit the same PATH a
+    /// terminal would give it.
+    static var environment: [String: String] {
+        var env = ProcessInfo.processInfo.environment
+        let path = env["PATH"] ?? "/usr/bin:/bin"
+        env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + path
+        return env
+    }
+
+    /// Whether the 1Password CLI is where `jit vault link` will look for it.
+    static var onePasswordCLIInstalled: Bool {
+        ["/opt/homebrew/bin/op", "/usr/local/bin/op"].contains { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
     /// Runs a settings command and returns its last line, or the error. Both
     /// restart the service, and `consent off` puts the CLI's own Touch ID
     /// prompt on screen, so the call may take a while; callers run it off
@@ -80,6 +155,7 @@ enum JitCLI {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: jit)
         process.arguments = arguments
+        process.environment = environment
         let out = Pipe()
         process.standardOutput = out
         process.standardError = out

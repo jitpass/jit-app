@@ -28,7 +28,11 @@ struct PanelView: View {
                     .buttonStyle(HoverRowStyle())
                 }
                 if let vault = model.vaultValue {
-                    row("archivebox", "Vault", vault)
+                    Button(action: actions.openVault) {
+                        row("archivebox", "Vault", vault)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
                 }
                 row("play.circle", "Service", model.serviceValue)
                 Button(action: actions.openGrants) {
@@ -176,6 +180,7 @@ struct PanelActions {
     var lock: () -> Void = {}
     var unlock: () -> Void = {}
     var openGrants: () -> Void = {}
+    var openVault: () -> Void = {}
     var newGrant: () -> Void = {}
     var runScan: () -> Void = {}
     var openScan: () -> Void = {}

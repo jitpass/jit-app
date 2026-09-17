@@ -47,6 +47,14 @@ enum Format {
         return parts.joined(separator: " · ")
     }
 
+    /// "2 months ago", "yesterday", "in 3 days".
+    static func ago(_ date: Date, now: Date = Date()) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        formatter.dateTimeStyle = .named
+        return formatter.localizedString(for: date, relativeTo: now)
+    }
+
     /// "2026-09-16" for a file name.
     static func dateStamp(_ date: Date = Date()) -> String {
         let f = DateFormatter()

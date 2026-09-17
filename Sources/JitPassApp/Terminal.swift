@@ -67,14 +67,28 @@ enum Terminal {
         return candidates.map { URL(fileURLWithPath: $0) }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
 
-    /// A self-deleting script in a private temp directory. `$0` is quoted so
-    /// a path with spaces still deletes; the command itself is written
-    /// verbatim, and only fixed strings from this app ever reach here.
+    /// A self-deleting script in a private temp directory. It deletes
+    /// itself first (the shell already holds the file open), clears the
+    /// path iTerm2 typed to launch it, shows the command the way a prompt
+    /// would, runs it, then hands the window to the user's shell: iTerm2
+    /// appends `; exit` to a `.command` launch and closes the session the
+    /// moment the script returns, so without that last line a short
+    /// listing flashed and was gone. The command itself is written
+    /// verbatim; only fixed strings from this app ever reach here.
     private static func writeScript(_ command: String) -> URL? {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("jitpass", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("jit-\(UUID().uuidString.prefix(8)).command")
-        let body = "#!/bin/zsh\n\(command)\nrm -f -- \"$0\"\n"
+        let shown = command.split(separator: "\n").map { "$ " + $0 }.joined(separator: "\n")
+        let body = """
+        #!/bin/zsh
+        rm -f -- "$0"
+        printf '\\e[H\\e[2J'
+        print -r -- \(quoted(shown))
+        \(command)
+        exec "${SHELL:-/bin/zsh}"
+
+        """
         do {
             try body.write(to: url, atomically: true, encoding: .utf8)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
