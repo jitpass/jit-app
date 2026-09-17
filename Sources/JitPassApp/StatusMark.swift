@@ -15,27 +15,36 @@ enum StatusMark {
     /// terminal's cyan role.
     static let accent = NSColor(srgbRed: 0x7F / 255, green: 0xD4 / 255, blue: 0xFF / 255, alpha: 1)
 
-    static func color(for state: SessionState) -> NSColor {
+    /// `asking` is a consent request waiting for an answer: amber wins over
+    /// the session state for as long as it waits, because a question the
+    /// user has not seen is the one thing the mark must not hide.
+    static func color(for state: SessionState, asking: Bool = false) -> NSColor {
+        if asking {
+            return amber
+        }
         switch state {
-        case .unlocked: green
-        case .locked, .notRunning: red
+        case .unlocked: return green
+        case .locked, .notRunning: return red
         }
     }
 
     /// The tooltip on the menu bar item, which shows only the mark: its
     /// colour is the state, and this names it for anyone who hovers.
-    static func tooltip(for state: SessionState) -> String {
+    static func tooltip(for state: SessionState, asking request: ConsentRequest? = nil) -> String {
+        if let request {
+            return "Asking · \(request.program) · \(request.headline)"
+        }
         switch state {
-        case let .unlocked(expiresIn, _): "Unlocked · locks in " + SessionState.countdown(expiresIn)
-        case let .locked(reason?): "Locked · " + reason
-        case .locked: "Locked"
-        case .notRunning: "Service not running"
+        case let .unlocked(expiresIn, _): return "Unlocked · locks in " + SessionState.countdown(expiresIn)
+        case let .locked(reason?): return "Locked · " + reason
+        case .locked: return "Locked"
+        case .notRunning: return "Service not running"
         }
     }
 
-    static func image(for state: SessionState, size: CGFloat = 16) -> NSImage {
+    static func image(for state: SessionState, asking: Bool = false, size: CGFloat = 16) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-            let tint = color(for: state)
+            let tint = color(for: state, asking: asking)
             tint.withAlphaComponent(0.22).setFill()
             NSBezierPath(ovalIn: rect).fill()
             tint.setFill()

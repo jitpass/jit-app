@@ -31,6 +31,7 @@ extension StatusItemController {
         if !model.consentRequests.contains(where: { $0.id == request.id }) {
             model.consentRequests.append(request)
         }
+        render()
         consentWindow.present()
     }
 
@@ -38,6 +39,7 @@ extension StatusItemController {
     /// the agent answered it, from the app or by its own timeout.
     func resolve(consentID: String) {
         model.consentRequests.removeAll { $0.id == consentID }
+        render()
         if model.consentRequests.isEmpty {
             consentWindow.orderOut(nil)
         }
@@ -48,6 +50,7 @@ extension StatusItemController {
     func syncConsentRequests() {
         let waiting = ((try? client.consentList()) ?? []).compactMap(ConsentRequest.init(event:))
         model.consentRequests = waiting
+        render()
         if waiting.isEmpty {
             consentWindow.orderOut(nil)
         } else {
