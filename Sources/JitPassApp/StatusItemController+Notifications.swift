@@ -37,9 +37,44 @@ extension StatusItemController {
         // Before setup has asked, the switches read as on by default; the
         // question itself waits for setup's finish screen (or Settings).
         if Notifier.chosen, Notifier.decoysEnabled || Notifier.changesEnabled {
-            Notifier.requestPermission()
+            Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
+        } else {
+            refreshNotificationPermission()
+        }
+        // Coming back from System Settings activates the app: re-read then,
+        // so the Settings row clears without a reopen.
+        _ = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshNotificationPermission() }
         }
         startSessionCheck()
+    }
+
+    /// `-previewNotifications denied` (or `notAsked`) on the command line
+    /// draws that Settings row on a Mac where notifications are allowed.
+    func refreshNotificationPermission() {
+        switch UserDefaults.standard.string(forKey: "previewNotifications") {
+        case "denied":
+            model.notificationPermission = .denied
+            return
+        case "notAsked":
+            model.notificationPermission = .notAsked
+            return
+        default:
+            break
+        }
+        Notifier.readPermission { [weak self] permission in
+            self?.model.notificationPermission = permission
+        }
+    }
+
+    /// Settings' "Allow Notifications": the switches as they stand become
+    /// the user's choice, and macOS asks.
+    func allowNotifications() {
+        UserDefaults.standard.set(model.notifyDecoys, forKey: Notifier.decoyPreferenceKey)
+        UserDefaults.standard.set(model.notifyChanges, forKey: Notifier.changesPreferenceKey)
+        Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
     }
 
     /// `jit audit --kind serve --since 24h`, prompt-free, off the main
@@ -144,15 +179,19 @@ extension StatusItemController {
         Notifier.sessionsTold = told
     }
 
-    /// After a whole-Mac scan: the cached copies the previous scan of this
-    /// run did not have. The first scan says nothing, because the AI
-    /// Agents dot already carries it and a notice on every launch would be
-    /// the same news each morning.
-    func noteNewCachedCopies(in report: ScanReport, since previous: ScanReport?) {
-        guard model.notifyChanges, let previous else {
+    /// After a whole-Mac scan: the cached copies in files the last
+    /// whole-Mac scan did not have, compared with the paths it saved, so a
+    /// restart does not reset it. The very first scan only saves: the AI
+    /// Agents dot already carries what it found. The paths are saved with
+    /// the switch off too, so turning it on later is not a flood of old
+    /// copies. Setup's scan only saves: its results are on the screen.
+    func noteNewCachedCopies(in report: ScanReport, announce: Bool = true) {
+        let saved = UserDefaults.standard.stringArray(forKey: Notifier.cachedCopiesKey)
+        UserDefaults.standard.set(report.agentCopyPaths, forKey: Notifier.cachedCopiesKey)
+        guard announce, model.notifyChanges, let saved else {
             return
         }
-        let fresh = report.newAgentCopies(since: previous)
+        let fresh = report.newAgentCopies(known: Set(saved))
         guard !fresh.isEmpty else {
             return
         }

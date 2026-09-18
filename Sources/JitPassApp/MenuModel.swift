@@ -41,6 +41,9 @@ final class MenuModel: ObservableObject {
     @Published var decoyReads24h: Int?
     @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var notifyChanges = Notifier.changesEnabled
+    /// What macOS allows, re-read when Settings opens and whenever the app
+    /// comes forward (the answer changes in System Settings).
+    @Published var notificationPermission: NotificationPermission = .unknown
     @Published var auditFilter = AuditFilter(since: "24h")
     @Published var auditLoading = false
     @Published var grantProcesses: [RunningProcess] = []
