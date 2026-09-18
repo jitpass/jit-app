@@ -30,9 +30,12 @@ enum StatusMark {
 
     /// The tooltip on the menu bar item, which shows only the mark: its
     /// colour is the state, and this names it for anyone who hovers.
-    static func tooltip(for state: SessionState, asking request: ConsentRequest? = nil) -> String {
+    static func tooltip(for state: SessionState, asking request: ConsentRequest? = nil, needsSetup: Bool = false) -> String {
         if let request {
             return "Asking · \(request.program) · \(request.headline)"
+        }
+        if needsSetup {
+            return "JitPass · not set up yet"
         }
         switch state {
         case let .unlocked(expiresIn, _): return "Unlocked · locks in " + SessionState.countdown(expiresIn)
@@ -42,8 +45,20 @@ enum StatusMark {
         }
     }
 
-    static func image(for state: SessionState, asking: Bool = false, size: CGFloat = 16) -> NSImage {
+    /// `needsSetup` draws the ring hollow and amber: the GUI twin of the
+    /// terminal's `○`, "not yet". A Mac that was never set up is not a fault,
+    /// so it must not be the red of a locked or stopped session.
+    static func image(for state: SessionState, asking: Bool = false, needsSetup: Bool = false, size: CGFloat = 16) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            if needsSetup, !asking {
+                amber.withAlphaComponent(0.16).setFill()
+                NSBezierPath(ovalIn: rect).fill()
+                let ring = NSBezierPath(ovalIn: rect.insetBy(dx: size * 0.25, dy: size * 0.25))
+                ring.lineWidth = size * 0.085
+                amber.setStroke()
+                ring.stroke()
+                return true
+            }
             let tint = color(for: state, asking: asking)
             tint.withAlphaComponent(0.22).setFill()
             NSBezierPath(ovalIn: rect).fill()
