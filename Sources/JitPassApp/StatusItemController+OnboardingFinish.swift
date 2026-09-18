@@ -25,6 +25,25 @@ extension StatusItemController {
     /// Save panel, a passphrase typed twice, `jit vault export --stdin`:
     /// the Vault window's export, with the outcome on the row.
     func onboardingSaveRecovery() {
+        saveRecoveryFile(
+            started: { [weak self] in self?.onboarding.finishBusy = "recovery" },
+            finished: { [weak self] result in
+                guard let self else {
+                    return
+                }
+                onboarding.finishBusy = nil
+                switch result {
+                case let .success(path): onboarding.recoverySaved = path
+                case let .failure(error): onboarding.finishProblems = ["Recovery file: " + Self.describeTools(error)]
+                }
+            }
+        )
+    }
+
+    /// The recovery file, for setup's finish screen and for Remove JitPass:
+    /// `started` fires once the user has chosen a place and a passphrase,
+    /// `finished` hears the saved path. Neither fires on a Cancel.
+    func saveRecoveryFile(started: @escaping () -> Void, finished: @escaping (Result<String, Error>) -> Void) {
         let save = NSSavePanel()
         save.title = "Save a recovery file"
         save.message = "Somewhere that is not only this Mac is best: a drive, or a folder that syncs."
@@ -40,19 +59,10 @@ extension StatusItemController {
             return
         }
         let path = url.path
-        onboarding.finishBusy = "recovery"
+        started()
         Task.detached {
-            let result = JitCLI.execute(["vault", "export", path, "--stdin"], stdin: passphrase)
-            await MainActor.run { [weak self] in
-                guard let self else {
-                    return
-                }
-                onboarding.finishBusy = nil
-                switch result {
-                case .success: onboarding.recoverySaved = path
-                case let .failure(error): onboarding.finishProblems = ["Recovery file: " + Self.describeTools(error)]
-                }
-            }
+            let result = JitCLI.execute(["vault", "export", path, "--stdin"], stdin: passphrase).map { _ in path }
+            await MainActor.run { finished(result) }
         }
     }
 
