@@ -15,7 +15,7 @@ import JitAgentClient
 @MainActor
 final class StatusItemController {
     let client: AgentClient
-    private let item: NSStatusItem
+    let item: NSStatusItem
     let model = MenuModel()
     lazy var panel = MenuPanel(content: PanelView(model: model, actions: panelActions))
     lazy var auditWindow = ReportWindow(
@@ -78,6 +78,11 @@ final class StatusItemController {
         size: NSSize(width: 640, height: 520),
         minSize: NSSize(width: 480, height: 320)
     )
+    let onboarding = OnboardingModel()
+    var onboardingScanRun: JitCLI.ScanRun?
+    var onboardingAccessPoll: Timer?
+    lazy var onboardingWindow = makeOnboardingWindow()
+
     /// Floats above other windows: it appears in the middle of someone
     /// else's work, and the program that asked is waiting on the answer.
     lazy var consentWindow: ReportWindow = {
@@ -129,9 +134,8 @@ final class StatusItemController {
             Task { @MainActor in self?.refreshScanIfDue() }
         }
         startUpdateChecks()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            self?.offerCommandLineToolOnce()
-        }
+        openOnboardingOnFirstLaunch()
+        offerCommandLineToolAfterLaunch()
     }
 
     private var panelActions: PanelActions {
@@ -164,7 +168,7 @@ final class StatusItemController {
     /// stream (re)connect, and on every open, because whatever was recorded
     /// while no stream was open is only in `history`, and the CLI report is
     /// only ever as fresh as its last run.
-    private func resync() {
+    func resync() {
         pollStatus()
         model.cli = JitCLI.status()
         reloadToolsIfStale()
