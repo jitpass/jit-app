@@ -21,20 +21,24 @@ enum JitCLI {
 
     /// Every `jit status` run is itself a line in `jit audit`, so the panel
     /// reads it at most once per statusCacheTTL rather than on every open.
-    private static var cachedStatus: (at: Date, value: CLIStatus?)?
+    /// Read and written from the main thread and from detached tasks
+    /// alike, so only under statusLock. The `jit` run itself is outside it.
+    private nonisolated(unsafe) static var cachedStatus: (at: Date, value: CLIStatus?)?
+    private static let statusLock = NSLock()
     static let statusCacheTTL: TimeInterval = 30
 
     /// Drops the cached status, for after something changed the vault.
     static func forgetStatus() {
-        cachedStatus = nil
+        statusLock.withLock { cachedStatus = nil }
     }
 
     static func status() -> CLIStatus? {
-        if let cached = cachedStatus, Date().timeIntervalSince(cached.at) < statusCacheTTL {
+        let cached = statusLock.withLock { cachedStatus }
+        if let cached, Date().timeIntervalSince(cached.at) < statusCacheTTL {
             return cached.value
         }
         let value = run(["status", "--format", "json"]).flatMap { try? JSONDecoder().decode(CLIStatus.self, from: $0) }
-        cachedStatus = (Date(), value)
+        statusLock.withLock { cachedStatus = (Date(), value) }
         return value
     }
 
