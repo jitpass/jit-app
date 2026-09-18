@@ -96,7 +96,12 @@ public struct AuditReport: Codable, Sendable, Equatable {
             // A decoy serve is the one event the whole design exists for:
             // something read a protected file with no run or consent
             // covering it, and got fake values. Name the reader and say so.
+            // Undelivered: opened and closed before anything was written, so
+            // nothing was served. Worded as `jit audit` words it.
             let reader = who.isEmpty ? "an unknown reader" : who
+            if event.undelivered == true {
+                return "opened by \(reader), nothing read"
+            }
             return event.isDecoyServe ? "decoy served to \(reader)" : "real values served to \(reader)"
         case "start":
             return "service started"
@@ -161,6 +166,20 @@ public struct AuditFilter: Sendable, Equatable {
         }
     }
 
+    /// The range as seconds, for the ranges the Audit window offers; nil
+    /// for no range (or one this does not read).
+    public var sinceSeconds: TimeInterval? {
+        guard let unit = since.last, let n = Double(since.dropLast()) else {
+            return nil
+        }
+        switch unit {
+        case "m": return n * 60
+        case "h": return n * 3600
+        case "d": return n * 86400
+        default: return nil
+        }
+    }
+
     public var arguments: [String] {
         var args = ["audit", "--format", "json", "--limit", String(effectiveLimit)]
         if !kinds.isEmpty {
@@ -177,8 +196,57 @@ public struct AuditFilter: Sendable, Equatable {
 }
 
 public extension SessionEvent {
-    /// A mount answered a reader outside any grant or consent with decoys.
+    /// The first read of a serve aggregate, streamed the moment it happens
+    /// and never recorded (jit 1.8.1+). The `serve` event that closes the
+    /// aggregate, up to an hour later, is the record.
+    static let serveStartKind = "serve_start"
+
+    /// A mount's verdict for a reader outside any grant or consent was the
+    /// decoy. Includes readers that left before receiving it; the row's
+    /// status and the audit filter go by the verdict, as `jit audit` does.
     var isDecoyServe: Bool {
         kind == "serve" && op == "decoy"
+    }
+
+    /// A reader actually received decoy values: what the Decoys count and
+    /// the notification say. A reader that received nothing is not news.
+    var readDecoy: Bool {
+        (kind == "serve" || kind == Self.serveStartKind) && op == "decoy" && undelivered != true
+    }
+}
+
+public extension AuditReport {
+    /// This report with the live `serve_start` notices it does not yet
+    /// hold, as `serve` rows. The record of a read lands when its
+    /// aggregate closes, up to an hour later, so without this the audit a
+    /// decoy notification opens would not show the read it announced.
+    /// A notice is dropped once the record exists: the record keeps the
+    /// first read's time, reader, verdict and file.
+    func addingLive(_ notices: [SessionEvent], filter: AuditFilter, now: Date = Date()) -> AuditReport {
+        guard filter.kinds.isEmpty || filter.kinds.contains("serve"), filter.parent.isEmpty else {
+            return self
+        }
+        let oldest = filter.sinceSeconds.map { now.timeIntervalSince1970 - $0 }
+        let recorded = Set(authEvents.filter { $0.kind == "serve" }.map(\.serveIdentity))
+        var merged = self
+        for notice in notices where notice.kind == SessionEvent.serveStartKind {
+            if let oldest, TimeInterval(notice.unixTime) < oldest {
+                continue
+            }
+            var event = notice
+            event.kind = "serve"
+            if !recorded.contains(event.serveIdentity) {
+                merged.authEvents.append(event)
+            }
+        }
+        return merged
+    }
+}
+
+extension SessionEvent {
+    /// What a serve notice and the record that follows it share.
+    var serveIdentity: String {
+        [String(unixTime), by ?? "", op ?? "", (labels ?? []).joined(separator: "\u{1f}"), undelivered == true ? "u" : ""]
+            .joined(separator: "\u{1e}")
     }
 }

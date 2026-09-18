@@ -103,9 +103,11 @@ final class StatusItemController {
     var updateCheck: Timer?
     /// The minute timer behind the session notifications.
     var sessionCheck: Timer?
-    /// "profile:expiry:stage" for every session notice already posted, so
-    /// each session is announced once per stage, never per tick.
-    var sessionNotices: Set<String> = []
+    /// When the sessions were last read for the notices; nil until then.
+    var sessionsReadAt: Date?
+    /// The live `serve_start` notices of the last two hours, whose record
+    /// may not have landed yet (StatusItemController+Notifications).
+    var liveServes: [SessionEvent] = []
     private var stream: Subscription?
     private var reconnect: Timer?
 
@@ -222,21 +224,13 @@ final class StatusItemController {
             receive(pending: event)
             return
         }
+        // Live only: nothing was recorded, so grants and the tail stand.
+        if event.kind == SessionEvent.serveStartKind {
+            noteLiveServe(event)
+            return
+        }
         if let consentID = event.consentID {
             resolve(consentID: consentID)
-        }
-        if event.isDecoyServe {
-            model.decoyReads24h = (model.decoyReads24h ?? 0) + (event.count ?? 1)
-            if model.notifyDecoys {
-                let who = event.by.map { String($0.split(separator: "/").last ?? Substring($0)) } ?? "an unknown reader"
-                let launcher = event.launchedBy.map { ", launched by \($0)" } ?? ""
-                let file = event.labels?.first ?? "a protected file"
-                Notifier.post(
-                    title: "Decoy served to \(who)",
-                    body: "It read \(file)\(launcher) with no grant covering it, and got fake values.",
-                    id: "decoy-\(event.unixTime)-\(event.byPID ?? 0)"
-                )
-            }
         }
         model.lastEvent = event
         model.grants = (try? client.grants()) ?? []
