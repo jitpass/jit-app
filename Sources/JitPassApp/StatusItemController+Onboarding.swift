@@ -195,7 +195,7 @@ extension StatusItemController {
         onboarding.tasks = OnboardingPlan.tasks(
             plan: onboarding.report?.protectPlan ?? ProtectPlan(),
             createsVault: onboarding.createsVault,
-            linkOnePassword: onboarding.linkOnePassword
+            linkOnePassword: onboarding.onePasswordInstalled && onboarding.linkOnePassword
         )
         onboarding.step = .protecting
         onboardingRunTasks()

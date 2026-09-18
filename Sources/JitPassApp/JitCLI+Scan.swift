@@ -5,6 +5,15 @@ import Foundation
 import JitAgentClient
 
 extension JitCLI {
+    /// Where every spawned jit runs. An app opened from Finder sits in `/`,
+    /// and `jit doctor` looks for MCP configs under its working directory:
+    /// from `/` that is a walk of the whole disk, which also meets every
+    /// file in the home folder twice, once under `/Users` and once under
+    /// `/System/Volumes/Data/Users`. Home is where a terminal starts.
+    static var workingDirectory: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+    }
+
     /// A scan someone is watching: `onLines` hears how many records have
     /// arrived so far (findings, then the summary), so the wait shows work
     /// that is really happening, and `run` lets the caller stop it.
@@ -18,6 +27,7 @@ extension JitCLI {
         process.executableURL = URL(fileURLWithPath: jit)
         process.arguments = ["scan", "--format", "ndjson"] + excludes.flatMap { ["--exclude", $0] } + (path.map { [$0] } ?? [])
         process.environment = environment
+        process.currentDirectoryURL = workingDirectory
         let out = Pipe()
         process.standardOutput = out
         process.standardError = FileHandle.nullDevice
