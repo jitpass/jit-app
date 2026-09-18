@@ -24,6 +24,7 @@ extension StatusItemController {
                 self?.onboardingWindow.close()
                 self?.openScan()
             },
+            quit: { NSApp.terminate(nil) },
             showRestore: { [weak self] in self?.onboardingShowRestore() },
             chooseRestoreFile: { [weak self] in self?.onboardingChooseRestoreFile() },
             restore: { [weak self] in self?.onboardingRestore() },
@@ -40,7 +41,11 @@ extension StatusItemController {
         guard model.showsSetup, !UserDefaults.standard.bool(forKey: Self.onboardingShownKey) else {
             return
         }
-        UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        // A translocated launch does not count as shown: the next one,
+        // from Applications, is the real first launch.
+        if !Translocation.isActive() {
+            UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        }
         openOnboarding()
     }
 
@@ -51,6 +56,13 @@ extension StatusItemController {
             onboarding.report = nil
             onboarding.scanError = nil
             onboarding.tasks = []
+        }
+        if Translocation.isActive(), model.setup != .ready {
+            // No vault may be created from a temporary path: the window
+            // says how to move the app, and offers nothing else.
+            onboarding.step = .moveToApplications
+            onboardingWindow.present()
+            return
         }
         if model.setup == .needsRestore, onboarding.step == .welcome {
             // Secrets on disk with no key: not a new user, so not Welcome.

@@ -8,12 +8,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: StatusItemController?
 
     func applicationDidFinishLaunching(_: Notification) {
-        guard Translocation.warnIfNeeded() else {
+        let controller = StatusItemController(client: AgentClient())
+        statusItem = controller
+        controller.start()
+        // A Mac with no vault gets the move-to-Applications screen inside
+        // setup, with no way past it. One that is already set up keeps the
+        // warning it always had, and may go on.
+        if !controller.model.showsSetup, !Translocation.warnIfNeeded() {
             NSApp.terminate(nil)
-            return
         }
-        statusItem = StatusItemController(client: AgentClient())
-        statusItem?.start()
     }
 
     /// Opening the app again is what someone does when nothing seemed to
