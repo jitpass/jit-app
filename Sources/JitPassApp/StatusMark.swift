@@ -30,9 +30,14 @@ enum StatusMark {
 
     /// The tooltip on the menu bar item, which shows only the mark: its
     /// colour is the state, and this names it for anyone who hovers.
-    static func tooltip(for state: SessionState, asking request: ConsentRequest? = nil, needsSetup: Bool = false) -> String {
+    static func tooltip(
+        for state: SessionState, asking request: ConsentRequest? = nil, needsSetup: Bool = false, needsRestore: Bool = false
+    ) -> String {
         if let request {
             return "Asking · \(request.program) · \(request.headline)"
+        }
+        if needsRestore {
+            return "JitPass · vault cannot be opened"
         }
         if needsSetup {
             return "JitPass · not set up yet"

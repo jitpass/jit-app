@@ -263,9 +263,9 @@ final class StatusItemController {
         item.button?.image = StatusMark.image(for: model.state, asking: asking != nil, needsSetup: model.showsSetup)
         item.button?.imagePosition = .imageOnly
         item.button?.title = ""
-        item.button?.toolTip = model.needsRestore && asking == nil
-            ? "JitPass · vault cannot be opened"
-            : StatusMark.tooltip(for: model.state, asking: asking, needsSetup: model.showsSetup)
+        item.button?.toolTip = StatusMark.tooltip(
+            for: model.state, asking: asking, needsSetup: model.needsSetup, needsRestore: model.needsRestore
+        )
     }
 
     @objc private func togglePanel() {
@@ -297,11 +297,6 @@ final class StatusItemController {
             return
         }
         startService()
-    }
-
-    func revokeGrant(_ id: String) {
-        try? client.revokeGrant(id: id)
-        model.grants = (try? client.grants()) ?? []
     }
 
     func runInTerminal(_ command: String) {
