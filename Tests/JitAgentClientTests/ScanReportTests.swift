@@ -123,6 +123,13 @@ extension ScanReportTests {
         XCTAssertEqual(after.newAgentCopies(since: before).map(\.filePath), ["/h/.claude/y"])
         XCTAssertEqual(after.newAgentCopies(since: nil).count, 2, "no previous scan: everything is new")
         XCTAssertTrue(before.newAgentCopies(since: after).isEmpty)
+
+        // What is saved between launches: each file once, sorted; and the
+        // comparison against it matches the one against a whole report.
+        let twice = try parse([copy("a", "/h/.claude/y"), copy("b", "/h/.claude/x"), copy("c", "/h/.claude/y")])
+        XCTAssertEqual(twice.agentCopyPaths, ["/h/.claude/x", "/h/.claude/y"])
+        XCTAssertEqual(after.newAgentCopies(known: Set(before.agentCopyPaths)).map(\.filePath), ["/h/.claude/y"])
+        XCTAssertTrue(after.newAgentCopies(known: Set(twice.agentCopyPaths)).isEmpty)
     }
 
     func testProtectPlanUsesTheFindingsOwnPathsAndEachWrapOnce() throws {

@@ -45,6 +45,7 @@ struct SettingsView: View {
             Toggle("Notify when a session expires or a scan finds new cached copies", isOn: notifyChangesBinding)
                 .help("A captured SSO session is about to expire or has, so the next aws call fails until you renew; "
                     + "or a whole-Mac scan found a copy of a secret in an AI agent's cache it had not seen before.")
+            notificationNote
             SettingsUpdatesSection(model: model, actions: actions)
             Section("Remove JitPass") {
                 HStack(alignment: .top) {
@@ -133,17 +134,29 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
     }
 
+    /// Said only when a switch is on and macOS would not show it anyway.
+    @ViewBuilder private var notificationNote: some View {
+        if model.notifyDecoys || model.notifyChanges {
+            switch model.notificationPermission {
+            case .denied:
+                SettingsNote("macOS has notifications off for JitPass.", button: "Open System Settings…",
+                             action: actions.openNotificationSettings)
+            case .notAsked:
+                SettingsNote("macOS has not been asked yet.", button: "Allow Notifications…",
+                             action: actions.allowNotifications)
+            case .allowed, .unknown:
+                EmptyView()
+            }
+        }
+    }
+
     @ViewBuilder private var scanNote: some View {
         if model.scanSchedule == .off {
             Text("Every scan is a click.").font(.subheadline).foregroundStyle(.secondary)
         } else if model.fullDiskAccess {
             Text("Runs quietly, and again after a Protect.").font(.subheadline).foregroundStyle(.secondary)
         } else {
-            HStack(spacing: 6) {
-                Text("Waits for Full Disk Access.")
-                Button("Grant in System Settings", action: actions.grantFullDiskAccess).buttonStyle(.link)
-            }
-            .font(.subheadline).foregroundStyle(.secondary)
+            SettingsNote("Waits for Full Disk Access.", button: "Open System Settings…", action: actions.grantFullDiskAccess)
         }
     }
 
@@ -189,6 +202,29 @@ struct SettingsView: View {
     }
 }
 
+/// A condition under a setting and the one button that fixes it. A real
+/// button, on the right like every other action here: a link-styled one
+/// read as plain text.
+private struct SettingsNote: View {
+    let text: String
+    let button: String
+    let action: () -> Void
+
+    init(_ text: String, button: String, action: @escaping () -> Void) {
+        self.text = text
+        self.button = button
+        self.action = action
+    }
+
+    var body: some View {
+        HStack {
+            Text(text).font(.subheadline).foregroundStyle(.secondary)
+            Spacer()
+            Button(button, action: action)
+        }
+    }
+}
+
 struct SettingsActions {
     var addExclude: () -> Void = {}
     var removeExclude: (String) -> Void = { _ in }
@@ -202,6 +238,8 @@ struct SettingsActions {
     var setGuard: (Bool) -> Void = { _ in }
     var setNotifyDecoys: (Bool) -> Void = { _ in }
     var setNotifyChanges: (Bool) -> Void = { _ in }
+    var allowNotifications: () -> Void = {}
+    var openNotificationSettings: () -> Void = {}
     var vaultClean: () -> Void = {}
     var vaultDelete: () -> Void = {}
     var setCheckForUpdates: (Bool) -> Void = { _ in }
