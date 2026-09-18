@@ -21,7 +21,7 @@ struct OnboardingView: View {
                 case .scanning: OnboardingScanning(model: model)
                 case .results: OnboardingResults(model: model, actions: actions)
                 case .protecting: OnboardingProtecting(model: model)
-                case .done: OnboardingDone(model: model)
+                case .done: OnboardingDone(model: model, actions: actions)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -83,10 +83,16 @@ private struct OnboardingFooter: View {
                 Text("This window stays open until it is safe to close.").font(.system(size: 12)).foregroundStyle(.secondary)
             }
         case .done:
+            if model.finishBusy == "undo" {
+                ProgressView().controlSize(.small)
+            } else if !model.migratedFiles.isEmpty {
+                Button("Undo…", action: actions.undo)
+            }
             if (model.report?.summary.secretsManual ?? 0) > 0 {
                 Button("See What Needs You", action: actions.openScanReport)
             }
-            Button("Done", action: actions.done).keyboardShortcut(.defaultAction)
+            Button(model.finishApplied ? "Close" : "Done", action: actions.done)
+                .keyboardShortcut(.defaultAction).disabled(model.finishBusy != nil)
         }
     }
 

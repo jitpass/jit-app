@@ -25,6 +25,26 @@ final class OnboardingModel: ObservableObject {
     /// Whether this Mac had no vault when the window opened.
     @Published var createsVault = false
 
+    // The finish screen's switches. They are choices, applied together by
+    // Done, so macOS asks about notifications at a moment the user expects.
+    @Published var launchAtLogin = true
+    @Published var notify = true
+    /// Off by default: it adds a line to the user's ~/.zshrc.
+    @Published var historyGuard = false
+    @Published var installCLI = false
+    /// The guard is a zsh hook; the row is hidden for any other login shell.
+    @Published var offersGuard = false
+    /// Only when a terminal would not find `jit` and Homebrew is not the one to fix it.
+    @Published var offersCLI = false
+    /// Where the recovery file went, once it has.
+    @Published var recoverySaved: String?
+    @Published var finishBusy: String?
+    /// What did not apply, one line each; Done still closes on the next press.
+    @Published var finishProblems: [String] = []
+    @Published var finishApplied = false
+    /// The files this setup rewrote: what Undo restores.
+    @Published var migratedFiles: [String] = []
+
     var protecting: Bool {
         tasks.contains { $0.state == .running }
     }
@@ -68,5 +88,7 @@ struct OnboardingActions {
     var retry: () -> Void = {}
     var notNow: () -> Void = {}
     var openScanReport: () -> Void = {}
+    var saveRecovery: () -> Void = {}
+    var undo: () -> Void = {}
     var done: () -> Void = {}
 }
