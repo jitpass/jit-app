@@ -1,6 +1,11 @@
 # Onboarding: a new user, no terminal
 
-Status: plan, 2026-09-18. Nothing here is built. Section 2 is what the code
+Status, 2026-09-18: the engine half is released as jit 1.6.3; phases 2 and
+3 are built on branch `onboarding` (`VaultSetup`, the set-up panel and mark,
+the setup window through to the closing number). Not built yet: the finish
+screen's switches and recovery file (phase 4), the Restore screen, undo from
+the app, the hidden-status-item check. `-previewSetup YES` draws the set-up
+state on a Mac that has a vault. What follows was written as the plan. Section 2 is what the code
 does today; everything marked **verify** is an assumption to test in phase 0
 before any of it is relied on.
 
