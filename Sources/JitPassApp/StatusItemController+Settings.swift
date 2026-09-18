@@ -69,7 +69,7 @@ extension StatusItemController {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Open in Terminal")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runInTerminal("jit vault \(command)")
@@ -82,7 +82,7 @@ extension StatusItemController {
         picker.allowsMultipleSelection = true
         picker.prompt = "Exclude"
         picker.message = "Choose folders every scan should skip."
-        guard picker.runModal() == .OK else {
+        guard picker.runFrontmost() == .OK else {
             return
         }
         for url in picker.urls {

@@ -49,7 +49,7 @@ extension StatusItemController {
             alert.messageText = "Move JitPass to Applications first"
             alert.informativeText = "macOS is running this copy from a temporary place, so it cannot tell which files are its own. "
                 + "Move it to Applications, open it from there, and remove it from Settings."
-            alert.runModal()
+            alert.runFrontmost()
             return
         }
         settingsWindow.close()
@@ -94,6 +94,7 @@ extension StatusItemController {
                     return
                 }
                 offboarding.recoveryBusy = false
+                offboardingWindow.reclaimFocus()
                 switch result {
                 case let .success(path): offboarding.recoverySaved = path
                 case let .failure(error): offboarding.recoveryError = Self.describeTools(error)
@@ -118,7 +119,7 @@ extension StatusItemController {
             + "and their secrets are deleted with it. " + recovery
         alert.addButton(withTitle: "Cancel")
         alert.addButton(withTitle: "Remove Anyway")
-        guard alert.runModal() == .alertSecondButtonReturn else {
+        guard alert.runFrontmost() == .alertSecondButtonReturn else {
             return
         }
         offboardingRemove(restoring: false)
@@ -149,6 +150,7 @@ extension StatusItemController {
     }
 
     private func offboardingEngineFinished(_ outcome: JitCLI.UninstallOutcome) {
+        defer { offboardingWindow.reclaimFocus() }
         switch outcome {
         case let .couldNotRestore(failures):
             offboarding.failures = failures

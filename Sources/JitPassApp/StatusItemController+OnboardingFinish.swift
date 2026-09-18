@@ -32,6 +32,7 @@ extension StatusItemController {
                     return
                 }
                 onboarding.finishBusy = nil
+                onboardingWindow.reclaimFocus()
                 switch result {
                 case let .success(path): onboarding.recoverySaved = path
                 case let .failure(error): onboarding.finishProblems = ["Recovery file: " + Self.describeTools(error)]
@@ -49,7 +50,7 @@ extension StatusItemController {
         save.message = "Somewhere that is not only this Mac is best: a drive, or a folder that syncs."
         save.nameFieldStringValue = "jitpass-recovery-\(Format.dateStamp()).export"
         save.canCreateDirectories = true
-        guard save.runModal() == .OK, let url = save.url else {
+        guard save.runFrontmost() == .OK, let url = save.url else {
             return
         }
         guard let passphrase = DoctorDialogs.askPassphrase(
@@ -117,7 +118,7 @@ extension StatusItemController {
             alert.messageText = "JitPass is hidden in your menu bar"
             alert.informativeText = "The menu bar is full, so macOS is not showing the JitPass ring. JitPass is running and "
                 + "protecting you. To reach it, open JitPass again from Applications, or quit a menu bar app to make room."
-            alert.runModal()
+            alert.runFrontmost()
             return
         }
         if !panel.isVisible {
@@ -151,7 +152,7 @@ extension StatusItemController {
             + "The vault keeps its copies, and tools that were wrapped stay wrapped. Touch ID follows."
         alert.addButton(withTitle: "Undo")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         onboarding.finishBusy = "undo"
@@ -162,6 +163,7 @@ extension StatusItemController {
                     return
                 }
                 onboarding.finishBusy = nil
+                onboardingWindow.reclaimFocus()
                 switch result {
                 case .success:
                     onboarding.migratedFiles = []
@@ -188,7 +190,7 @@ extension StatusItemController {
         open.title = "Choose a recovery file"
         open.canChooseDirectories = false
         open.allowsMultipleSelection = false
-        guard open.runModal() == .OK, let url = open.url else {
+        guard open.runFrontmost() == .OK, let url = open.url else {
             return
         }
         onboarding.restoreFile = url.path
@@ -217,6 +219,7 @@ extension StatusItemController {
                 }
                 onboarding.restoreBusy = false
                 onboarding.restorePassphrase = ""
+                onboardingWindow.reclaimFocus()
                 switch outcome {
                 case .success:
                     JitCLI.forgetStatus()
