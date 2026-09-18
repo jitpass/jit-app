@@ -35,7 +35,7 @@ echo "## the app's own"
 echo "preferences: $(defaults read com.jitpass.app 2>/dev/null | shasum -a 256 | cut -d' ' -f1)"
 for p in Caches/com.jitpass.app HTTPStorages/com.jitpass.app "Saved Application State/com.jitpass.app.savedState" \
   Preferences/com.jitpass.app.plist; do
-  echo "~/Library/$p: $(sum "$HOME/Library/$p")"
+  echo "$HOME/Library/$p: $(sum "$HOME/Library/$p")"
 done
 for p in /opt/homebrew/bin/jit /usr/local/bin/jit; do echo "$p: $(sum "$p")"; done
 echo "login item: $(sfltool dumpbtm 2>/dev/null | grep -c com.jitpass.app || true)"
