@@ -116,6 +116,34 @@ final class MenuModel: ObservableObject {
     /// bundled jit, where the question has no answer.
     @Published var cliTool: CommandLineTool.State?
 
+    /// "I'll set up in Terminal": the one place a saved flag outranks what
+    /// is true, because only the user can know it.
+    static let terminalSetupKey = "setupInTerminal"
+    @Published var terminalSetup = UserDefaults.standard.bool(forKey: MenuModel.terminalSetupKey)
+
+    var setup: VaultSetup {
+        VaultSetup(status: cli)
+    }
+
+    /// The panel and the mark show "not set up" for a new user only.
+    /// `-previewSetup YES` on the command line shows the state on a Mac
+    /// that has a vault, to judge it by eye. It changes only what is drawn:
+    /// every action still reads the real `setup`.
+    var needsSetup: Bool {
+        (setup == .needsSetup && !terminalSetup) || UserDefaults.standard.bool(forKey: "previewSetup")
+    }
+
+    /// Secrets on disk with no key that opens them: the panel offers
+    /// Restore, in the same one-button shape as setup.
+    var needsRestore: Bool {
+        setup == .needsRestore
+    }
+
+    /// Either state replaces the session panel and the filled mark.
+    var showsSetup: Bool {
+        needsSetup || needsRestore
+    }
+
     var serviceValue: String {
         switch state {
         case .notRunning: "Not running"

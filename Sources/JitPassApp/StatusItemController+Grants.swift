@@ -78,4 +78,9 @@ extension StatusItemController {
             }
         }
     }
+
+    func revokeGrant(_ id: String) {
+        try? client.revokeGrant(id: id)
+        model.grants = (try? client.grants()) ?? []
+    }
 }
