@@ -13,6 +13,65 @@ struct PanelView: View {
     let actions: PanelActions
 
     var body: some View {
+        if model.showsSetup {
+            setupBody
+        } else {
+            sessionBody
+        }
+    }
+
+    /// The panel before setup (docs/design/mockups/onboarding/SetupPanel):
+    /// one thing to do, and none of the rows that have nothing to show yet.
+    private var setupBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                StatusMarkView(state: model.state, needsSetup: true, size: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(model.needsRestore ? "Vault cannot be opened" : "Not set up yet").font(.system(size: 15, weight: .bold))
+                    Text(model.needsRestore ? "its key is not on this Mac" : "takes about two minutes")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
+
+            Text(
+                model.needsRestore
+                    ? "Secrets are stored here, but nothing opens them. A recovery file and its passphrase bring them back."
+                    : "JitPass finds the secrets in your plain files and locks them behind Touch ID."
+            )
+            .font(.system(size: 12)).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
+
+            Button(action: actions.continueSetup) {
+                Text(model.needsRestore ? "Restore…" : "Continue Setup…").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 6)
+
+            divider
+            if !model.needsRestore {
+                plainAction("I’ll Set Up in Terminal", actions.setUpInTerminal)
+                divider
+            }
+            action("Settings…", key: ",", actions.openSettings)
+            plainAction("About JitPass", actions.about)
+            divider
+            action("Quit JitPass", key: "q", actions.quit)
+                .padding(.bottom, 5)
+        }
+        .frame(width: 300)
+        .background(VisualEffectBackground(material: .menu, cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private var sessionBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
                 .padding(.horizontal, 14)
@@ -227,6 +286,8 @@ struct PanelActions {
     var openConsent: () -> Void = {}
     var about: () -> Void = {}
     var installUpdate: () -> Void = {}
+    var continueSetup: () -> Void = {}
+    var setUpInTerminal: () -> Void = {}
     var quit: () -> Void = {}
 }
 
@@ -273,11 +334,24 @@ private struct HoverHighlight<Label: View>: View {
 struct StatusMarkView: View {
     let state: SessionState
     var asking = false
+    var needsSetup = false
     let size: CGFloat
 
     var body: some View {
+        if needsSetup, !asking {
+            ZStack {
+                Circle().fill(Color(StatusMark.amber).opacity(0.16))
+                Circle().strokeBorder(Color(StatusMark.amber), lineWidth: size * 0.085).padding(size * 0.25)
+            }
+            .frame(width: size, height: size)
+        } else {
+            filled
+        }
+    }
+
+    private var filled: some View {
         let tint = Color(StatusMark.color(for: state, asking: asking))
-        ZStack {
+        return ZStack {
             Circle().fill(tint.opacity(0.22))
             Circle().fill(tint).padding(size * 0.22)
             if asking {

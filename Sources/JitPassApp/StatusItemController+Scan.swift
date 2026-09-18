@@ -147,7 +147,17 @@ extension StatusItemController {
         guard !plan.isEmpty else {
             return
         }
+        guard vaultAllowsProtect() else {
+            return
+        }
         var commands: [[String]] = []
+        // A Mac that was never set up has no vault for migrate to write to:
+        // Protect used to fail there. Creating it is part of the same,
+        // named, confirmed plan.
+        let createsVault = model.setup == .needsSetup
+        if createsVault {
+            commands.append(["vault", "init"])
+        }
         if !plan.migrate.isEmpty {
             commands.append(["migrate"] + plan.migrate + ["--yes"])
         }
@@ -159,7 +169,8 @@ extension StatusItemController {
         alert.messageText = plan.count == 1
             ? "Protect \(plan.migrate.first.map(Format.home) ?? plan.wrap.first ?? "")?"
             : "Protect \(plan.count) findings?"
-        alert.informativeText = "This runs:\n\n\(shown)\n\n"
+        alert.informativeText = (createsVault ? "This Mac has no vault yet, so this creates one first. " : "")
+            + "This runs:\n\n\(shown)\n\n"
             + "The secrets move into the vault and each file is rewritten so what reads it keeps working. "
             + "Every file is backed up encrypted first; jit migrate undo restores it. Touch ID follows."
         alert.addButton(withTitle: "Protect")
