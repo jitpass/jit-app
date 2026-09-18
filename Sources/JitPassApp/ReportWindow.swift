@@ -41,4 +41,14 @@ final class ReportWindow: NSWindow, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
     }
+
+    /// After a command that asked for Touch ID. The prompt is not ours, so
+    /// when it closes macOS hands focus back to the app that had it before,
+    /// and the next screen showed up inactive. Only a window still open
+    /// comes back: one the user closed meanwhile stays closed.
+    func reclaimFocus() {
+        if isVisible {
+            present()
+        }
+    }
 }
