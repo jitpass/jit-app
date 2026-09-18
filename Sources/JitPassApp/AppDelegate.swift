@@ -32,6 +32,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// file it touches has a backup, but a quit half way is still worth a
     /// question.
     func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+        // Removal puts files back before it deletes anything; a quit in
+        // between is safe, and jit finishes its own step regardless. It is
+        // still not a moment to leave by accident.
+        if statusItem?.offboarding.removing == true {
+            let alert = NSAlert()
+            alert.messageText = "JitPass is being removed"
+            alert.informativeText = "Quitting now leaves it half done. Open JitPass and use Remove again to finish."
+            alert.addButton(withTitle: "Keep Going")
+            alert.addButton(withTitle: "Quit Anyway")
+            return alert.runModal() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
+        }
         guard statusItem?.onboarding.protecting == true else {
             return .terminateNow
         }
