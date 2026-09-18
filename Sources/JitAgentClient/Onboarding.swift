@@ -86,7 +86,9 @@ public enum OnboardingPlan {
             let files = plan.migrate.count == 1 ? "1 file" : "\(plan.migrate.count) files"
             tasks.append(OnboardingTask(
                 kind: .migrate, title: "Move the secrets, rewrite \(files)",
-                detail: "Touch ID follows. Each file is backed up, encrypted, before it is touched.",
+                detail: linkOnePassword
+                    ? "Touch ID follows. Checking 1Password first reads every item there, which can take a few minutes."
+                    : "Touch ID follows. Each file is backed up, encrypted, before it is touched.",
                 command: ["migrate"] + plan.migrate + ["--yes"] + (linkOnePassword ? [] : ["--no-1password"])
             ))
         }

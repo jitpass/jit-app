@@ -44,7 +44,11 @@ struct OnboardingResults: View {
         }
         if model.onePasswordInstalled, !model.tasks.isEmpty, s.secretsMigratable > 0 {
             Toggle(isOn: $model.linkOnePassword) {
-                Text("Link values that already live in 1Password · 1Password will ask to authorise").font(.system(size: 12))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Link values that already live in 1Password").font(.system(size: 12))
+                    Text("Slower: 1Password asks to authorise, then every item is read. A large account adds minutes.")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
             }
             .toggleStyle(.checkbox)
         }

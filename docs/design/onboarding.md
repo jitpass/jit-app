@@ -365,9 +365,10 @@ with a sentence and a retry, never a dead window.
   and vaults a matching value as an `op://` reference, so 1Password asks
   for its own authorisation in the middle of setup. The user decides here
   too: when `JitCLI.onePasswordCLIInstalled`, the results screen shows one
-  switch, "Link values that already live in 1Password · 1Password will ask
-  to authorise", on as the engine's default is; off passes
-  `--no-1password`. **verify** on the fresh account what the prompt looks
+  switch, "Link values that already live in 1Password", with a caption
+  saying it is slower. It is **off** by default (decided 2026-09-18, after
+  a fresh install spent minutes on a bare spinner: the check is one
+  `op item get` per item in the account); off passes `--no-1password`. **verify** on the fresh account what the prompt looks
   like from a spawned process, and that a denied prompt fails the row
   cleanly and not the whole migrate.
 - **macOS announces a background item.** Installing the LaunchAgent raises
