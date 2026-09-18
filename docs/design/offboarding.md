@@ -285,7 +285,8 @@ nothing; the fingerprint is the decision.
 1. Engine 6.1, released as a patch.
 2. Engine 6.2 and 6.3.
 3. App flow and the cask `zap`; bump `jit.version`; release.
-4. **The acceptance loop**, scripted: snapshot (checksums of every file
+4. **The acceptance loop**, scripted as `scripts/footprint.sh` (checksums,
+   never contents; run it before and after, and diff): snapshot (checksums of every file
    onboarding will touch and the rc files, `launchctl list`, a keychain
    query for `com.jitpass.vault.mek`, `defaults read com.jitpass.app`,
    listings of `~/.jit`, `~/Library`, `~/.terraform.d/plugins`, `~/.cargo`)
