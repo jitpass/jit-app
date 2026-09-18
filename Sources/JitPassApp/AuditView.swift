@@ -119,7 +119,9 @@ struct AuditView: View {
                         Text(Glyph.forRow(row)).foregroundStyle(Glyph.color(row)).frame(width: 12)
                         Text(Self.kindLabel(row)).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                             .frame(width: 60, alignment: .leading)
-                        Text(row.title).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
+                        // The title says what happened, so the detail yields first; if the
+                        // title must still be cut, cut its end, never the reader's name.
+                        Text(row.title).font(.system(size: 12)).lineLimit(1).truncationMode(.tail).layoutPriority(1)
                         if !row.detail.isEmpty {
                             Text(row.detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                         }

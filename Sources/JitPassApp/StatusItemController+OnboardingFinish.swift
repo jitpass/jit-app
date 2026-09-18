@@ -92,7 +92,7 @@ extension StatusItemController {
         model.notifyDecoys = onboarding.notify
         model.notifyChanges = onboarding.notify
         if onboarding.notify {
-            Notifier.requestPermission()
+            Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
         }
         if onboarding.offersGuard, onboarding.historyGuard {
             setGuard(true)

@@ -151,6 +151,7 @@ extension StatusItemController {
         case let .success(report):
             onboarding.report = report
             if depth == .full {
+                noteNewCachedCopies(in: report, announce: false)
                 model.macScan = report
                 model.macScanAt = Date()
                 model.scanStale = false

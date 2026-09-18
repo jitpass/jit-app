@@ -516,6 +516,16 @@ lists every session it ever captured. macOS is asked for permission only
 once the user has set a notification switch, in setup or Settings, not
 at the first launch before setup.
 
+Follow-ups in the same release: the cached-copies notice compares with
+the files the last whole-Mac scan saved (paths only), so a restart no
+longer resets it; setup's scan and the very first scan only save.
+Settings says when macOS has notifications off (a button opens its
+page in System Settings) or has not been asked (a button asks), re-read
+whenever the app comes forward; `-previewNotifications denied|notAsked`
+draws either row. Those rows, and Full Disk Access on the Scan tab, use a
+real button on the right: the link-styled one read as plain text. Audit
+titles win the row's width over the file path, and cut at the end.
+
 The hand-wrap sheet followed: "Wrap Another…" in the Tools header takes
 a tool name, the variable it reads and the token, stores the token at
 `wrap-<tool>/VAR` over stdin and runs `jit wrap add <tool> --env
