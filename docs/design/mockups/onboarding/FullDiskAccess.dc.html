@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Full Disk Access</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:-apple-system,"SF Pro Text",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#6db3ff}a:hover{color:#a9d2ff}
+</style>
+</helmet>
+<div style="width: 760px; height: 660px; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #5a6cf0 0%, #7b5fe6 30%, #b25bd6 55%, #f0596b 78%, #4a7a5a 100%);">
+  <div style="width: 620px; height: 540px; display: flex; flex-direction: column; background: rgba(38,38,42,0.78); backdrop-filter: blur(40px) saturate(1.4); border-radius: 11px; box-shadow: 0 0 0 0.5px rgba(255,255,255,0.18), 0 18px 48px rgba(0,0,0,0.45); color: #ffffff; font-size: 13px; line-height: 1.45; overflow: hidden;">
+    <div style="display: flex; align-items: center; height: 28px; padding: 0 10px; gap: 8px; background: rgba(255,255,255,0.04); box-shadow: 0 0.5px 0 rgba(255,255,255,0.13); flex-shrink: 0;">
+      <span style="width: 12px; height: 12px; border-radius: 6px; background: #ff5f57;"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.22);"></span><span style="width: 12px; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.22);"></span>
+      <span style="flex: 1; text-align: center; font-weight: 600; color: rgba(255,255,255,0.66); padding-right: 52px;">JitPass Setup</span>
+    </div>
+    <div style="flex: 1; display: flex; flex-direction: column; padding: 26px 36px 0 36px; gap: 14px; min-height: 0;">
+      <h1 style="margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.2px;">A full scan needs Full Disk Access</h1>
+      <p style="margin: 0; font-size: 13px; color: rgba(255,255,255,0.66);">macOS keeps Desktop, Documents and Downloads closed to every app until you open them. Without this switch it would ask you folder by folder. JitPass only reads, and only on this Mac.</p>
+      <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 10px; background: rgba(255,255,255,0.07); box-shadow: 0 0 0 0.5px rgba(255,255,255,0.14);">
+        <div style="display: flex; gap: 12px; align-items: baseline;"><span style="width: 20px; height: 20px; border-radius: 10px; background: rgba(255,255,255,0.14); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">1</span><span>Open System Settings. It lands on the right page.</span></div>
+        <div style="display: flex; gap: 12px; align-items: baseline;"><span style="width: 20px; height: 20px; border-radius: 10px; background: rgba(255,255,255,0.14); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">2</span><span>Turn on <strong>JitPass</strong> in the list.</span></div>
+        <div style="display: flex; gap: 12px; align-items: baseline;"><span style="width: 20px; height: 20px; border-radius: 10px; background: rgba(255,255,255,0.14); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">3</span><span>Come back. The scan starts by itself.</span></div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; color: rgba(255,255,255,0.66); font-size: 12px;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="rgba(255,255,255,0.22)" stroke-width="2"></circle><path d="M8 2a6 6 0 0 1 6 6" stroke="#f0b545" stroke-width="2" stroke-linecap="round"></path></svg>
+        <span>Waiting for the switch…</span>
+      </div>
+      <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.66);">macOS may ask to quit and reopen JitPass. Setup picks up right here.</p>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: space-between; height: 58px; padding: 0 36px; flex-shrink: 0;">
+      <div style="display: flex; gap: 6px; align-items: center;"><span style="width: 6px; height: 6px; border-radius: 3px; background: #ffffff;"></span><span style="width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.22);"></span><span style="width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.22);"></span><span style="width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.22);"></span><span style="width: 6px; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.22);"></span></div>
+      <div style="display: flex; align-items: center; gap: 10px;"><button style="appearance: none; border: 0; height: 30px; padding: 0 16px; border-radius: 7px; background: rgba(255,255,255,0.16); color: #ffffff; font: 500 13px -apple-system, system-ui, sans-serif;">Use Quick Scan Instead</button><button style="appearance: none; border: 0; height: 30px; padding: 0 18px; border-radius: 7px; background: #0b6bd8; color: #ffffff; font: 600 13px -apple-system, system-ui, sans-serif;">Open System Settings</button></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 760, "height": 660}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
