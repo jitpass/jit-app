@@ -40,9 +40,17 @@ cask "jitpass" do
   fish_completion "#{appdir}/$APP_NAME.app/Contents/Resources/completions/jit.fish"
   zsh_completion "#{appdir}/$APP_NAME.app/Contents/Resources/completions/_jit"
 
+  # The cask cannot open the app itself. Homebrew runs \`postflight_steps\`
+  # in a sandbox with (deny lsopen), so \`open\` fails there by design
+  # (checked against Homebrew 7.0.4), and the legacy \`postflight\` block
+  # that could is deprecated: it warns every user of a third-party tap and
+  # will stop loading. So the caveat says it, and staying open across an
+  # upgrade is the app's own job, not the cask's.
   uninstall quit: "$BUNDLE_ID"
 
   caveats <<~EOS
+    Open JitPass once to finish setup (it lives in the menu bar):
+      open -a JitPass
     jit's background service keeps running across upgrades and restarts
     itself onto the new binary. Your vault is never touched by an install,
     upgrade or uninstall.
