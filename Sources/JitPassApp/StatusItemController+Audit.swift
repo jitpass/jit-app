@@ -42,8 +42,11 @@ extension StatusItemController {
         Task.detached {
             let report = JitCLI.audit(filter)
             await MainActor.run { [weak self] in
-                self?.model.audit = report
-                self?.model.auditLoading = false
+                guard let self else {
+                    return
+                }
+                model.audit = report?.addingLive(liveServes, filter: filter)
+                model.auditLoading = false
             }
         }
     }

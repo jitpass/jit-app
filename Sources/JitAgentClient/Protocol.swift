@@ -120,10 +120,14 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     /// Links a brokered challenge's `pending` event to the `approved` or
     /// `denied` that answers it.
     public var consentID: String?
+    /// On a serve: the reader was gone before anything was written, so it
+    /// received nothing. The verdict in `op` is what it would have got.
+    public var undelivered: Bool?
 
     public init(
         unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, byPID: Int32? = nil, byLikely: Bool? = nil,
-        launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil
+        launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil,
+        undelivered: Bool? = nil
     ) {
         self.unixTime = unixTime
         self.kind = kind
@@ -136,6 +140,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         self.labels = labels
         self.count = count
         self.consentID = consentID
+        self.undelivered = undelivered
     }
 
     enum CodingKeys: String, CodingKey {
@@ -146,6 +151,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         case launchedBy = "launched_by"
         case cause, labels, count
         case consentID = "consent_id"
+        case undelivered
     }
 
     public var date: Date {

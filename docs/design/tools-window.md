@@ -477,6 +477,12 @@ Taken 2026-09-17, later the same day (shipped as JitPass 1.6.1 with jit
   dot and a count when a decoy was served in the last 24 hours, and a user
   notification per decoy serve (Settings › Protection turns it off). A
   decoy read is the one event a user wants to hear about unprompted.
+  (Until jit 1.8.1 that notification never fired: serves were written
+  only to agent-history.jsonl, collapsed over an hour, and never reached
+  the stream. jit 1.8.1 streams each aggregate's first read live as
+  `serve_start`; the app notifies on it, keeps it for two hours so the
+  audit it opens and the Decoys count show the read before its record
+  lands, and says nothing for a reader that received nothing.)
 - **Audit rows read as sentences.** Kinds are labelled in plain words,
   decoy serves say "decoy served to X", the limit scales with the range
   (7d and 30d are no longer capped at a day of rows) and the time column
@@ -494,11 +500,21 @@ Taken 2026-09-17, later the same day (shipped as JitPass 1.6.1 with jit
 
 Phase 3 finished the same evening: a second notification switch in
 Settings › General covers a captured session within fifteen minutes of
-its expiry (and again when it has expired, each once per session, from a
-minute timer that re-reads `jit status`) and a whole-Mac scan that finds
+its expiry (and again when it has expired, each once per session) and a whole-Mac scan that finds
 cached copies the previous scan of this run did not have. Clicking one
 opens the Tools or AI Agents window. The first scan after launch says
 nothing: the AI Agents dot already carries it.
+
+The session notices were reworked after review (app 1.8.1). The minute
+timer decides from the expiry stamps it already holds and runs `jit
+status` only every fifteen minutes, or once to confirm a notice is still
+due (a renewal changes the expiry): every `jit status` is a `jit audit`
+line, and one a minute had become 61% of that log and cut its history to
+a day. What was announced is kept across launches, and a session that
+ran out over a day ago is not announced at all, because `jit status`
+lists every session it ever captured. macOS is asked for permission only
+once the user has set a notification switch, in setup or Settings, not
+at the first launch before setup.
 
 The hand-wrap sheet followed: "Wrap Another…" in the Tools header takes
 a tool name, the variable it reads and the token, stores the token at
