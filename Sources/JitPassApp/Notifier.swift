@@ -17,6 +17,9 @@ enum NotificationTarget: String {
 enum Notifier {
     static let decoyPreferenceKey = "NotifyDecoys"
     static let changesPreferenceKey = "NotifyChanges"
+    /// The session notices already posted, so a relaunch does not repeat
+    /// them (SessionNotices keys).
+    static let sessionsToldKey = "SessionNoticesTold"
 
     /// On by default: a decoy serve is the event the whole design exists
     /// for, and a user who never opens the audit would otherwise never
@@ -31,6 +34,19 @@ enum Notifier {
         UserDefaults.standard.object(forKey: changesPreferenceKey) as? Bool ?? true
     }
 
+    /// Whether the user has ever set either switch, in setup or Settings.
+    /// Until then the defaults read as on, but macOS must not ask yet:
+    /// setup's finish screen is where that question belongs.
+    static var chosen: Bool {
+        UserDefaults.standard.object(forKey: decoyPreferenceKey) != nil
+            || UserDefaults.standard.object(forKey: changesPreferenceKey) != nil
+    }
+
+    static var sessionsTold: Set<String> {
+        get { Set(UserDefaults.standard.stringArray(forKey: sessionsToldKey) ?? []) }
+        set { UserDefaults.standard.set(newValue.sorted(), forKey: sessionsToldKey) }
+    }
+
     static var onActivate: (NotificationTarget) -> Void = { _ in }
     private static let delegate = Delegate()
 
@@ -42,11 +58,14 @@ enum Notifier {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
     }
 
-    static func post(title: String, body: String, id: String, target: NotificationTarget = .audit) {
+    /// `thread` groups a kind together in Notification Center, so several
+    /// decoy readers stack instead of lining up one by one.
+    static func post(title: String, body: String, id: String, thread: String, target: NotificationTarget = .audit) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
+        content.threadIdentifier = thread
         content.userInfo = ["target": target.rawValue]
         let request = UNNotificationRequest(identifier: id, content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request) { _ in }
