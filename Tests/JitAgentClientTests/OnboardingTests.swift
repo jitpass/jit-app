@@ -44,6 +44,16 @@ final class OnboardingTests: XCTestCase {
         XCTAssertEqual(tasks[0].command, ["migrate", "/a/.env", "--yes", "--no-1password"])
     }
 
+    /// The 1Password check is the slow part of a migrate, so the row that
+    /// waits on it says so, and a run without it does not mention it.
+    func testTheMigrateRowWarnsOnlyWhenOnePasswordIsChecked() {
+        let plan = ProtectPlan(migrate: ["/a/.env"])
+        let linked = OnboardingPlan.tasks(plan: plan, createsVault: false, linkOnePassword: true)
+        let plain = OnboardingPlan.tasks(plan: plan, createsVault: false, linkOnePassword: false)
+        XCTAssertTrue(linked[0].detail.contains("1Password"))
+        XCTAssertFalse(plain[0].detail.contains("1Password"))
+    }
+
     func testCommandLinesReadLikeTheTerminal() {
         let tasks = OnboardingPlan.tasks(plan: ProtectPlan(migrate: ["/Users/alex/code/.env"], wrap: ["aws"]), createsVault: true)
         XCTAssertEqual(

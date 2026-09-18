@@ -18,8 +18,10 @@ final class OnboardingModel: ObservableObject {
     @Published var scanError: String?
     @Published var tasks: [OnboardingTask] = []
     /// Whether migrate may store a value that already lives in 1Password
-    /// as a reference; shown only when the `op` CLI is installed.
-    @Published var linkOnePassword = true
+    /// as a reference; shown only when the `op` CLI is installed. Off
+    /// until asked for: the check reads every item in the account, which
+    /// put minutes of bare spinner into a first run.
+    @Published var linkOnePassword = false
     @Published var onePasswordInstalled = false
     @Published var showsCommands = false
     /// Whether this Mac had no vault when the window opened.

@@ -150,6 +150,7 @@ enum JitCLI {
         process.executableURL = URL(fileURLWithPath: jit)
         process.arguments = ["vault", "get", path]
         process.environment = environment
+        process.currentDirectoryURL = workingDirectory
         let out = Pipe()
         let err = Pipe()
         process.standardOutput = out
@@ -215,6 +216,7 @@ enum JitCLI {
         process.executableURL = URL(fileURLWithPath: jit)
         process.arguments = arguments
         process.environment = environment
+        process.currentDirectoryURL = workingDirectory
         let out = Pipe()
         process.standardOutput = out
         process.standardError = out
@@ -248,6 +250,7 @@ enum JitCLI {
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-c", line]
         process.environment = environment
+        process.currentDirectoryURL = workingDirectory
         let out = Pipe()
         process.standardOutput = out
         process.standardError = out
@@ -280,6 +283,7 @@ enum JitCLI {
         // CLI with a PATH lookup, and a GUI PATH without /opt/homebrew/bin
         // had it reporting "op CLI is not installed" on a Mac that has it.
         process.environment = environment
+        process.currentDirectoryURL = workingDirectory
         let out = Pipe()
         process.standardOutput = out
         process.standardError = FileHandle.nullDevice
