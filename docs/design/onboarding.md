@@ -28,7 +28,7 @@ Read from the code on 2026-09-18 (app `e512ab6`, jit `65470df`).
 | 1 | Double-clicking the app shows nothing but a small red ring in the menu bar | `main.swift` sets `.accessory`; no window opens on launch | "Did it open?" The first impression is an error colour |
 | 2 | The panel says "Not running · the service is not running" | `SessionState.notRunning`, `StatusMark` maps it to red | A fresh install reads as a fault |
 | 3 | **"Start Service" does nothing** | `unlockNow()` sends the `unlock` op to a socket that does not exist; the error is dropped by `try?` | A real bug. Only `jit service unlock` installs the service (`ensureAgentInstalled`, `servicecmds.go:339`), and the app never spawns it |
-| 4 | **Protect fails on a fresh Mac** | `protectPlan` runs `jit migrate … --yes`; nothing ran `jit vault init`, so `fetchMEK` asks for Touch ID and then fails on a missing keychain item | The user gives a fingerprint and gets a raw keychain error |
+| 4 | **Protect fails on a fresh Mac, after the Touch ID** | `protectPlan` runs `jit migrate … --yes`; nothing ran `jit vault init`, so `fetchMEK` challenged first and only then answered "no master key stored in the keychain, run `jit vault init` first" | The sentence is fine for a terminal; in the app it is a fingerprint followed by a failure naming a command the user cannot type |
 | 5 | The app cannot tell "no vault yet" from "vault with 0 secrets" | `jit status --format json` has no such field; doctor's `vault_key` finding only fires when the vault already holds secrets | There is nothing to hang a setup state on |
 | 6 | A whole-Mac scan raises one macOS prompt per protected folder unless Full Disk Access is granted; the background scan does not run at all without it | `refreshScanIfDue`, `ScanReportView.chooser` | The "Protected" row stays empty, and the first scan is a wall of permission dialogs |
 | 7 | Up to three unrelated dialogs stack on first launch | Translocation warning (`AppDelegate`), "Install the jit command line tool?" two seconds in (`offerCommandLineToolOnce`), and the notification permission when either switch is on | Each asks for something before the user knows what the app is |
@@ -215,11 +215,11 @@ mockup decision.
 - **E1** `jit status --format json` gains `vault.initialized`:
   `"yes" | "no" | "unknown"`, from `keychainwrap.MEKPresence()`, which is
   already prompt-free. `unknown` must never trigger onboarding.
-- **E2** A missing master key becomes a plain sentence wherever a command
-  needs it (`migrate`, `wrap`, `vault set`): "no vault on this Mac yet, run
-  `jit vault init`", checked with `MEKPresence` **before** the Touch ID
-  challenge. Today the user authenticates and then gets a keychain error.
-  This fixes the CLI too.
+- **E2** No Touch ID for a key that is not there: `fetchMEK` asks the
+  no-prompt presence probe before the challenge and answers a definite
+  absence with the sentence it already had. Built 2026-09-18, jit branch
+  `no-touchid-without-a-key`. E1 is built too, branch
+  `status-vault-initialized`. Neither is pushed.
 - No new socket ops. The `AgentOp` rule is untouched.
 
 ### App (`jitpass/jit-app`)
