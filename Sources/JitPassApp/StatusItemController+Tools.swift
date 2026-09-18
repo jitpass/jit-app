@@ -387,7 +387,7 @@ extension StatusItemController {
         }
     }
 
-    private nonisolated static func describeTools(_ error: Error) -> String {
+    nonisolated static func describeTools(_ error: Error) -> String {
         if case let JitCLI.CLIError.failed(line) = error {
             return line.isEmpty ? "jit did not say why" : line
         }

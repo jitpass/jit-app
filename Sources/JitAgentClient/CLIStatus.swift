@@ -9,9 +9,18 @@ import Foundation
 /// safe to run from a menu bar app on every open.
 public struct CLIVaultStatus: Codable, Sendable, Equatable {
     public var secretsStored: Int
+    /// "yes", "no" or "unknown": whether the master key exists (jit 1.6.3
+    /// adds it). nil from an older jit, which `VaultSetup` reads as unknown.
+    public var initialized: String?
 
     enum CodingKeys: String, CodingKey {
         case secretsStored = "secrets_stored"
+        case initialized
+    }
+
+    public init(secretsStored: Int, initialized: String? = nil) {
+        self.secretsStored = secretsStored
+        self.initialized = initialized
     }
 }
 

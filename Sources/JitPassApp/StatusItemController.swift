@@ -152,6 +152,8 @@ final class StatusItemController {
             openConsent: { [weak self] in self?.openConsent() },
             about: { [weak self] in self?.showAbout() },
             installUpdate: { [weak self] in self?.installUpdate() },
+            continueSetup: { [weak self] in self?.continueSetup() },
+            setUpInTerminal: { [weak self] in self?.setUpInTerminal() },
             quit: { NSApp.terminate(nil) }
         )
     }
@@ -254,10 +256,10 @@ final class StatusItemController {
     /// state change and whenever a consent request arrives or resolves.
     func render() {
         let asking = model.consentRequests.first
-        item.button?.image = StatusMark.image(for: model.state, asking: asking != nil)
+        item.button?.image = StatusMark.image(for: model.state, asking: asking != nil, needsSetup: model.needsSetup)
         item.button?.imagePosition = .imageOnly
         item.button?.title = ""
-        item.button?.toolTip = StatusMark.tooltip(for: model.state, asking: asking)
+        item.button?.toolTip = StatusMark.tooltip(for: model.state, asking: asking, needsSetup: model.needsSetup)
     }
 
     @objc private func togglePanel() {
@@ -283,8 +285,12 @@ final class StatusItemController {
 
     private func unlockNow() {
         panel.dismiss()
-        _ = try? client.unlock()
-        pollStatus()
+        guard case .notRunning = model.state else {
+            _ = try? client.unlock()
+            pollStatus()
+            return
+        }
+        startService()
     }
 
     func revokeGrant(_ id: String) {
