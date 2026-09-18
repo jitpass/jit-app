@@ -48,12 +48,27 @@ cask "jitpass" do
   # upgrade is the app's own job, not the cask's.
   uninstall quit: "$BUNDLE_ID"
 
+  # What is left when nobody used Settings > Remove JitPass first. zap
+  # deletes; it cannot put a migrated file back, and the vault is the only
+  # thing that can, so the caveat says to remove from the app instead.
+  zap trash: [
+    "~/.jit",
+    "~/Library/Application Support/jitpass",
+    "~/Library/Caches/$BUNDLE_ID",
+    "~/Library/HTTPStorages/$BUNDLE_ID",
+    "~/Library/LaunchAgents/com.jitpass.agent.plist",
+    "~/Library/Preferences/$BUNDLE_ID.plist",
+    "~/Library/Saved Application State/$BUNDLE_ID.savedState",
+  ]
+
   caveats <<~EOS
     Open JitPass once to finish setup (it lives in the menu bar):
       open -a JitPass
     jit's background service keeps running across upgrades and restarts
     itself onto the new binary. Your vault is never touched by an install,
     upgrade or uninstall.
+    To leave: Settings > Remove JitPass puts every file back first. A plain
+    uninstall, or --zap, leaves migrated files pointing at a vault.
   EOS
 end
 CASK

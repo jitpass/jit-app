@@ -136,7 +136,7 @@ struct OnboardingProtecting: View {
     }
 }
 
-private struct OnboardingTaskRow: View {
+struct OnboardingTaskRow: View {
     let task: OnboardingTask
 
     var body: some View {

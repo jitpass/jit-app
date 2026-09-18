@@ -1,0 +1,91 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-09-18T12:00:15Z"
+ },
+ "title": "JitPass Offboarding",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "attachments": {},
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 760,
+   "h": 660,
+   "title": "0 \u00b7 Settings \u2192 General, the last section"
+  },
+  "Plan.dc.html": {
+   "x": 840,
+   "y": 0,
+   "w": 760,
+   "h": 660,
+   "title": "1 \u00b7 The plan, read from the engine's dry run"
+  },
+  "Recovery.dc.html": {
+   "x": 1680,
+   "y": 0,
+   "w": 760,
+   "h": 660,
+   "title": "2 \u00b7 Recovery file, shown when vault-only secrets exist. The one red button"
+  },
+  "Removing.dc.html": {
+   "x": 2520,
+   "y": 0,
+   "w": 760,
+   "h": 660,
+   "title": "3 \u00b7 Live checklist, one tick per engine step"
+  },
+  "Done.dc.html": {
+   "x": 0,
+   "y": 780,
+   "w": 760,
+   "h": 660,
+   "title": "4 \u00b7 Done, website install: the app goes to the Trash"
+  },
+  "DoneHomebrew.dc.html": {
+   "x": 840,
+   "y": 780,
+   "w": 760,
+   "h": 660,
+   "title": "4b \u00b7 Done, Homebrew install: brew removes the app, the link and the completions"
+  },
+  "CouldNotRestore.dc.html": {
+   "x": 1680,
+   "y": 780,
+   "w": 760,
+   "h": 660,
+   "title": "Edge \u00b7 a restore failed, so nothing was destroyed"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Plan.dc.html",
+  "Recovery.dc.html",
+  "Removing.dc.html",
+  "Done.dc.html",
+  "DoneHomebrew.dc.html",
+  "CouldNotRestore.dc.html"
+ ],
+ "designSystems": [],
+ "notes": {
+  "title": {
+   "x": 0,
+   "y": -300,
+   "text": "JitPass offboarding: remove it all, back to the start",
+   "kind": "title1",
+   "maxW": 2440,
+   "w": 240
+  },
+  "decisions": {
+   "x": 0,
+   "y": 1560,
+   "w": 520,
+   "color": "gray",
+   "text": "Decided 2026-09-18: files are always restored before anything is deleted, and one failure deletes nothing. One Touch ID. Red appears once, on the button that commits. Amber marks the only real loss: secrets with no file to return to. The recovery screen shows only when such secrets exist. The last click is the user's: Trash for a website install, the brew line for Homebrew, no helper. From the code audit: a file edited since migration keeps today's version beside it; shell history and AI caches are not un-cleaned. End state: reinstalling opens onboarding at Welcome."
+  }
+ }
+}

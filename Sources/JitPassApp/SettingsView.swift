@@ -46,6 +46,14 @@ struct SettingsView: View {
                 .help("A captured SSO session is about to expire or has, so the next aws call fails until you renew; "
                     + "or a whole-Mac scan found a copy of a secret in an AI agent's cache it had not seen before.")
             SettingsUpdatesSection(model: model, actions: actions)
+            Section("Remove JitPass") {
+                HStack(alignment: .top) {
+                    Text("Puts every file back the way it was and removes JitPass from this Mac. You see the full list first.")
+                        .font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Remove JitPass…", action: actions.removeJitPass)
+                }
+            }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
@@ -200,4 +208,5 @@ struct SettingsActions {
     var checkForUpdates: () -> Void = {}
     var installUpdate: () -> Void = {}
     var installCommandLineTool: () -> Void = {}
+    var removeJitPass: () -> Void = {}
 }

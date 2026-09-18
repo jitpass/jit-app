@@ -255,7 +255,11 @@ extension StatusItemController {
     }
 
     func reopened() {
-        if model.showsSetup || onboardingWindow.isVisible {
+        // After a removal this Mac has no vault, which reads as "needs
+        // setup"; the window on screen is the one that matters.
+        if offboardingWindow.isVisible {
+            offboardingWindow.present()
+        } else if model.showsSetup || onboardingWindow.isVisible {
             openOnboarding()
         } else if let button = item.button, !panel.isVisible {
             resync()
