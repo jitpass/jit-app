@@ -90,6 +90,10 @@ public enum DoctorAdvice {
         "rekey": ("Unfinished key rotation", "Every vault write is refused until the rotation completes."),
         "wrap": ("Broken wrapped tools", "The tool now runs unwrapped, or not at all."),
         "mcp": ("Broken MCP entries", nil),
+        "mcp_nested": (
+            "Doubly wrapped MCP entries",
+            "Still working, but the server launches through jit twice. Migrating again collapses it to one."
+        ),
         "jit_path": ("Stale jit paths", "A credential helper points at a jit binary that is gone."),
         "1password": ("1Password CLI", nil),
         "1password_link": ("Broken 1Password links", nil),
@@ -195,6 +199,7 @@ public enum DoctorAdvice {
             input: .passphrase(prompt: "A passphrase for the backup file the re-encryption goes through")
         )] },
         "mcp": migrate,
+        "mcp_nested": migrate,
         "jit_path": migrate,
         "jit_path_upgrade": migrate,
         "install": { item in item.commands.map {
