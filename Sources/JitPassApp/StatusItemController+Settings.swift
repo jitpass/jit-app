@@ -53,7 +53,8 @@ extension StatusItemController {
             setCheckForUpdates: { [weak self] on in self?.setCheckForUpdates(on) },
             checkForUpdates: { [weak self] in self?.checkForUpdates(manual: true) },
             installUpdate: { [weak self] in self?.installUpdate() },
-            installCommandLineTool: { [weak self] in self?.installCommandLineTool() }
+            installCommandLineTool: { [weak self] in self?.installCommandLineTool() },
+            removeJitPass: { [weak self] in self?.openOffboarding() }
         )
     }
 

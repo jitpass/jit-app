@@ -55,6 +55,9 @@ public struct OnboardingTask: Equatable, Sendable, Identifiable {
         case wrap(String)
         /// A fresh scan, so the closing number is measured, not promised.
         case rescan
+        /// A row of the Remove JitPass checklist, named by the step of
+        /// `jit uninstall` it follows (Offboarding.swift).
+        case remove(String)
     }
 
     public var kind: Kind
@@ -65,7 +68,10 @@ public struct OnboardingTask: Equatable, Sendable, Identifiable {
     public var state: State = .pending
 
     public var id: String {
-        title
+        if case let .remove(step) = kind {
+            return step
+        }
+        return title
     }
 }
 

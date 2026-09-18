@@ -82,6 +82,8 @@ final class StatusItemController {
     var onboardingScanRun: JitCLI.ScanRun?
     var onboardingAccessPoll: Timer?
     lazy var onboardingWindow = makeOnboardingWindow()
+    let offboarding = OffboardingModel()
+    lazy var offboardingWindow = makeOffboardingWindow()
 
     /// Floats above other windows: it appears in the middle of someone
     /// else's work, and the program that asked is waiting on the answer.
