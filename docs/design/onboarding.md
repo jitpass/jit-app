@@ -325,8 +325,12 @@ with a sentence and a retry, never a dead window.
   — rotate this key", and those count under "need you".
 - **Shell rc files rewritten**: terminals already open keep the old
   environment. One line on the result screen: "Open a new terminal window."
-- **Symlinked or manager-owned dotfiles** (stow, chezmoi): **verify** what
-  migrate does, and show the resolved path under "What will change".
+- **Symlinked dotfiles** (stow, chezmoi in symlink mode). Checked in code:
+  the scan never reports a symlink and migrate never rewrites through one
+  (`internal/migrate/apply.go:208`), so these files are neither found nor
+  touched. Nothing can go wrong in setup, but the number is incomplete for
+  such a user and nothing says so. An engine gap to note, not onboarding
+  work.
 
 ### Protect
 
@@ -341,12 +345,16 @@ with a sentence and a retry, never a dead window.
   finished; the rescan tells the truth; Undo is offered.
 - **One tool's wrap fails** (key not found, the tool needs a login first):
   the others continue, and that tool moves to "need you" with its reason.
-- **1Password is installed.** By default migrate vaults a value that
-  already lives in 1Password as an `op://` reference, which can wake the
-  1Password app for its own authorisation in the middle of setup.
-  **verify** what that looks like from a spawned process. If it interrupts,
-  onboarding passes `--no-1password` and leaves linking to the Vault
-  window, where it is already a deliberate action.
+- **1Password is installed.** Checked in code: when `op` is on PATH,
+  migrate consults it by default (`migrate.go:779`, `migrateOpInstalled`)
+  and vaults a matching value as an `op://` reference, so 1Password asks
+  for its own authorisation in the middle of setup. The user decides here
+  too: when `JitCLI.onePasswordCLIInstalled`, the results screen shows one
+  switch, "Link values that already live in 1Password · 1Password will ask
+  to authorise", on as the engine's default is; off passes
+  `--no-1password`. **verify** on the fresh account what the prompt looks
+  like from a spawned process, and that a denied prompt fails the row
+  cleanly and not the whole migrate.
 - **macOS announces a background item.** Installing the LaunchAgent raises
   the system's "Background Items Added" notification, under the signing
   name. The protecting screen says it is coming. If the user has switched
