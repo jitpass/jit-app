@@ -24,7 +24,9 @@ extension StatusItemController {
                 self?.onboardingWindow.close()
                 self?.openScan()
             },
-            done: { [weak self] in self?.onboardingFinish() }
+            saveRecovery: { [weak self] in self?.onboardingSaveRecovery() },
+            undo: { [weak self] in self?.onboardingUndo() },
+            done: { [weak self] in self?.onboardingDone() }
         )
     }
 
@@ -48,6 +50,8 @@ extension StatusItemController {
             onboarding.tasks = []
         }
         onboarding.onePasswordInstalled = JitCLI.onePasswordCLIInstalled
+        // Read now, off the main thread, so the finish screen knows whether to offer the PATH link.
+        refreshCommandLineTool()
         onboardingWindow.present()
     }
 
@@ -221,17 +225,14 @@ extension StatusItemController {
         model.scanStale = true
         reloadTools()
         render()
+        onboardingPrepareFinish()
         onboarding.step = .done
     }
 
-    /// After setup: the full panel, shown once so the user sees where
-    /// JitPass lives.
-    private func onboardingFinish() {
-        onboardingWindow.close()
-        resync()
-        if let button = item.button, !panel.isVisible {
-            panel.toggle(under: button)
-        }
+    /// Back to the results, measured again, after an Undo.
+    func onboardingRescanAfterUndo() {
+        onboarding.step = .scanning
+        onboardingScan(onboarding.depth)
     }
 
     func reopened() {

@@ -165,10 +165,11 @@ private struct OnboardingTaskRow: View {
 
 struct OnboardingDone: View {
     @ObservedObject var model: OnboardingModel
+    let actions: OnboardingActions
 
     var body: some View {
         let s = model.report?.summary
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             OnboardingHeadline(
                 number: "\(s?.percent ?? 0)%", label: "protected",
                 trailing: "\(s?.secretsProtected ?? 0) of \(s?.secretsTotal ?? 0) secrets in the vault", tint: Color(StatusMark.green)
@@ -178,16 +179,76 @@ struct OnboardingDone: View {
                 "Your tools work as before. macOS asks for Touch ID about once per 5 minutes of use. "
                     + "Open a new terminal window to pick up the change."
             )
-            .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if let manual = s?.secretsManual, manual > 0 {
-                Text("\(manual) \(manual == 1 ? "secret needs" : "secrets need") you: rotate or remove. The scan report shows each one.")
+            .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            switches
+            ForEach(model.finishProblems, id: \.self) { problem in
+                Text(problem).font(.system(size: 12)).foregroundStyle(Color(StatusMark.amber))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("Every rewritten file has an encrypted backup in the vault.")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-            Text("JitPass lives in the menu bar. Click the ring any time.").fontWeight(.semibold).padding(.top, 4)
         }
         .font(.system(size: 13))
+    }
+
+    private var switches: some View {
+        VStack(spacing: 0) {
+            OnboardingFinishRow(
+                title: "Save a recovery file",
+                detail: model.recoverySaved.map { "Saved to \(Format.home($0)). Keep the passphrase: nobody can reset it." }
+                    ?? "Your vault opens only on this Mac. A file and a passphrase bring it back on a new one."
+            ) {
+                if model.finishBusy == "recovery" {
+                    ProgressView().controlSize(.small)
+                } else if model.recoverySaved != nil {
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color(StatusMark.green))
+                } else {
+                    Button("Save…", action: actions.saveRecovery)
+                }
+            }
+            Divider()
+            OnboardingFinishRow(title: "Open JitPass at login", detail: "So protection is there after a restart.") {
+                Toggle("Open JitPass at login", isOn: $model.launchAtLogin).labelsHidden().toggleStyle(.switch)
+            }
+            Divider()
+            OnboardingFinishRow(
+                title: "Tell me when something reads a protected file",
+                detail: "macOS will ask to allow notifications."
+            ) {
+                Toggle("Notifications", isOn: $model.notify).labelsHidden().toggleStyle(.switch)
+            }
+            if model.offersGuard {
+                Divider()
+                OnboardingFinishRow(title: "Keep secrets out of shell history", detail: "Adds one line to ~/.zshrc.") {
+                    Toggle("History guard", isOn: $model.historyGuard).labelsHidden().toggleStyle(.switch)
+                }
+            }
+            if model.offersCLI {
+                Divider()
+                OnboardingFinishRow(title: "Use jit in Terminal", detail: "Links the jit command into your PATH.") {
+                    Toggle("Command line tool", isOn: $model.installCLI).labelsHidden().toggleStyle(.switch)
+                }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
+        .disabled(model.finishBusy != nil)
+    }
+}
+
+private struct OnboardingFinishRow<Control: View>: View {
+    let title: String
+    let detail: String
+    @ViewBuilder var control: () -> Control
+
+    var body: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).fontWeight(.semibold)
+                Text(detail).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            control()
+        }
+        .padding(.vertical, 8)
     }
 }
 
