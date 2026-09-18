@@ -19,36 +19,50 @@ enum DoctorDialogs {
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn, !field.stringValue.isEmpty else {
             return nil
         }
         return field.stringValue
     }
 
-    /// A passphrase and its confirmation; asks again until they match. A
-    /// "Show passphrase" box reveals both, because a passphrase that has
-    /// to be remembered is one the user wants to read back before
-    /// committing to it.
+    /// A passphrase and its confirmation; asks again until they match. The
+    /// fields are labelled and the text says to fill both: with a bare
+    /// placeholder under the first field, users typed it once and met an
+    /// "entries differ" they had no way to expect. A second field left
+    /// empty keeps the first entry; two that differ clear both, because
+    /// either could hold the typo. A "Show passphrase" box reveals both,
+    /// because a passphrase that has to be remembered is one the user
+    /// wants to read back before committing to it.
     @MainActor
     static func askPassphrase(_ prompt: String, title: String) -> String? {
-        var note = prompt
+        var note = prompt + " Type it in both fields."
+        var kept = ""
         while true {
             let alert = NSAlert()
             alert.messageText = title
             alert.informativeText = note + " jit never stores it; losing it makes the file unreadable."
             alert.addButton(withTitle: title)
             alert.addButton(withTitle: "Cancel")
-            let fields = PassphraseFields()
+            let fields = PassphraseFields(passphrase: kept)
             alert.accessoryView = fields
-            alert.window.initialFirstResponder = fields.firstField
+            alert.window.initialFirstResponder = kept.isEmpty ? fields.passphraseField : fields.confirmField
+            // An accessory app is not frontmost when this opens, and an
+            // inactive alert takes neither the keyboard nor its default button.
+            NSApp.activate(ignoringOtherApps: true)
             guard alert.runModal() == .alertFirstButtonReturn else {
                 return nil
             }
             let (first, second) = fields.values
             if first.isEmpty {
                 note = "The passphrase can't be empty."
+                kept = ""
+            } else if second.isEmpty {
+                note = "Type the same passphrase again in Confirm."
+                kept = first
             } else if first != second {
-                note = "The two entries differ. Type the passphrase twice."
+                note = "The two entries differ. Type the passphrase in both fields again."
+                kept = ""
             } else {
                 return first
             }
@@ -75,33 +89,56 @@ enum DoctorDialogs {
     }
 }
 
-/// Two passphrase fields and a checkbox that reveals them. NSSecureTextField
-/// cannot switch to plain text in place, so the box swaps each secure
-/// field for a plain one carrying the same value, and back.
+/// Two labelled passphrase fields and a checkbox that reveals them.
+/// NSSecureTextField cannot switch to plain text in place, so the box swaps
+/// each secure field for a plain one carrying the same value, and back.
 private final class PassphraseFields: NSView {
+    private static let labels = ["Passphrase", "Confirm"]
+    private static let placeholders = ["", "The same passphrase again"]
+    private static let labelWidth: CGFloat = 76
+    private static let fieldWidth: CGFloat = 236
+
     private let stack = NSStackView(frame: NSRect(x: 0, y: 0, width: 320, height: 84))
+    private var rows: [NSStackView] = []
     private var entries: [NSTextField] = []
     private let reveal = NSButton(checkboxWithTitle: "Show passphrase", target: nil, action: nil)
 
-    var firstField: NSTextField {
+    var passphraseField: NSTextField {
         entries[0]
+    }
+
+    var confirmField: NSTextField {
+        entries[1]
     }
 
     var values: (String, String) {
         (entries[0].stringValue, entries[1].stringValue)
     }
 
-    init() {
+    init(passphrase: String) {
         super.init(frame: stack.frame)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 8
         addSubview(stack)
-        entries = ["Passphrase", "Again"].map { Self.field(placeholder: $0, secure: true) }
-        entries.forEach(stack.addArrangedSubview)
+        entries = Self.placeholders.map { Self.field(placeholder: $0, secure: true) }
+        entries[0].stringValue = passphrase
+        for (label, entry) in zip(Self.labels, entries) {
+            let name = NSTextField(labelWithString: label)
+            name.alignment = .right
+            name.widthAnchor.constraint(equalToConstant: Self.labelWidth).isActive = true
+            let row = NSStackView(views: [name, entry])
+            row.orientation = .horizontal
+            row.spacing = 8
+            rows.append(row)
+            stack.addArrangedSubview(row)
+        }
         reveal.target = self
         reveal.action = #selector(toggle)
-        stack.addArrangedSubview(reveal)
+        // Under the fields, not under the labels.
+        let revealRow = NSStackView(views: [reveal])
+        revealRow.edgeInsets = NSEdgeInsets(top: 0, left: Self.labelWidth + 8, bottom: 0, right: 0)
+        stack.addArrangedSubview(revealRow)
     }
 
     @available(*, unavailable)
@@ -111,26 +148,26 @@ private final class PassphraseFields: NSView {
 
     @objc private func toggle() {
         let secure = reveal.state != .on
+        let focused = entries.firstIndex { $0.currentEditor() != nil } ?? 0
         let swapped = entries.map { old -> NSTextField in
             let new = Self.field(placeholder: old.placeholderString ?? "", secure: secure)
             new.stringValue = old.stringValue
             return new
         }
-        for (old, new) in zip(entries, swapped) {
-            let index = stack.arrangedSubviews.firstIndex(of: old) ?? 0
-            stack.removeArrangedSubview(old)
+        for (row, (old, new)) in zip(rows, zip(entries, swapped)) {
+            row.removeArrangedSubview(old)
             old.removeFromSuperview()
-            stack.insertArrangedSubview(new, at: index)
+            row.addArrangedSubview(new)
         }
         entries = swapped
-        window?.makeFirstResponder(entries[0])
+        window?.makeFirstResponder(entries[focused])
     }
 
     private static func field(placeholder: String, secure: Bool) -> NSTextField {
-        let frame = NSRect(x: 0, y: 0, width: 320, height: 24)
+        let frame = NSRect(x: 0, y: 0, width: fieldWidth, height: 24)
         let field = secure ? NSSecureTextField(frame: frame) : NSTextField(frame: frame)
         field.placeholderString = placeholder
-        field.widthAnchor.constraint(equalToConstant: 320).isActive = true
+        field.widthAnchor.constraint(equalToConstant: fieldWidth).isActive = true
         return field
     }
 }
