@@ -133,6 +133,17 @@ final class MenuModel: ObservableObject {
         (setup == .needsSetup && !terminalSetup) || UserDefaults.standard.bool(forKey: "previewSetup")
     }
 
+    /// Secrets on disk with no key that opens them: the panel offers
+    /// Restore, in the same one-button shape as setup.
+    var needsRestore: Bool {
+        setup == .needsRestore
+    }
+
+    /// Either state replaces the session panel and the filled mark.
+    var showsSetup: Bool {
+        needsSetup || needsRestore
+    }
+
     var serviceValue: String {
         switch state {
         case .notRunning: "Not running"

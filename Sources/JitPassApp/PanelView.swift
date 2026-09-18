@@ -13,7 +13,7 @@ struct PanelView: View {
     let actions: PanelActions
 
     var body: some View {
-        if model.needsSetup {
+        if model.showsSetup {
             setupBody
         } else {
             sessionBody
@@ -27,22 +27,27 @@ struct PanelView: View {
             HStack(spacing: 10) {
                 StatusMarkView(state: model.state, needsSetup: true, size: 34)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Not set up yet").font(.system(size: 15, weight: .bold))
-                    Text("takes about two minutes").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(model.needsRestore ? "Vault cannot be opened" : "Not set up yet").font(.system(size: 15, weight: .bold))
+                    Text(model.needsRestore ? "its key is not on this Mac" : "takes about two minutes")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
                 }
             }
             .padding(.horizontal, 14)
             .padding(.top, 12)
             .padding(.bottom, 10)
 
-            Text("JitPass finds the secrets in your plain files and locks them behind Touch ID.")
-                .font(.system(size: 12)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, 14)
-                .padding(.bottom, 8)
+            Text(
+                model.needsRestore
+                    ? "Secrets are stored here, but nothing opens them. A recovery file and its passphrase bring them back."
+                    : "JitPass finds the secrets in your plain files and locks them behind Touch ID."
+            )
+            .font(.system(size: 12)).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 8)
 
             Button(action: actions.continueSetup) {
-                Text("Continue Setup…").frame(maxWidth: .infinity)
+                Text(model.needsRestore ? "Restore…" : "Continue Setup…").frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
@@ -51,8 +56,10 @@ struct PanelView: View {
             .padding(.bottom, 6)
 
             divider
-            plainAction("I’ll Set Up in Terminal", actions.setUpInTerminal)
-            divider
+            if !model.needsRestore {
+                plainAction("I’ll Set Up in Terminal", actions.setUpInTerminal)
+                divider
+            }
             action("Settings…", key: ",", actions.openSettings)
             plainAction("About JitPass", actions.about)
             divider

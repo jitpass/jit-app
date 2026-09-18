@@ -55,11 +55,11 @@ extension StatusItemController {
         let alert = NSAlert()
         alert.messageText = "This Mac has a vault it cannot open"
         alert.informativeText = "Secrets are stored here, but the key that opens them is not in this Mac’s keychain. "
-            + "Restore it from a recovery file first: Vault › Maintenance › Import."
-        alert.addButton(withTitle: "Open Vault")
+            + "A recovery file and its passphrase bring them back."
+        alert.addButton(withTitle: "Restore…")
         alert.addButton(withTitle: "Cancel")
         if alert.runModal() == .alertFirstButtonReturn {
-            openVault()
+            openOnboarding()
         }
         return false
     }

@@ -22,6 +22,7 @@ struct OnboardingView: View {
                 case .results: OnboardingResults(model: model, actions: actions)
                 case .protecting: OnboardingProtecting(model: model)
                 case .done: OnboardingDone(model: model, actions: actions)
+                case .restore: OnboardingRestore(model: model, actions: actions)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -44,7 +45,7 @@ private struct OnboardingFooter: View {
 
     private var dotIndex: Int {
         switch model.step {
-        case .welcome, .fullDiskAccess: 0
+        case .welcome, .fullDiskAccess, .restore: 0
         case .scanning, .results: 1
         case .protecting: 2
         case .done: 3
@@ -67,7 +68,16 @@ private struct OnboardingFooter: View {
     @ViewBuilder private var buttons: some View {
         switch model.step {
         case .welcome:
-            EmptyView()
+            Button("Moving from another Mac? Restore from a recovery file", action: actions.showRestore)
+                .buttonStyle(.link).font(.system(size: 12))
+        case .restore:
+            if model.restoreBusy {
+                ProgressView().controlSize(.small)
+            }
+            Button(model.strandedSecrets > 0 ? "Close" : "Back", action: model.strandedSecrets > 0 ? actions.notNow : actions.back)
+                .disabled(model.restoreBusy)
+            Button("Restore", action: actions.restore).keyboardShortcut(.defaultAction)
+                .disabled(model.restoreBusy || model.restoreFile == nil || model.restorePassphrase.isEmpty)
         case .fullDiskAccess:
             Button("Use Quick Scan Instead", action: actions.quickScan)
             Button("Open System Settings", action: actions.openFullDiskAccess).keyboardShortcut(.defaultAction)

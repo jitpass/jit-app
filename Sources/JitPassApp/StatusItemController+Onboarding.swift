@@ -24,6 +24,9 @@ extension StatusItemController {
                 self?.onboardingWindow.close()
                 self?.openScan()
             },
+            showRestore: { [weak self] in self?.onboardingShowRestore() },
+            chooseRestoreFile: { [weak self] in self?.onboardingChooseRestoreFile() },
+            restore: { [weak self] in self?.onboardingRestore() },
             saveRecovery: { [weak self] in self?.onboardingSaveRecovery() },
             undo: { [weak self] in self?.onboardingUndo() },
             done: { [weak self] in self?.onboardingDone() }
@@ -34,7 +37,7 @@ extension StatusItemController {
     /// accessory app otherwise shows a new user nothing but a small ring.
     /// After that, setup is reached from the panel and never reopens itself.
     func openOnboardingOnFirstLaunch() {
-        guard model.needsSetup, !UserDefaults.standard.bool(forKey: Self.onboardingShownKey) else {
+        guard model.showsSetup, !UserDefaults.standard.bool(forKey: Self.onboardingShownKey) else {
             return
         }
         UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
@@ -48,6 +51,10 @@ extension StatusItemController {
             onboarding.report = nil
             onboarding.scanError = nil
             onboarding.tasks = []
+        }
+        if model.setup == .needsRestore, onboarding.step == .welcome {
+            // Secrets on disk with no key: not a new user, so not Welcome.
+            onboardingShowRestore()
         }
         onboarding.onePasswordInstalled = JitCLI.onePasswordCLIInstalled
         // Read now, off the main thread, so the finish screen knows whether to offer the PATH link.
@@ -236,7 +243,7 @@ extension StatusItemController {
     }
 
     func reopened() {
-        if model.needsSetup || onboardingWindow.isVisible {
+        if model.showsSetup || onboardingWindow.isVisible {
             openOnboarding()
         } else if let button = item.button, !panel.isVisible {
             resync()
@@ -262,7 +269,7 @@ extension StatusItemController {
     /// launch, and the PATH offer waits for one that has a vault.
     func offerCommandLineToolAfterLaunch() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard self?.model.needsSetup == false else {
+            guard self?.model.showsSetup == false else {
                 return
             }
             self?.offerCommandLineToolOnce()
