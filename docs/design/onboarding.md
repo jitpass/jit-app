@@ -4,6 +4,9 @@ Status: plan, 2026-09-18. Nothing here is built. Section 2 is what the code
 does today; everything marked **verify** is an assumption to test in phase 0
 before any of it is relied on.
 
+Mockups (first pass, 2026-09-18): https://claude.ai/artifact/CmYsJk8hpfjm8uaqu1iu9d,
+sources in `docs/design/mockups/onboarding/`.
+
 ## 1. The goal
 
 Someone downloads JitPass from the website, opens it, and within two

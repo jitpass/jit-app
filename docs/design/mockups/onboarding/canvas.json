@@ -1,0 +1,97 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-09-18T07:35:14Z"
+ },
+ "title": "JitPass Onboarding",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 760,
+   "h": 660,
+   "title": "1 \u00b7 Welcome: the user picks the depth"
+  },
+  "FullDiskAccess.dc.html": {
+   "x": 840,
+   "y": 0,
+   "w": 760,
+   "h": 660,
+   "title": "1b \u00b7 Full Scan chosen, no access yet"
+  },
+  "Results.dc.html": {
+   "x": 1680,
+   "y": 0,
+   "w": 760,
+   "h": 660,
+   "title": "2 \u00b7 What we found (after a quick scan)"
+  },
+  "Protecting.dc.html": {
+   "x": 0,
+   "y": 780,
+   "w": 760,
+   "h": 660,
+   "title": "3 \u00b7 Protecting, live checklist"
+  },
+  "Finish.dc.html": {
+   "x": 840,
+   "y": 780,
+   "w": 760,
+   "h": 660,
+   "title": "4 \u00b7 Finish setting up"
+  },
+  "Restore.dc.html": {
+   "x": 1680,
+   "y": 780,
+   "w": 760,
+   "h": 660,
+   "title": "Edge \u00b7 vault present, key missing / new Mac"
+  },
+  "SetupPanel.dc.html": {
+   "x": 0,
+   "y": 1560,
+   "w": 560,
+   "h": 520,
+   "title": "5 \u00b7 Panel before setup, hollow amber ring"
+  },
+  "WelcomeLight.dc.html": {
+   "x": 640,
+   "y": 1560,
+   "w": 760,
+   "h": 660,
+   "title": "Welcome, light mode"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "FullDiskAccess.dc.html",
+  "Results.dc.html",
+  "Protecting.dc.html",
+  "Finish.dc.html",
+  "Restore.dc.html",
+  "SetupPanel.dc.html",
+  "WelcomeLight.dc.html"
+ ],
+ "designSystems": [],
+ "notes": {
+  "title": {
+   "x": 0,
+   "y": -300,
+   "text": "JitPass onboarding: first launch, no terminal",
+   "kind": "title1",
+   "maxW": 2440
+  },
+  "decisions": {
+   "x": 1480,
+   "y": 1560,
+   "w": 520,
+   "color": "gray",
+   "text": "Decided 2026-09-18: the user picks Quick or Full scan (neither is marked recommended; Return presses Quick because it needs nothing). Not set up = hollow amber ring, never red. Open at login defaults on; the history guard defaults off because it edits ~/.zshrc. Native material everywhere, state colours only on the mark, dots and the progress bar."
+  }
+ }
+}
