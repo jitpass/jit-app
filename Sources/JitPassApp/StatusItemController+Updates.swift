@@ -90,7 +90,7 @@ extension StatusItemController {
                 + "brew upgrade jitpass\n\nThe service keeps running and restarts itself onto the new version."
             alert.addButton(withTitle: "Open in Terminal")
             alert.addButton(withTitle: "Later")
-            guard alert.runModal() == .alertFirstButtonReturn else {
+            guard alert.runFrontmost() == .alertFirstButtonReturn else {
                 return
             }
             runInTerminal("brew update && brew upgrade jitpass")
@@ -100,7 +100,7 @@ extension StatusItemController {
                 + "tool link keeps pointing at Applications."
             alert.addButton(withTitle: "Download")
             alert.addButton(withTitle: "Later")
-            guard alert.runModal() == .alertFirstButtonReturn else {
+            guard alert.runFrontmost() == .alertFirstButtonReturn else {
                 return
             }
             NSWorkspace.shared.open(AppUpdate.downloadURL)
@@ -151,8 +151,7 @@ extension StatusItemController {
                     + "as `jit`. You can do this later from Settings › General."
                 alert.addButton(withTitle: "Install")
                 alert.addButton(withTitle: "Not Now")
-                NSApp.activate(ignoringOtherApps: true)
-                if alert.runModal() == .alertFirstButtonReturn {
+                if alert.runFrontmost() == .alertFirstButtonReturn {
                     installCommandLineTool()
                 }
             }
@@ -175,7 +174,7 @@ extension StatusItemController {
                 + "or the link this installs is never reached."
             alert.addButton(withTitle: "Install Anyway")
             alert.addButton(withTitle: "Cancel")
-            guard alert.runModal() == .alertFirstButtonReturn else {
+            guard alert.runFrontmost() == .alertFirstButtonReturn else {
                 return
             }
         }

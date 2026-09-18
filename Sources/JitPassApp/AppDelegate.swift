@@ -41,7 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.informativeText = "Quitting now leaves it half done. Open JitPass and use Remove again to finish."
             alert.addButton(withTitle: "Keep Going")
             alert.addButton(withTitle: "Quit Anyway")
-            return alert.runModal() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
+            return alert.runFrontmost() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
         }
         guard statusItem?.onboarding.protecting == true else {
             return .terminateNow
@@ -52,6 +52,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             + "and setup picks up where it stopped."
         alert.addButton(withTitle: "Keep Going")
         alert.addButton(withTitle: "Quit Anyway")
-        return alert.runModal() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
+        return alert.runFrontmost() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
     }
 }

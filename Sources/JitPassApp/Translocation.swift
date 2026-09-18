@@ -30,6 +30,6 @@ enum Translocation {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Quit")
         alert.addButton(withTitle: "Continue Anyway")
-        return alert.runModal() != .alertFirstButtonReturn
+        return alert.runFrontmost() != .alertFirstButtonReturn
     }
 }

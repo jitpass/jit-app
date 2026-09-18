@@ -64,7 +64,7 @@ extension StatusItemController {
             open.canChooseFiles = true
             open.canChooseDirectories = true
             open.allowsMultipleSelection = false
-            guard open.runModal() == .OK, let url = open.url else {
+            guard open.runFrontmost() == .OK, let url = open.url else {
                 return nil
             }
             return (placeholder, url.path)
@@ -73,7 +73,7 @@ extension StatusItemController {
             save.title = "Export the vault"
             save.nameFieldStringValue = "jit-vault-\(Format.dateStamp()).export"
             save.canCreateDirectories = true
-            guard save.runModal() == .OK, let url = save.url else {
+            guard save.runFrontmost() == .OK, let url = save.url else {
                 return nil
             }
             return (placeholder, url.path)
@@ -135,7 +135,7 @@ extension StatusItemController {
         alert.alertStyle = .warning
         alert.addButton(withTitle: action.title)
         alert.addButton(withTitle: "Cancel")
-        return alert.runModal() == .alertFirstButtonReturn
+        return alert.runFrontmost() == .alertFirstButtonReturn
     }
 
     /// The one destructive act the app performs itself, and it is a move
@@ -150,14 +150,14 @@ extension StatusItemController {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Move to Trash")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         do {
             try ProfileStore.trashGlobal(named: name)
         } catch {
             let failed = NSAlert(error: error)
-            failed.runModal()
+            failed.runFrontmost()
         }
         runDoctor()
     }

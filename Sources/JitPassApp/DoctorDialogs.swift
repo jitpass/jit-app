@@ -19,8 +19,7 @@ enum DoctorDialogs {
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
         alert.accessoryView = field
         alert.window.initialFirstResponder = field
-        NSApp.activate(ignoringOtherApps: true)
-        guard alert.runModal() == .alertFirstButtonReturn, !field.stringValue.isEmpty else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn, !field.stringValue.isEmpty else {
             return nil
         }
         return field.stringValue
@@ -47,10 +46,7 @@ enum DoctorDialogs {
             let fields = PassphraseFields(passphrase: kept)
             alert.accessoryView = fields
             alert.window.initialFirstResponder = kept.isEmpty ? fields.passphraseField : fields.confirmField
-            // An accessory app is not frontmost when this opens, and an
-            // inactive alert takes neither the keyboard nor its default button.
-            NSApp.activate(ignoringOtherApps: true)
-            guard alert.runModal() == .alertFirstButtonReturn else {
+            guard alert.runFrontmost() == .alertFirstButtonReturn else {
                 return nil
             }
             let (first, second) = fields.values
@@ -85,7 +81,7 @@ enum DoctorDialogs {
         view.autoresizingMask = [.width]
         scroll.documentView = view
         alert.accessoryView = scroll
-        alert.runModal()
+        alert.runFrontmost()
     }
 }
 

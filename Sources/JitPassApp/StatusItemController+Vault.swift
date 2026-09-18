@@ -183,7 +183,7 @@ extension StatusItemController {
             + "The current value is archived first, so this is reversible. Touch ID follows."
         alert.addButton(withTitle: "Restore")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runVault(path, work: { JitCLI.execute(["vault", "restore", path, "--version", String(stamp)]) }, then: { [weak self] _ in
@@ -209,7 +209,7 @@ extension StatusItemController {
         alert.alertStyle = .warning
         alert.addButton(withTitle: paths.count == 1 ? "Delete" : "Delete \(paths.count)")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         hideReveal()
