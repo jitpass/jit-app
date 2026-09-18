@@ -108,7 +108,7 @@ extension StatusItemController {
         picker.allowsMultipleSelection = false
         picker.prompt = "Scan"
         picker.message = "Choose a folder to scan for plaintext secrets."
-        guard picker.runModal() == .OK, let url = picker.url else {
+        guard picker.runFrontmost() == .OK, let url = picker.url else {
             return
         }
         onboardingScan(.folder(url.path))
@@ -228,6 +228,7 @@ extension StatusItemController {
                     onboardingRunTasks()
                 case let .failure(error):
                     onboarding.tasks[index].state = .failed(Self.describeTools(error))
+                    onboardingWindow.reclaimFocus()
                 }
             }
         }
@@ -246,6 +247,7 @@ extension StatusItemController {
         render()
         onboardingPrepareFinish()
         onboarding.step = .done
+        onboardingWindow.reclaimFocus()
     }
 
     /// Back to the results, measured again, after an Undo.

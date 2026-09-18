@@ -39,7 +39,7 @@ extension StatusItemController {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Prune")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runVault("orphans", work: { JitCLI.execute(["vault", "orphans", "--prune", "--yes"]) }, then: { [weak self] _ in
@@ -60,7 +60,7 @@ extension StatusItemController {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Prune")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runVault("backups", work: { JitCLI.execute(["vault", "prune", "--yes"]) }, then: { [weak self] _ in
@@ -74,7 +74,7 @@ extension StatusItemController {
         save.title = "Export the vault"
         save.nameFieldStringValue = "jit-vault-\(Format.dateStamp()).export"
         save.canCreateDirectories = true
-        guard save.runModal() == .OK, let url = save.url else {
+        guard save.runFrontmost() == .OK, let url = save.url else {
             return
         }
         guard let passphrase = DoctorDialogs.askPassphrase(
@@ -101,7 +101,7 @@ extension StatusItemController {
         open.canChooseFiles = true
         open.canChooseDirectories = false
         open.allowsMultipleSelection = false
-        guard open.runModal() == .OK, let url = open.url else {
+        guard open.runFrontmost() == .OK, let url = open.url else {
             return
         }
         guard let passphrase = DoctorDialogs.askSecret("The passphrase the export was made with.", title: "Import") else {
@@ -115,7 +115,7 @@ extension StatusItemController {
             + "Nothing asks again. Touch ID follows."
         alert.addButton(withTitle: "Import")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runVault(
@@ -138,7 +138,7 @@ extension StatusItemController {
             + "Safe to interrupt: re-running finishes it. Touch ID follows."
         alert.addButton(withTitle: "Rekey")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runVault("rekey", work: { JitCLI.execute(["vault", "rekey", "--yes"]) }, then: { [weak self] _ in
@@ -160,7 +160,7 @@ extension StatusItemController {
             + "is the switch for the per-class half. A 1Password link asks 1Password too. Nothing is changed."
         alert.addButton(withTitle: "Compare")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runVault("duplicates", refresh: false, work: { JitCLI.vaultDuplicates() }, then: { [weak self] report in
@@ -185,7 +185,7 @@ extension StatusItemController {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Prune")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runVault("duplicates", work: { JitCLI.execute(["vault", "duplicates", "--prune", "--yes"]) }, then: { [weak self] _ in

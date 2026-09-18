@@ -82,7 +82,7 @@ extension StatusItemController {
         picker.prompt = "Scan"
         picker.message = "Choose a folder to scan for plaintext secrets."
         picker.directoryURL = model.scanScope.map { URL(fileURLWithPath: $0) }
-        guard picker.runModal() == .OK, let url = picker.url else {
+        guard picker.runFrontmost() == .OK, let url = picker.url else {
             return
         }
         model.scanScope = url.path
@@ -175,7 +175,7 @@ extension StatusItemController {
             + "Every file is backed up encrypted first; jit migrate undo restores it. Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         let work: @Sendable () -> Result<String, Error> = {

@@ -90,7 +90,7 @@ extension StatusItemController {
             + "Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runTools(path, work: { JitCLI.execute(["migrate", path, "--yes"]) }, then: { [weak self] output in
@@ -251,7 +251,7 @@ extension StatusItemController {
             + "jit migrate undo restores it. Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runTools(tool, work: { JitCLI.execute(["migrate", home, "--only", category, "--yes"]) }, then: { [weak self] output in
@@ -270,7 +270,7 @@ extension StatusItemController {
             + "The secret stays in the vault; delete it from the Vault window if you no longer need it."
         alert.addButton(withTitle: "Unwrap")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runTools(tool, work: { JitCLI.execute(["wrap", "undo", tool]) }, then: { [weak self] output in
@@ -309,7 +309,7 @@ extension StatusItemController {
             + "a file an agent is writing right now is left alone and reported. Touch ID follows."
         alert.addButton(withTitle: "Clean")
         alert.addButton(withTitle: "Cancel")
-        guard alert.runModal() == .alertFirstButtonReturn else {
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         runTools("caches", refresh: false, work: { JitCLI.execute(["migrate", "caches", "--yes"]) }, then: { [weak self] output in

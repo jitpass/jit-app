@@ -23,8 +23,7 @@ extension StatusItemController {
                     let alert = NSAlert()
                     alert.messageText = "The service did not start"
                     alert.informativeText = Self.describeTools(error)
-                    NSApp.activate(ignoringOtherApps: true)
-                    alert.runModal()
+                    alert.runFrontmost()
                 }
                 self?.pollStatus()
             }
@@ -58,7 +57,7 @@ extension StatusItemController {
             + "A recovery file and its passphrase bring them back."
         alert.addButton(withTitle: "Restore…")
         alert.addButton(withTitle: "Cancel")
-        if alert.runModal() == .alertFirstButtonReturn {
+        if alert.runFrontmost() == .alertFirstButtonReturn {
             openOnboarding()
         }
         return false
