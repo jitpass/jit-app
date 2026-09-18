@@ -17,6 +17,8 @@ public enum OnboardingStep: Equatable, Sendable {
     /// A recovery file and its passphrase: a new Mac, or secrets on disk
     /// whose key is gone.
     case restore
+    /// macOS is running the app from a temporary path; setup must not start.
+    case moveToApplications
 }
 
 /// How deep the first look goes. The user chooses; the app does not.

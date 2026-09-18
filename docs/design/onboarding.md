@@ -7,8 +7,12 @@ quick/full/folder choice, Full Disk Access, a streaming cancellable scan,
 results, the live protect checklist), the finish screen (recovery file,
 open at login, notifications, history guard, PATH link, Undo) and the
 Restore screen, reached from Welcome and from a vault whose key is gone.
-Not built: the hidden-status-item check, translocation as a setup screen,
-holding the Update row during setup. Not verified on a fresh macOS account
+Also built: a move-to-Applications screen in place of the launch alert for a
+Mac with no vault, and a plain alert when the status item sits off every
+screen at the end of setup (the narrow test; **verify** on a notched Mac
+with a full menu bar). The Update row needs no hold: the set-up panel
+draws no rows, and the daily check raises nothing by itself.
+Not verified on a fresh macOS account
 yet: every **verify** below still stands. `-previewSetup YES` draws the
 set-up state on a Mac that has a vault; its Protect is real.
 What follows was written as the plan. Section 2 is what the code

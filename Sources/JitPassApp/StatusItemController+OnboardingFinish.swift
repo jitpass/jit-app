@@ -100,9 +100,31 @@ extension StatusItemController {
     private func onboardingClose() {
         onboardingWindow.close()
         resync()
-        if let button = item.button, !panel.isVisible {
+        guard let button = item.button, statusItemOnScreen else {
+            // On a notched display a full menu bar silently drops the items
+            // that do not fit, so "it lives up here" would point at nothing.
+            let alert = NSAlert()
+            alert.messageText = "JitPass is hidden in your menu bar"
+            alert.informativeText = "The menu bar is full, so macOS is not showing the JitPass ring. JitPass is running and "
+                + "protecting you. To reach it, open JitPass again from Applications, or quit a menu bar app to make room."
+            alert.runModal()
+            return
+        }
+        if !panel.isVisible {
             panel.toggle(under: button)
         }
+    }
+
+    /// Best effort, and deliberately the narrow test: macOS parks a status
+    /// item it has no room for off every screen. The window's occlusion
+    /// state would catch more, but it also reads "not visible" for reasons
+    /// that have nothing to do with the notch, and a false "JitPass is
+    /// hidden" is worse than a missed one.
+    private var statusItemOnScreen: Bool {
+        guard let window = item.button?.window else {
+            return false
+        }
+        return NSScreen.screens.contains { $0.frame.intersects(window.frame) }
     }
 
     /// Restores the files this setup rewrote, byte for byte, with jit's own

@@ -96,6 +96,7 @@ struct OnboardingActions {
     var retry: () -> Void = {}
     var notNow: () -> Void = {}
     var openScanReport: () -> Void = {}
+    var quit: () -> Void = {}
     var showRestore: () -> Void = {}
     var chooseRestoreFile: () -> Void = {}
     var restore: () -> Void = {}

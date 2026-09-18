@@ -23,6 +23,7 @@ struct OnboardingView: View {
                 case .protecting: OnboardingProtecting(model: model)
                 case .done: OnboardingDone(model: model, actions: actions)
                 case .restore: OnboardingRestore(model: model, actions: actions)
+                case .moveToApplications: OnboardingMove()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -45,7 +46,7 @@ private struct OnboardingFooter: View {
 
     private var dotIndex: Int {
         switch model.step {
-        case .welcome, .fullDiskAccess, .restore: 0
+        case .welcome, .fullDiskAccess, .restore, .moveToApplications: 0
         case .scanning, .results: 1
         case .protecting: 2
         case .done: 3
@@ -70,6 +71,8 @@ private struct OnboardingFooter: View {
         case .welcome:
             Button("Moving from another Mac? Restore from a recovery file", action: actions.showRestore)
                 .buttonStyle(.link).font(.system(size: 12))
+        case .moveToApplications:
+            Button("Quit JitPass", action: actions.quit).keyboardShortcut(.defaultAction)
         case .restore:
             if model.restoreBusy {
                 ProgressView().controlSize(.small)
@@ -195,6 +198,33 @@ private struct ScanChoiceCard: View {
         .frame(maxWidth: .infinity, minHeight: 138, alignment: .topLeading)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.14), lineWidth: 0.5))
+    }
+}
+
+// MARK: - Move to Applications
+
+/// A copy opened straight from the download runs from a temporary path
+/// (App Translocation). The service's launchd plist and the PATH link both
+/// record where jit lives, so a vault must never be created from here.
+private struct OnboardingMove: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Move JitPass to Applications first").font(.system(size: 22, weight: .bold))
+            Text(
+                "macOS is running this copy from a temporary location because it was opened straight from the download. "
+                    + "JitPass starts a small background service, and that needs a path that stays put."
+            )
+            .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("1.  Quit JitPass.")
+                Text("2.  Drag JitPass into your Applications folder.")
+                Text("3.  Open it from there. Setup starts by itself.")
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
+        }
+        .font(.system(size: 13))
     }
 }
 
