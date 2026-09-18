@@ -33,16 +33,18 @@ extension StatusItemController {
                 UserDefaults.standard.set(on, forKey: Notifier.decoyPreferenceKey)
                 self?.model.notifyDecoys = on
                 if on {
-                    Notifier.requestPermission()
+                    Notifier.requestPermission { self?.refreshNotificationPermission() }
                 }
             },
             setNotifyChanges: { [weak self] on in
                 UserDefaults.standard.set(on, forKey: Notifier.changesPreferenceKey)
                 self?.model.notifyChanges = on
                 if on {
-                    Notifier.requestPermission()
+                    Notifier.requestPermission { self?.refreshNotificationPermission() }
                 }
             },
+            allowNotifications: { [weak self] in self?.allowNotifications() },
+            openNotificationSettings: { Notifier.openSystemSettings() },
             vaultClean: { [weak self] in self?.vaultDestructive(
                 "clean",
                 does: "deletes every secret and every backup for good; the vault and its key stay"
@@ -98,6 +100,7 @@ extension StatusItemController {
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
         model.fullDiskAccess = FullDiskAccess.granted()
         model.settingsMessage = nil
+        refreshNotificationPermission()
         if model.cli == nil {
             model.cli = JitCLI.status()
         }

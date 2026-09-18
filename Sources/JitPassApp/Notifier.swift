@@ -4,6 +4,11 @@
 import AppKit
 import UserNotifications
 
+/// What macOS allows this app, as Settings needs to say it.
+enum NotificationPermission {
+    case unknown, allowed, denied, notAsked
+}
+
 /// Where a clicked notification takes the user.
 enum NotificationTarget: String {
     case audit, agents, tools
@@ -20,6 +25,9 @@ enum Notifier {
     /// The session notices already posted, so a relaunch does not repeat
     /// them (SessionNotices keys).
     static let sessionsToldKey = "SessionNoticesTold"
+    /// The files holding cached copies at the last whole-Mac scan, for the
+    /// "new cached copies" notice. Paths only, never a value.
+    static let cachedCopiesKey = "CachedCopyFiles"
 
     /// On by default: a decoy serve is the event the whole design exists
     /// for, and a user who never opens the audit would otherwise never
@@ -54,8 +62,34 @@ enum Notifier {
         UNUserNotificationCenter.current().delegate = delegate
     }
 
-    static func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    /// macOS asks once; after an answer this returns at once with it.
+    /// `then` runs on the main actor when the question is settled.
+    static func requestPermission(then done: (@MainActor () -> Void)? = nil) {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in
+            Task { @MainActor in done?() }
+        }
+    }
+
+    /// Whether macOS will show what `post` sends. Asked fresh each time:
+    /// the answer lives in System Settings and changes behind the app.
+    static func readPermission(_ done: @escaping @MainActor (NotificationPermission) -> Void) {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let permission: NotificationPermission = switch settings.authorizationStatus {
+            case .authorized, .provisional: .allowed
+            case .denied: .denied
+            case .notDetermined: .notAsked
+            @unknown default: .unknown
+            }
+            Task { @MainActor in done(permission) }
+        }
+    }
+
+    /// System Settings › Notifications, at this app's page.
+    static func openSystemSettings() {
+        let id = Bundle.main.bundleIdentifier ?? "com.jitpass.app"
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     /// `thread` groups a kind together in Notification Center, so several
