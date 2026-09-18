@@ -31,10 +31,8 @@ extension StatusItemController {
         }
     }
 
-    /// Until the onboarding window exists (phase 3) setup is the Scan
-    /// window: find, then Protect, which creates the vault on the way.
     func continueSetup() {
-        openScan()
+        openOnboarding()
     }
 
     func setUpInTerminal() {
