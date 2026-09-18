@@ -14,6 +14,9 @@ public enum OnboardingStep: Equatable, Sendable {
     case results
     case protecting
     case done
+    /// A recovery file and its passphrase: a new Mac, or secrets on disk
+    /// whose key is gone.
+    case restore
 }
 
 /// How deep the first look goes. The user chooses; the app does not.

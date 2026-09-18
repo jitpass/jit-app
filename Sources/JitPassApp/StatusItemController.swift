@@ -260,10 +260,12 @@ final class StatusItemController {
     /// state change and whenever a consent request arrives or resolves.
     func render() {
         let asking = model.consentRequests.first
-        item.button?.image = StatusMark.image(for: model.state, asking: asking != nil, needsSetup: model.needsSetup)
+        item.button?.image = StatusMark.image(for: model.state, asking: asking != nil, needsSetup: model.showsSetup)
         item.button?.imagePosition = .imageOnly
         item.button?.title = ""
-        item.button?.toolTip = StatusMark.tooltip(for: model.state, asking: asking, needsSetup: model.needsSetup)
+        item.button?.toolTip = model.needsRestore && asking == nil
+            ? "JitPass · vault cannot be opened"
+            : StatusMark.tooltip(for: model.state, asking: asking, needsSetup: model.showsSetup)
     }
 
     @objc private func togglePanel() {

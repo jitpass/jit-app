@@ -252,6 +252,57 @@ private struct OnboardingFinishRow<Control: View>: View {
     }
 }
 
+struct OnboardingRestore: View {
+    @ObservedObject var model: OnboardingModel
+    let actions: OnboardingActions
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                StatusMarkView(state: .notRunning, needsSetup: true, size: 40)
+                Text("Restore").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+            }
+            Text(model.strandedSecrets > 0 ? "This Mac has a vault it cannot open" : "Bring your vault to this Mac")
+                .font(.system(size: 22, weight: .bold))
+            Text(explanation).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Recovery file").font(.system(size: 12, weight: .semibold))
+                HStack(spacing: 8) {
+                    Text(model.restoreFile.map(Format.home) ?? "No file chosen")
+                        .font(.system(size: 12, design: .monospaced)).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10).frame(height: 28)
+                        .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.primary.opacity(0.07)))
+                    Button("Choose…", action: actions.chooseRestoreFile)
+                }
+            }
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Passphrase").font(.system(size: 12, weight: .semibold))
+                SecureField("The passphrase the file was saved with", text: $model.restorePassphrase)
+                    .textFieldStyle(.roundedBorder)
+            }
+            if let error = model.restoreError {
+                Text(error).font(.system(size: 12)).foregroundStyle(Color(StatusMark.amber)).fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("No passphrase, no recovery: nobody can reset it, including us.").font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(size: 13))
+        .disabled(model.restoreBusy)
+    }
+
+    private var explanation: String {
+        if model.strandedSecrets > 0 {
+            let n = model.strandedSecrets == 1 ? "1 secret is" : "\(model.strandedSecrets) secrets are"
+            return "\(n) stored here, but the key that opens them is not in this Mac’s keychain. That happens when files are "
+                + "restored from a backup or moved to a new Mac. A recovery file brings them back."
+        }
+        return "A recovery file saved on your other Mac, and its passphrase, put every secret into a new vault here. "
+            + "Your files on this Mac are not touched."
+    }
+}
+
 struct OnboardingHeadline: View {
     let number: String
     let label: String

@@ -1,11 +1,17 @@
 # Onboarding: a new user, no terminal
 
-Status, 2026-09-18: the engine half is released as jit 1.6.3; phases 2 and
-3 are built on branch `onboarding` (`VaultSetup`, the set-up panel and mark,
-the setup window through to the closing number). Not built yet: the finish
-screen's switches and recovery file (phase 4), the Restore screen, undo from
-the app, the hidden-status-item check. `-previewSetup YES` draws the set-up
-state on a Mac that has a vault. What follows was written as the plan. Section 2 is what the code
+Status, 2026-09-18: built on branch `onboarding`, phases 1 to 4. The engine
+half is released as jit 1.6.3 and pinned. In the app: `VaultSetup`, the
+set-up panel and hollow amber mark, the setup window (Welcome with the
+quick/full/folder choice, Full Disk Access, a streaming cancellable scan,
+results, the live protect checklist), the finish screen (recovery file,
+open at login, notifications, history guard, PATH link, Undo) and the
+Restore screen, reached from Welcome and from a vault whose key is gone.
+Not built: the hidden-status-item check, translocation as a setup screen,
+holding the Update row during setup. Not verified on a fresh macOS account
+yet: every **verify** below still stands. `-previewSetup YES` draws the
+set-up state on a Mac that has a vault; its Protect is real.
+What follows was written as the plan. Section 2 is what the code
 does today; everything marked **verify** is an assumption to test in phase 0
 before any of it is relied on.
 

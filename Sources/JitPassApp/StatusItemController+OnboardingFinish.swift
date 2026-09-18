@@ -142,4 +142,59 @@ extension StatusItemController {
             }
         }
     }
+
+    // MARK: - Restore
+
+    func onboardingShowRestore() {
+        onboarding.restoreError = nil
+        onboarding.strandedSecrets = model.setup == .needsRestore ? (model.cli?.vault?.secretsStored ?? 0) : 0
+        onboarding.step = .restore
+    }
+
+    func onboardingChooseRestoreFile() {
+        let open = NSOpenPanel()
+        open.title = "Choose a recovery file"
+        open.canChooseDirectories = false
+        open.allowsMultipleSelection = false
+        guard open.runModal() == .OK, let url = open.url else {
+            return
+        }
+        onboarding.restoreFile = url.path
+    }
+
+    /// `jit vault init` when this Mac has no key (it never replaces one),
+    /// then `jit vault import <file> --stdin --yes`. The passphrase leaves
+    /// the model the moment the command has it.
+    func onboardingRestore() {
+        guard let file = onboarding.restoreFile, !onboarding.restorePassphrase.isEmpty else {
+            return
+        }
+        let passphrase = onboarding.restorePassphrase
+        let needsKey = model.setup != .ready
+        onboarding.restoreBusy = true
+        onboarding.restoreError = nil
+        Task.detached {
+            var result: Result<String, Error> = needsKey ? JitCLI.execute(["vault", "init"]) : .success("")
+            if case .success = result {
+                result = JitCLI.execute(["vault", "import", file, "--stdin", "--yes"], stdin: passphrase)
+            }
+            let outcome = result
+            await MainActor.run { [weak self] in
+                guard let self else {
+                    return
+                }
+                onboarding.restoreBusy = false
+                onboarding.restorePassphrase = ""
+                switch outcome {
+                case .success:
+                    JitCLI.forgetStatus()
+                    model.cli = JitCLI.status()
+                    render()
+                    onboardingRescanAfterUndo()
+                case let .failure(error):
+                    onboarding.restoreError = Self.describeTools(error)
+                }
+            }
+        }
+    }
 }

@@ -45,6 +45,14 @@ final class OnboardingModel: ObservableObject {
     /// The files this setup rewrote: what Undo restores.
     @Published var migratedFiles: [String] = []
 
+    @Published var restoreFile: String?
+    @Published var restorePassphrase = ""
+    @Published var restoreBusy = false
+    @Published var restoreError: String?
+    /// Secrets stored here that no key opens, when that is why Restore is
+    /// on screen; 0 for someone arriving from another Mac.
+    @Published var strandedSecrets = 0
+
     var protecting: Bool {
         tasks.contains { $0.state == .running }
     }
@@ -88,6 +96,9 @@ struct OnboardingActions {
     var retry: () -> Void = {}
     var notNow: () -> Void = {}
     var openScanReport: () -> Void = {}
+    var showRestore: () -> Void = {}
+    var chooseRestoreFile: () -> Void = {}
+    var restore: () -> Void = {}
     var saveRecovery: () -> Void = {}
     var undo: () -> Void = {}
     var done: () -> Void = {}
