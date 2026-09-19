@@ -44,6 +44,10 @@ extension DoctorAdvice {
                 return "This runs:\n\n\(command)\n\nEvery secret in the file is stored; a secret at the same path "
                     + "is overwritten, its current value archived first. Nothing asks again."
             }
+            if action.argv?.contains(where: { $0.starts(with: ["migrate", "forget"]) }) == true {
+                return "This runs:\n\n\(command)\n\nIt deletes that file and nothing else: no secret, no profile, "
+                    + "no mount. jit refuses if a mount still serves it or the vault holds its group. Nothing asks again."
+            }
             return "This runs:\n\n\(command)\n\nIt deletes for good, and nothing asks again."
         }
         let opens = "This opens the terminal and runs:\n\n\(command)\n\n"

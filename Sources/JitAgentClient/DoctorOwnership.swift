@@ -71,6 +71,21 @@ extension DoctorAdvice {
         // the engine's own advice, says which.
         "profile_missing": { _ in [] },
         "pointer_missing": { item in [setValue("Set Value", item)] },
+        // `jit migrate forget <file>`, titled by what it does rather than
+        // the generic "Run" every unrecognised fix gets. Destructive, so
+        // the app confirms; no Touch ID, because no secret is read.
+        "stale_pointers": { item in
+            (item.fixes ?? []).map { fix in
+                guard fix.argv.starts(with: ["migrate", "forget"]) else {
+                    return generic(fix)
+                }
+                let targets = Array(fix.argv.dropFirst(2))
+                return DoctorAction(
+                    "Delete Record", fix.command, destructive: true,
+                    argv: [["migrate", "forget", "--yes"] + targets]
+                )
+            }
+        },
         // One Attach per config, on the group: see attachActions.
         "config_deleted": { _ in [] },
         "config_not_recorded": { _ in [] },

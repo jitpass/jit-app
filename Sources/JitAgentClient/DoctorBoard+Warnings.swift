@@ -169,6 +169,20 @@ extension BoardContext {
     /// A card per kind for everything the board has no words of its own
     /// for: the kind's title, its note, and doctor's buttons as the window
     /// always offered them; one row per finding when there are several.
+    /// A row's buttons: the finding's own actions, plus Edit where the row
+    /// is ABOUT a file jit wrote and the reader's next move is to look at
+    /// it. Deliberately not on every row with a file — most of those name
+    /// someone else's config, where opening an editor is not the point —
+    /// but a stale pointer record is jit's own text, and deciding whether
+    /// to keep it means reading it.
+    func rowButtons(_ item: DoctorItem) -> [DoctorButton] {
+        var buttons = actionButtons(DoctorAdvice.actions(for: item))
+        if item.kind == "stale_pointers", let file = DoctorAdvice.filePath(item) {
+            buttons.insert(DoctorButton("Edit", .edit(file)), at: 0)
+        }
+        return buttons
+    }
+
     func genericCards(_ items: [DoctorItem], problem: Bool) -> [DoctorCard] {
         DoctorAdvice.groups(items, among: all).map { group in
             let tier = DoctorBoard.tier(of: group.items[0], problem: problem)
@@ -190,7 +204,8 @@ extension BoardContext {
                 card.rows = group.items.map { item in
                     DoctorCardRow(
                         id: item.id, text: DoctorAdvice.rowText(item), mono: DoctorAdvice.rowIsPath(item),
-                        file: DoctorAdvice.filePath(item), buttons: actionButtons(DoctorAdvice.actions(for: item))
+                        file: DoctorAdvice.filePath(item),
+                        buttons: rowButtons(item)
                     )
                 }
             }
