@@ -39,6 +39,9 @@ extension StatusItemController {
         if action.argv == [VaultOrphans.pruneArguments] {
             return pruneOrphansFromDoctor(action, row: row)
         }
+        if let planned = action.planned {
+            return performPlanned(planned, action: action, row: row)
+        }
         if action.destructive, !confirmDestructive(action) {
             return
         }
@@ -87,6 +90,42 @@ extension StatusItemController {
             return
         }
         applyInApp([VaultOrphans.pruneArguments], stdin: nil, action: action, row: row)
+    }
+
+    /// Adopt and Remove Profile: jit's dry run first, then one dialog worded
+    /// from it, then exactly the command that dialog names (adopt runs the
+    /// profile names it listed; rm the one profile). Nothing runs when the
+    /// dry run fails, which is what a jit older than 1.10 does: it has no
+    /// `jit profile`. A plan with nothing to run (already adopted, in use
+    /// after all) rechecks, since the row it came from is out of date.
+    private func performPlanned(_ planned: DoctorAction.Planned, action: DoctorAction, row: String) {
+        let answer: Result<DeleteConfirmation, Error>
+        let unavailable: (String) -> DeleteConfirmation
+        switch planned {
+        case let .adopt(config):
+            answer = JitCLI.profileAdoptPlan(config).map { $0.confirmation() }
+            unavailable = {
+                .profileUnavailable("Can't check what adopting would change", command: "jit profile adopt", reason: $0)
+            }
+        case let .removeProfile(name):
+            answer = JitCLI.profileRmPlan(name).map { $0.confirmation() }
+            unavailable = {
+                .profileUnavailable("Can't check what removing \(name) deletes", command: "jit profile rm", reason: $0)
+            }
+        }
+        let confirmation: DeleteConfirmation = switch answer {
+        case let .success(worded):
+            worded
+        case let .failure(error):
+            unavailable(Self.describe(error))
+        }
+        guard Self.confirmDeletion(confirmation) else {
+            if confirmation.button == nil, case .success = answer {
+                runDoctor(afterAction: true)
+            }
+            return
+        }
+        applyInApp([confirmation.arguments], stdin: nil, action: action, row: row)
     }
 
     /// Nil when the user cancelled; otherwise the placeholder (if any)

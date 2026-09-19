@@ -25,6 +25,21 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     /// commands are recovered from the action's backticks instead; in a
     /// schema 2 report an absent list means the action names none.
     public var fixes: [DoctorFix]?
+    /// The ownership kinds' structured half (jit 1.10: launcher_broken,
+    /// pointer_missing, owner_gone, no_owner, unlaunched). `file` is the
+    /// launcher or pointer file; `config` the MCP config doctor's adopt
+    /// command names, `configs` every config that launches the profile;
+    /// `owners` the recorded owners; `secrets` and `secretsMissing` an
+    /// unlaunched profile's counts; `origin` the file it was made from,
+    /// when that is gone.
+    public var file: String?
+    public var config: String?
+    public var configs: [String]?
+    public var owners: [String]?
+    public var launchers: [DoctorLauncher]?
+    public var secrets: Int?
+    public var secretsMissing: Int?
+    public var origin: String?
     /// How many findings before this one in the same report say exactly
     /// the same thing; never decoded, set by `numbered`. It keeps `id`
     /// unique when doctor repeats a finding word for word.
@@ -32,6 +47,8 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case kind, scope, profile, variable, path, detail, action, groups, profiles, fixes
+        case file, config, configs, owners, launchers, secrets, origin
+        case secretsMissing = "secrets_missing"
     }
 
     /// Unique within a report and the same across a recheck that finds the
@@ -155,6 +172,42 @@ public struct DoctorFix: Codable, Sendable, Equatable {
         presence = try box.decodeIfPresent(Bool.self, forKey: .presence) ?? false
         let needs = try box.decodeIfPresent(String.self, forKey: .needs)
         self.needs = needs?.isEmpty == true ? nil : needs
+    }
+}
+
+/// One thing that starts a profile or reads a secret, as the engine's
+/// launcher map names it (jitpass/jit internal/launchers): its kind (mcp,
+/// aws, kube, wrap, mount, shellrc, helper), the file, and the place inside
+/// it ("[profile dev]", an MCP server's name, a line).
+public struct DoctorLauncher: Codable, Sendable, Equatable {
+    public var kind: String
+    public var file: String
+    public var detail: String?
+    public var profile: String?
+    public var vaultPath: String?
+    /// Which `jit run` layer of a nested MCP entry; 0 is the outer one.
+    public var layer: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case kind, file, detail, profile, layer
+        case vaultPath = "vault_path"
+    }
+
+    public init(kind: String, file: String, detail: String? = nil, profile: String? = nil) {
+        self.kind = kind
+        self.file = file
+        self.detail = detail
+        self.profile = profile
+    }
+
+    public init(from decoder: Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try box.decodeIfPresent(String.self, forKey: .kind) ?? ""
+        file = try box.decodeIfPresent(String.self, forKey: .file) ?? ""
+        detail = try box.decodeIfPresent(String.self, forKey: .detail).flatMap { $0.isEmpty ? nil : $0 }
+        profile = try box.decodeIfPresent(String.self, forKey: .profile).flatMap { $0.isEmpty ? nil : $0 }
+        vaultPath = try box.decodeIfPresent(String.self, forKey: .vaultPath).flatMap { $0.isEmpty ? nil : $0 }
+        layer = try box.decodeIfPresent(Int.self, forKey: .layer)
     }
 }
 

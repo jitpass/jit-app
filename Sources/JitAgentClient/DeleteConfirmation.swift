@@ -24,14 +24,21 @@ public struct DeleteConfirmation: Equatable, Sendable {
     /// The exact secrets it deletes: the dry run's expansion, never a group
     /// name that could have grown since.
     public var paths: [String]
+    /// False for the one confirmation of this shape that deletes nothing
+    /// (`jit profile adopt`): an informational dialog, not a warning.
+    public var destructive: Bool
 
-    public init(title: String, message: String, button: String?, breaks: Bool, arguments: [String], paths: [String] = []) {
+    public init(
+        title: String, message: String, button: String?, breaks: Bool, arguments: [String], paths: [String] = [],
+        destructive: Bool = true
+    ) {
         self.title = title
         self.message = message
         self.button = button
         self.breaks = breaks
         self.arguments = arguments
         self.paths = paths
+        self.destructive = destructive
     }
 }
 
