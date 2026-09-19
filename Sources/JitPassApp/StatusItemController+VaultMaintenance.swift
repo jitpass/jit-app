@@ -23,29 +23,58 @@ extension StatusItemController {
     }
 
     /// `jit vault orphans --prune --yes` after a dialog listing every path
-    /// it deletes and every stale mount it clears.
+    /// it deletes and every stale mount it clears, as jit lists them right
+    /// before the dialog: the sheet's list can be as old as the sheet. The
+    /// listing is prompt-free and quick, so it runs here, synchronously.
     func pruneOrphans() {
-        guard let orphans = model.vaultOrphans, !orphans.isEmpty else {
+        guard model.vaultBusy == nil else {
             return
         }
-        var lines = orphans.orphans.map(\.path)
-        lines += orphans.staleMounts.map { "mount registration " + Format.home($0.mountPath) }
-        let alert = NSAlert()
-        alert.messageText = "Prune \(orphans.orphans.count) orphaned secret\(orphans.orphans.count == 1 ? "" : "s")?"
-        alert.informativeText = "This runs:\n\njit vault orphans --prune --yes\n\nIt deletes for good:\n"
-            + lines.joined(separator: "\n")
-            + "\n\nA secret used only by a project you are not in and have not mounted looks orphaned too; "
-            + "check the origins first. Nothing asks again. Touch ID follows."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Prune")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runFrontmost() == .alertFirstButtonReturn else {
+        let fresh: VaultOrphans
+        do {
+            fresh = try JitCLI.vaultOrphans()
+        } catch {
+            model.vaultMessage = Format.error(error)
             return
         }
-        runVault("orphans", work: { JitCLI.execute(["vault", "orphans", "--prune", "--yes"]) }, then: { [weak self] _ in
-            self?.notice("orphans pruned")
+        model.vaultOrphans = fresh
+        guard Self.confirmDeletion(fresh.pruneConfirmation()) else {
+            return
+        }
+        runVault("orphans", work: { JitCLI.execute(VaultOrphans.pruneArguments) }, then: { [weak self] output in
+            self?.notice(Self.lastLine(output, or: "orphans pruned"))
             self?.loadOrphans()
         })
+    }
+
+    /// A deletion's dialog. The delete button comes first and is the
+    /// default, except for a break-profiles delete: there no button takes
+    /// Return, so Return never breaks a profile, and Cancel keeps Escape.
+    /// With no button it only informs.
+    static func confirmDeletion(_ confirmation: DeleteConfirmation) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = confirmation.title
+        alert.informativeText = confirmation.message
+        alert.alertStyle = confirmation.button == nil ? .informational : .warning
+        guard let button = confirmation.button else {
+            alert.addButton(withTitle: "OK")
+            alert.runFrontmost()
+            return false
+        }
+        let delete = alert.addButton(withTitle: button)
+        let cancel = alert.addButton(withTitle: "Cancel")
+        if confirmation.breaks {
+            delete.hasDestructiveAction = true
+            delete.keyEquivalent = ""
+            cancel.keyEquivalent = "\u{1b}"
+        }
+        return alert.runFrontmost() == .alertFirstButtonReturn
+    }
+
+    /// jit's closing line ("Deleted 3 orphaned secrets."), for the notice.
+    nonisolated static func lastLine(_ output: String, or fallback: String) -> String {
+        let line = output.split(separator: "\n").last.map(String.init)?.trimmingCharacters(in: .whitespaces) ?? ""
+        return line.isEmpty ? fallback : line
     }
 
     /// `jit vault prune --yes`: every migrate backup but the newest per
@@ -165,34 +194,48 @@ extension StatusItemController {
         }
         runVault("duplicates", refresh: false, work: { JitCLI.vaultDuplicates() }, then: { [weak self] report in
             self?.model.vaultDuplicates = report
+            self?.model.vaultDuplicatesAt = Date()
             self?.model.vaultSheet = .duplicates
         })
     }
 
+    /// How old a comparison may be and still word the prune's dialog.
+    /// Comparing again costs the unlock and a Touch ID per class, so a
+    /// comparison the user has just run counts as fresh; one read while the
+    /// sheet sat open for longer is run again first.
+    static let duplicatesFreshFor: TimeInterval = 60
+
     /// `jit vault duplicates --prune --yes`: the stale copies whose origin
-    /// is gone and which nothing references, named in the dialog. The
-    /// same Touch IDs again: pruning re-reads the values to be sure.
+    /// is gone and which nothing uses, named in the dialog from a
+    /// comparison at most `duplicatesFreshFor` old (run again first when
+    /// older). The same Touch IDs again: pruning re-reads the values.
     func pruneDuplicates() {
-        guard let report = model.vaultDuplicates, !report.prunablePaths.isEmpty else {
+        guard model.vaultDuplicates != nil, model.vaultBusy == nil else {
             return
         }
-        let paths = report.prunablePaths
-        let alert = NSAlert()
-        alert.messageText = "Prune \(paths.count) stale secret\(paths.count == 1 ? "" : "s")?"
-        alert.informativeText = "This runs:\n\njit vault duplicates --prune --yes\n\nIt deletes for good:\n"
-            + paths.joined(separator: "\n")
-            + "\n\nEvery other finding keeps its printed command. Nothing asks again. Touch ID follows, once per class again."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "Prune")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runFrontmost() == .alertFirstButtonReturn else {
+        let age = model.vaultDuplicatesAt.map { Date().timeIntervalSince($0) } ?? .infinity
+        if age < Self.duplicatesFreshFor, let report = model.vaultDuplicates {
+            return confirmPruneDuplicates(report)
+        }
+        runVault("duplicates", refresh: false, work: { JitCLI.vaultDuplicates() }, then: { [weak self] report in
+            self?.model.vaultDuplicates = report
+            self?.model.vaultDuplicatesAt = Date()
+            self?.confirmPruneDuplicates(report)
+        })
+    }
+
+    private func confirmPruneDuplicates(_ report: VaultDuplicates) {
+        guard Self.confirmDeletion(report.pruneConfirmation()) else {
             return
         }
-        runVault("duplicates", work: { JitCLI.execute(["vault", "duplicates", "--prune", "--yes"]) }, then: { [weak self] _ in
+        let count = report.prunablePaths.count
+        runVault("duplicates", work: { JitCLI.execute(VaultDuplicates.pruneArguments) }, then: { [weak self] output in
             self?.model.vaultDuplicates = nil
+            self?.model.vaultDuplicatesAt = nil
             self?.model.vaultSheet = nil
             self?.model.scanStale = true
-            self?.notice("\(paths.count) stale secret\(paths.count == 1 ? "" : "s") pruned")
+            let deleted = output.split(separator: "\n").last { $0.hasPrefix("Deleted ") }.map(String.init)
+            self?.notice(deleted ?? "\(count) stale secret\(count == 1 ? "" : "s") pruned")
         })
     }
 }

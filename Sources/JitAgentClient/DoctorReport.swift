@@ -15,13 +15,23 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     public var path: String?
     public var detail: String?
     public var action: String?
+    /// origin_gone's structured half (schema 2): every vault group born
+    /// from the gone file, and every profile that still names one of their
+    /// secrets.
+    public var groups: [String]?
+    public var profiles: [String]?
+    /// The action's commands as data (schema 2): argv, and whether each
+    /// deletes something or asks for Touch ID. Nil from an older jit, whose
+    /// commands are recovered from the action's backticks instead; in a
+    /// schema 2 report an absent list means the action names none.
+    public var fixes: [DoctorFix]?
     /// How many findings before this one in the same report say exactly
     /// the same thing; never decoded, set by `numbered`. It keeps `id`
     /// unique when doctor repeats a finding word for word.
     var occurrence = 0
 
     enum CodingKeys: String, CodingKey {
-        case kind, scope, profile, variable, path, detail, action
+        case kind, scope, profile, variable, path, detail, action, groups, profiles, fixes
     }
 
     /// Unique within a report and the same across a recheck that finds the
@@ -64,9 +74,13 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
         commands.first
     }
 
-    /// Every backticked command in the action, in order: doctor often
-    /// offers two ("prune clears it, or unmount this one").
+    /// Every command in the action, in order: doctor often offers two
+    /// ("prune clears it, or unmount this one"). The engine's own `fixes`
+    /// when the report has them, else the backticked spans.
     public var commands: [String] {
+        if let fixes {
+            return fixes.map(\.command).filter { !$0.isEmpty }
+        }
         guard let action else {
             return []
         }
@@ -102,6 +116,48 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// One command from a finding's action, as the engine classifies it
+/// (jitpass/jit internal/cli/doctorfixes.go). `argv` omits a jit command's
+/// leading "jit"; an `external` one (brew, sudo, a shell append) starts
+/// with its program and may hold shell syntax, so it is shown or run in a
+/// shell, never exec'd.
+public struct DoctorFix: Codable, Sendable, Equatable {
+    public var command: String
+    public var argv: [String]
+    public var external: Bool
+    /// Running it deletes something or takes a protection away. Absent
+    /// counts as true: a fix the engine did not classify is destructive.
+    public var destructive: Bool
+    /// It asks for a fresh Touch ID or passcode itself.
+    public var presence: Bool
+    /// The placeholder the caller fills before it runs (`<file>`), as it
+    /// appears in `argv`; nil when the command is complete.
+    public var needs: String?
+
+    public init(
+        command: String, argv: [String] = [], external: Bool = false, destructive: Bool = true,
+        presence: Bool = false, needs: String? = nil
+    ) {
+        self.command = command
+        self.argv = argv
+        self.external = external
+        self.destructive = destructive
+        self.presence = presence
+        self.needs = needs
+    }
+
+    public init(from decoder: Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        command = try box.decodeIfPresent(String.self, forKey: .command) ?? ""
+        argv = try box.decodeIfPresent([String].self, forKey: .argv) ?? []
+        external = try box.decodeIfPresent(Bool.self, forKey: .external) ?? false
+        destructive = try box.decodeIfPresent(Bool.self, forKey: .destructive) ?? true
+        presence = try box.decodeIfPresent(Bool.self, forKey: .presence) ?? false
+        let needs = try box.decodeIfPresent(String.self, forKey: .needs)
+        self.needs = needs?.isEmpty == true ? nil : needs
+    }
+}
+
 public struct DoctorTool: Codable, Sendable, Equatable {
     public var version: String
     public var build: String?
@@ -109,6 +165,9 @@ public struct DoctorTool: Codable, Sendable, Equatable {
 }
 
 public struct DoctorReport: Codable, Sendable, Equatable {
+    /// 1 or absent from a jit before 1.9; 2 adds `fixes`, `groups` and
+    /// `profiles`.
+    public var schemaVersion: Int?
     public var ok: Bool
     public var tool: DoctorTool?
     public var profilesChecked: Int?
@@ -118,6 +177,7 @@ public struct DoctorReport: Codable, Sendable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case ok, tool, problems, warnings
+        case schemaVersion = "schema_version"
         case profilesChecked = "profiles_checked"
         case secretsChecked = "secrets_checked"
     }
@@ -128,8 +188,24 @@ public struct DoctorReport: Codable, Sendable, Equatable {
         tool = try container.decodeIfPresent(DoctorTool.self, forKey: .tool)
         profilesChecked = try container.decodeIfPresent(Int.self, forKey: .profilesChecked)
         secretsChecked = try container.decodeIfPresent(Int.self, forKey: .secretsChecked)
-        problems = try DoctorItem.numbered(container.decodeIfPresent([DoctorItem].self, forKey: .problems) ?? [])
-        warnings = try DoctorItem.numbered(container.decodeIfPresent([DoctorItem].self, forKey: .warnings) ?? [])
+        schemaVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion)
+        let structured = (schemaVersion ?? 1) >= 2
+        problems = try Self.prepared(container.decodeIfPresent([DoctorItem].self, forKey: .problems) ?? [], structured)
+        warnings = try Self.prepared(container.decodeIfPresent([DoctorItem].self, forKey: .warnings) ?? [], structured)
+    }
+
+    /// Numbered; and in a schema 2 report, a finding without `fixes` gets
+    /// an empty list, because there the engine fills them for every action
+    /// that names a command: re-parsing backticks would resurrect exactly
+    /// the commands it chose not to offer (origin_gone's note).
+    private static func prepared(_ items: [DoctorItem], _ structured: Bool) -> [DoctorItem] {
+        DoctorItem.numbered(items).map { item in
+            var item = item
+            if structured, item.fixes == nil {
+                item.fixes = []
+            }
+            return item
+        }
     }
 
     /// Profile name to a one-line reason it cannot be granted.

@@ -36,6 +36,9 @@ extension StatusItemController {
         guard doctorIdle else {
             return
         }
+        if action.argv == [VaultOrphans.pruneArguments] {
+            return pruneOrphansFromDoctor(action, row: row)
+        }
         if action.destructive, !confirmDestructive(action) {
             return
         }
@@ -63,6 +66,27 @@ extension StatusItemController {
             arguments.map { placeholder != nil && $0 == placeholder ? path : $0 }
         }
         applyInApp(filled, stdin: stdin, action: action, row: row)
+    }
+
+    /// Delete All on the orphans: the dialog names what `jit vault orphans`
+    /// lists now, not what a report up to doctorTTL old said. Prompt-free
+    /// and quick, so it runs here, immediately before the dialog.
+    private func pruneOrphansFromDoctor(_ action: DoctorAction, row: String) {
+        let fresh: VaultOrphans
+        do {
+            fresh = try JitCLI.vaultOrphans()
+        } catch {
+            model.doctorMessage = "jit vault orphans: \(Self.describe(error))"
+            return
+        }
+        let confirmation = fresh.pruneConfirmation()
+        guard Self.confirmDeletion(confirmation) else {
+            if confirmation.button == nil {
+                runDoctor(afterAction: true)
+            }
+            return
+        }
+        applyInApp([VaultOrphans.pruneArguments], stdin: nil, action: action, row: row)
     }
 
     /// Nil when the user cancelled; otherwise the placeholder (if any)

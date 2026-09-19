@@ -79,6 +79,9 @@ final class MenuModel: ObservableObject {
     @Published var vaultOrphans: VaultOrphans?
     /// The last `jit vault duplicates` comparison, while its sheet is open.
     @Published var vaultDuplicates: VaultDuplicates?
+    /// When `vaultDuplicates` was read: a prune's dialog words itself from
+    /// a comparison this recent, or runs one again first.
+    var vaultDuplicatesAt: Date?
     /// The path (or action) a vault command is running for; one at a time,
     /// because most of them put a Touch ID prompt on screen.
     @Published var vaultBusy: String?
