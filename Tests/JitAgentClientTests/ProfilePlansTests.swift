@@ -6,9 +6,7 @@ import XCTest
 
 /// `jit profile attach --dry-run` and `jit profile rm --dry-run` (jit 2.0),
 /// and the one dialog the app words from each before it runs anything.
-/// Fixtures are real output of jit main, home renamed to /Users/me; that
-/// build said `profile adopt`, owner_gone and no_owner, renamed here to
-/// what 2.0 ships.
+/// Fixtures are real output of jit 2.0.0, home renamed to /Users/me.
 final class ProfilePlansTests: XCTestCase {
     private let home = "/Users/me"
 
@@ -20,10 +18,10 @@ final class ProfilePlansTests: XCTestCase {
     {"name":"mcp-jamf","status":"config_deleted","owners":["/Users/me/Documents/ai_security_workspace/.mcp.json"],
     "adds":["/Users/me/Security-Ops/.mcp.json"]},{"name":"mcp-okta","status":"config_deleted",
     "owners":["/Users/me/Documents/ai_security_workspace/.mcp.json"],"adds":["/Users/me/Security-Ops/.mcp.json"]},
-    {"name":"mcp-okta-mcp-server","status":"config_deleted",
-    "owners":["/Users/me/Documents/ai_security_workspace/.mcp.json"],"adds":["/Users/me/Security-Ops/.mcp.json"]},
-    {"name":"mcp-google-workspace","status":"no_config","owners":[],"adds":["/Users/me/Security-Ops/.mcp.json"]},
-    {"name":"mcp-urlscan","status":"no_config","owners":[],"adds":["/Users/me/Security-Ops/.mcp.json"]}]}
+    {"name":"mcp-okta-mcp-server","status":"config_deleted","owners":["/Users/me/Documents/ai_security_workspace/.mcp.json"],
+    "adds":["/Users/me/Security-Ops/.mcp.json"]},{"name":"mcp-google-workspace","status":"no_config","owners":[],
+    "adds":["/Users/me/Security-Ops/.mcp.json"]},{"name":"mcp-urlscan","status":"no_config","owners":[],
+    "adds":["/Users/me/Security-Ops/.mcp.json"]}]}
     """#
 
     private let tokenJSON = #"""
@@ -33,15 +31,14 @@ final class ProfilePlansTests: XCTestCase {
 
     private let oktaJSON = #"""
     {"profile":"mcp-okta","scope":"global","launchers":[{"kind":"mcp","file":"/Users/me/Security-Ops/.mcp.json",
-    "detail":"okta-mcp-server","profile":"mcp-okta","layer":1}],"delete_secrets":["mcp-okta/OKTA_CLIENT_ID",
-    "mcp-okta/OKTA_KEY_ID","mcp-okta/OKTA_PRIVATE_KEY"],"keep_secrets":[],"missing_secrets":[],"coverage_complete":true,
-    "refused":true}
+    "detail":"okta-mcp-server","profile":"mcp-okta","layer":1}],"delete_secrets":["mcp-okta/OKTA_CLIENT_ID","mcp-okta/OKTA_KEY_ID",
+    "mcp-okta/OKTA_PRIVATE_KEY"],"keep_secrets":[],"missing_secrets":[],"coverage_complete":true,"refused":true}
     """#
 
     private let k8sJSON = #"""
     {"profile":"k8s-docker-desktop","scope":"global","launchers":[],"delete_secrets":[],"keep_secrets":[],
-    "missing_secrets":["k8s-docker-desktop/CLIENT_CERTIFICATE_DATA","k8s-docker-desktop/CLIENT_KEY_DATA"],
-    "coverage_complete":true,"refused":false}
+    "missing_secrets":["k8s-docker-desktop/CLIENT_CERTIFICATE_DATA","k8s-docker-desktop/CLIENT_KEY_DATA"],"coverage_complete":true,
+    "refused":false}
     """#
 
     // MARK: - attach
@@ -62,12 +59,15 @@ final class ProfilePlansTests: XCTestCase {
     /// A pre-release jit 2.0 said owner_gone, no_owner and owned_elsewhere:
     /// they read as the new statuses, so the dialog words them the same.
     func testOldStatusesDecodeAsTheNewOnes() throws {
-        let old = attachJSON.replacingOccurrences(of: "\"config_deleted\"", with: "\"owner_gone\"")
-            .replacingOccurrences(of: "\"no_config\"", with: "\"no_owner\"")
-        XCTAssertFalse(old.contains("config_deleted") || old.contains("no_config"), "the fixture is the old shape")
-        XCTAssertEqual(try ProfileAttachPlan.parse(Data(old.utf8)), try ProfileAttachPlan.parse(Data(attachJSON.utf8)))
-        let elsewhere = try ProfileAttachPlan.parse(Data(#"{"config":"/c","profiles":[{"name":"q","status":"owned_elsewhere"}]}"#.utf8))
-        XCTAssertEqual(elsewhere.profiles.map(\.status), ["recorded_elsewhere"])
+        let old = #"""
+        {"config":"/c","profiles":[{"name":"a","status":"owner_gone","owners":["/gone"],"adds":["/c"]},
+        {"name":"b","status":"no_owner","owners":[],"adds":["/c"]},{"name":"q","status":"owned_elsewhere","owners":["/d"]}]}
+        """#
+        let plan = try ProfileAttachPlan.parse(Data(old.utf8))
+        XCTAssertEqual(plan.profiles.map(\.status), ["config_deleted", "no_config", "recorded_elsewhere"])
+        XCTAssertEqual(plan.profiles.first, ProfileAttachCandidate(name: "a", status: "config_deleted", owners: ["/gone"], adds: ["/c"]))
+        let dialog = plan.confirmation(home: home) { _ in false }
+        XCTAssertTrue(dialog.message.contains("• a · records a deleted config\n• b · records no config\n"), dialog.message)
     }
 
     func testAttachConfirmationListsEveryProfileAndRunsExactlyThose() throws {
