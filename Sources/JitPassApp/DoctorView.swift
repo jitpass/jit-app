@@ -112,25 +112,41 @@ struct DoctorView: View {
                 Text("\(count)").font(.system(size: 12)).foregroundStyle(.secondary)
             }
             Spacer()
-            if let action = group.groupAction {
+            if !group.groupActions.isEmpty {
                 if model.doctorBusy == groupRow(group) {
                     working
                 } else {
-                    Button(action.title) { actions.perform(action, groupRow(group)) }.controlSize(.small).disabled(!idle)
+                    ForEach(group.groupActions, id: \.command) { action in
+                        Button(action.title) { actions.perform(action, groupRow(group)) }
+                            .controlSize(.small).disabled(!idle).help(action.command)
+                    }
                 }
             }
         }
     }
 
-    /// A group with one row per finding.
+    /// A group with one row per finding. The facts every row shares
+    /// follow the note, one line each, a long path shortened in its middle
+    /// rather than wrapped; a run's note (a missing profile's advice)
+    /// follows its rows, once.
     private func plainGroup(_ group: DoctorGroup) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             groupHeader(group, count: group.items.count > 1 ? group.items.count : nil)
             if let note = group.note {
                 Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            ForEach(group.items) { item in
-                row(item)
+            ForEach(group.facts, id: \.self) { fact in
+                Text(fact.text).font(.system(size: 11)).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle).help(fact.path.map(Format.home) ?? "")
+                    .fileMenu(fact.path)
+            }
+            ForEach(group.runs) { run in
+                ForEach(run.items) { item in
+                    row(item, in: group)
+                }
+                if let note = run.note {
+                    Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -161,17 +177,22 @@ struct DoctorView: View {
         }
     }
 
-    private func row(_ item: DoctorItem) -> some View {
+    /// One finding. A row that names a file has Show in Finder and Copy
+    /// Path on right-click, never on a click: a mis-click must not open an
+    /// editor on a file that may hold plaintext (a .env.bak).
+    private func row(_ item: DoctorItem, in group: DoctorGroup) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             if DoctorAdvice.rowIsPath(item) {
-                Text(DoctorAdvice.rowText(item)).font(.system(size: 12, design: .monospaced))
+                Text(group.rowText(item)).font(.system(size: 12, design: .monospaced))
                     .lineLimit(1).truncationMode(.head)
             } else {
-                Text(DoctorAdvice.rowText(item)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+                Text(group.rowText(item)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             buttons(DoctorAdvice.actions(for: item), row: item.id)
         }
+        .contentShape(Rectangle())
+        .fileMenu(DoctorAdvice.filePath(item))
     }
 
     /// A row's buttons, or in their place, while its action runs and until
@@ -205,6 +226,28 @@ struct DoctorView: View {
     /// The busy key for a group's own buttons, apart from any row's id.
     private func groupRow(_ group: DoctorGroup) -> String {
         "group:\(group.kind)"
+    }
+}
+
+private extension View {
+    /// Right-click on a view that names a file: Show in Finder (selects it,
+    /// never opens it; disabled when it is gone) and Copy Path.
+    @ViewBuilder
+    func fileMenu(_ path: String?) -> some View {
+        if let path {
+            contextMenu {
+                Button("Show in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                }
+                .disabled(!FileManager.default.fileExists(atPath: path))
+                Button("Copy Path") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(path, forType: .string)
+                }
+            }
+        } else {
+            self
+        }
     }
 }
 

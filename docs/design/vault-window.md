@@ -170,8 +170,8 @@ runs with the stamp. No `--yes` exists on restore and none is needed.
 json <paths>` (jit 1.9+, prompt-free), then one alert worded from it: the
 exact paths it will remove and, from the engine's strict collector (every
 project store under ~, every mount, every pointer file, not the listing's
-`used_by`), each profile or pointer file still using them, with its
-launchers and what stops starting. Nothing in use: "Delete", running
+`used_by`), each profile or pointer file still using them, with the
+tools that use it and what stops starting. Nothing in use: "Delete", running
 `rm --yes <paths>`. In use, or jit can't tell: a different button, "Delete
 and Break <profile>" (or "Delete Anyway"), running `rm --break-profiles
 --yes <paths>`, with Cancel the default. A dry run that fails (a jit older

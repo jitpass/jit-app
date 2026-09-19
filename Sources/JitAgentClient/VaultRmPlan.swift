@@ -70,8 +70,11 @@ public struct VaultRmPlan: Decodable, Sendable, Equatable {
                 if !known.paths.contains(use.path) {
                     known.paths.append(use.path)
                 }
-                for launcher in use.launchedBy where !known.launchedBy.contains(launcher) {
-                    known.launchedBy.append(launcher)
+                for config in use.launchedBy where !known.launchedBy.contains(config) {
+                    known.launchedBy.append(config)
+                }
+                for tool in use.tools where !known.tools.contains(tool) {
+                    known.tools.append(tool)
                 }
                 byKey[user.key] = known
             } else {
@@ -82,8 +85,8 @@ public struct VaultRmPlan: Decodable, Sendable, Equatable {
     }
 }
 
-/// One `in_use` row: a profile (with its store, project, mount and known
-/// launchers) or a pointer file, and the path it uses.
+/// One `in_use` row: a profile (with its store, project, mount and the
+/// tools known to use it) or a pointer file, and the path it uses.
 public struct VaultRmUse: Decodable, Sendable, Equatable {
     public var path: String
     public var profile: String?
@@ -91,17 +94,21 @@ public struct VaultRmUse: Decodable, Sendable, Equatable {
     public var project: String?
     public var mount: String?
     public var pointerFile: String?
+    /// The configs that start the profile's tools (jit 1.9+).
     public var launchedBy: [String]
+    /// The tools themselves, by name and config (jit 2.0+); empty from an
+    /// older jit, which the dialog then words from `launchedBy`.
+    public var tools: [VaultRmTool]
 
     enum CodingKeys: String, CodingKey {
-        case path, profile, scope, project, mount
+        case path, profile, scope, project, mount, tools
         case pointerFile = "pointer_file"
         case launchedBy = "launched_by"
     }
 
     public init(
         path: String, profile: String? = nil, scope: String? = nil, project: String? = nil,
-        mount: String? = nil, pointerFile: String? = nil, launchedBy: [String] = []
+        mount: String? = nil, pointerFile: String? = nil, launchedBy: [String] = [], tools: [VaultRmTool] = []
     ) {
         self.path = path
         self.profile = profile
@@ -110,6 +117,7 @@ public struct VaultRmUse: Decodable, Sendable, Equatable {
         self.mount = mount
         self.pointerFile = pointerFile
         self.launchedBy = launchedBy
+        self.tools = tools
     }
 
     public init(from decoder: Decoder) throws {
@@ -121,6 +129,29 @@ public struct VaultRmUse: Decodable, Sendable, Equatable {
         mount = try box.decodeIfPresent(String.self, forKey: .mount).flatMap { $0.isEmpty ? nil : $0 }
         pointerFile = try box.decodeIfPresent(String.self, forKey: .pointerFile).flatMap { $0.isEmpty ? nil : $0 }
         launchedBy = try box.decodeIfPresent([String].self, forKey: .launchedBy) ?? []
+        tools = try box.decodeIfPresent([VaultRmTool].self, forKey: .tools) ?? []
+    }
+}
+
+/// A tool that uses a profile: an MCP server's name, and the config that
+/// starts it.
+public struct VaultRmTool: Decodable, Sendable, Equatable {
+    public var name: String
+    public var config: String
+
+    public init(name: String, config: String) {
+        self.name = name
+        self.config = config
+    }
+
+    public init(from decoder: Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        name = try box.decodeIfPresent(String.self, forKey: .name) ?? ""
+        config = try box.decodeIfPresent(String.self, forKey: .config) ?? ""
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case name, config
     }
 }
 
@@ -133,6 +164,7 @@ public struct VaultRmUser: Sendable, Equatable {
     public var mount: String?
     public var pointerFile: String?
     public var launchedBy: [String]
+    public var tools: [VaultRmTool]
     public var paths: [String]
 
     init(_ use: VaultRmUse) {
@@ -142,6 +174,7 @@ public struct VaultRmUser: Sendable, Equatable {
         mount = use.mount
         pointerFile = use.pointerFile
         launchedBy = use.launchedBy
+        tools = use.tools
         paths = [use.path]
     }
 

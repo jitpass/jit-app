@@ -138,6 +138,18 @@ extension StatusItemController {
 
     // MARK: - Protect
 
+    /// A Protect command as the dialog shows it. Past a few files the
+    /// migrate line lists them one per line under it, where on the line
+    /// they wrapped mid-path; what runs is the command, every file in it.
+    static func shownCommand(_ command: [String]) -> String {
+        guard command.first == "migrate", command.last == "--yes" else {
+            return "jit " + command.map(Format.home).joined(separator: " ")
+        }
+        return CommandText.shown(
+            ["migrate", "--yes"], names: command.dropFirst().dropLast().map(Format.home), noun: ("file", "files"), listedAbove: false
+        )
+    }
+
     /// The scan window's Protect, in-app: one `jit migrate a b c --yes`
     /// for every file (one plan, one Touch ID), then `jit wrap <tool>` for
     /// each wrap finding, after a dialog that names the commands. The
@@ -164,7 +176,7 @@ extension StatusItemController {
         for tool in plan.wrap {
             commands.append(["wrap", tool])
         }
-        let shown = commands.map { "jit " + $0.map(Format.home).joined(separator: " ") }.joined(separator: "\n")
+        let shown = commands.map(Self.shownCommand).joined(separator: "\n")
         let alert = NSAlert()
         alert.messageText = plan.count == 1
             ? "Protect \(plan.migrate.first.map(Format.home) ?? plan.wrap.first ?? "")?"

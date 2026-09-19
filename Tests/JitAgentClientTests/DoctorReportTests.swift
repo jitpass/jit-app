@@ -109,10 +109,10 @@ final class DoctorAdviceTests: XCTestCase {
         XCTAssertEqual(one.first?.command, "jit unmount /a/.env")
         XCTAssertFalse(one.first?.destructive ?? true)
         let group = DoctorAdvice.groups([first, second])[0]
-        XCTAssertEqual(group.groupAction?.title, "Unmount All")
-        XCTAssertNil(group.groupAction?.argv)
-        XCTAssertEqual(group.groupAction?.command, "jit unmount /a/.env\njit unmount /b/.env", "one y/N per mount")
-        XCTAssertNil(DoctorAdvice.groups([first])[0].groupAction, "one mount needs no group button")
+        XCTAssertEqual(group.groupActions.first?.title, "Unmount All")
+        XCTAssertNil(group.groupActions.first?.argv)
+        XCTAssertEqual(group.groupActions.first?.command, "jit unmount /a/.env\njit unmount /b/.env", "one y/N per mount")
+        XCTAssertNil(DoctorAdvice.groups([first])[0].groupActions.first, "one mount needs no group button")
         XCTAssertEqual(DoctorAdvice.unmountCommand("/a b/.env"), "jit unmount '/a b/.env'", "the shell must see one path")
     }
 
@@ -123,7 +123,7 @@ final class DoctorAdviceTests: XCTestCase {
         let rm = item("origin_gone", action: "nothing, if you still use these: `jit vault rm k8s` if the project is gone")
         XCTAssertEqual(DoctorAdvice.actions(for: rm), [])
         XCTAssertEqual(DoctorAdvice.groups([rm]).first?.title, "Origin files gone", "the row still shows")
-        XCTAssertNil(DoctorAdvice.groups([rm]).first?.groupAction)
+        XCTAssertNil(DoctorAdvice.groups([rm]).first?.groupActions.first)
     }
 
     func testDestructiveCommandsAreMarked() {
@@ -272,7 +272,7 @@ extension DoctorAdviceTests {
             item("new_kind", action: "`brew uninstall jitpass`, or `brew uninstall --cask jitpass/tap/jitpass`"),
             item("service", action: "`brew uninstall jitpass` then `jit service restart`")
         ]
-        let all = samples.flatMap(DoctorAdvice.actions(for:)) + DoctorAdvice.groups(samples).compactMap(\.groupAction)
+        let all = samples.flatMap(DoctorAdvice.actions(for:)) + DoctorAdvice.groups(samples).flatMap(\.groupActions)
         XCTAssertFalse(all.isEmpty)
         for action in all {
             XCTAssertFalse(action.command.contains("brew uninstall"), "\(action.title) runs \(action.command)")
