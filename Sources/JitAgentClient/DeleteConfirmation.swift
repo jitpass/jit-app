@@ -25,7 +25,7 @@ public struct DeleteConfirmation: Equatable, Sendable {
     /// name that could have grown since.
     public var paths: [String]
     /// False for the one confirmation of this shape that deletes nothing
-    /// (`jit profile adopt`): an informational dialog, not a warning.
+    /// (`jit profile attach`): an informational dialog, not a warning.
     public var destructive: Bool
 
     public init(
@@ -128,7 +128,7 @@ public extension VaultRmPlan {
         }
         if let error {
             parts.append("jit can't tell whether \(paths.count == 1 ? "it is" : "they are") in use: \(error). "
-                + "If a profile or pointer file still names \(pronoun), what it starts won't start afterwards.")
+                + "If a profile or pointer file still names \(pronoun), the tool that uses it won't start afterwards.")
         } else if users.isEmpty {
             parts.append("jit would refuse this delete without --break-profiles.")
         }
@@ -150,15 +150,18 @@ public extension VaultRmPlan {
         )
     }
 
-    /// One user as a bullet, then its launchers and mount, the way
-    /// `jit vault rm` prints them.
+    /// One user as a bullet, then the tools that use it and its mount,
+    /// the way `jit vault rm` prints them: each tool by name and config
+    /// when jit names them (2.0+), else the configs that start them.
     private static func describe(_ user: VaultRmUser, total: Int, home: String) -> String {
         let what = usesWhat(user.paths, total: total)
         if let pointer = user.pointerFile {
             return "• \(short(pointer, home)) points at \(what) (jit://)"
         }
         var lines = ["• profile \(user.profile ?? "?") (\(scopeLabel(user, home))) uses \(what)"]
-        lines += user.launchedBy.map { "   launched by \(short($0, home))" }
+        lines += user.tools.isEmpty
+            ? user.launchedBy.map { "   started by \(short($0, home))" }
+            : user.tools.map { "   tool \($0.name) in \(short($0.config, home))" }
         if let mount = user.mount {
             lines.append("   served by the mount at \(short(mount, home))")
         }
@@ -166,23 +169,29 @@ public extension VaultRmPlan {
     }
 
     /// What breaks, per kind of user: the profiles won't start (and the
-    /// launchers that start them fail), a pointer file stops resolving, a
-    /// mount serves nothing.
+    /// tools that use them fail), a pointer file stops resolving, a mount
+    /// serves nothing.
     private static func consequences(_ users: [VaultRmUser], home: String) -> [String] {
         var out: [String] = []
         let profiles = users.compactMap(\.profile)
         if !profiles.isEmpty {
-            var launchers: [String] = []
+            var tools: [String] = []
+            var configs: [String] = []
             for user in users where user.profile != nil {
-                for launcher in user.launchedBy where !launchers.contains(launcher) {
-                    launchers.append(launcher)
+                for tool in user.tools where !tools.contains(tool.name) {
+                    tools.append(tool.name)
+                }
+                for config in user.launchedBy where !configs.contains(config) {
+                    configs.append(config)
                 }
             }
             let one = profiles.count == 1
             var line = "After this, \(list(profiles)) won't start"
-            if !launchers.isEmpty {
-                line += ", and neither will what \(list(launchers.map { short($0, home) })) "
-                    + (launchers.count == 1 ? "launches" : "launch") + " through \(one ? "it" : "them")"
+            if !tools.isEmpty {
+                line += ", and neither will " + (tools.count == 1 ? "tool " : "tools ") + list(tools)
+            } else if !configs.isEmpty {
+                line += ", and neither will the tools \(list(configs.map { short($0, home) })) "
+                    + (configs.count == 1 ? "starts" : "start") + " with \(one ? "it" : "them")"
             }
             out.append(line + ": a profile missing a secret can't start its tool.")
         }

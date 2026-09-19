@@ -32,8 +32,8 @@ public struct DoctorAction: Equatable, Sendable {
     /// that confirmation returns: `argv` is then only what the button would
     /// run if the dry run changed nothing.
     public enum Planned: Equatable, Sendable {
-        /// `jit profile adopt <config>`.
-        case adopt(config: String)
+        /// `jit profile attach <config>`.
+        case attach(config: String)
         /// `jit profile rm <profile>`, and its manifest as doctor reported it.
         case removeProfile(name: String, manifest: String? = nil)
     }
@@ -83,8 +83,8 @@ public struct DoctorGroup: Equatable, Sendable, Identifiable {
     public var title: String
     public var note: String?
     public var items: [DoctorItem]
-    /// Group-level actions: Unmount All, when it saves clicks; one Adopt
-    /// per MCP config that launches an ownerless profile.
+    /// Group-level actions: Unmount All, when it saves clicks; one Attach
+    /// per MCP config that starts profiles recording no live config.
     public var groupActions: [DoctorAction]
 
     public var id: String {
@@ -149,7 +149,7 @@ public enum DoctorAdvice {
 
     /// Problems then warnings, each grouped by kind in first-seen order.
     /// `all` is the whole report, for what a group counts across others:
-    /// an Adopt covers a config's ownerless profiles in both owner groups.
+    /// an Attach covers a config's profiles in both record groups.
     public static func groups(_ items: [DoctorItem], among all: [DoctorItem]? = nil) -> [DoctorGroup] {
         var order: [String] = []
         var byKind: [String: [DoctorItem]] = [:]

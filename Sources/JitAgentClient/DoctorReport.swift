@@ -25,13 +25,15 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     /// commands are recovered from the action's backticks instead; in a
     /// schema 2 report an absent list means the action names none.
     public var fixes: [DoctorFix]?
-    /// The ownership kinds' structured half (jit 2.0: launcher_broken,
-    /// pointer_missing, owner_gone, no_owner, unlaunched). `file` is the
-    /// launcher or pointer file; `config` the MCP config doctor's adopt
-    /// command names, `configs` every config that launches the profile;
-    /// `owners` the recorded owners; `secrets` and `secretsMissing` an
-    /// unlaunched profile's counts; `origin` the file it was made from,
-    /// when that is gone.
+    /// The ownership kinds' structured half (jit 2.0: profile_missing,
+    /// pointer_missing, config_deleted, config_not_recorded,
+    /// no_known_tool). `file` is the config or pointer file; `config` the
+    /// MCP config doctor's attach command names, `configs` every config
+    /// that starts the profile's tools; `owners` the configs the profile's
+    /// record names (the engine's JSON keeps that name); `launchers` the
+    /// tools that use it; `secrets` and `secretsMissing` a no-known-tool
+    /// profile's counts; `origin` the file it was made from, when that is
+    /// gone.
     public var file: String?
     public var config: String?
     public var configs: [String]?
@@ -175,10 +177,10 @@ public struct DoctorFix: Codable, Sendable, Equatable {
     }
 }
 
-/// One thing that starts a profile or reads a secret, as the engine's
-/// launcher map names it (jitpass/jit internal/launchers): its kind (mcp,
-/// aws, kube, wrap, mount, shellrc, helper), the file, and the place inside
-/// it ("[profile dev]", an MCP server's name, a line).
+/// One tool that uses a profile or a file that reads a secret, as the
+/// engine's launcher map names it (jitpass/jit internal/launchers): its
+/// kind (mcp, aws, kube, wrap, mount, shell_rc, helper), the file, and the
+/// place inside it ("[profile dev]", an MCP server's name, a line).
 public struct DoctorLauncher: Codable, Sendable, Equatable {
     public var kind: String
     public var file: String
@@ -247,12 +249,17 @@ public struct DoctorReport: Codable, Sendable, Equatable {
         warnings = try Self.prepared(container.decodeIfPresent([DoctorItem].self, forKey: .warnings) ?? [], structured)
     }
 
-    /// Numbered; and in a schema 2 report, a finding without `fixes` gets
-    /// an empty list, because there the engine fills them for every action
-    /// that names a command: re-parsing backticks would resurrect exactly
-    /// the commands it chose not to offer (origin_gone's note).
+    /// Numbered, a pre-release kind name read as its new one; and in a
+    /// schema 2 report, a finding without `fixes` gets an empty list,
+    /// because there the engine fills them for every action that names a
+    /// command: re-parsing backticks would resurrect exactly the commands
+    /// it chose not to offer (origin_gone's note).
     private static func prepared(_ items: [DoctorItem], _ structured: Bool) -> [DoctorItem] {
-        DoctorItem.numbered(items).map { item in
+        DoctorItem.numbered(items.map { item in
+            var item = item
+            item.kind = DoctorAdvice.currentKind(item.kind)
+            return item
+        }).map { item in
             var item = item
             if structured, item.fixes == nil {
                 item.fixes = []

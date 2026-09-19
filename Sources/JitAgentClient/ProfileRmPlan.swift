@@ -5,16 +5,16 @@ import Foundation
 
 /// `jit profile rm --dry-run --format json <name>` (jit 2.0+): what
 /// removing a global profile deletes, keeps and can't find, and whether
-/// anything known still launches it. Prompt-free, writes nothing, read the
+/// any known tool still uses it. Prompt-free, writes nothing, read the
 /// moment Remove Profile is clicked. This is the safe replacement for the
 /// Delete Profile the app dropped in 1.9: that one trashed the manifest
-/// with no launcher check; jit refuses a profile anything known launches,
-/// reads every launcher source strictly, and deletes only secrets nothing
-/// else uses.
+/// with no check for tools; jit refuses a profile any known tool uses,
+/// reads every config strictly, and deletes only secrets nothing else
+/// uses.
 public struct ProfileRmPlan: Decodable, Sendable, Equatable {
     public var profile: String
     public var scope: String?
-    /// Everything known that launches it; any one refuses the delete.
+    /// Every known tool that uses it; any one refuses the delete.
     public var launchers: [DoctorLauncher]
     /// Stored, and nothing else uses them: deleted with the profile.
     public var deleteSecrets: [String]
@@ -22,11 +22,11 @@ public struct ProfileRmPlan: Decodable, Sendable, Equatable {
     public var keepSecrets: [String]
     /// Named by the profile, not in the vault.
     public var missingSecrets: [String]
-    /// The launcher walk covered all of home. False means a directory jit
-    /// could not enter might hold a launcher; absent counts as false.
+    /// The walk for tools covered all of home. False means a directory jit
+    /// could not enter might hold a config; absent counts as false.
     public var coverageComplete: Bool
     public var refused: Bool
-    /// jit could not read a launcher source; it then refuses too.
+    /// jit could not read a config; it then refuses too.
     public var error: String?
 
     enum CodingKeys: String, CodingKey {
@@ -79,20 +79,20 @@ public struct ProfileRmPlan: Decodable, Sendable, Equatable {
 public extension ProfileRmPlan {
     /// The dialog for this plan. Removing is always the destructive shape:
     /// Cancel is the default, Return does not remove, Escape cancels. No
-    /// button when jit would refuse (something launches it, or it can't
-    /// tell): nothing the app could run would delete anything.
+    /// button when jit would refuse (a tool uses it, or it can't tell):
+    /// nothing the app could run would delete anything.
     func confirmation(home: String = NSHomeDirectory()) -> DeleteConfirmation {
         if let error {
             return DeleteConfirmation(
                 title: "Can't tell whether \(profile) is in use",
-                message: "jit could not read everything that might launch it:\n\n\(error)\n\n"
+                message: "jit could not read everything that might use it:\n\n\(error)\n\n"
                     + "It won't remove a profile it can't check, so nothing was deleted.",
                 button: nil, breaks: false, arguments: []
             )
         }
         if refused || !launchers.isEmpty {
-            let lines = launchers.map { "• " + Self.launcherLine($0, home: home) }
-            var parts = ["jit won't remove a profile something launches, so nothing was deleted."]
+            let lines = launchers.map { "• " + Self.toolLine($0, home: home) }
+            var parts = ["jit won't remove a profile a tool uses, so nothing was deleted."]
             if !lines.isEmpty {
                 parts.append(lines.joined(separator: "\n"))
                 parts.append(Self.refusalHint(launchers, home: home))
@@ -102,8 +102,8 @@ public extension ProfileRmPlan {
             )
         }
         var parts = [coverageComplete
-            ? "Nothing jit can see launches \(profile). It can't see scripts or aliases: if one still runs it, that stops working."
-            : "jit could not see all of your home folder, so something there may still launch \(profile), "
+            ? "No tool jit can see uses \(profile). It can't see scripts or aliases: if one still runs it, that stops working."
+            : "jit could not see all of your home folder, so a tool there may still use \(profile), "
             + "and it never sees scripts or aliases. Whatever runs it stops working."]
         parts += secretsParts
         let arguments = ["profile", "rm", "--yes", profile]
@@ -111,7 +111,7 @@ public extension ProfileRmPlan {
                 ? "Nothing asks again, and no Touch ID: no secret is deleted."
                 : "Nothing asks again. Touch ID follows."))
         return DeleteConfirmation(
-            title: coverageComplete ? "Remove profile \(profile)?" : "jit can't see everything that might launch \(profile)",
+            title: coverageComplete ? "Remove profile \(profile)?" : "jit can't see every tool that might use \(profile)",
             message: parts.joined(separator: "\n\n"), button: coverageComplete ? "Remove Profile" : "Remove Anyway",
             breaks: true, arguments: arguments, paths: deleteSecrets
         )
@@ -145,18 +145,19 @@ public extension ProfileRmPlan {
         return parts
     }
 
-    /// Where a launcher is, as `jit profile rm` says it.
-    static func launcherLine(_ launcher: DoctorLauncher, home: String) -> String {
-        let file = VaultRmPlan.short(launcher.file, home)
-        let detail = launcher.detail ?? ""
-        switch launcher.kind {
-        case "mcp", "kube": return "\(file) launches it (\(detail))"
-        case "aws": return "\(file) \(detail) launches it"
-        case "wrap": return "wrapped tool \(detail) launches it"
+    /// The tool that uses it and where, as `jit profile rm` says it:
+    /// "tool okta-mcp-server uses it (~/Security-Ops/.mcp.json)".
+    static func toolLine(_ tool: DoctorLauncher, home: String) -> String {
+        let file = VaultRmPlan.short(tool.file, home)
+        let detail = tool.detail ?? ""
+        switch tool.kind {
+        case "mcp": return "tool \(detail) uses it (\(file))"
+        case "aws": return "tool aws uses it (\(file) \(detail))"
+        case "kube": return "tool kubectl uses it (\(file) \(detail))"
+        case "wrap": return "wrapped tool \(detail) uses it"
         case "mount": return "mounted at \(VaultRmPlan.short(detail, home))"
-        case "shellrc": return "\(file) exports it (\(detail))"
-        case "helper": return "\(file) uses it"
-        default: return "\(file) launches it"
+        case "shell_rc", "shellrc": return "\(file) exports it (\(detail))"
+        default: return "\(file) uses it"
         }
     }
 
@@ -174,7 +175,7 @@ public extension ProfileRmPlan {
         case "mcp": return one ? "Remove the \(detail) entry from that file first." : "Remove those entries first."
         case "aws": return one ? "Remove the \(detail) section from that file first." : "Remove those sections first."
         case "kube": return one ? "Remove \(detail) from that file first." : "Remove those users first."
-        case "shellrc": return one ? "Remove its jit export line (\(detail)) first." : "Remove those jit export lines first."
+        case "shell_rc", "shellrc": return one ? "Remove its jit export line (\(detail)) first." : "Remove those jit export lines first."
         case "wrap": return "jit wrap undo \(detail) unwraps the tool and removes this profile with it."
         case "mount":
             return one ? "jit migrate remove \(VaultRmPlan.short(detail, home)) restores the file and removes the profile with it."
