@@ -15,13 +15,17 @@ extension BoardContext {
         if !unused.isEmpty {
             cards.append(noKnownToolCard(unused))
         }
+        let loggedOut = warnings.filter { $0.kind == "not_logged_in" }
+        if !loggedOut.isEmpty {
+            cards.append(notLoggedInCard(loggedOut))
+        }
         for kind in ["backup", "legacy_envelope"] {
             let items = warnings.filter { $0.kind == kind }
             if !items.isEmpty {
                 cards.append(kind == "backup" ? backupCard(items) : legacyCard(items))
             }
         }
-        let special = DoctorAdvice.recordKinds.union(["mcp_nested", "no_known_tool", "backup", "legacy_envelope"])
+        let special = DoctorAdvice.recordKinds.union(["mcp_nested", "no_known_tool", "not_logged_in", "backup", "legacy_envelope"])
         return cards + genericCards(warnings.filter { !special.contains($0.kind) }, problem: false)
     }
 

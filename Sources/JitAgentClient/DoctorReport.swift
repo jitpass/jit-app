@@ -42,6 +42,13 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     public var secrets: Int?
     public var secretsMissing: Int?
     public var origin: String?
+    /// Doctor ignore (jit 2.1): the command that ignores this finding; on
+    /// an ignored one, since when and the command that shows it again; on
+    /// one that came back, that its ignored entry changed since.
+    public var ignore: DoctorIgnoreCommand?
+    public var unignore: DoctorIgnoreCommand?
+    public var ignoredSince: String?
+    public var ignoreChanged: Bool?
     /// How many findings before this one in the same report say exactly
     /// the same thing; never decoded, set by `numbered`. It keeps `id`
     /// unique when doctor repeats a finding word for word.
@@ -49,8 +56,10 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case kind, scope, profile, variable, path, detail, action, groups, profiles, fixes
-        case file, config, configs, owners, launchers, secrets, origin
+        case file, config, configs, owners, launchers, secrets, origin, ignore, unignore
         case secretsMissing = "secrets_missing"
+        case ignoredSince = "ignored_since"
+        case ignoreChanged = "ignore_changed"
     }
 
     /// Unique within a report and the same across a recheck that finds the
@@ -229,9 +238,12 @@ public struct DoctorReport: Codable, Sendable, Equatable {
     public var secretsChecked: Int?
     public var problems: [DoctorItem]
     public var warnings: [DoctorItem]
+    /// Findings the user chose to ignore (jit 2.1): in neither list above,
+    /// so they count toward nothing; empty from an older jit.
+    public var ignored: [DoctorItem]
 
     enum CodingKeys: String, CodingKey {
-        case ok, tool, problems, warnings
+        case ok, tool, problems, warnings, ignored
         case schemaVersion = "schema_version"
         case profilesChecked = "profiles_checked"
         case secretsChecked = "secrets_checked"
@@ -247,6 +259,7 @@ public struct DoctorReport: Codable, Sendable, Equatable {
         let structured = (schemaVersion ?? 1) >= 2
         problems = try Self.prepared(container.decodeIfPresent([DoctorItem].self, forKey: .problems) ?? [], structured)
         warnings = try Self.prepared(container.decodeIfPresent([DoctorItem].self, forKey: .warnings) ?? [], structured)
+        ignored = try Self.prepared(container.decodeIfPresent([DoctorItem].self, forKey: .ignored) ?? [], structured)
     }
 
     /// Numbered, a pre-release kind name read as its new one; and in a

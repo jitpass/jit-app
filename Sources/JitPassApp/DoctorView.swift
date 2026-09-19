@@ -36,6 +36,7 @@ struct DoctorView: View {
                                 section(tier, shown(board, tier))
                             }
                         }
+                        ignoredFold(board)
                     }
                     .padding(.horizontal, 22)
                     .padding(.bottom, 18)
@@ -210,6 +211,14 @@ struct DoctorView: View {
         return .idle(enabled: idle)
     }
 
+    /// "3 ignored · Show", at the bottom, counted nowhere else.
+    @ViewBuilder
+    private func ignoredFold(_ board: DoctorBoard) -> some View {
+        if !board.ignored.isEmpty {
+            DoctorIgnoredFold(rows: board.ignored, state: state, onShowAgain: actions.showAgain)
+        }
+    }
+
     private func handle(_ button: DoctorButton, _ card: DoctorCard, _ key: String) {
         if button.command == .review {
             reviewing = true
@@ -229,6 +238,9 @@ struct DoctorView: View {
                 .font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 .frame(maxWidth: 420).fixedSize(horizontal: false, vertical: true)
             Button("Check Again", action: actions.recheck).disabled(!idle).padding(.top, 6)
+            if let board = model.doctor.map({ DoctorBoard.make($0) }) {
+                ignoredFold(board).frame(maxWidth: 520).padding(.top, 12)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -300,4 +312,6 @@ struct DoctorActions {
     /// A card's button, the card, and the key (the card's id, or its row's)
     /// that shows the fix running and how it ended.
     var run: (DoctorButton, DoctorCard, String) -> Void = { _, _, _ in }
+    /// An ignored row's Show Again, and the row's id.
+    var showAgain: (DoctorButton, String) -> Void = { _, _ in }
 }

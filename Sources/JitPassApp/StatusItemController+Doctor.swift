@@ -36,7 +36,12 @@ extension StatusItemController {
             },
             openInTerminal: { [weak self] in self?.runInTerminal("jit doctor") },
             perform: { [weak self] action, row in self?.perform(action, target: DoctorTarget(key: row)) },
-            run: { [weak self] button, card, key in self?.runBoardButton(button, card: card, key: key) }
+            run: { [weak self] button, card, key in self?.runBoardButton(button, card: card, key: key) },
+            showAgain: { [weak self] button, key in
+                if case let .unignore(command) = button.command {
+                    self?.runIgnore([command], key: key)
+                }
+            }
         )
     }
 
