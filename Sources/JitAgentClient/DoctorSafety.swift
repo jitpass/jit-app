@@ -44,6 +44,27 @@ extension DoctorAdvice {
                 return "This runs:\n\n\(command)\n\nEvery secret in the file is stored; a secret at the same path "
                     + "is overwritten, its current value archived first. Nothing asks again."
             }
+            // Not a delete at all — no secret, no file, one line out of one
+            // profile — so the generic "deletes for good" below would be
+            // wrong twice over. It names the variables in prose rather than
+            // only in the command line, which is the line people skim; and
+            // it leads with the risk, because "Doctor stops reporting it"
+            // read as a benefit when it is the whole danger.
+            if let drop = action.argv?.first(where: { $0.starts(with: ["profile", "drop"]) }) {
+                let profile = drop.count > 2 ? drop[2] : ""
+                let variables = drop.dropFirst(3).filter { !$0.hasPrefix("-") }
+                let named = BoardText.list(Array(variables))
+                let them = variables.count == 1 ? "it" : "them"
+                return "This runs:\n\n\(command)\n\nProfile \(profile) stops passing \(named) to the tools it "
+                    + "starts. If one of them does need \(them), it will fail with nothing to say why, and Doctor "
+                    + "won't flag it again. No stored secret is deleted, and jit refuses to run this if the vault "
+                    + "holds a value for \(them). Nothing asks again."
+            }
+            if action.argv?.contains(where: { $0.starts(with: ["migrate", "forget"]) }) == true {
+                return "This runs:\n\n\(command)\n\nIt deletes that file and nothing else: no secret, no profile, "
+                    + "no mount. jit refuses if a mount is still serving that file, or if the secrets it lists are "
+                    + "still in the vault. Nothing asks again."
+            }
             return "This runs:\n\n\(command)\n\nIt deletes for good, and nothing asks again."
         }
         let opens = "This opens the terminal and runs:\n\n\(command)\n\n"
