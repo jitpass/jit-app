@@ -76,8 +76,8 @@ final class DoctorFixesTests: XCTestCase {
     /// Kind builders keep their titles; a fix they run can only add caution.
     func testBuildersKeepTitlesAndTakeTheEnginesCaution() throws {
         let missing = try DoctorAdvice.actions(for: report().problems[0])
-        XCTAssertEqual(missing.map(\.title), ["Set Value", "Migrate a File"])
-        XCTAssertEqual(missing.map(\.destructive), [false, false])
+        XCTAssertEqual(missing.map(\.title), ["Set Value", "Migrate a File", "Drop Entry"])
+        XCTAssertEqual(missing.map(\.destructive), [false, false, true], "only the drop confirms")
         XCTAssertTrue(missing[0].presence, "vault set asks for Touch ID itself")
         let reencrypt = try DoctorAdvice.actions(for: warning("legacy_envelope"))
         XCTAssertEqual(reencrypt.map(\.title), ["Re-encrypt"])
