@@ -166,12 +166,19 @@ from 2026-08-02", with a Restore button per row. Restore confirms in a plain
 alert ("the current value is archived first, so this is reversible") and
 runs with the stamp. No `--yes` exists on restore and none is needed.
 
-**Delete…** (`vault rm <path>… --yes`). An alert that lists every path it
-will remove, one per line, and the profiles that use them once the engine
-reports `used_by`. Wording matches doctor's honest dialog: "This runs: …
-It deletes something for good, and nothing asks again." Group delete passes
-the paths, not the bare group name, so what the dialog listed is exactly what
-runs.
+**Delete…** (`vault rm <path>… --yes`). First `vault rm --dry-run --format
+json <paths>` (jit 1.9+, prompt-free), then one alert worded from it: the
+exact paths it will remove and, from the engine's strict collector (every
+project store under ~, every mount, every pointer file, not the listing's
+`used_by`), each profile or pointer file still using them, with its
+launchers and what stops starting. Nothing in use: "Delete", running
+`rm --yes <paths>`. In use, or jit can't tell: a different button, "Delete
+and Break <profile>" (or "Delete Anyway"), running `rm --break-profiles
+--yes <paths>`, with Cancel the default. A dry run that fails (a jit older
+than 1.9) deletes nothing and says why. The paths are the dry run's
+expansion, not a group name, so what the dialog listed is exactly what
+runs; a refusal in the gap between the two shows jit's own output, which
+names who uses them.
 
 **Copy** (`vault get <path> --copy`). No sheet. The row shows "Touch ID…"
 while jit prompts, then "copied, clears in 45s" from jit's own output line.

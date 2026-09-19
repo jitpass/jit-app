@@ -192,48 +192,51 @@ extension StatusItemController {
         })
     }
 
-    /// One dialog listing exactly the paths that run, then `rm --yes`: the
-    /// CLI's own y/N cannot be answered from here, so this is the only
-    /// question, and it says so.
+    /// `jit vault rm --dry-run --format json` first, then one dialog worded
+    /// from it: the exact paths, and whatever profile, mount or pointer
+    /// file still uses them. Nothing in use: `rm --yes`. Something in use,
+    /// or jit can't tell: a differently named button that runs
+    /// `rm --break-profiles --yes`, with Cancel the default. The CLI's own
+    /// y/N cannot be answered from here, so this is the only question. A
+    /// dry run that fails (a jit older than 1.9) deletes nothing.
+    /// Synchronous, like the listing reload: the dry run is prompt-free
+    /// and takes well under a second, and running it immediately before the
+    /// dialog is the point.
     private func deleteSecrets(_ paths: [String]) {
-        guard let first = paths.first else {
+        guard !paths.isEmpty, model.vaultBusy == nil else {
             return
         }
-        let alert = NSAlert()
-        alert.messageText = paths.count == 1 ? "Delete \(first)?" : "Delete \(paths.count) secrets?"
-        alert.informativeText = "This runs:\n\njit vault rm " + paths.joined(separator: " ")
-            + "\n\nIt deletes " + (paths.count == 1 ? "the secret" : "every one of them")
-            + " and its history for good, and nothing asks again."
-            + usedByWarning(paths)
-            + " Touch ID follows."
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: paths.count == 1 ? "Delete" : "Delete \(paths.count)")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runFrontmost() == .alertFirstButtonReturn else {
+        model.vaultMessage = nil
+        let confirmation: DeleteConfirmation = switch JitCLI.vaultRmPlan(paths) {
+        case let .success(plan):
+            plan.confirmation()
+        case let .failure(error):
+            VaultRmPlan.unavailable(paths, reason: Self.describeVault(error))
+        }
+        guard Self.confirmDeletion(confirmation) else {
             return
         }
         hideReveal()
-        let label = paths.count == 1 ? first : "\(paths.count) secrets"
-        runVault(label, work: { JitCLI.execute(["vault", "rm"] + paths + ["--yes"]) }, then: { [weak self] _ in
+        let arguments = confirmation.arguments
+        let deleted = confirmation.paths
+        let label = deleted.count == 1 ? deleted[0] : "\(deleted.count) secrets"
+        runVault(label, work: { Self.remove(arguments) }, then: { [weak self] _ in
             self?.model.scanStale = true
-            self?.notice(paths.count == 1 ? "\(first) deleted" : "\(paths.count) secrets deleted")
+            self?.notice("\(label) deleted" + (confirmation.breaks ? ", knowing what it breaks" : ""))
         })
     }
 
-    /// The profiles still pointing at what is about to go, from the
-    /// listing's `used_by`: a wrap or a mount that keeps naming a deleted
-    /// path serves nothing, and the right move there is unwrap or
-    /// `jit migrate remove`, not `rm`.
-    private func usedByWarning(_ paths: [String]) -> String {
-        let secrets = (model.vaultListing?.secrets ?? []).filter { paths.contains($0.path) && !$0.usedBy.isEmpty }
-        guard !secrets.isEmpty else {
-            return ""
+    /// The delete itself, with every line jit printed kept: a refusal
+    /// (something started using a path after the dry run) names who, and
+    /// that is what the user needs to read, not a last line.
+    private nonisolated static func remove(_ arguments: [String]) -> Result<String, Error> {
+        JitCLI.invoke(arguments).flatMap { outcome in
+            if outcome.status == 0 {
+                return .success(outcome.output)
+            }
+            let text = VaultRmPlan.isRefusal(outcome.output) ? VaultRmPlan.refusalMessage(outcome.output) : outcome.output
+            return .failure(JitCLI.CLIError.failed(text.isEmpty ? "jit exited \(outcome.status)" : text))
         }
-        let profiles = Array(Set(secrets.flatMap(\.usedBy))).sorted()
-        let names = profiles.joined(separator: ", ")
-        return "\n\nStill used by \(profiles.count == 1 ? "profile" : "profiles") \(names): "
-            + "whatever reads through \(profiles.count == 1 ? "it" : "them") gets nothing afterwards. "
-            + "Unwrap the tool or jit migrate remove the file instead if that is not what you want."
     }
 
     // MARK: - Plumbing

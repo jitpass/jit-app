@@ -74,12 +74,12 @@ struct DuplicatesSheet: View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 Circle().fill(dot(finding)).frame(width: 7, height: 7)
-                Text(finding.groups.joined(separator: "  ·  ")).fontWeight(.semibold).lineLimit(1).truncationMode(.middle)
+                Text(finding.groupLabels.joined(separator: "  ·  ")).fontWeight(.semibold).lineLimit(1).truncationMode(.middle)
             }
             Text(finding.keys.joined(separator: ", ")).font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
                 .lineLimit(1).truncationMode(.middle)
             Text(finding.verdict).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            if let command = finding.removeCommand, !finding.prunable {
+            if let command = finding.removeCommand, !finding.prunable, finding.inUseGroup == nil {
                 Text(command).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
             }
         }
