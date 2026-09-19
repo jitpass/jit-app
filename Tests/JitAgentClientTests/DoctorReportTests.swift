@@ -30,8 +30,6 @@ final class DoctorReportTests: XCTestCase {
         XCTAssertEqual(r.problems[0].command, "jit vault set mcp-caido-2/CAIDO_URL")
         XCTAssertEqual(r.warnings[0].command, "jit vault orphans --prune")
         XCTAssertEqual(r.warnings[0].commands, ["jit vault orphans --prune", "jit unmount ~/x/.env"])
-        XCTAssertTrue(r.problems[0].isGlobalProfileProblem)
-        XCTAssertFalse(r.warnings[0].isGlobalProfileProblem)
         XCTAssertEqual(r.warnings[0].summary, "the mount at ~/x/.env is still registered, but its profile is gone")
     }
 
@@ -39,6 +37,31 @@ final class DoctorReportTests: XCTestCase {
         XCTAssertEqual(DoctorItem.placeholder(in: "jit vault export <file>"), "<file>")
         XCTAssertEqual(DoctorItem.placeholder(in: "jit migrate <path>"), "<path>")
         XCTAssertNil(DoctorItem.placeholder(in: "jit vault orphans --prune"))
+    }
+
+    /// `<op://…>` is a reference the user writes, not a file to choose: it
+    /// once opened a file panel.
+    func testReferenceIsNotAPlaceholder() {
+        XCTAssertNil(DoctorItem.placeholder(in: "jit vault link a/B <op://...>"))
+        XCTAssertNil(DoctorItem.placeholder(in: "jit vault link a/B <vault://x/y>"))
+        XCTAssertTrue(DoctorItem.needsReference("jit vault link a/B <op://...>"))
+        XCTAssertFalse(DoctorItem.needsReference("jit vault export <file>"))
+        XCTAssertEqual(DoctorItem.placeholder(in: "jit x <op://a> <file>"), "<file>", "a real placeholder after a reference")
+    }
+
+    /// Findings with no path or profile (duplicates, wrap, service) differ
+    /// only in their sentence; each row needs its own id, the same on the
+    /// next check.
+    func testIdsAreUniqueAndStable() throws {
+        let json = #"{"ok":false,"problems":[],"warnings":["#
+            + #"{"kind":"duplicates","detail":"a and b look alike"},{"kind":"duplicates","detail":"c and d look alike"},"#
+            + #"{"kind":"service","detail":"same"},{"kind":"service","detail":"same"}]}"#
+        let first = try JSONDecoder().decode(DoctorReport.self, from: Data(json.utf8))
+        let ids = first.warnings.map(\.id)
+        XCTAssertEqual(Set(ids).count, 4, "\(ids)")
+        let again = try JSONDecoder().decode(DoctorReport.self, from: Data(json.utf8))
+        XCTAssertEqual(again.warnings.map(\.id), ids, "the same findings keep their ids across a recheck")
+        XCTAssertEqual(Set(first.warningGroups.flatMap(\.items).map(\.id)).count, 4)
     }
 
     func testCleanReportReadsAllGood() throws {
@@ -82,20 +105,28 @@ final class DoctorAdviceTests: XCTestCase {
         )
         let one = DoctorAdvice.actions(for: first)
         XCTAssertEqual(one.map(\.title), ["Unmount"])
-        XCTAssertEqual(one.first?.argv, [["unmount", "--yes", "/a/.env"]], "runs in the app: no secret is touched, so no Touch ID")
+        XCTAssertNil(one.first?.argv, "in the terminal: --yes would also answer a PLAINTEXT write-back if the manifest came back")
         XCTAssertEqual(one.first?.command, "jit unmount /a/.env")
+        XCTAssertFalse(one.first?.destructive ?? true)
         let group = DoctorAdvice.groups([first, second])[0]
         XCTAssertEqual(group.groupAction?.title, "Unmount All")
-        XCTAssertEqual(group.groupAction?.argv, [["unmount", "--yes", "/a/.env"], ["unmount", "--yes", "/b/.env"]])
+        XCTAssertNil(group.groupAction?.argv)
+        XCTAssertEqual(group.groupAction?.command, "jit unmount /a/.env\njit unmount /b/.env", "one y/N per mount")
         XCTAssertNil(DoctorAdvice.groups([first])[0].groupAction, "one mount needs no group button")
+        XCTAssertEqual(DoctorAdvice.unmountCommand("/a b/.env"), "jit unmount '/a b/.env'", "the shell must see one path")
+    }
+
+    /// The incident: doctor's two-sided origin_gone advice became a red
+    /// one-click `vault rm --yes` that broke two live MCP profiles. The row
+    /// stays, with no button at all.
+    func testOriginGoneOffersNothing() {
+        let rm = item("origin_gone", action: "nothing, if you still use these: `jit vault rm k8s` if the project is gone")
+        XCTAssertEqual(DoctorAdvice.actions(for: rm), [])
+        XCTAssertEqual(DoctorAdvice.groups([rm]).first?.title, "Origin files gone", "the row still shows")
+        XCTAssertNil(DoctorAdvice.groups([rm]).first?.groupAction)
     }
 
     func testDestructiveCommandsAreMarked() {
-        let rm = item("origin_gone", action: "nothing, if you still use these: `jit vault rm k8s` if the project is gone")
-        let remove = DoctorAdvice.actions(for: rm).first
-        XCTAssertEqual(remove?.title, "Remove Secrets")
-        XCTAssertTrue(remove?.destructive ?? false)
-        XCTAssertEqual(remove?.argv, [["vault", "rm", "k8s", "--yes"]], "runs in the app, y/N pre-answered after the app's own confirm")
         XCTAssertTrue(DoctorAdvice.orphanActions.contains { $0.command == "jit vault orphans --prune" && $0.destructive })
         XCTAssertTrue(DoctorAdvice.generic("sudo rm /usr/local/bin/jit").destructive)
         XCTAssertFalse(DoctorAdvice.generic("jit service restart").destructive)
@@ -120,6 +151,20 @@ final class DoctorAdviceTests: XCTestCase {
         let generic = DoctorAdvice.generic("jit migrate <path>")
         XCTAssertEqual(generic.needs, .existingPath(placeholder: "<path>"))
         XCTAssertEqual(generic.title, "Choose…")
+    }
+
+    /// A global profile with a broken reference gets the fixes for the
+    /// reference, never a way to delete the profile: the app's old Delete
+    /// Profile trashed only the manifest, with no launcher check, no Touch
+    /// ID and no audit record.
+    func testGlobalProfileProblemOffersNoDeletion() {
+        let missing = DoctorItem(
+            kind: "missing", scope: "global", profile: "mcp", variable: "URL", path: "mcp/URL", detail: "",
+            action: "`jit vault set mcp/URL`, or `jit migrate <path>` to convert"
+        )
+        let actions = DoctorAdvice.actions(for: missing)
+        XCTAssertFalse(actions.contains { $0.destructive }, "\(actions.map(\.title))")
+        XCTAssertFalse(actions.contains { $0.title.contains("Delete") })
     }
 
     func testMissingSecretOffersSetAndMigrate() {
@@ -207,5 +252,77 @@ extension DoctorAdviceTests {
             }
         }
         XCTAssertTrue(DoctorAdvice.orphanActions.contains { $0.showsOutput }, "Inspect shows the list in the app")
+    }
+}
+
+extension DoctorAdviceTests {
+    private var brewInstall: DoctorItem {
+        DoctorItem(
+            kind: "install", scope: nil, profile: nil, variable: nil, path: "/opt/homebrew/bin/jit",
+            detail: "a second jit at /opt/homebrew/bin/jit; shells run /usr/local/bin/jit",
+            action: "`brew uninstall jitpass` to keep /usr/local/bin/jit, or `sudo rm /usr/local/bin/jit` to switch to the Homebrew copy"
+        )
+    }
+
+    /// The jitpass cask is this app: `brew uninstall jitpass` removes JitPass.
+    func testNothingOffersToUninstallTheApp() {
+        let samples = [
+            brewInstall,
+            item("install", action: "`sudo rm /usr/local/bin/jit` to keep the Homebrew copy in charge"),
+            item("new_kind", action: "`brew uninstall jitpass`, or `brew uninstall --cask jitpass/tap/jitpass`"),
+            item("service", action: "`brew uninstall jitpass` then `jit service restart`")
+        ]
+        let all = samples.flatMap(DoctorAdvice.actions(for:)) + DoctorAdvice.groups(samples).compactMap(\.groupAction)
+        XCTAssertFalse(all.isEmpty)
+        for action in all {
+            XCTAssertFalse(action.command.contains("brew uninstall"), "\(action.title) runs \(action.command)")
+        }
+        XCTAssertTrue(DoctorAdvice.uninstallsApp("brew uninstall --cask jitpass"))
+        XCTAssertFalse(DoctorAdvice.uninstallsApp("brew uninstall jq"))
+    }
+
+    func testExtraInstallIsRemovedByNameAndConfirmedTruthfully() {
+        let actions = DoctorAdvice.actions(for: brewInstall)
+        XCTAssertEqual(actions.map(\.title), ["Remove /usr/local/bin/jit"], "named for what it deletes, not the row's path")
+        let remove = actions[0]
+        XCTAssertTrue(remove.destructive)
+        XCTAssertNil(remove.argv, "sudo wants a terminal")
+        let text = DoctorAdvice.confirmation(for: remove)
+        XCTAssertTrue(text.contains("sudo rm /usr/local/bin/jit"))
+        XCTAssertFalse(text.contains("jit asks"), "sudo rm has no y/N of jit's: \(text)")
+    }
+
+    /// "jit asks once more" only for a jit command with its own y/N and no --yes.
+    func testConfirmationSaysJitAsksOnlyWhenItDoes() {
+        let rm = DoctorAdvice.generic("jit vault rm k8s")
+        XCTAssertTrue(DoctorAdvice.confirmation(for: rm).contains("jit asks once more"))
+        let forced = DoctorAdvice.generic("jit vault rm k8s --yes")
+        XCTAssertFalse(DoctorAdvice.confirmation(for: forced).contains("jit asks"))
+        let prune = DoctorAdvice.orphanActions.first { $0.destructive }
+        XCTAssertNotNil(prune)
+        if let prune {
+            XCTAssertTrue(DoctorAdvice.confirmation(for: prune).contains("nothing asks again"), "in the app, --yes answers it")
+        }
+        let other = DoctorAdvice.generic("sudo rm -rf /opt/x")
+        XCTAssertFalse(DoctorAdvice.confirmation(for: other).contains("jit asks"))
+    }
+
+    /// A 1Password link is relinked with a reference only the user can
+    /// write: no file panel, and no Run that would hand the shell a `<`.
+    func testOnePasswordLinkOffersNoFilePanel() {
+        let link = DoctorItem(
+            kind: "1password_link", scope: nil, profile: nil, variable: nil, path: "a/TOKEN",
+            detail: "a/TOKEN does not resolve", action: "fix the item in 1Password, or `jit vault link a/TOKEN <op://...>` to relink"
+        )
+        XCTAssertEqual(DoctorAdvice.actions(for: link), [])
+        XCTAssertNotNil(DoctorAdvice.groups([link]).first?.note, "the note says how to relink")
+        let unknown = item("new_kind", action: "`jit vault link a/B <op://...>` to relink")
+        XCTAssertEqual(DoctorAdvice.actions(for: unknown), [], "the generic path skips a reference too")
+    }
+
+    func testMissingNoteSaysTheToolWontStart() {
+        let note = DoctorAdvice.groups([item("missing")]).first?.note ?? ""
+        XCTAssertFalse(note.contains("empty value"), note)
+        XCTAssertTrue(note.contains("won't start"), note)
     }
 }
