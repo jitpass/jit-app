@@ -213,6 +213,23 @@ enum JitCLI {
     /// not work is a y/N or a hidden prompt, so callers pass --yes and
     /// --stdin and never run a command that would stop to ask.
     static func execute(_ arguments: [String], stdin: String? = nil) -> Result<String, Error> {
+        invoke(arguments, stdin: stdin).flatMap { outcome in
+            outcome.status == 0
+                ? .success(outcome.output)
+                : .failure(CLIError.failed(outcome.output.split(separator: "\n").last.map(String.init) ?? ""))
+        }
+    }
+
+    /// What one run printed and how it exited.
+    struct Outcome: Sendable {
+        var status: Int32
+        var output: String
+    }
+
+    /// `execute` without the reduction to a last line: everything the
+    /// command printed, and its exit status, success or not. For a result
+    /// the user reads in full, such as a deletion's.
+    static func invoke(_ arguments: [String], stdin: String? = nil) -> Result<Outcome, Error> {
         guard let jit = executable else {
             return .failure(CLIError.notInstalled)
         }
@@ -240,10 +257,7 @@ enum JitCLI {
         let data = out.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
         let text = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        if process.terminationStatus == 0 {
-            return .success(text)
-        }
-        return .failure(CLIError.failed(text.split(separator: "\n").last.map(String.init) ?? ""))
+        return .success(Outcome(status: process.terminationStatus, output: text))
     }
 
     /// Runs one shell line (a catalog verify hint such as `gh auth status`)

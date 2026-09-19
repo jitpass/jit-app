@@ -15,9 +15,35 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     public var path: String?
     public var detail: String?
     public var action: String?
+    /// How many findings before this one in the same report say exactly
+    /// the same thing; never decoded, set by `numbered`. It keeps `id`
+    /// unique when doctor repeats a finding word for word.
+    var occurrence = 0
 
+    enum CodingKeys: String, CodingKey {
+        case kind, scope, profile, variable, path, detail, action
+    }
+
+    /// Unique within a report and the same across a recheck that finds the
+    /// same thing: every field that tells two findings apart, detail
+    /// included (a duplicates, wrap or service finding has no path or
+    /// profile, only its sentence), then the repeat count.
     public var id: String {
-        [kind, scope ?? "", profile ?? "", variable ?? "", path ?? ""].joined(separator: "|")
+        let base = [kind, scope ?? "", profile ?? "", variable ?? "", path ?? "", detail ?? ""].joined(separator: "|")
+        return occurrence == 0 ? base : "\(base)#\(occurrence)"
+    }
+
+    /// The findings with `occurrence` counted, in order.
+    static func numbered(_ items: [DoctorItem]) -> [DoctorItem] {
+        var seen: [String: Int] = [:]
+        return items.map { item in
+            var item = item
+            item.occurrence = 0
+            let base = item.id
+            item.occurrence = seen[base, default: 0]
+            seen[base] = item.occurrence + 1
+            return item
+        }
     }
 
     /// What the row says: the CLI's detail, or for a profile problem the
@@ -50,19 +76,29 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     }
 
     /// "<file>" or "<path>" inside a command, which the user has to supply
-    /// before it can run; nil when the command is complete.
+    /// as a file before it can run; nil when the command is complete. A
+    /// `<op://...>` (any `<scheme://...>`) is a reference to type, not a
+    /// file to choose, so it is never one.
     public static func placeholder(in command: String) -> String? {
-        guard let open = command.firstIndex(of: "<"), let close = command[open...].firstIndex(of: ">") else {
-            return nil
-        }
-        return String(command[open ... close])
+        angled(in: command).first { !$0.contains("://") }
     }
 
-    /// True for a global profile whose reference is broken: the manifest
-    /// under ~/.jit/profiles can simply be removed if the profile is no
-    /// longer wanted, which touches no secret.
-    public var isGlobalProfileProblem: Bool {
-        profile != nil && scope == "global"
+    /// True when the command carries a `<scheme://...>` the user has to
+    /// write themselves: no panel can supply it, and run as-is the shell
+    /// would read the angle bracket as a redirect.
+    public static func needsReference(_ command: String) -> Bool {
+        angled(in: command).contains { $0.contains("://") }
+    }
+
+    /// Every `<...>` token in the command, brackets included.
+    private static func angled(in command: String) -> [String] {
+        var out: [String] = []
+        var rest = command[...]
+        while let open = rest.firstIndex(of: "<"), let close = rest[open...].firstIndex(of: ">") {
+            out.append(String(rest[open ... close]))
+            rest = rest[rest.index(after: close)...]
+        }
+        return out
     }
 }
 
@@ -92,8 +128,8 @@ public struct DoctorReport: Codable, Sendable, Equatable {
         tool = try container.decodeIfPresent(DoctorTool.self, forKey: .tool)
         profilesChecked = try container.decodeIfPresent(Int.self, forKey: .profilesChecked)
         secretsChecked = try container.decodeIfPresent(Int.self, forKey: .secretsChecked)
-        problems = try container.decodeIfPresent([DoctorItem].self, forKey: .problems) ?? []
-        warnings = try container.decodeIfPresent([DoctorItem].self, forKey: .warnings) ?? []
+        problems = try DoctorItem.numbered(container.decodeIfPresent([DoctorItem].self, forKey: .problems) ?? [])
+        warnings = try DoctorItem.numbered(container.decodeIfPresent([DoctorItem].self, forKey: .warnings) ?? [])
     }
 
     /// Profile name to a one-line reason it cannot be granted.

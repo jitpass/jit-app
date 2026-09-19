@@ -4,9 +4,11 @@
 import Foundation
 
 /// A button on a doctor row: a verb, the command it runs, and what it
-/// needs before it can run. The command always runs in the terminal, so
-/// jit's own confirmations and Touch ID still apply; `destructive` only
-/// changes how the button looks and adds the app's own confirmation.
+/// needs before it can run. With `argv` the app runs it itself, every y/N
+/// pre-answered, so the app's own confirmation is the only question;
+/// without, it runs in the terminal, where jit's own y/N and Touch ID
+/// apply. `destructive` colours the button red and adds the app's
+/// confirmation, worded by `confirmation(for:)`.
 public struct DoctorAction: Equatable, Sendable {
     public enum Needs: Equatable, Sendable {
         /// Runs as written.
@@ -79,7 +81,7 @@ public enum DoctorAdvice {
     static let titles: [String: (title: String, note: String?)] = [
         "missing": (
             "Missing secrets",
-            "A profile points at a secret the vault does not hold; a tool launched through it gets an empty value."
+            "A profile points at a secret the vault does not hold; a tool launched through it won't start."
         ),
         "corrupt": ("Unreadable secrets", "The stored value is not in a format this jit can decrypt."),
         "parse": ("Profiles that won't load", nil),
@@ -96,7 +98,11 @@ public enum DoctorAdvice {
         ),
         "jit_path": ("Stale jit paths", "A credential helper points at a jit binary that is gone."),
         "1password": ("1Password CLI", nil),
-        "1password_link": ("Broken 1Password links", nil),
+        "1password_link": (
+            "Broken 1Password links",
+            "The 1Password item a secret links to does not resolve. Fix the item in 1Password, "
+                + "or relink it in the terminal with jit vault link <path> <op://…>."
+        ),
         "orphan": ("Orphaned secrets", "In the vault but referenced by no profile jit can see. Harmless, but dead weight."),
         "duplicates": ("Possible duplicates", "Vault groups that look like the same file stored twice."),
         "origin_gone": (
@@ -113,7 +119,10 @@ public enum DoctorAdvice {
         ),
         "wrap_env": ("Wrapped tools, this shell only", "Only true of the shell the check ran in."),
         "audit": ("Audit log", nil),
-        "install": ("Extra jit installs", "PATH order decides which copy runs."),
+        "install": (
+            "Extra jit installs",
+            "PATH order decides which copy runs. The Homebrew copy is this app's: brew uninstall jitpass removes JitPass too."
+        ),
         "jit_path_upgrade": ("Version-pinned jit paths", "Still working, but the path will break on the next Homebrew upgrade."),
         "completion": ("Shell completion", nil),
         "legacy_envelope": ("Old secret format", nil)
@@ -144,12 +153,13 @@ public enum DoctorAdvice {
 
     /// The buttons for one row: a verb per command doctor named, from the
     /// table below for the kinds the app knows, and a generic Run or
-    /// Choose… for the rest, so a new kind still has its command.
+    /// Choose… for the rest, so a new kind still has its command. Never a
+    /// command the user has to finish writing (`<op://…>`), and never one
+    /// that uninstalls this app.
     public static func actions(for item: DoctorItem) -> [DoctorAction] {
-        guard let build = builders[item.kind] else {
-            return item.commands.map(generic)
-        }
-        return build(item).filter { !$0.command.isEmpty }
+        let built = builders[item.kind].map { $0(item) }
+            ?? item.commands.filter { !DoctorItem.needsReference($0) }.map(generic)
+        return built.filter { !$0.command.isEmpty && !uninstallsApp($0.command) }
     }
 
     private typealias Builder = (DoctorItem) -> [DoctorAction]
@@ -165,11 +175,12 @@ public enum DoctorAdvice {
         ] },
         "orphan": { item in item.path == nil ? orphanActions : [] },
         "duplicates": { _ in [show("Compare", ["vault", "duplicates"])] },
-        "origin_gone": { item in
-            let rm = first(item.commands, "jit vault rm ")
-            let group = String(rm.dropFirst("jit vault rm ".count))
-            return rm.isEmpty ? [] : [DoctorAction("Remove Secrets", rm, destructive: true, argv: [["vault", "rm", group, "--yes"]])]
-        },
+        // Doctor's advice here is two-sided ("nothing, if you still use
+        // these; `jit vault rm` if the project is gone") and only the user
+        // knows which side they are on: a one-click delete broke two live
+        // MCP profiles whose origin file had merely moved. The row informs;
+        // deleting is the Vault window's job, with its own confirmation.
+        "origin_gone": { _ in [] },
         "service": { item in item.commands.map {
             $0.hasPrefix("jit service log")
                 ? show("Show Log", ["service", "log"])
@@ -181,12 +192,14 @@ public enum DoctorAdvice {
         )] },
         "mount": unmount,
         "mount_stale": { item in
-            // Clearing a stale registration decrypts nothing and writes
-            // nothing, so the CLI asks only y/N; the app answers it.
+            // In the terminal, never with --yes: a stale registration only
+            // asks y/N, but if the manifest has reappeared by the time it
+            // runs, the same --yes would also answer unmount's "write the
+            // secrets back in PLAINTEXT?" unseen.
             guard let path = item.path else {
                 return unmount(item)
             }
-            return [DoctorAction("Unmount", "jit unmount \(homePath(path))", argv: [["unmount", "--yes", path]])]
+            return [DoctorAction("Unmount", unmountCommand(path))]
         },
         "vault_key": { _ in [DoctorAction(
             "Import a Backup", "jit vault import <file>", needs: .existingPath(placeholder: "<file>"),
@@ -202,9 +215,17 @@ public enum DoctorAdvice {
         "mcp_nested": migrate,
         "jit_path": migrate,
         "jit_path_upgrade": migrate,
-        "install": { item in item.commands.map {
-            DoctorAction($0.hasPrefix("brew uninstall") ? "Uninstall Homebrew Copy" : "Remove", $0, destructive: true)
+        // `brew uninstall jitpass` is never offered (actions(for:) drops it):
+        // the cask is this app. `sudo rm` is titled with what it deletes,
+        // which in the Homebrew case is not the row's path but the copy
+        // shells run now.
+        "install": { item in item.commands.map { command in
+            let removed = command.hasPrefix("sudo rm ") ? String(command.dropFirst("sudo rm ".count)) : ""
+            return removed.isEmpty ? generic(command) : DoctorAction("Remove \(homePath(removed))", command, destructive: true)
         } },
+        // `jit vault link <path> <op://…>` needs a reference only the user
+        // can write; the group note says how.
+        "1password_link": { _ in [] },
         "completion": { item in item.commands.map { DoctorAction("Install Completion", $0) } },
         "1password": { item in item.commands.map { DoctorAction("Install op CLI", $0) } }
     ]
@@ -242,7 +263,7 @@ public enum DoctorAdvice {
     ]
 
     /// One action for the whole group: every stale mount unmounted in one
-    /// terminal run, one line per mount.
+    /// terminal run, one line per mount, each asking its own y/N.
     static func groupAction(_ kind: String, _ items: [DoctorItem]) -> DoctorAction? {
         guard kind == "mount_stale", items.count > 1 else {
             return nil
@@ -251,8 +272,19 @@ public enum DoctorAdvice {
         guard paths.count > 1 else {
             return nil
         }
-        let shown = paths.map { "jit unmount \(homePath($0))" }.joined(separator: "\n")
-        return DoctorAction("Unmount All", shown, argv: paths.map { ["unmount", "--yes", $0] })
+        return DoctorAction("Unmount All", paths.map(unmountCommand).joined(separator: "\n"))
+    }
+
+    /// `jit unmount <path>` as the terminal runs it: the home-relative path
+    /// when the shell reads it as written, the full path single-quoted
+    /// when it holds a space or anything else the shell would act on.
+    static func unmountCommand(_ path: String) -> String {
+        let shown = homePath(path)
+        let plain = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/._-+@%,:=~")
+        if shown.unicodeScalars.allSatisfy(plain.contains), !shown.dropFirst().contains("~") {
+            return "jit unmount \(shown)"
+        }
+        return "jit unmount '" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     /// A command the app has no verb for: Run, or Choose… when it names a
@@ -267,10 +299,6 @@ public enum DoctorAdvice {
             return DoctorAction("Choose…", command, destructive: destructive, needs: needs)
         }
         return DoctorAction("Run", command, destructive: destructive)
-    }
-
-    static func first(_ commands: [String], _ prefix: String) -> String {
-        commands.first { $0.hasPrefix(prefix) } ?? ""
     }
 }
 
