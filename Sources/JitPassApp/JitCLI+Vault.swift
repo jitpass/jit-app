@@ -40,6 +40,21 @@ extension JitCLI {
         dryRun(ProfileRmPlan.arguments(for: name), parse: ProfileRmPlan.parse)
     }
 
+    /// `jit migrate <targets> --dry-run`, or `jit migrate undo <targets>
+    /// --dry-run`: jit's plan as text, prompt-free, writing nothing. A
+    /// nonzero exit (an undo with no backup on record) is a failure, and
+    /// the caller runs nothing.
+    static func migratePlan(_ mode: MigratePlan.Mode, _ targets: [String]) -> Result<MigratePlan, Error> {
+        capture(MigratePlan.dryRunArguments(mode, targets)).flatMap { captured in
+            let out = String(data: captured.stdout, encoding: .utf8) ?? ""
+            guard captured.status == 0 else {
+                let text = (captured.stderr.isEmpty ? out : captured.stderr).trimmingCharacters(in: .whitespacesAndNewlines)
+                return .failure(CLIError.failed(text.isEmpty ? "jit exited \(captured.status)" : text))
+            }
+            return .success(MigratePlan.parse(out, mode: mode, targets: targets))
+        }
+    }
+
     struct Captured {
         var status: Int32
         var stdout: Data
