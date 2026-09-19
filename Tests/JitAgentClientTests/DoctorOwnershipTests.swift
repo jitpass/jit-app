@@ -10,14 +10,12 @@ import XCTest
 /// Attach per config on the group, a profile no known tool uses Remove
 /// Profile.
 final class DoctorOwnershipTests: XCTestCase {
-    /// Trimmed from a real `jit doctor --format json` of jit main (to be
-    /// 2.0), home renamed: two findings of each ownership kind. That build
-    /// still said launcher_broken, owner_gone, no_owner, unlaunched and
-    /// `profile adopt`; the kinds, commands and details are renamed here
-    /// to what 2.0 ships.
+    /// Trimmed from a real `jit doctor --format json` of jit 2.0.0, home
+    /// renamed: two findings of each ownership kind.
     private let json = #"""
-    {"schema_version":2,"tool":{"version":"v1.9.1"},"ok":false,"problems":[{"kind":"profile_missing",
-    "profile":"aws-dev","detail":"~/.aws/config [profile dev] names profile aws-dev, which no jit store holds",
+    {"schema_version":2,"tool":{"version":"2.0.0","build":"379d970e2818","signature":"signed CZC6BH93GJ"},"profiles_checked":24,
+    "secrets_checked":69,"ok":false,"problems":[{"kind":"profile_missing","profile":"aws-dev",
+    "detail":"~/.aws/config [profile dev] names profile aws-dev, which no jit store holds",
     "action":"no such jit profile, so aws --profile dev fails; mint it again, or delete that [profile] block",
     "file":"/Users/me/.aws/config","launchers":[{"kind":"aws","file":"/Users/me/.aws/config","detail":"[profile dev]",
     "profile":"aws-dev"}]},{"kind":"profile_missing","profile":"aws-admin",
@@ -26,57 +24,46 @@ final class DoctorOwnershipTests: XCTestCase {
     "file":"/Users/me/.aws/config","launchers":[{"kind":"aws","file":"/Users/me/.aws/config","detail":"[profile admin]",
     "profile":"aws-admin"}]},{"kind":"pointer_missing","path":"jitpass-playground-bak/API_KEY",
     "detail":"~/Documents/jitpass-playground/.env.bak points at jitpass-playground-bak/API_KEY, which isn't in the vault",
-    "action":"`jit vault set jitpass-playground-bak/API_KEY`",
-    "fixes":[{"command":"jit vault set jitpass-playground-bak/API_KEY","argv":["vault","set",
-    "jitpass-playground-bak/API_KEY"],"destructive":false,"presence":true}],
-    "file":"/Users/me/Documents/jitpass-playground/.env.bak"},{"kind":"pointer_missing",
-    "path":"wrap-clisso/acme-client-secret",
+    "action":"`jit vault set jitpass-playground-bak/API_KEY`","fixes":[{"command":"jit vault set jitpass-playground-bak/API_KEY",
+    "argv":["vault","set","jitpass-playground-bak/API_KEY"],"destructive":false,"presence":true}],
+    "file":"/Users/me/Documents/jitpass-playground/.env.bak"},{"kind":"pointer_missing","path":"wrap-clisso/acme-client-secret",
     "detail":"~/.clisso.yaml points at wrap-clisso/acme-client-secret, which isn't in the vault",
-    "action":"`jit vault set wrap-clisso/acme-client-secret`",
-    "fixes":[{"command":"jit vault set wrap-clisso/acme-client-secret","argv":["vault","set",
-    "wrap-clisso/acme-client-secret"],"destructive":false,"presence":true}],"file":"/Users/me/.clisso.yaml"}],
-    "warnings":[{"kind":"config_deleted","profile":"mcp-caido","scope":"global",
-    "path":"/Users/me/.jit/profiles/mcp-caido.yaml",
+    "action":"`jit vault set wrap-clisso/acme-client-secret`","fixes":[{"command":"jit vault set wrap-clisso/acme-client-secret",
+    "argv":["vault","set","wrap-clisso/acme-client-secret"],"destructive":false,"presence":true}],"file":"/Users/me/.clisso.yaml"}],
+    "warnings":[{"kind":"config_deleted","profile":"mcp-caido","scope":"global","path":"/Users/me/.jit/profiles/mcp-caido.yaml",
     "detail":"recorded config ~/Documents/ai_security_workspace/.mcp.json is deleted; now started by ~/Security-Ops/.mcp.json",
-    "action":"`jit profile attach ~/Security-Ops/.mcp.json`",
-    "fixes":[{"command":"jit profile attach ~/Security-Ops/.mcp.json","argv":["profile","attach",
-    "/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],
+    "action":"`jit profile attach ~/Security-Ops/.mcp.json`","fixes":[{"command":"jit profile attach ~/Security-Ops/.mcp.json",
+    "argv":["profile","attach","/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],
     "config":"/Users/me/Security-Ops/.mcp.json","configs":["/Users/me/Security-Ops/.mcp.json"],
     "owners":["/Users/me/Documents/ai_security_workspace/.mcp.json"],"launchers":[{"kind":"mcp",
     "file":"/Users/me/Security-Ops/.mcp.json","detail":"caido","profile":"mcp-caido"},{"kind":"mcp",
     "file":"/Users/me/Security-Ops/.mcp.json","detail":"caido","profile":"mcp-caido","layer":1}]},{"kind":"config_deleted",
     "profile":"mcp-okta","scope":"global","path":"/Users/me/.jit/profiles/mcp-okta.yaml",
     "detail":"recorded config ~/Documents/ai_security_workspace/.mcp.json is deleted; now started by ~/Security-Ops/.mcp.json",
-    "action":"`jit profile attach ~/Security-Ops/.mcp.json`",
-    "fixes":[{"command":"jit profile attach ~/Security-Ops/.mcp.json","argv":["profile","attach",
-    "/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],
+    "action":"`jit profile attach ~/Security-Ops/.mcp.json`","fixes":[{"command":"jit profile attach ~/Security-Ops/.mcp.json",
+    "argv":["profile","attach","/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],
     "config":"/Users/me/Security-Ops/.mcp.json","configs":["/Users/me/Security-Ops/.mcp.json"],
     "owners":["/Users/me/Documents/ai_security_workspace/.mcp.json"],"launchers":[{"kind":"mcp",
     "file":"/Users/me/Security-Ops/.mcp.json","detail":"okta-mcp-server","profile":"mcp-okta","layer":1}]},
     {"kind":"config_not_recorded","profile":"mcp-google-workspace","scope":"global",
-    "path":"/Users/me/.jit/profiles/mcp-google-workspace.yaml",
-    "detail":"no config recorded; started by ~/Security-Ops/.mcp.json",
-    "action":"`jit profile attach ~/Security-Ops/.mcp.json`",
+    "path":"/Users/me/.jit/profiles/mcp-google-workspace.yaml","detail":"no config recorded; started by ~/Security-Ops/.mcp.json",
+    "action":"`jit profile attach ~/Security-Ops/.mcp.json`","fixes":[{"command":"jit profile attach ~/Security-Ops/.mcp.json",
+    "argv":["profile","attach","/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],
+    "config":"/Users/me/Security-Ops/.mcp.json","configs":["/Users/me/Security-Ops/.mcp.json"],"launchers":[{"kind":"mcp",
+    "file":"/Users/me/Security-Ops/.mcp.json","detail":"google-workspace-investigate","profile":"mcp-google-workspace","layer":1}]},
+    {"kind":"config_not_recorded","profile":"mcp-urlscan","scope":"global","path":"/Users/me/.jit/profiles/mcp-urlscan.yaml",
+    "detail":"no config recorded; started by ~/Security-Ops/.mcp.json","action":"`jit profile attach ~/Security-Ops/.mcp.json`",
     "fixes":[{"command":"jit profile attach ~/Security-Ops/.mcp.json","argv":["profile","attach",
-    "/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],
-    "config":"/Users/me/Security-Ops/.mcp.json","configs":["/Users/me/Security-Ops/.mcp.json"],
-    "launchers":[{"kind":"mcp","file":"/Users/me/Security-Ops/.mcp.json","detail":"google-workspace-investigate",
-    "profile":"mcp-google-workspace","layer":1}]},{"kind":"config_not_recorded","profile":"mcp-urlscan","scope":"global",
-    "path":"/Users/me/.jit/profiles/mcp-urlscan.yaml",
-    "detail":"no config recorded; started by ~/Security-Ops/.mcp.json",
-    "action":"`jit profile attach ~/Security-Ops/.mcp.json`",
-    "fixes":[{"command":"jit profile attach ~/Security-Ops/.mcp.json","argv":["profile","attach",
-    "/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],
-    "config":"/Users/me/Security-Ops/.mcp.json","configs":["/Users/me/Security-Ops/.mcp.json"],
-    "launchers":[{"kind":"mcp","file":"/Users/me/Security-Ops/.mcp.json","detail":"urlscan","profile":"mcp-urlscan"}]},
-    {"kind":"no_known_tool","profile":"k8s-docker-desktop","scope":"global",
+    "/Users/me/Security-Ops/.mcp.json"],"destructive":false,"presence":false}],"config":"/Users/me/Security-Ops/.mcp.json",
+    "configs":["/Users/me/Security-Ops/.mcp.json"],"launchers":[{"kind":"mcp","file":"/Users/me/Security-Ops/.mcp.json",
+    "detail":"urlscan","profile":"mcp-urlscan"}]},{"kind":"no_known_tool","profile":"k8s-docker-desktop","scope":"global",
     "path":"/Users/me/.jit/profiles/k8s-docker-desktop.yaml","detail":"no known tool; 2 secrets, both missing",
-    "action":"`jit profile rm k8s-docker-desktop` if you no longer use it",
-    "fixes":[{"command":"jit profile rm k8s-docker-desktop","argv":["profile","rm","k8s-docker-desktop"],
-    "destructive":true,"presence":true}],"secrets":2,"secrets_missing":2},{"kind":"no_known_tool","profile":"token",
-    "scope":"global","path":"/Users/me/.jit/profiles/token.yaml","detail":"no known tool; 1 secret",
-    "action":"`jit profile rm token` if you no longer use it","fixes":[{"command":"jit profile rm token",
-    "argv":["profile","rm","token"],"destructive":true,"presence":true}],"secrets":1,"origin":"/Users/me/token.txt"}]}
+    "action":"`jit profile rm k8s-docker-desktop` if you no longer use it","fixes":[{"command":"jit profile rm k8s-docker-desktop",
+    "argv":["profile","rm","k8s-docker-desktop"],"destructive":true,"presence":true}],"secrets":2,"secrets_missing":2},
+    {"kind":"no_known_tool","profile":"token","scope":"global","path":"/Users/me/.jit/profiles/token.yaml",
+    "detail":"no known tool; 1 secret","action":"`jit profile rm token` if you no longer use it",
+    "fixes":[{"command":"jit profile rm token","argv":["profile","rm","token"],"destructive":true,"presence":true}],"secrets":1,
+    "origin":"/Users/me/token.txt"}]}
     """#
 
     private func report() throws -> DoctorReport {
@@ -123,26 +110,33 @@ final class DoctorOwnershipTests: XCTestCase {
     /// unlaunched, and `jit profile adopt`: those read as the new kinds,
     /// with the same titles, rows and buttons, and the button runs attach.
     func testOldKindNamesDecodeAsTheNewOnes() throws {
-        var old = json
-        for (new, was) in [
-            ("\"profile_missing\"", "\"launcher_broken\""), ("\"config_deleted\"", "\"owner_gone\""),
-            ("\"config_not_recorded\"", "\"no_owner\""), ("\"no_known_tool\"", "\"unlaunched\""),
-            ("jit profile attach", "jit profile adopt"), ("\"profile\",\"attach\"", "\"profile\",\"adopt\"")
-        ] {
-            old = old.replacingOccurrences(of: new, with: was)
-        }
-        XCTAssertFalse(old.contains("attach") || old.contains("config_deleted"), "the fixture is the old shape")
+        let adopt = #"""
+        "fixes":[{"command":"jit profile adopt ~/p/.mcp.json","argv":["profile","adopt","/Users/me/p/.mcp.json"],
+        "destructive":false,"presence":false}],"config":"/Users/me/p/.mcp.json","configs":["/Users/me/p/.mcp.json"]
+        """#
+        let old = #"""
+        {"schema_version":2,"ok":false,"problems":[{"kind":"launcher_broken","profile":"aws-dev","file":"/Users/me/.aws/config",
+        "launchers":[{"kind":"aws","file":"/Users/me/.aws/config","detail":"[profile dev]","profile":"aws-dev"}]}],
+        "warnings":[{"kind":"owner_gone","profile":"a","scope":"global",\#(adopt),"owners":["/Users/me/gone/.mcp.json"]},
+        {"kind":"no_owner","profile":"b","scope":"global",\#(adopt)},
+        {"kind":"unlaunched","profile":"token","scope":"global","path":"/Users/me/.jit/profiles/token.yaml","secrets":1,
+        "fixes":[{"command":"jit profile rm token","argv":["profile","rm","token"],"destructive":true,"presence":true}]}]}
+        """#
         let r = try JSONDecoder().decode(DoctorReport.self, from: Data(old.utf8))
-        XCTAssertEqual(Set((r.problems + r.warnings).map(\.kind)), [
-            "profile_missing", "pointer_missing", "config_deleted", "config_not_recorded", "no_known_tool"
-        ])
+        XCTAssertEqual(r.problems.map(\.kind), ["profile_missing"])
+        XCTAssertEqual(r.warnings.map(\.kind), ["config_deleted", "config_not_recorded", "no_known_tool"])
+        XCTAssertEqual(r.problemGroups.map(\.title), ["Missing profiles"])
         XCTAssertEqual(r.warningGroups.map(\.title), [
             "Profiles recording a deleted config", "Profiles with no config recorded", "No known tool"
         ])
-        let attach = try XCTUnwrap(r.warningGroups.first).groupActions
-        XCTAssertEqual(attach.map(\.title), ["Attach 4"])
-        XCTAssertEqual(attach.first?.argv, [["profile", "attach", "--yes", "/Users/me/Security-Ops/.mcp.json"]])
-        XCTAssertEqual(attach.first?.planned, .attach(config: "/Users/me/Security-Ops/.mcp.json"))
+        for group in r.warningGroups.prefix(2) {
+            XCTAssertEqual(group.groupActions.map(\.title), ["Attach 2"])
+            XCTAssertEqual(group.groupActions.first?.argv, [["profile", "attach", "--yes", "/Users/me/p/.mcp.json"]])
+            XCTAssertEqual(group.groupActions.first?.planned, .attach(config: "/Users/me/p/.mcp.json"))
+        }
+        let remove = try DoctorAdvice.actions(for: XCTUnwrap(r.warnings.last))
+        XCTAssertEqual(remove.map(\.title), ["Remove Profile"])
+        XCTAssertEqual(remove.first?.argv, [["profile", "rm", "--yes", "token"]])
         XCTAssertEqual(DoctorAdvice.currentKind("mount_stale"), "mount_stale", "every other kind as it is")
     }
 

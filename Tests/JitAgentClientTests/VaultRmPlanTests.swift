@@ -67,30 +67,68 @@ final class VaultRmPlanTests: XCTestCase {
         XCTAssertFalse(dialog.message.contains("launch"), dialog.message)
     }
 
-    /// jit 2.0 names the tools too: each by name and config, and the
-    /// sentence names them rather than their config.
+    /// Real output of jit 2.0.0, home renamed, for `jit vault rm --dry-run
+    /// --format json mcp-okta`: 2.0 names the tools too, each by name and
+    /// config.
+    private let toolsJSON = #"""
+    {"paths":["mcp-okta/OKTA_CLIENT_ID","mcp-okta/OKTA_KEY_ID","mcp-okta/OKTA_PRIVATE_KEY"],
+    "in_use":[{"path":"mcp-okta/OKTA_CLIENT_ID","profile":"mcp-okta","scope":"global",
+    "launched_by":["/Users/me/Security-Ops/.mcp.json"],"tools":[{"name":"okta-mcp-server",
+    "config":"/Users/me/Security-Ops/.mcp.json"}]},{"path":"mcp-okta/OKTA_KEY_ID","profile":"mcp-okta","scope":"global",
+    "launched_by":["/Users/me/Security-Ops/.mcp.json"],"tools":[{"name":"okta-mcp-server",
+    "config":"/Users/me/Security-Ops/.mcp.json"}]},{"path":"mcp-okta/OKTA_PRIVATE_KEY","profile":"mcp-okta","scope":"global",
+    "launched_by":["/Users/me/Security-Ops/.mcp.json"],"tools":[{"name":"okta-mcp-server",
+    "config":"/Users/me/Security-Ops/.mcp.json"}]}],"refused":true}
+    """#
+
+    /// The sentence names the tools rather than their config, each once
+    /// however many of the paths they use.
     func testInUseNamesTheTools() throws {
-        let second = #",{"name":"okta-admin","config":"/Users/me/.claude.json"}"#
-        let json = #"""
-        {"paths":["mcp-okta/TOKEN"],
-         "in_use":[{"path":"mcp-okta/TOKEN","profile":"mcp-okta","scope":"global",
-                    "launched_by":["/Users/me/Security-Ops/.mcp.json"],
-                    "tools":[{"name":"okta-mcp-server","config":"/Users/me/Security-Ops/.mcp.json"}\#(second)]}],
-         "refused":true}
-        """#
+        let plan = try VaultRmPlan.parse(Data(toolsJSON.utf8))
+        let paths = ["mcp-okta/OKTA_CLIENT_ID", "mcp-okta/OKTA_KEY_ID", "mcp-okta/OKTA_PRIVATE_KEY"]
+        XCTAssertEqual(plan.paths, paths)
+        XCTAssertTrue(plan.refused)
+        XCTAssertEqual(plan.users.map(\.profile), ["mcp-okta"])
+        XCTAssertEqual(plan.users.first?.paths, paths)
+        XCTAssertEqual(plan.users.first?.tools, [VaultRmTool(name: "okta-mcp-server", config: "/Users/me/Security-Ops/.mcp.json")])
+        let dialog = plan.confirmation(home: home)
+        XCTAssertEqual(dialog.title, "These 3 secrets are in use")
+        XCTAssertEqual(dialog.button, "Delete and Break mcp-okta")
+        XCTAssertTrue(dialog.breaks)
+        XCTAssertEqual(dialog.message, """
+        Still used by:
+        • profile mcp-okta (global) uses all 3
+           tool okta-mcp-server in ~/Security-Ops/.mcp.json
+
+        After this, mcp-okta won't start, and neither will tool okta-mcp-server: a profile missing a secret can't start its tool.
+
+        This runs:
+
+        jit vault rm --break-profiles --yes mcp-okta/OKTA_CLIENT_ID mcp-okta/OKTA_KEY_ID mcp-okta/OKTA_PRIVATE_KEY
+
+        It deletes all 3 secrets and their history for good, and nothing asks again. Touch ID follows, naming what breaks.
+        """)
+        XCTAssertEqual(dialog.arguments, ["vault", "rm", "--break-profiles", "--yes"] + paths)
+    }
+
+    /// A profile two tools use: both named, each with its config.
+    func testInUseNamesEveryTool() throws {
+        let one = #""config":"/Users/me/Security-Ops/.mcp.json"}]"#
+        let two = #""config":"/Users/me/Security-Ops/.mcp.json"},{"name":"okta-admin","config":"/Users/me/.claude.json"}]"#
+        let json = toolsJSON.replacingOccurrences(of: one, with: two)
         let plan = try VaultRmPlan.parse(Data(json.utf8))
         XCTAssertEqual(plan.users.first?.tools, [
             VaultRmTool(name: "okta-mcp-server", config: "/Users/me/Security-Ops/.mcp.json"),
             VaultRmTool(name: "okta-admin", config: "/Users/me/.claude.json")
         ])
         let dialog = plan.confirmation(home: home)
-        XCTAssertTrue(dialog.message.contains("• profile mcp-okta (global) uses it\n"
-                + "   tool okta-mcp-server in ~/Security-Ops/.mcp.json\n   tool okta-admin in ~/.claude.json"), dialog.message)
+        XCTAssertTrue(
+            dialog.message.contains("\n   tool okta-mcp-server in ~/Security-Ops/.mcp.json\n   tool okta-admin in ~/.claude.json"),
+            dialog.message
+        )
         XCTAssertFalse(dialog.message.contains("started by"), "the tools say it; the configs are not said twice")
-        XCTAssertTrue(dialog.message.contains("After this, mcp-okta won't start, and neither will tools okta-mcp-server "
-                + "and okta-admin: a profile missing a secret can't start its tool."), dialog.message)
-        let one = try VaultRmPlan.parse(Data(json.replacingOccurrences(of: second, with: "").utf8)).confirmation(home: home)
-        XCTAssertTrue(one.message.contains("neither will tool okta-mcp-server:"), one.message)
+        XCTAssertTrue(dialog.message.contains("neither will tools okta-mcp-server and okta-admin: "
+                + "a profile missing a secret can't start its tool."), dialog.message)
     }
 
     func testCleanRunsThePlainDelete() throws {
