@@ -55,7 +55,7 @@ extension StatusItemController {
         let alert = NSAlert()
         alert.messageText = confirmation.title
         alert.informativeText = confirmation.message
-        alert.alertStyle = confirmation.button == nil ? .informational : .warning
+        alert.alertStyle = confirmation.button == nil || !confirmation.destructive ? .informational : .warning
         guard let button = confirmation.button else {
             alert.addButton(withTitle: "OK")
             alert.runFrontmost()

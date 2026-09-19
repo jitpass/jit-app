@@ -112,11 +112,14 @@ struct DoctorView: View {
                 Text("\(count)").font(.system(size: 12)).foregroundStyle(.secondary)
             }
             Spacer()
-            if let action = group.groupAction {
+            if !group.groupActions.isEmpty {
                 if model.doctorBusy == groupRow(group) {
                     working
                 } else {
-                    Button(action.title) { actions.perform(action, groupRow(group)) }.controlSize(.small).disabled(!idle)
+                    ForEach(group.groupActions, id: \.command) { action in
+                        Button(action.title) { actions.perform(action, groupRow(group)) }
+                            .controlSize(.small).disabled(!idle).help(action.command)
+                    }
                 }
             }
         }
@@ -130,7 +133,7 @@ struct DoctorView: View {
                 Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             ForEach(group.items) { item in
-                row(item)
+                row(item, in: group)
             }
         }
     }
@@ -161,16 +164,21 @@ struct DoctorView: View {
         }
     }
 
-    private func row(_ item: DoctorItem) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            if DoctorAdvice.rowIsPath(item) {
-                Text(DoctorAdvice.rowText(item)).font(.system(size: 12, design: .monospaced))
-                    .lineLimit(1).truncationMode(.head)
-            } else {
-                Text(DoctorAdvice.rowText(item)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+    private func row(_ item: DoctorItem, in group: DoctorGroup) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if DoctorAdvice.rowIsPath(item) {
+                    Text(group.rowText(item)).font(.system(size: 12, design: .monospaced))
+                        .lineLimit(1).truncationMode(.head)
+                } else {
+                    Text(group.rowText(item)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                buttons(DoctorAdvice.actions(for: item), row: item.id)
             }
-            Spacer(minLength: 8)
-            buttons(DoctorAdvice.actions(for: item), row: item.id)
+            if let note = DoctorAdvice.rowNote(item) {
+                Text(note).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 

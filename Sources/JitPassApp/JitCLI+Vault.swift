@@ -11,15 +11,33 @@ extension JitCLI {
     /// and any output that is not a plan, is a failure, and the caller
     /// deletes nothing.
     static func vaultRmPlan(_ paths: [String]) -> Result<VaultRmPlan, Error> {
-        capture(VaultRmPlan.arguments(for: paths)).flatMap { captured in
+        dryRun(VaultRmPlan.arguments(for: paths), parse: VaultRmPlan.parse)
+    }
+
+    /// A `--dry-run --format json` plan: jit's own answer to "what would
+    /// this do", prompt-free. A nonzero exit (an older jit's "unknown
+    /// flag") or output that is not a plan is a failure, and the caller
+    /// runs nothing.
+    static func dryRun<Plan>(_ arguments: [String], parse: @escaping (Data) throws -> Plan) -> Result<Plan, Error> {
+        capture(arguments).flatMap { captured in
             guard captured.status == 0 else {
                 let said = captured.stderr.isEmpty ? String(data: captured.stdout, encoding: .utf8) ?? "" : captured.stderr
                 let text = said.trimmingCharacters(in: .whitespacesAndNewlines)
                 return .failure(CLIError.failed(text.isEmpty ? "jit exited \(captured.status)" : text))
             }
-            return Result { try VaultRmPlan.parse(captured.stdout) }
+            return Result { try parse(captured.stdout) }
                 .mapError { _ in CLIError.failed("jit printed no plan (\(executable ?? "jit") is too old, or not jit)") }
         }
+    }
+
+    /// `jit profile adopt --dry-run --format json <config>` (jit 1.10+).
+    static func profileAdoptPlan(_ config: String) -> Result<ProfileAdoptPlan, Error> {
+        dryRun(ProfileAdoptPlan.arguments(for: config), parse: ProfileAdoptPlan.parse)
+    }
+
+    /// `jit profile rm --dry-run --format json <name>` (jit 1.10+).
+    static func profileRmPlan(_ name: String) -> Result<ProfileRmPlan, Error> {
+        dryRun(ProfileRmPlan.arguments(for: name), parse: ProfileRmPlan.parse)
     }
 
     struct Captured {
