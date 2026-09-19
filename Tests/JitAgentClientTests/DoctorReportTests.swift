@@ -178,7 +178,7 @@ final class DoctorAdviceTests: XCTestCase {
         )
         // The only cautious one is the single-variable drop, and it names
         // the variable it would remove.
-        XCTAssertEqual(actions.filter(\.destructive).map(\.title), ["Drop Entry"])
+        XCTAssertEqual(actions.filter(\.destructive).map(\.title), ["Remove Variable"])
         XCTAssertEqual(actions.first { $0.destructive }?.argv, [["profile", "drop", "mcp", "URL", "--yes"]])
     }
 
@@ -198,7 +198,7 @@ final class DoctorAdviceTests: XCTestCase {
         // the manifest asks for a variable the tool never needed. Doctor
         // cannot tell which, so it offers both sides rather than assuming
         // every entry is wanted.
-        XCTAssertEqual(actions.map(\.title), ["Set Value", "Migrate a File", "Drop Entry"])
+        XCTAssertEqual(actions.map(\.title), ["Set Value", "Migrate a File", "Remove Variable"])
         XCTAssertEqual(actions[0].argv, [["vault", "set", "mcp/URL", "--stdin", "--yes"]], "typed in the app, fed on stdin")
         XCTAssertEqual(actions[0].input, .secret(prompt: "The value for mcp/URL"))
         XCTAssertEqual(actions[1].planned, .migrate(targets: ["<path>"]), "its plan is read from --dry-run and shown first")

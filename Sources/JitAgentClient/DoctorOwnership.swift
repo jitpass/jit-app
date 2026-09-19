@@ -80,8 +80,13 @@ extension DoctorAdvice {
                     return generic(fix)
                 }
                 let targets = Array(fix.argv.dropFirst(2))
+                // "Delete File", not "Delete Record": the row shows a path
+                // and the sibling button is Edit, which opens that same
+                // file. "Record" was jit's noun for the thing, not the
+                // reader's, and it made the pair read as two different
+                // objects.
                 return DoctorAction(
-                    "Delete Record", fix.command, destructive: true,
+                    "Delete File", fix.command, destructive: true,
                     argv: [["migrate", "forget", "--yes"] + targets]
                 )
             }
