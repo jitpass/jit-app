@@ -174,8 +174,7 @@ extension BoardContext {
         }
         let place = short(launcher.file) + (launcher.detail.map { " " + $0 } ?? "")
         if launcher.kind == "aws", let detail = launcher.detail {
-            let name = detail.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
-            return "aws --profile " + (name.hasPrefix("profile ") ? String(name.dropFirst("profile ".count)) : name) + " · " + place
+            return "aws --profile " + Self.awsName(detail) + " · " + place
         }
         return (item.profile ?? launcher.kind) + " · " + place
     }

@@ -100,6 +100,31 @@ final class DoctorBoardTests: XCTestCase {
         XCTAssertEqual(google.primary?.title, "Set Value…")
     }
 
+    /// jit 2.1 puts the tools on the finding itself: the card names them
+    /// with no other finding to borrow from, and a project store (where
+    /// the profile lives) is not a tool.
+    func testAMissingSecretNamesItsOwnTools() throws {
+        let launchers = #"[{"kind":"project_store","file":"/Users/me/Security-Ops","profile":"mcp-okta-mcp-server"},"#
+            + #"{"kind":"mcp","file":"/Users/me/Security-Ops/.mcp.json","detail":"okta-mcp-server","profile":"mcp-okta-mcp-server"}]"#
+        let finding = { (name: String) in
+            #"{"kind":"missing","profile":"mcp-okta-mcp-server","scope":"global","variable":"\#(name)","#
+                + #""path":"mcp-okta-mcp-server/\#(name)","launchers":\#(launchers)}"#
+        }
+        let board = try Self.board(#"{"schema_version":2,"ok":false,"problems":["# + finding("OKTA_ORG_URL") + ","
+            + finding("OKTA_SCOPES") + #"],"warnings":[]}"#)
+        let okta = try card(board, "missing:mcp-okta-mcp-server")
+        XCTAssertEqual(okta.title, "okta-mcp-server won't start")
+        XCTAssertEqual(okta.detail, "~/Security-Ops/.mcp.json · profile mcp-okta-mcp-server")
+        XCTAssertEqual(okta.tools, ["okta-mcp-server"])
+        XCTAssertTrue(okta.restartsInEditor)
+        XCTAssertEqual(board.headline, "1 tool won't start")
+        let aws = BoardContext.ownTools([DoctorItem(
+            kind: "missing", profile: "aws-dev",
+            launchers: [DoctorLauncher(kind: "aws", file: "/Users/me/.aws/config", detail: "[profile dev]", profile: "aws-dev")]
+        )])
+        XCTAssertEqual(aws.map(\.name), ["aws --profile dev"])
+    }
+
     func testAMissingSecretWithNoKnownToolNamesItsProfile() throws {
         let json = #"{"schema_version":2,"ok":false,"problems":[{"kind":"corrupt","profile":"k8s","scope":"global","variable":"CERT","#
             + #""path":"k8s/CERT"},{"kind":"corrupt","profile":"k8s","scope":"global","variable":"KEY","path":"k8s/KEY"}],"warnings":[]}"#
