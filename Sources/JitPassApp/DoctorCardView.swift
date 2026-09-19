@@ -73,6 +73,12 @@ struct DoctorCardView: View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(card.title).font(.system(size: 13, weight: .semibold)).fixedSize(horizontal: false, vertical: true)
+                if card.changedSinceIgnored {
+                    HStack(spacing: 6) {
+                        Circle().fill(Color(StatusMark.amber)).frame(width: 6, height: 6)
+                        Text("Was ignored; it changed since").font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                }
                 if case let .working(presence) = state {
                     DoctorWorkingLine(presence: presence)
                 } else if let reason = card.reason {

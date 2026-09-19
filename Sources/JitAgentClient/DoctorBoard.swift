@@ -40,6 +40,8 @@ public struct DoctorBoard: Equatable, Sendable {
     public var subline: String?
     public var mark: Mark
     public var cards: [DoctorCard]
+    /// What the user ignored, folded under the cards; counted nowhere.
+    public var ignored: [DoctorIgnoredRow] = []
 
     public func cards(in tier: Tier) -> [DoctorCard] {
         cards.filter { $0.tier == tier }
@@ -53,7 +55,7 @@ public struct DoctorBoard: Equatable, Sendable {
     /// Tidy up, and so is a kind this app doesn't know yet.
     public static let recommendedKinds: Set<String> = [
         "config_deleted", "config_not_recorded", "mcp_nested", "jit_path_upgrade", "mount_stale", "mount", "duplicates",
-        "service", "install", "completion"
+        "service", "install", "completion", "not_logged_in"
     ]
 
     /// The tier of a finding: a problem is always Broken now.
@@ -141,6 +143,10 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
         case copyPath(String)
         case terminal(String)
         case review
+        /// `jit doctor ignore …` per finding, then a recheck.
+        case ignore([[String]])
+        /// `jit doctor unignore …`.
+        case unignore([String])
     }
 
     public var title: String
@@ -178,6 +184,8 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
         case let .reveal(path), let .copyPath(path): path
         case let .terminal(command): command
         case .review: ""
+        case let .ignore(commands): commands.map { "jit " + $0.joined(separator: " ") }.joined(separator: "\n")
+        case let .unignore(command): "jit " + command.joined(separator: " ")
         }
     }
 }
@@ -196,10 +204,17 @@ public extension DoctorBoard {
         let cards = (context.problemCards(report.problems) + context.warningCards(report.warnings)).enumerated()
             .sorted { (order.firstIndex(of: $0.element.tier) ?? 0, $0.offset) < (order.firstIndex(of: $1.element.tier) ?? 0, $1.offset) }
             .map(\.element)
+            .map { card in
+                var card = card
+                if let ignore = card.ignoreButton {
+                    card.menu += (card.menu.isEmpty ? [] : [.separator]) + [.button(ignore)]
+                }
+                return card
+            }
         let (headline, subline) = heading(cards)
         let mark: Mark = cards.contains { $0.tier == .broken } ? .red
             : cards.contains { $0.tier == .recommended } ? .amber : .green
-        return DoctorBoard(headline: headline, subline: subline, mark: mark, cards: cards)
+        return DoctorBoard(headline: headline, subline: subline, mark: mark, cards: cards, ignored: ignoredRows(report.ignored))
     }
 
     /// "2 tools won't start" and the tools, then what else fails; else the

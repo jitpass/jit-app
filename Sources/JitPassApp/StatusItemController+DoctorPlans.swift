@@ -148,6 +148,13 @@ extension StatusItemController {
             runInTerminal(command)
         case .review:
             break
+        case let .ignore(commands):
+            if let line = card.ignoreConfirmation, !confirmIgnore(line) {
+                return
+            }
+            runIgnore(commands, key: key)
+        case let .unignore(command):
+            runIgnore([command], key: key)
         case let .run(steps):
             let subject = key == card.id ? nil : card.rows.first { $0.id == key }?.text
             let target = DoctorTarget(key: key, card: card, button: button, subject: subject)
@@ -173,5 +180,64 @@ extension StatusItemController {
             steps += prepared
         }
         applyInApp(steps, action: first, target: target)
+    }
+
+    // MARK: - Ignore
+
+    /// A problem card's Ignore asks once, in one line: the tool still
+    /// fails, Doctor only stops counting it. Advice is ignored unasked.
+    private func confirmIgnore(_ line: String) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Ignore this problem?"
+        alert.informativeText = line
+        alert.addButton(withTitle: "Ignore")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runFrontmost() == .alertFirstButtonReturn
+    }
+
+    /// `jit doctor ignore` (or `unignore`) for each finding, then a recheck,
+    /// which moves the card to the ignored list or back. The card says it is
+    /// working until the recheck lands; a failure shows under the header.
+    func runIgnore(_ commands: [[String]], key: String) {
+        guard doctorIdle, !commands.isEmpty else {
+            return
+        }
+        model.doctorBusy = key
+        model.doctorMessage = nil
+        doctorProgress.presence = false
+        doctorProgress.outcome = nil
+        Task.detached {
+            var failure: String?
+            for arguments in commands {
+                failure = Self.ignoreFailure(JitCLI.capture(arguments))
+                if failure != nil {
+                    break
+                }
+            }
+            let said = failure.map { "jit \(commands[0].prefix(2).joined(separator: " ")): \($0)" }
+            await MainActor.run { [weak self] in
+                self?.model.doctorMessage = said
+                self?.runDoctor(afterAction: true)
+            }
+        }
+    }
+
+    /// Why an ignore or unignore did not happen, from its JSON answer; nil
+    /// when it did.
+    private nonisolated static func ignoreFailure(_ answer: Result<JitCLI.Captured, Error>) -> String? {
+        switch answer {
+        case let .success(captured):
+            let result = try? DoctorIgnoreResult.parse(captured.stdout)
+            if let error = result?.error {
+                return error
+            }
+            guard captured.status == 0 else {
+                let said = captured.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                return said.isEmpty ? "exit \(captured.status)" : said
+            }
+            return result == nil ? "no answer (is this jit older than 2.1?)" : nil
+        case let .failure(error):
+            return describe(error)
+        }
     }
 }

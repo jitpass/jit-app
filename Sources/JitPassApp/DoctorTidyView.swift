@@ -51,6 +51,9 @@ struct DoctorTidyList: View {
                         DoctorButtons(card: card, key: card.id, enabled: state.enabled, onButton: onButton)
                     }
                 }
+                if card.changedSinceIgnored {
+                    Text("Was ignored; it changed since").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
                 ForEach(card.rows) { row in
                     Text(row.text).font(.system(size: 11, design: row.mono ? .monospaced : .default)).foregroundStyle(.secondary)
                         .lineLimit(1).truncationMode(.head).padding(.leading, 8)
@@ -109,5 +112,43 @@ struct DoctorReviewSheet: View {
         }
         .padding(20)
         .frame(width: 480)
+    }
+}
+
+/// The ignored findings folded into one line, "3 ignored · Show"; open,
+/// a row each (name · section · since) with Show Again.
+struct DoctorIgnoredFold: View {
+    let rows: [DoctorIgnoredRow]
+    let state: (String) -> DoctorCardState
+    let onShowAgain: (DoctorButton, String) -> Void
+    @State private var open = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Text("\(rows.count) ignored").font(.system(size: 12)).foregroundStyle(.secondary)
+                Text("·").font(.system(size: 12)).foregroundStyle(.secondary)
+                Button(open ? "Hide" : "Show") { open.toggle() }.buttonStyle(.link).font(.system(size: 12))
+            }
+            if open {
+                ForEach(rows) { row in
+                    HStack(spacing: 10) {
+                        Text(row.text).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        Spacer(minLength: 8)
+                        switch state(row.id) {
+                        case let .working(presence):
+                            DoctorWorkingLine(presence: presence)
+                        case let .idle(enabled):
+                            if let again = row.showAgain {
+                                Button(again.title) { onShowAgain(again, row.id) }.help(again.help).disabled(!enabled)
+                            }
+                        default:
+                            EmptyView()
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
