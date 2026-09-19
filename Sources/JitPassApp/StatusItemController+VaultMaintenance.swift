@@ -48,8 +48,9 @@ extension StatusItemController {
     }
 
     /// A deletion's dialog. The delete button comes first and is the
-    /// default, except for a break-profiles delete, where Cancel is, so
-    /// Return never breaks a profile. With no button it only informs.
+    /// default, except for a break-profiles delete: there no button takes
+    /// Return, so Return never breaks a profile, and Cancel keeps Escape.
+    /// With no button it only informs.
     static func confirmDeletion(_ confirmation: DeleteConfirmation) -> Bool {
         let alert = NSAlert()
         alert.messageText = confirmation.title
@@ -65,7 +66,7 @@ extension StatusItemController {
         if confirmation.breaks {
             delete.hasDestructiveAction = true
             delete.keyEquivalent = ""
-            cancel.keyEquivalent = "\r"
+            cancel.keyEquivalent = "\u{1b}"
         }
         return alert.runFrontmost() == .alertFirstButtonReturn
     }
