@@ -157,14 +157,29 @@ final class DoctorAdviceTests: XCTestCase {
     /// reference, never a way to delete the profile: the app's old Delete
     /// Profile trashed only the manifest, with no launcher check, no Touch
     /// ID and no audit record.
+    ///
+    /// Drop Entry is not that button and the distinction is the point: it
+    /// removes ONE variable through `jit profile drop`, which refuses any
+    /// whose vault path holds a value, refuses to empty the manifest, and
+    /// leaves an audit record like every other jit command. It is still
+    /// marked destructive so the app confirms it — dropping a variable the
+    /// tool needs breaks it silently — which is why this test asks about
+    /// deleting the profile rather than about caution in general.
     func testGlobalProfileProblemOffersNoDeletion() {
         let missing = DoctorItem(
             kind: "missing", scope: "global", profile: "mcp", variable: "URL", path: "mcp/URL", detail: "",
             action: "`jit vault set mcp/URL`, or `jit migrate <path>` to convert"
         )
         let actions = DoctorAdvice.actions(for: missing)
-        XCTAssertFalse(actions.contains { $0.destructive }, "\(actions.map(\.title))")
-        XCTAssertFalse(actions.contains { $0.title.contains("Delete") })
+        XCTAssertFalse(actions.contains { $0.title.contains("Delete") }, "\(actions.map(\.title))")
+        XCTAssertFalse(
+            actions.contains { $0.argv?.contains { $0.starts(with: ["profile", "rm"]) } ?? false },
+            "no action may delete the profile itself"
+        )
+        // The only cautious one is the single-variable drop, and it names
+        // the variable it would remove.
+        XCTAssertEqual(actions.filter(\.destructive).map(\.title), ["Drop Entry"])
+        XCTAssertEqual(actions.first { $0.destructive }?.argv, [["profile", "drop", "mcp", "URL", "--yes"]])
     }
 
     func testMissingSecretOffersSetAndMigrate() {
@@ -179,12 +194,22 @@ final class DoctorAdviceTests: XCTestCase {
             action: advice
         )
         let actions = DoctorAdvice.actions(for: missing)
-        XCTAssertEqual(actions.map(\.title), ["Set Value", "Migrate a File"])
+        // Three: supply the value, bring back the file it came from, or say
+        // the manifest asks for a variable the tool never needed. Doctor
+        // cannot tell which, so it offers both sides rather than assuming
+        // every entry is wanted.
+        XCTAssertEqual(actions.map(\.title), ["Set Value", "Migrate a File", "Drop Entry"])
         XCTAssertEqual(actions[0].argv, [["vault", "set", "mcp/URL", "--stdin", "--yes"]], "typed in the app, fed on stdin")
         XCTAssertEqual(actions[0].input, .secret(prompt: "The value for mcp/URL"))
         XCTAssertEqual(actions[1].planned, .migrate(targets: ["<path>"]), "its plan is read from --dry-run and shown first")
         XCTAssertEqual(actions[1].argv, [["migrate", "--yes", "<path>"]], "in the app, the chosen file in place of <path>")
         XCTAssertEqual(actions[1].needs, .existingPath(placeholder: "<path>"))
+        // Fully written: a fix the user has to complete themselves is one
+        // they run in a terminal instead, which is how these entries stayed
+        // unfixable from the app at all.
+        XCTAssertEqual(actions[2].argv, [["profile", "drop", "mcp", "URL", "--yes"]])
+        XCTAssertEqual(actions[2].needs, .nothing)
+        XCTAssertTrue(actions[2].destructive, "it confirms: a variable the tool needs, dropped, breaks it silently")
     }
 
     func testOrphansCountOnceInTheVerdict() throws {

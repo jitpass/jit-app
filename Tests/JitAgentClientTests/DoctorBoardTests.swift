@@ -81,8 +81,13 @@ final class DoctorBoardTests: XCTestCase {
             [["vault", "set", "mcp-okta-mcp-server/OKTA_SCOPES", "--stdin", "--yes"]]
         ], "the existing Set Value, once per secret, each its own hidden field")
         XCTAssertEqual(okta.primary?.presence, true)
+        // Set Values… stays the prominent primary; the drops sit in the
+        // overflow, one per variable and each naming its own, because two
+        // buttons reading "Drop Entry…" on one card say nothing about which
+        // variable would go.
         XCTAssertEqual(titles(okta.menu), [
-            "Show Config in Finder", "Show Profile File", "Copy Path", "—", "Migrate a File…", "Open in Terminal"
+            "Show Config in Finder", "Show Profile File", "Copy Path", "—", "Migrate a File…",
+            "Drop Entry… · OKTA_ORG_URL", "Drop Entry… · OKTA_SCOPES", "Open in Terminal"
         ])
         XCTAssertEqual(okta.menu.last, .button(DoctorButton("Open in Terminal", .terminal(
             "jit vault set mcp-okta-mcp-server/OKTA_ORG_URL\njit vault set mcp-okta-mcp-server/OKTA_SCOPES"

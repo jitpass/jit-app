@@ -44,6 +44,16 @@ extension DoctorAdvice {
                 return "This runs:\n\n\(command)\n\nEvery secret in the file is stored; a secret at the same path "
                     + "is overwritten, its current value archived first. Nothing asks again."
             }
+            // Not a delete at all — no secret, no file, one line out of one
+            // manifest — so the generic "deletes for good" below would be
+            // wrong twice over. What it must say instead is the risk that is
+            // actually there: the tool stops receiving that variable, and
+            // this finding stops being reported.
+            if action.argv?.contains(where: { $0.starts(with: ["profile", "drop"]) }) == true {
+                return "This runs:\n\n\(command)\n\nThe tool stops receiving that variable, and Doctor stops "
+                    + "reporting it. No secret, mount or other profile is touched, and jit refuses if the vault "
+                    + "holds a value for it. Nothing asks again."
+            }
             if action.argv?.contains(where: { $0.starts(with: ["migrate", "forget"]) }) == true {
                 return "This runs:\n\n\(command)\n\nIt deletes that file and nothing else: no secret, no profile, "
                     + "no mount. jit refuses if a mount still serves it or the vault holds its group. Nothing asks again."

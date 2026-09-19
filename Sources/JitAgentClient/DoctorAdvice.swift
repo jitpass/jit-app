@@ -200,9 +200,19 @@ public enum DoctorAdvice {
     typealias Builder = (DoctorItem) -> [DoctorAction]
 
     private static let builders: [String: Builder] = [
+        // Two opposite answers, because a manifest entry with no value has
+        // two causes and doctor cannot tell them apart: the value has not
+        // been restored yet, or the manifest asks for a variable the tool
+        // never needed (`jit migrate` merges into an existing manifest, so a
+        // restored six-entry manifest outlives the two-entry .env beside
+        // it). Set Value stays first and stays the plain one; Drop Entry is
+        // the deliberate one, and destructive on purpose — dropping a
+        // variable the tool DOES need breaks it silently AND clears the
+        // finding, which is worse than the finding.
         "missing": { item in [
             setValue("Set Value", item),
-            migrateAFile
+            migrateAFile,
+            dropEntry(item)
         ] },
         "corrupt": { item in [
             show("Show History", ["vault", "history", item.path ?? ""]),
@@ -283,6 +293,20 @@ public enum DoctorAdvice {
         )
     }
 
+    /// Remove one variable from the manifest that asks for it. Carries the
+    /// profile and variable outright, so the button never becomes a Choose…
+    /// the user has to finish — a fix you have to complete in a terminal is
+    /// one nobody uses, which is how these entries went unfixable.
+    static func dropEntry(_ item: DoctorItem) -> DoctorAction {
+        guard let profile = item.profile, let variable = item.variable else {
+            return DoctorAction("Drop Entry", "")
+        }
+        return DoctorAction(
+            "Drop Entry", "jit profile drop \(profile) \(variable)", destructive: true,
+            argv: [["profile", "drop", profile, variable, "--yes"]]
+        )
+    }
+
     /// A read-only command whose output is the point.
     private static func show(_ title: String, _ arguments: [String]) -> DoctorAction {
         DoctorAction(title, "jit " + arguments.joined(separator: " "), argv: [arguments], showsOutput: true)
@@ -317,48 +341,6 @@ public enum DoctorAdvice {
             return DoctorAction("Choose…", command, destructive: destructive, needs: needs)
         }
         return DoctorAction("Run", command, destructive: destructive)
-    }
-}
-
-public extension DoctorAdvice {
-    /// What the row says. The group title and note already say what the
-    /// kind means, so a row repeats none of it: a mount row is its path, an
-    /// origin row is the secrets and the file they came from, a profile
-    /// row is the profile and the variable. Anything else is doctor's own
-    /// sentence.
-    static func rowText(_ item: DoctorItem) -> String {
-        switch item.kind {
-        case "mount", "mount_stale", "install", "completion", "jit_path", "jit_path_upgrade", "1password_link":
-            return item.path.map(homePath) ?? item.summary
-        case "origin_gone":
-            return originRow(item)
-        case _ where ownershipKinds.contains(item.kind):
-            return ownershipRow(item)
-        default:
-            if let profile = item.profile, let variable = item.variable, item.detail?.isEmpty ?? true {
-                return "\(profile) · \(variable)"
-            }
-            return item.summary
-        }
-    }
-
-    /// Rows that are a path read best in monospace, truncated at the start.
-    static func rowIsPath(_ item: DoctorItem) -> Bool {
-        switch item.kind {
-        case "mount", "mount_stale", "install", "completion", "jit_path", "jit_path_upgrade", "1password_link":
-            item.path != nil
-        case "origin_gone", "missing", "corrupt", "bad_path":
-            true
-        case "pointer_missing":
-            item.file != nil && item.path != nil
-        default:
-            false
-        }
-    }
-
-    static func homePath(_ path: String) -> String {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
     }
 }
 
