@@ -60,6 +60,35 @@ struct BoardContext {
         return index
     }
 
+    /// The tools a finding names itself (jit 2.1: a broken secret
+    /// reference carries the launchers of its profile), first seen first;
+    /// a project store is where the profile lives, not a tool. Empty from
+    /// an older jit, and the report's other findings are asked instead.
+    static func ownTools(_ rows: [DoctorItem]) -> [BoardTool] {
+        var found: [BoardTool] = []
+        for launcher in rows.flatMap({ $0.launchers ?? [] }) {
+            guard let detail = launcher.detail else {
+                continue
+            }
+            let tool: BoardTool? = switch launcher.kind {
+            case "mcp": BoardTool(name: detail, config: launcher.file.nilIfEmpty, mcp: true)
+            case "wrap": BoardTool(name: detail, config: nil, mcp: false)
+            case "aws": BoardTool(name: "aws --profile " + awsName(detail), config: launcher.file.nilIfEmpty, mcp: false)
+            default: nil
+            }
+            if let tool, !found.contains(where: { $0.name == tool.name }) {
+                found.append(tool)
+            }
+        }
+        return found
+    }
+
+    /// "[profile dev]" as the name `aws --profile` takes.
+    static func awsName(_ detail: String) -> String {
+        let name = detail.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        return name.hasPrefix("profile ") ? String(name.dropFirst("profile ".count)) : name
+    }
+
     func short(_ path: String) -> String {
         BoardText.short(path, home)
     }
@@ -109,7 +138,8 @@ struct BoardContext {
         let first = rows[0]
         let corrupt = first.kind == "corrupt"
         let profile = first.profile ?? "?"
-        let found = tools[profile] ?? []
+        let own = Self.ownTools(rows)
+        let found = own.isEmpty ? tools[profile] ?? [] : own
         let names = found.map(\.name)
         let config = found.compactMap(\.config).first
         let title = names.isEmpty ? "Profile \(profile) can't start its tool" : "\(BoardText.list(names)) won't start"
@@ -210,8 +240,7 @@ struct BoardContext {
         let fail = count == 1 ? "fails" : "fail"
         switch kind {
         case "aws":
-            let names = details.map { $0.trimmingCharacters(in: CharacterSet(charactersIn: "[]")) }
-                .map { $0.hasPrefix("profile ") ? String($0.dropFirst("profile ".count)) : $0 }
+            let names = details.map(Self.awsName)
             return ("aws --profile \(BoardText.list(names)) \(fail)", false)
         case "mcp":
             return ("\(BoardText.list(details)) won't start", true)

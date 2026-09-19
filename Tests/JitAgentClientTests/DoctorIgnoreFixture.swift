@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 
 /// `jit doctor --format json` from jit 2.1.0 (jitpass/jit doctor-ignore,
-/// 5e37c73) in a throwaway home, renamed to /Users/me: three AWS profiles
+/// 75cbc25) in a throwaway home, renamed to /Users/me: three AWS profiles
 /// (dev and admin clisso apps nobody has logged into, qa not one), a profile
 /// missing two secrets whose record names a deleted config, and clisso's
 /// wrap. aws-dev and aws-admin were ignored; then [profile dev] gained a
@@ -10,22 +10,24 @@
 /// "ignored".
 enum DoctorIgnoreFixture {
     static let json = #"""
-    {"schema_version":2,"tool":{"version":"2.1.0","build":"5e37c733b460","signature":"signed CZC6BH93GJ"},
+    {"schema_version":2,"tool":{"version":"2.1.0","build":"75cbc2508abf","signature":"signed CZC6BH93GJ"},
     "profiles_checked":1,"secrets_checked":2,"ok":false,"problems":[{"kind":"missing","profile":"mcp-okta-mcp-server",
     "scope":"global","variable":"OKTA_ORG_URL","path":"mcp-okta-mcp-server/OKTA_ORG_URL","detail":"","action":
     "`jit vault set mcp-okta-mcp-server/OKTA_ORG_URL`, or `jit migrate <path>` to convert the file it came from",
     "fixes":[{"command":"jit vault set mcp-okta-mcp-server/OKTA_ORG_URL","argv":["vault","set",
     "mcp-okta-mcp-server/OKTA_ORG_URL"],"destructive":false,"presence":true},{"command":"jit migrate <path>",
-    "argv":["migrate","<path>"],"destructive":false,"presence":false,"needs":"<path>"}],"ignore":{"kind":"missing","name":
-    "mcp-okta-mcp-server","argv":["jit","doctor","ignore","--kind","missing","mcp-okta-mcp-server"]}},{"kind":"missing",
-    "profile":"mcp-okta-mcp-server","scope":"global","variable":"OKTA_SCOPES","path":"mcp-okta-mcp-server/OKTA_SCOPES",
-    "detail":"","action":
+    "argv":["migrate","<path>"],"destructive":false,"presence":false,"needs":"<path>"}],"launchers":[{"kind":"mcp","file":
+    "/Users/me/Security-Ops/.mcp.json","detail":"okta-mcp-server","profile":"mcp-okta-mcp-server"}],"ignore":{"kind":
+    "missing","name":"mcp-okta-mcp-server","argv":["jit","doctor","ignore","--kind","missing","mcp-okta-mcp-server"]}},
+    {"kind":"missing","profile":"mcp-okta-mcp-server","scope":"global","variable":"OKTA_SCOPES","path":
+    "mcp-okta-mcp-server/OKTA_SCOPES","detail":"","action":
     "`jit vault set mcp-okta-mcp-server/OKTA_SCOPES`, or `jit migrate <path>` to convert the file it came from",
     "fixes":[{"command":"jit vault set mcp-okta-mcp-server/OKTA_SCOPES","argv":["vault","set",
     "mcp-okta-mcp-server/OKTA_SCOPES"],"destructive":false,"presence":true},{"command":"jit migrate <path>",
-    "argv":["migrate","<path>"],"destructive":false,"presence":false,"needs":"<path>"}],"ignore":{"kind":"missing","name":
-    "mcp-okta-mcp-server","argv":["jit","doctor","ignore","--kind","missing","mcp-okta-mcp-server"]}},{"kind":
-    "profile_missing","profile":"aws-qa","detail":
+    "argv":["migrate","<path>"],"destructive":false,"presence":false,"needs":"<path>"}],"launchers":[{"kind":"mcp","file":
+    "/Users/me/Security-Ops/.mcp.json","detail":"okta-mcp-server","profile":"mcp-okta-mcp-server"}],"ignore":{"kind":
+    "missing","name":"mcp-okta-mcp-server","argv":["jit","doctor","ignore","--kind","missing","mcp-okta-mcp-server"]}},
+    {"kind":"profile_missing","profile":"aws-qa","detail":
     "~/.aws/config [profile qa] names profile aws-qa, which no jit store holds","action":
     "no such jit profile, so aws --profile qa fails; mint it again, or delete that [profile] block","file":
     "/Users/me/.aws/config","launchers":[{"kind":"aws","file":"/Users/me/.aws/config","detail":"[profile qa]","profile":
