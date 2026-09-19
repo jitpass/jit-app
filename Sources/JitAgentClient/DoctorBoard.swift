@@ -140,6 +140,8 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
     public enum Command: Equatable, Sendable {
         case run([DoctorAction])
         case reveal(String)
+        /// Open the file in the editor chosen in Settings.
+        case edit(String)
         case copyPath(String)
         case terminal(String)
         case review
@@ -181,7 +183,7 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
     public var help: String {
         switch command {
         case let .run(steps): steps.map(\.command).joined(separator: "\n")
-        case let .reveal(path), let .copyPath(path): path
+        case let .reveal(path), let .edit(path), let .copyPath(path): path
         case let .terminal(command): command
         case .review: ""
         case let .ignore(commands): commands.map { "jit " + $0.joined(separator: " ") }.joined(separator: "\n")

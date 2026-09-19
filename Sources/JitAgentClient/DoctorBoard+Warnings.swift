@@ -79,15 +79,23 @@ extension BoardContext {
         return card
     }
 
-    /// Show Config in Finder, Copy Path and a separator, for a config.
-    func configEntries(_ config: String) -> [DoctorMenuEntry] {
+    /// Show … in Finder, Copy Path and a separator, for a file. The label is
+    /// a parameter because most of these paths ARE someone else's config,
+    /// but not all: a stale pointer record is jit's own file, and calling it
+    /// a config sends the reader looking for a tool that owns it.
+    func configEntries(_ config: String, label: String = "Show Config in Finder") -> [DoctorMenuEntry] {
         guard !config.isEmpty else {
             return []
         }
         return [
-            .button(DoctorButton("Show Config in Finder", .reveal(config))), .button(DoctorButton("Copy Path", .copyPath(config))),
+            .button(DoctorButton(label, .reveal(config))), .button(DoctorButton("Copy Path", .copyPath(config))),
             .separator
         ]
+    }
+
+    /// What the Finder entry calls the card's file.
+    func fileMenuLabel(_ item: DoctorItem) -> String {
+        item.kind == "stale_pointers" ? "Show File in Finder" : "Show Config in Finder"
     }
 
     // MARK: - Nested MCP wrappers
@@ -169,6 +177,32 @@ extension BoardContext {
     /// A card per kind for everything the board has no words of its own
     /// for: the kind's title, its note, and doctor's buttons as the window
     /// always offered them; one row per finding when there are several.
+    /// A row's buttons: the finding's own actions, plus Edit where the row
+    /// is ABOUT a file jit wrote and the reader's next move is to look at
+    /// it. Deliberately not on every row with a file — most of those name
+    /// someone else's config, where opening an editor is not the point —
+    /// but a stale pointer record is jit's own text, and deciding whether
+    /// to keep it means reading it.
+    func rowButtons(_ item: DoctorItem) -> [DoctorButton] {
+        var buttons = actionButtons(DoctorAdvice.actions(for: item))
+        if let edit = editButton(item) {
+            buttons.insert(edit, at: 0)
+        }
+        return buttons
+    }
+
+    /// Edit, for a row about a file jit wrote whose contents decide what to
+    /// do with it. Shared by the row path and the single-finding card, which
+    /// is the whole point: it used to exist only on rows, so a lone stale
+    /// record — much the commonest case — offered no way to read the file
+    /// and made Delete the card's one prominent button instead.
+    func editButton(_ item: DoctorItem) -> DoctorButton? {
+        guard item.kind == "stale_pointers", let file = DoctorAdvice.filePath(item) else {
+            return nil
+        }
+        return DoctorButton("Edit", .edit(file))
+    }
+
     func genericCards(_ items: [DoctorItem], problem: Bool) -> [DoctorCard] {
         DoctorAdvice.groups(items, among: all).map { group in
             let tier = DoctorBoard.tier(of: group.items[0], problem: problem)
@@ -190,17 +224,26 @@ extension BoardContext {
                 card.rows = group.items.map { item in
                     DoctorCardRow(
                         id: item.id, text: DoctorAdvice.rowText(item), mono: DoctorAdvice.rowIsPath(item),
-                        file: DoctorAdvice.filePath(item), buttons: actionButtons(DoctorAdvice.actions(for: item))
+                        file: DoctorAdvice.filePath(item),
+                        buttons: rowButtons(item)
                     )
                 }
             }
             let primary = actions.first { !isUndo($0) }
-            if let primary {
+            // Reading the record is the first move, and every other action
+            // on it deletes it: a destructive button must never be the one
+            // prominent call to action on a card that is asking the user to
+            // decide.
+            let edit = group.items.count == 1 ? editButton(group.items[0]) : nil
+            if let edit {
+                card.primary = edit
+                card.primaryProminent = false
+            } else if let primary {
                 card.primary = actionButtons([primary]).first
                 card.primaryProminent = tier != .tidy && primary.argv != nil
             }
-            let file = card.file.map(configEntries) ?? []
-            let rest = actionButtons(actions.filter { $0 != primary })
+            let file = card.file.map { configEntries($0, label: fileMenuLabel(group.items[0])) } ?? []
+            let rest = actionButtons(edit == nil ? actions.filter { $0 != primary } : actions)
             card.menu = file + rest.map(DoctorMenuEntry.button)
             if tier != .tidy {
                 card.menu.append(.button(terminalButton(primary.map { [$0] } ?? [])))

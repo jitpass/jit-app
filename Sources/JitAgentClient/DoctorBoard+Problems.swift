@@ -172,9 +172,26 @@ struct BoardContext {
         if let file = card.file {
             menu.append(.button(DoctorButton("Copy Path", .copyPath(file))))
         }
-        let others = actionButtons(perRow.flatMap { $0 }.filter { !steps.contains($0) })
+        // One remove control, not one per variable. `jit profile drop` takes
+        // VAR..., and Set Values… above already handles every row in a
+        // single click — leaving the opposite answer to cost four clicks and
+        // four dialogs punished exactly the case this button exists for, a
+        // manifest a clone restored with more variables than the .env beside
+        // it. On a fourteen-variable manifest the menu became a wall.
+        let removes = perRow.flatMap { $0 }.filter { isRemoveVariable($0) }
+        let rest = perRow.flatMap { $0 }.filter { !steps.contains($0) && !isRemoveVariable($0) }
+        var others = actionButtons(rest)
+        if !removes.isEmpty {
+            let variables = rows.compactMap(\.variable)
+            others += actionButtons([DoctorAdvice.removeVariables(profile, variables)])
+        }
         card.menu = menu + [.separator] + others.map(DoctorMenuEntry.button) + [.button(terminalButton(steps))]
         return card
+    }
+
+    /// Whether an action is `jit profile drop`, which the card bundles.
+    func isRemoveVariable(_ action: DoctorAction) -> Bool {
+        action.argv?.contains { $0.starts(with: ["profile", "drop"]) } ?? false
     }
 
     /// Buttons for actions, one per command; two of the same title name

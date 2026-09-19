@@ -141,6 +141,8 @@ extension StatusItemController {
         switch button.command {
         case let .reveal(path):
             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        case let .edit(path):
+            Editor.open(path, line: nil)
         case let .copyPath(path):
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(path, forType: .string)
