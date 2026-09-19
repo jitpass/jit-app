@@ -58,6 +58,16 @@ final class MenuModel: ObservableObject {
     @Published var doctorRunning = false
     /// Why the last in-app doctor action failed, if it did.
     @Published var doctorMessage: String?
+    /// The row (a finding's id, or "group:<kind>") whose action is running,
+    /// from the moment it starts until the recheck after it lands. One at
+    /// a time; every action button in the window is disabled meanwhile.
+    @Published var doctorBusy: String?
+    /// An action finished while a check was already running: that check
+    /// predates the action, so another follows it.
+    var doctorRecheckPending = false
+    /// The last check returned no report, so what is on screen (if
+    /// anything) is from an earlier one.
+    @Published var doctorFailed = false
     /// Whether macOS has granted the app Full Disk Access, checked when the scan window opens.
     @Published var fullDiskAccess = false
     /// The vault as `jit vault list` reports it: paths and headers, never a
