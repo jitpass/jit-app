@@ -83,18 +83,10 @@ public struct DoctorIgnoredRow: Equatable, Sendable, Identifiable {
 }
 
 public extension DoctorBoard {
-    /// Every warning kind jit has, by where the board puts it: an ignored
-    /// finding carries no severity of its own, so its section is read from
-    /// its kind, and a kind not listed is a problem's.
-    static let tidyKinds: Set<String> = [
-        "orphan", "origin_gone", "shadowed", "backup", "wrap_env", "audit", "legacy_envelope", "no_known_tool"
-    ]
-
-    static func section(ofIgnored kind: String) -> Tier {
-        if recommendedKinds.contains(kind) {
-            return .recommended
-        }
-        return tidyKinds.contains(kind) ? .tidy : .broken
+    /// Where an ignored finding would be: jit says whether it is a problem
+    /// or a warning, and a warning's kind picks its tier as on the board.
+    static func section(ofIgnored item: DoctorItem) -> Tier {
+        tier(of: item, problem: item.severity == "problem")
     }
 
     /// The ignored findings, one row per kind and name.
@@ -109,7 +101,7 @@ public extension DoctorBoard {
             }
             let again = item.unignore?.arguments("unignore").map { DoctorButton("Show Again", .unignore($0)) }
             rows.append(DoctorIgnoredRow(
-                id: id, name: name, section: section(ofIgnored: item.kind), since: item.ignoredSince, showAgain: again
+                id: id, name: name, section: section(ofIgnored: item), since: item.ignoredSince, showAgain: again
             ))
         }
         return rows
@@ -169,8 +161,22 @@ extension BoardContext {
             let others = actionButtons(DoctorAdvice.actions(for: item).filter { action in
                 !(item.fixes ?? []).contains { $0.external && $0.command == action.command }
             })
-            return DoctorCardRow(id: item.id, text: item.summary, mono: true, file: item.file, buttons: login + others)
+            return DoctorCardRow(id: item.id, text: loginRowText(item), mono: true, file: item.file, buttons: login + others)
         }
         return card
+    }
+
+    /// "aws --profile dev · ~/.aws/config [profile dev]": what fails, and
+    /// where it is set; the profile and its file for any other tool.
+    func loginRowText(_ item: DoctorItem) -> String {
+        guard let launcher = item.launchers?.first else {
+            return item.summary
+        }
+        let place = short(launcher.file) + (launcher.detail.map { " " + $0 } ?? "")
+        if launcher.kind == "aws", let detail = launcher.detail {
+            let name = detail.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+            return "aws --profile " + (name.hasPrefix("profile ") ? String(name.dropFirst("profile ".count)) : name) + " · " + place
+        }
+        return (item.profile ?? launcher.kind) + " · " + place
     }
 }
