@@ -30,11 +30,19 @@ extension DoctorAdvice {
     /// only a jit command with its own y/N does, sudo asks for a password
     /// and not whether you are sure.
     public static func confirmation(for action: DoctorAction) -> String {
+        confirmationBody(for: action) + (action.presence ? " Touch ID follows." : "")
+    }
+
+    private static func confirmationBody(for action: DoctorAction) -> String {
         let command = action.command
         if action.argv != nil {
             if command.hasPrefix("jit vault set ") {
                 return "This runs:\n\n\(command)\n\nThe value you type replaces the stored one; "
                     + "the old one stays in the secret's history. Nothing asks again."
+            }
+            if action.argv?.contains(where: { $0.starts(with: ["vault", "import"]) }) == true {
+                return "This runs:\n\n\(command)\n\nEvery secret in the file is stored; a secret at the same path "
+                    + "is overwritten, its current value archived first. Nothing asks again."
             }
             return "This runs:\n\n\(command)\n\nIt deletes for good, and nothing asks again."
         }
@@ -46,6 +54,23 @@ extension DoctorAdvice {
         let words = command.split(separator: " ")
         let asks = askingCommands.contains { command.hasPrefix($0) || command == $0.trimmingCharacters(in: .whitespaces) }
             && !words.contains("--yes") && !words.contains("-y") && !words.contains("--force")
-        return opens + (asks ? "It deletes for good. jit asks once more before it does." : "It deletes for good, and nothing asks again.")
+        let effect = terminalEffect(command)
+        return opens + (asks ? "\(effect). jit asks once more before it does." : "\(effect), and nothing asks again.")
+    }
+
+    /// What a destructive terminal command does, in a clause: not every
+    /// one the engine marks destructive deletes (an unmount or an undo puts
+    /// plaintext back on disk).
+    private static func terminalEffect(_ command: String) -> String {
+        if command.hasPrefix("jit unmount") {
+            return "It writes the secret values back to the file in plaintext"
+        }
+        if command.hasPrefix("jit migrate undo") {
+            return "It puts the original file back, plaintext and all"
+        }
+        if command.hasPrefix("jit vault import") {
+            return "Every secret in the file is stored, overwriting any at the same path"
+        }
+        return "It deletes for good"
     }
 }
