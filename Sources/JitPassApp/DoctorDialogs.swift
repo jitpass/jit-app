@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 
 import AppKit
+import JitAgentClient
 
 /// The dialogs a doctor action needs before the app can run its command:
 /// a hidden value, a passphrase typed twice, and a window for output the
@@ -63,6 +64,62 @@ enum DoctorDialogs {
                 return first
             }
         }
+    }
+
+    /// A confirmation worded from a dry run, with jit's plan under the
+    /// text, monospaced and scrolling when it is long, and a link to the
+    /// file it is about. The buttons follow `confirmDeletion`: a `breaks`
+    /// one (an undo that writes plaintext back) is red and not the default,
+    /// so Return never presses it and Escape cancels.
+    @MainActor
+    static func confirmPlan(_ confirmation: DeleteConfirmation, plan: String?, reveal: RevealLink?) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = confirmation.title
+        alert.informativeText = confirmation.message
+        alert.alertStyle = confirmation.button == nil || !confirmation.destructive ? .informational : .warning
+        alert.accessoryView = planAccessory(plan, reveal: reveal)
+        guard let button = confirmation.button else {
+            alert.addButton(withTitle: "OK")
+            alert.runFrontmost()
+            return false
+        }
+        let run = alert.addButton(withTitle: button)
+        let cancel = alert.addButton(withTitle: "Cancel")
+        if confirmation.breaks {
+            run.hasDestructiveAction = true
+            run.keyEquivalent = ""
+            cancel.keyEquivalent = "\u{1b}"
+        }
+        return alert.runFrontmost() == .alertFirstButtonReturn
+    }
+
+    /// The plan in a scroll view, the reveal link under it.
+    @MainActor
+    private static func planAccessory(_ plan: String?, reveal: RevealLink?) -> NSView? {
+        let link = reveal.map(RevealButton.init)
+        guard let plan, !plan.isEmpty else {
+            return link
+        }
+        let width: CGFloat = 480
+        let lines = CGFloat(plan.components(separatedBy: "\n").count)
+        let height = min(240, lines * 15 + 12)
+        let below = link.map { $0.frame.height + 6 } ?? 0
+        let box = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height + below))
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: below, width: width, height: height))
+        scroll.hasVerticalScroller = true
+        scroll.borderType = .bezelBorder
+        let view = NSTextView(frame: scroll.bounds)
+        view.isEditable = false
+        view.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        view.string = plan
+        view.autoresizingMask = [.width]
+        scroll.documentView = view
+        box.addSubview(scroll)
+        if let link {
+            link.setFrameOrigin(NSPoint(x: 0, y: 0))
+            box.addSubview(link)
+        }
+        return box
     }
 
     /// The command's output, monospaced, in a sheet the user closes.

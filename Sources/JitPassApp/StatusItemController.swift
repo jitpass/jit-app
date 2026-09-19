@@ -66,11 +66,12 @@ final class StatusItemController {
         size: NSSize(width: 480, height: 360),
         minSize: NSSize(width: 480, height: 360)
     )
+    let doctorProgress = DoctorProgress()
     lazy var doctorWindow = ReportWindow(
         title: "JitPass Doctor",
-        content: DoctorView(model: model, actions: doctorActions),
-        size: NSSize(width: 640, height: 480),
-        minSize: NSSize(width: 520, height: 320)
+        content: DoctorView(model: model, progress: doctorProgress, actions: doctorActions),
+        size: NSSize(width: 760, height: 720),
+        minSize: NSSize(width: 600, height: 420)
     )
     lazy var scanWindow = ReportWindow(
         title: "JitPass Scan",

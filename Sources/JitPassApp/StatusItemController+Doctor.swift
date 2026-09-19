@@ -4,54 +4,100 @@
 import AppKit
 import JitAgentClient
 
+/// Which card or row an action belongs to: its busy line while it runs,
+/// and its done or failed state after. A key alone (a Review sheet row)
+/// keeps the old behaviour: busy until the recheck, a failure under the
+/// header.
+struct DoctorTarget {
+    var key: String
+    var card: DoctorCard?
+    var button: DoctorButton?
+    /// A row's own name for the outcome, instead of the card's.
+    var subject: String?
+}
+
+/// One jit invocation an action runs in the app, with what it reads on
+/// stdin. `closesAction` marks an action's last invocation, so a run of
+/// several actions counts how many finished.
+struct DoctorStep: Sendable {
+    var argv: [String]
+    var stdin: String?
+    var closesAction = true
+}
+
 /// Doctor: the panel row and the findings window.
 extension StatusItemController {
     var doctorActions: DoctorActions {
         DoctorActions(
             recheck: { [weak self] in
                 self?.model.doctorMessage = nil
+                self?.doctorProgress.outcome = nil
                 self?.runDoctor()
             },
             openInTerminal: { [weak self] in self?.runInTerminal("jit doctor") },
-            perform: { [weak self] action, row in self?.perform(action, row: row) }
+            perform: { [weak self] action, row in self?.perform(action, target: DoctorTarget(key: row)) },
+            run: { [weak self] button, card, key in self?.runBoardButton(button, card: card, key: key) },
+            showAgain: { [weak self] button, key in
+                if case let .unignore(command) = button.command {
+                    self?.runIgnore([command], key: key)
+                }
+            }
         )
     }
 
     /// Whether an action may start: nothing else is running or rechecking.
-    private var doctorIdle: Bool {
+    var doctorIdle: Bool {
         model.doctorBusy == nil && !model.doctorRunning
     }
 
-    /// Runs a doctor action for `row`. Refused up front while another
+    /// Runs a doctor action for `target`. Refused up front while another
     /// action or a check is running, so a second click never walks through
     /// a confirmation and a panel only to do nothing. In the app when it
     /// carries `argv`: any path it needs is chosen first (a save panel for
     /// a file to create, an open panel for one that exists), any value or
     /// passphrase asked for in a hidden field, then the commands run one
     /// after the other off the main thread and doctor rechecks. In the
-    /// terminal otherwise: a migrate wants its plan read, an unmount its
-    /// own y/N, `sudo` a password. A destructive one is confirmed here
-    /// first, naming the command.
-    private func perform(_ action: DoctorAction, row: String) {
+    /// terminal otherwise: an unmount wants its own y/N, `sudo` a password.
+    /// A destructive one is confirmed here first, naming the command.
+    func perform(_ action: DoctorAction, target: DoctorTarget) {
         guard doctorIdle else {
             return
         }
         if action.argv == [VaultOrphans.pruneArguments] {
-            return pruneOrphansFromDoctor(action, row: row)
+            return pruneOrphansFromDoctor(action, target: target)
         }
         if let planned = action.planned {
-            return performPlanned(planned, action: action, row: row)
+            return performPlanned(planned, action: action, target: target)
         }
-        if action.destructive, !confirmDestructive(action) {
+        switch prepare(action) {
+        case nil:
             return
+        case let .terminal(command):
+            runInTerminal(command)
+        case let .app(steps):
+            applyInApp(steps, action: action, target: target)
+        }
+    }
+
+    enum Prepared {
+        case app([DoctorStep])
+        case terminal(String)
+    }
+
+    /// Every dialog an action needs before it can run, in order: the
+    /// destructive confirmation, the file, the hidden value. Nil when the
+    /// user cancelled any of them.
+    func prepare(_ action: DoctorAction) -> Prepared? {
+        if action.destructive, !confirmDestructive(action) {
+            return nil
         }
         guard let chosen = choosePath(for: action.needs) else {
-            return
+            return nil
         }
         let (placeholder, path) = chosen
         guard let argv = action.argv else {
             let command = placeholder.map { action.command.replacingOccurrences(of: $0, with: Terminal.quoted(path)) }
-            return runInTerminal(command ?? action.command)
+            return .terminal(command ?? action.command)
         }
         var stdin: String?
         switch action.input {
@@ -63,80 +109,19 @@ extension StatusItemController {
             break
         }
         if action.input != nil, stdin == nil {
-            return
+            return nil
         }
         let filled = argv.map { arguments in
             arguments.map { placeholder != nil && $0 == placeholder ? path : $0 }
         }
-        applyInApp(filled, stdin: stdin, action: action, row: row)
-    }
-
-    /// Delete All on the orphans: the dialog names what `jit vault orphans`
-    /// lists now, not what a report up to doctorTTL old said. Prompt-free
-    /// and quick, so it runs here, immediately before the dialog.
-    private func pruneOrphansFromDoctor(_ action: DoctorAction, row: String) {
-        let fresh: VaultOrphans
-        do {
-            fresh = try JitCLI.vaultOrphans()
-        } catch {
-            model.doctorMessage = "jit vault orphans: \(Self.describe(error))"
-            return
-        }
-        let confirmation = fresh.pruneConfirmation()
-        guard Self.confirmDeletion(confirmation) else {
-            if confirmation.button == nil {
-                runDoctor(afterAction: true)
-            }
-            return
-        }
-        applyInApp([VaultOrphans.pruneArguments], stdin: nil, action: action, row: row)
-    }
-
-    /// Attach and Remove Profile: jit's dry run first, then one dialog worded
-    /// from it, then exactly the command that dialog names (attach runs the
-    /// profile names it listed; rm the one profile). Nothing runs when the
-    /// dry run fails, which is what a jit older than 2.0 does: it has no
-    /// `jit profile`. A plan with nothing to run (already attached, in use
-    /// after all) rechecks, since the row it came from is out of date.
-    private func performPlanned(_ planned: DoctorAction.Planned, action: DoctorAction, row: String) {
-        let answer: Result<DeleteConfirmation, Error>
-        let unavailable: (String) -> DeleteConfirmation
-        // The file the dialog is about, one click from Finder: the config
-        // attaching records, the manifest removing deletes (vault
-        // paths only, never a value).
-        let reveal: RevealLink
-        switch planned {
-        case let .attach(config):
-            reveal = RevealLink(title: "Show Config", path: config)
-            answer = JitCLI.profileAttachPlan(config).map { $0.confirmation() }
-            unavailable = {
-                .profileUnavailable("Can't check what attaching would change", command: "jit profile attach", reason: $0)
-            }
-        case let .removeProfile(name, manifest):
-            reveal = RevealLink(title: "Show Profile File", path: ProfileFiles.manifest(name, reported: manifest))
-            answer = JitCLI.profileRmPlan(name).map { $0.confirmation() }
-            unavailable = {
-                .profileUnavailable("Can't check what removing \(name) deletes", command: "jit profile rm", reason: $0)
-            }
-        }
-        let confirmation: DeleteConfirmation = switch answer {
-        case let .success(worded):
-            worded
-        case let .failure(error):
-            unavailable(Self.describe(error))
-        }
-        guard Self.confirmDeletion(confirmation, reveal: reveal) else {
-            if confirmation.button == nil, case .success = answer {
-                runDoctor(afterAction: true)
-            }
-            return
-        }
-        applyInApp([confirmation.arguments], stdin: nil, action: action, row: row)
+        return .app(filled.enumerated().map { index, arguments in
+            DoctorStep(argv: arguments, stdin: stdin, closesAction: index == filled.count - 1)
+        })
     }
 
     /// Nil when the user cancelled; otherwise the placeholder (if any)
     /// and the path that replaces it ("" when nothing was needed).
-    private func choosePath(for needs: DoctorAction.Needs) -> (String?, String)? {
+    func choosePath(for needs: DoctorAction.Needs) -> (String?, String)? {
         switch needs {
         case .nothing:
             return (nil, "")
@@ -162,13 +147,14 @@ extension StatusItemController {
         }
     }
 
-    /// Runs the commands off the main thread with `row` marked busy, then
-    /// rechecks so the rows disappear because doctor says so; the row stays
-    /// busy until that recheck lands. The first failure stops the run and
-    /// is shown under the header. The output is shown when it is what the
-    /// user asked for, and for a destructive action either way, so what was
-    /// deleted, or why nothing was, is on screen and not only in a log.
-    private func applyInApp(_ argv: [[String]], stdin: String?, action: DoctorAction, row: String) {
+    /// Runs the steps off the main thread with the target marked busy,
+    /// then rechecks so the card disappears because doctor says so. The
+    /// first failure stops the run. A card shows how it ended (done, or
+    /// what jit said); a row without a card shows a failure under the
+    /// header. The output is shown when it is what the user asked for, and
+    /// for a destructive action either way, so what was deleted, or why
+    /// nothing was, is on screen and not only in a log.
+    func applyInApp(_ steps: [DoctorStep], action: DoctorAction, target: DoctorTarget) {
         // A check that started while the dialogs were up is no reason to
         // drop what the user just confirmed: the recheck after this action
         // queues behind it. Another action cannot have started (the
@@ -177,43 +163,78 @@ extension StatusItemController {
             model.doctorMessage = "Another action is still running. Try again when it finishes."
             return
         }
-        model.doctorBusy = row
+        model.doctorBusy = target.key
         model.doctorMessage = nil
+        doctorProgress.outcome = nil
+        doctorProgress.presence = (target.button?.presence ?? false) || action.presence
         Task.detached {
             var failure: String?
             var output: [String] = []
-            for arguments in argv {
-                switch JitCLI.invoke(arguments, stdin: stdin) {
+            var completed = 0
+            for step in steps {
+                switch JitCLI.invoke(step.argv, stdin: step.stdin) {
                 case let .success(outcome):
                     output.append(outcome.output)
                     if outcome.status != 0 {
                         let line = outcome.output.split(separator: "\n").last.map(String.init) ?? "exit \(outcome.status)"
-                        failure = "jit \(arguments.joined(separator: " ")): \(line)"
+                        failure = "jit \(step.argv.joined(separator: " ")): \(line)"
                     }
                 case let .failure(error):
-                    failure = "jit \(arguments.joined(separator: " ")): \(Self.describe(error))"
+                    failure = "jit \(step.argv.joined(separator: " ")): \(Self.describe(error))"
                 }
                 if failure != nil {
                     break
                 }
+                if step.closesAction {
+                    completed += 1
+                }
             }
+            let result = DoctorRunResult(failure: failure, output: output, completed: completed)
             await MainActor.run { [weak self] in
-                guard let self else {
-                    return
-                }
-                model.doctorMessage = failure
-                runDoctor(afterAction: true)
-                let text = output.filter { !$0.isEmpty }.joined(separator: "\n\n")
-                if let failure, action.destructive {
-                    DoctorDialogs.showOutput(text.isEmpty ? failure : text, title: "\(action.title) failed")
-                } else if failure == nil, action.destructive || action.showsOutput {
-                    DoctorDialogs.showOutput(text, title: action.title)
-                }
+                self?.finishAction(result, action: action, target: target)
             }
         }
     }
 
-    private nonisolated static func describe(_ error: Error) -> String {
+    private func finishAction(_ result: DoctorRunResult, action: DoctorAction, target: DoctorTarget) {
+        if action.presence {
+            doctorWindow.reclaimFocus()
+        }
+        let text = result.output.filter { !$0.isEmpty }.joined(separator: "\n\n")
+        if let card = target.card, let button = target.button {
+            let said = result.failure == nil ? text : (result.output.last.flatMap { $0.isEmpty ? nil : $0 } ?? result.failure ?? "")
+            let outcome = card.outcome(
+                key: target.key, button: button, completed: result.completed, output: said, failed: result.failure != nil,
+                subject: target.subject
+            )
+            doctorProgress.outcome = outcome
+            if outcome.state == .done {
+                DispatchQueue.main.asyncAfter(deadline: .now() + DoctorOutcome.doneSeconds) { [weak self] in
+                    self?.expireDoneOutcome(outcome)
+                }
+            }
+        } else {
+            model.doctorMessage = result.failure
+        }
+        runDoctor(afterAction: true)
+        if let failure = result.failure, action.destructive {
+            DoctorDialogs.showOutput(text.isEmpty ? failure : text, title: "\(action.title) failed")
+        } else if result.failure == nil, action.destructive || action.showsOutput {
+            DoctorDialogs.showOutput(text, title: action.title)
+        }
+    }
+
+    /// A done card stays doneSeconds, and until the recheck after it has
+    /// landed, whichever is later: the card then goes because doctor no
+    /// longer reports it.
+    private func expireDoneOutcome(_ outcome: DoctorOutcome) {
+        guard doctorProgress.outcome == outcome, model.doctorBusy == nil else {
+            return
+        }
+        doctorProgress.outcome = nil
+    }
+
+    nonisolated static func describe(_ error: Error) -> String {
         if case let JitCLI.CLIError.failed(line) = error {
             return line.isEmpty ? "failed" : line
         }
@@ -258,7 +279,7 @@ extension StatusItemController {
 
     /// One `jit doctor --format json --orphans`, off the main thread. The
     /// previous result stays on screen until this one lands. --orphans so
-    /// the window can list them; the verdict still counts them once.
+    /// the window can count them; the verdict still counts them once.
     /// `afterAction`: an action just changed state, so a check already
     /// running (which started before it) is followed by another rather
     /// than trusted, and the busy row clears only when a fresh one lands.
@@ -273,29 +294,42 @@ extension StatusItemController {
         Task.detached {
             let report = JitCLI.doctor()
             await MainActor.run { [weak self] in
-                guard let self else {
-                    return
-                }
-                model.doctorRunning = false
-                if model.doctorRecheckPending {
-                    model.doctorRecheckPending = false
-                    runDoctor(afterAction: true)
-                    return
-                }
-                // Never leave a stale list looking current, least of all
-                // right after an action that was meant to change it.
-                model.doctorFailed = report == nil
-                if let report {
-                    model.doctor = report
-                    model.doctorAt = Date()
-                }
-                // Only the check requested after an action ends its busy
-                // state: one that started earlier (a panel refresh) may land
-                // while the action is still running.
-                if afterAction {
-                    model.doctorBusy = nil
-                }
+                self?.doctorLanded(report, afterAction: afterAction)
             }
         }
     }
+
+    private func doctorLanded(_ report: DoctorReport?, afterAction: Bool) {
+        model.doctorRunning = false
+        if model.doctorRecheckPending {
+            model.doctorRecheckPending = false
+            runDoctor(afterAction: true)
+            return
+        }
+        // Never leave a stale list looking current, least of all right
+        // after an action that was meant to change it.
+        model.doctorFailed = report == nil
+        if let report {
+            model.doctor = report
+            model.doctorAt = Date()
+        }
+        // Only the check requested after an action ends its busy state:
+        // one that started earlier (a panel refresh) may land while the
+        // action is still running.
+        if afterAction {
+            model.doctorBusy = nil
+            let shownLongEnough = doctorProgress.outcome.map { Date().timeIntervalSince($0.at) >= DoctorOutcome.doneSeconds }
+            if doctorProgress.outcome?.state == .done, shownLongEnough == true {
+                doctorProgress.outcome = nil
+            }
+        }
+    }
+}
+
+/// What a run of steps left behind, handed from the worker to the main
+/// thread in one piece.
+struct DoctorRunResult: Sendable {
+    var failure: String?
+    var output: [String]
+    var completed: Int
 }
