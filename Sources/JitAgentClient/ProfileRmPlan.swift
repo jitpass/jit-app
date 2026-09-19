@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// `jit profile rm --dry-run --format json <name>` (jit 1.10+): what
+/// `jit profile rm --dry-run --format json <name>` (jit 2.0+): what
 /// removing a global profile deletes, keeps and can't find, and whether
 /// anything known still launches it. Prompt-free, writes nothing, read the
 /// moment Remove Profile is clicked. This is the safe replacement for the

@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// `jit profile adopt --dry-run --format json <config>` (jit 1.10+): the
+/// `jit profile adopt --dry-run --format json <config>` (jit 2.0+): the
 /// global profiles an MCP config launches but doesn't own, read before the
 /// app asks. Prompt-free, writes nothing. Adopting only rewrites owner
 /// records (no vault access, no Touch ID), but it changes what a later
@@ -165,13 +165,13 @@ public extension ProfileAdoptPlan {
 }
 
 public extension DeleteConfirmation {
-    /// When a `jit profile` dry run failed: a jit older than 1.10 (no
+    /// When a `jit profile` dry run failed: a jit older than 2.0 (no
     /// `jit profile` at all), or one that printed no plan. Nothing runs.
     static func profileUnavailable(_ title: String, command: String, reason: String) -> DeleteConfirmation {
         var message = "Nothing was changed. Before it runs \(command), JitPass asks jit what it would do, and jit did not answer:\n\n"
             + (reason.isEmpty ? "(no output)" : reason)
         if reason.contains("unknown flag") || reason.contains("unknown command") || reason.contains("--dry-run") {
-            message += "\n\nThat jit is older than 1.10, the first with jit profile. Update it."
+            message += "\n\nThat jit is older than 2.0, the first with jit profile. Update it."
         }
         return DeleteConfirmation(title: title, message: message, button: nil, breaks: false, arguments: [])
     }

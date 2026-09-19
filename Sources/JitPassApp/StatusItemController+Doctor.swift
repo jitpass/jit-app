@@ -95,7 +95,7 @@ extension StatusItemController {
     /// Adopt and Remove Profile: jit's dry run first, then one dialog worded
     /// from it, then exactly the command that dialog names (adopt runs the
     /// profile names it listed; rm the one profile). Nothing runs when the
-    /// dry run fails, which is what a jit older than 1.10 does: it has no
+    /// dry run fails, which is what a jit older than 2.0 does: it has no
     /// `jit profile`. A plan with nothing to run (already adopted, in use
     /// after all) rechecks, since the row it came from is out of date.
     private func performPlanned(_ planned: DoctorAction.Planned, action: DoctorAction, row: String) {
