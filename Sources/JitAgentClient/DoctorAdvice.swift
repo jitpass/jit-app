@@ -43,10 +43,13 @@ public struct DoctorAction: Equatable, Sendable {
     /// The command's output is what the user wanted (a history, a log, a
     /// list), so the app shows it instead of only rechecking.
     public var showsOutput: Bool
+    /// jit asks for a fresh Touch ID or passcode itself, per the engine's
+    /// `fixes` (false when the report predates them).
+    public var presence: Bool
 
     public init(
         _ title: String, _ command: String, destructive: Bool = false, needs: Needs = .nothing,
-        argv: [[String]]? = nil, input: Input? = nil, showsOutput: Bool = false
+        argv: [[String]]? = nil, input: Input? = nil, showsOutput: Bool = false, presence: Bool = false
     ) {
         self.title = title
         self.command = command
@@ -55,6 +58,7 @@ public struct DoctorAction: Equatable, Sendable {
         self.argv = argv
         self.input = input
         self.showsOutput = showsOutput
+        self.presence = presence
     }
 }
 
@@ -156,10 +160,20 @@ public enum DoctorAdvice {
     /// Choose… for the rest, so a new kind still has its command. Never a
     /// command the user has to finish writing (`<op://…>`), and never one
     /// that uninstalls this app.
+    ///
+    /// With the engine's `fixes` (jit 1.9+), a generic button takes its
+    /// destructive, Touch ID and placeholder from the fix, and a kind's own
+    /// button keeps its title but turns destructive when a fix it runs is.
     public static func actions(for item: DoctorItem) -> [DoctorAction] {
-        let built = builders[item.kind].map { $0(item) }
-            ?? item.commands.filter { !DoctorItem.needsReference($0) }.map(generic)
+        let built: [DoctorAction] = if let builder = builders[item.kind] {
+            builder(item)
+        } else if let fixes = item.fixes {
+            fixes.filter { !DoctorItem.needsReference($0.command) }.map(generic)
+        } else {
+            item.commands.filter { !DoctorItem.needsReference($0) }.map(generic)
+        }
         return built.filter { !$0.command.isEmpty && !uninstallsApp($0.command) }
+            .map { reconciled($0, with: item.fixes) }
     }
 
     private typealias Builder = (DoctorItem) -> [DoctorAction]
@@ -313,12 +327,7 @@ public extension DoctorAdvice {
         case "mount", "mount_stale", "install", "completion", "jit_path", "jit_path_upgrade", "1password_link":
             return item.path.map(homePath) ?? item.summary
         case "origin_gone":
-            let detail = item.detail ?? ""
-            let verb = detail.range(of: " was migrated from ") ?? detail.range(of: " were migrated from ")
-            if let verb, let end = detail.range(of: ", which no longer exists") {
-                return "\(detail[..<verb.lowerBound]) · from \(detail[verb.upperBound ..< end.lowerBound])"
-            }
-            return item.summary
+            return originRow(item)
         default:
             if let profile = item.profile, let variable = item.variable, item.detail?.isEmpty ?? true {
                 return "\(profile) · \(variable)"
