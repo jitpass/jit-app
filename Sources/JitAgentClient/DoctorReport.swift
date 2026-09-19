@@ -49,6 +49,9 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     public var unignore: DoctorIgnoreCommand?
     public var ignoredSince: String?
     public var ignoreChanged: Bool?
+    /// An ignored finding's own "problem" or "warning", since it is in
+    /// neither list.
+    public var severity: String?
     /// How many findings before this one in the same report say exactly
     /// the same thing; never decoded, set by `numbered`. It keeps `id`
     /// unique when doctor repeats a finding word for word.
@@ -56,7 +59,7 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case kind, scope, profile, variable, path, detail, action, groups, profiles, fixes
-        case file, config, configs, owners, launchers, secrets, origin, ignore, unignore
+        case file, config, configs, owners, launchers, secrets, origin, ignore, unignore, severity
         case secretsMissing = "secrets_missing"
         case ignoredSince = "ignored_since"
         case ignoreChanged = "ignore_changed"
