@@ -127,7 +127,7 @@ struct DoctorView: View {
 
     /// A group with one row per finding. The facts every row shares
     /// follow the note, one line each, a long path shortened in its middle
-    /// rather than wrapped; a run's note (a broken launcher's advice)
+    /// rather than wrapped; a run's note (a missing profile's advice)
     /// follows its rows, once.
     private func plainGroup(_ group: DoctorGroup) -> some View {
         VStack(alignment: .leading, spacing: 4) {

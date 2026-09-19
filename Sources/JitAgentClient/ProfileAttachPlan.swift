@@ -3,19 +3,21 @@
 
 import Foundation
 
-/// `jit profile adopt --dry-run --format json <config>` (jit 2.0+): the
-/// global profiles an MCP config launches but doesn't own, read before the
-/// app asks. Prompt-free, writes nothing. Adopting only rewrites owner
-/// records (no vault access, no Touch ID), but it changes what a later
-/// `jit migrate remove` of the config's project takes, so the dialog names
-/// every profile first and the run adopts exactly those.
-public struct ProfileAdoptPlan: Decodable, Sendable, Equatable {
+/// `jit profile attach --dry-run --format json <config>` (jit 2.0+): the
+/// global profiles an MCP config uses but that don't record it, read
+/// before the app asks. Prompt-free, writes nothing. Attaching only
+/// rewrites which configs the profiles record (no vault access, no Touch
+/// ID), but it changes what a later `jit migrate remove` of the config's
+/// project takes, so the dialog names every profile first and the run
+/// attaches exactly those.
+public struct ProfileAttachPlan: Decodable, Sendable, Equatable {
     /// The config, absolute.
     public var config: String
-    /// Owner gone first, then no owner, then owned elsewhere; by name.
-    public var profiles: [ProfileAdoptCandidate]
+    /// Recording a deleted config first, then recording none, then
+    /// recording another; by name.
+    public var profiles: [ProfileAttachCandidate]
 
-    public init(config: String, profiles: [ProfileAdoptCandidate]) {
+    public init(config: String, profiles: [ProfileAttachCandidate]) {
         self.config = config
         self.profiles = profiles
     }
@@ -23,32 +25,40 @@ public struct ProfileAdoptPlan: Decodable, Sendable, Equatable {
     public init(from decoder: Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
         config = try box.decodeIfPresent(String.self, forKey: .config) ?? ""
-        profiles = try box.decodeIfPresent([ProfileAdoptCandidate].self, forKey: .profiles) ?? []
+        profiles = try box.decodeIfPresent([ProfileAttachCandidate].self, forKey: .profiles) ?? []
     }
 
     enum CodingKeys: String, CodingKey {
         case config, profiles
     }
 
-    public static func parse(_ data: Data) throws -> ProfileAdoptPlan {
-        try JSONDecoder().decode(ProfileAdoptPlan.self, from: data)
+    public static func parse(_ data: Data) throws -> ProfileAttachPlan {
+        try JSONDecoder().decode(ProfileAttachPlan.self, from: data)
     }
 
     /// The dry run for `config`.
     public static func arguments(for config: String) -> [String] {
-        ["profile", "adopt", "--dry-run", "--format", "json", config]
+        ["profile", "attach", "--dry-run", "--format", "json", config]
     }
 }
 
-/// One profile the config would adopt.
-public struct ProfileAdoptCandidate: Decodable, Sendable, Equatable {
+/// One profile attaching the config would change.
+public struct ProfileAttachCandidate: Decodable, Sendable, Equatable {
     public var name: String
-    /// owner_gone, no_owner or owned_elsewhere.
+    /// config_deleted, no_config or recorded_elsewhere.
     public var status: String
-    /// The recorded owners, verbatim ("file" or "file#projectDir").
+    /// The configs its record names, verbatim ("file" or
+    /// "file#projectDir"); the engine's JSON keeps the name `owners`.
     public var owners: [String]
-    /// The owner strings adopting adds.
+    /// The record entries attaching adds.
     public var adds: [String]
+
+    /// The statuses a pre-release jit 2.0 named differently, old to new.
+    static let renamedStatuses = [
+        "owner_gone": "config_deleted",
+        "no_owner": "no_config",
+        "owned_elsewhere": "recorded_elsewhere"
+    ]
 
     public init(name: String, status: String, owners: [String] = [], adds: [String] = []) {
         self.name = name
@@ -60,7 +70,8 @@ public struct ProfileAdoptCandidate: Decodable, Sendable, Equatable {
     public init(from decoder: Decoder) throws {
         let box = try decoder.container(keyedBy: CodingKeys.self)
         name = try box.decodeIfPresent(String.self, forKey: .name) ?? ""
-        status = try box.decodeIfPresent(String.self, forKey: .status) ?? ""
+        let status = try box.decodeIfPresent(String.self, forKey: .status) ?? ""
+        self.status = Self.renamedStatuses[status] ?? status
         owners = try box.decodeIfPresent([String].self, forKey: .owners) ?? []
         adds = try box.decodeIfPresent([String].self, forKey: .adds) ?? []
     }
@@ -70,78 +81,83 @@ public struct ProfileAdoptCandidate: Decodable, Sendable, Equatable {
     }
 }
 
-public extension ProfileAdoptPlan {
+public extension ProfileAttachPlan {
     /// The dialog for this plan. `home` shortens paths to ~; `exists` says
-    /// whether an owner's file is still there, for "owned by".
+    /// whether a recorded config is still there, for "records <file>".
     func confirmation(
         home: String = NSHomeDirectory(), exists: (String) -> Bool = { FileManager.default.fileExists(atPath: $0) }
     ) -> DeleteConfirmation {
         let shown = VaultRmPlan.short(config, home)
         guard !profiles.isEmpty else {
             return DeleteConfirmation(
-                title: "Nothing to adopt", message: "\(shown) already owns every profile it launches.",
+                title: "Nothing to attach", message: "Every profile \(shown) uses records it already.",
                 button: nil, breaks: false, arguments: [], destructive: false
             )
         }
         let names = profiles.map(\.name)
         let one = profiles.count == 1
         let rows = profiles.map { "• \($0.name) · \(label($0, home: home, exists: exists))" }
-        var parts = ["\(shown) launches \(one ? "this profile" : "these") but doesn't own \(one ? "it" : "them"):\n"
+        var parts = ["\(shown) uses \(one ? "this profile, which doesn't" : "these, but they don't") record it:\n"
             + rows.joined(separator: "\n")]
-        var owning = "Adopting records \(shown) as \(one ? "its" : "their") owner"
+        var recording = "Attaching records \(shown)"
         if let clause = migrateRemoveClause(home: home) {
-            owning += ", so \(clause)"
+            recording += ", so \(clause)"
         }
-        parts.append(owning + ".")
-        let arguments = ["profile", "adopt", "--yes", config] + names
+        parts.append(recording + ".")
+        let arguments = ["profile", "attach", "--yes", config] + names
         // The names are listed above; on the command line they wrapped at
         // their hyphens. The argv still carries every one.
         let command = CommandText.shown(
-            ["profile", "adopt", "--yes", shown], names: names, noun: ("profile", "profiles"), listedAbove: true, always: true
+            ["profile", "attach", "--yes", shown], names: names, noun: ("profile", "profiles"), listedAbove: true, always: true
         )
-        parts.append("This runs:\n\n" + command
-            + "\n\nIt changes owner records only: no secret is read or changed, and nothing asks again.")
+        parts.append("This runs:\n\n" + command + "\n\nIt changes which configs the "
+            + (one ? "profile records" : "profiles record") + ": no secret is read or changed, and nothing asks again.")
+        let target = DoctorAdvice.configShortName(config, home: home)
         return DeleteConfirmation(
-            title: one ? "Adopt \(names[0])?" : "Adopt \(names.count) profiles?", message: parts.joined(separator: "\n\n"),
-            button: one ? "Adopt" : "Adopt \(names.count)", breaks: false, arguments: arguments, destructive: false
+            title: one ? "Record \(target) on \(names[0])?" : "Record \(target) on \(names.count) profiles?",
+            message: parts.joined(separator: "\n\n"),
+            button: one ? "Attach" : "Attach \(names.count)", breaks: false, arguments: arguments, destructive: false
         )
     }
 
-    /// jit's status column: "owner gone", "no owner", "owned by <file>".
-    private func label(_ candidate: ProfileAdoptCandidate, home: String, exists: (String) -> Bool) -> String {
+    /// jit's status column: "records a deleted config", "records no
+    /// config", "records <file>".
+    private func label(_ candidate: ProfileAttachCandidate, home: String, exists: (String) -> Bool) -> String {
         switch candidate.status {
-        case "owner_gone": return "owner gone"
-        case "no_owner": return "no owner"
+        case "config_deleted": return "records a deleted config"
+        case "no_config": return "records no config"
         default: break
         }
-        let live = candidate.owners.filter { exists(DoctorAdvice.ownerFile($0)) }
-        let other = live.first { DoctorAdvice.ownerFile($0) != config } ?? live.first
+        let live = candidate.owners.filter { exists(DoctorAdvice.recordedFile($0)) }
+        let other = live.first { DoctorAdvice.recordedFile($0) != config } ?? live.first
         guard let other else {
-            return candidate.status.replacingOccurrences(of: "_", with: " ")
+            return candidate.status == "recorded_elsewhere"
+                ? "records another config" : candidate.status.replacingOccurrences(of: "_", with: " ")
         }
-        let file = VaultRmPlan.short(DoctorAdvice.ownerFile(other), home)
+        let file = VaultRmPlan.short(DoctorAdvice.recordedFile(other), home)
         let scope = other.firstIndex(of: "#").map { " (" + VaultRmPlan.short(String(other[other.index(after: $0)...]), home) + ")" }
-        return "owned by " + file + (scope ?? "")
+        return "records " + file + (scope ?? "")
     }
 
     /// "jit migrate remove ~/proj will then take them too", when the
     /// engine's text would say it: the config sits in a project directory
     /// (not home, not an app's folder under ~/Library or a ~/.dir), and at
-    /// least one profile has no other live owner. `jit migrate remove`
-    /// goes by the first owner, so a profile owned elsewhere stays.
+    /// least one profile records no other live config. `jit migrate
+    /// remove` goes by the first recorded config, so a profile recording
+    /// another stays.
     func migrateRemoveClause(home: String) -> String? {
         guard let dir = Self.migrateRemoveTarget(config, home: home) else {
             return nil
         }
-        let unowned = profiles.filter { $0.status != "owned_elsewhere" }
-        guard !unowned.isEmpty else {
+        let unrecorded = profiles.filter { $0.status != "recorded_elsewhere" }
+        guard !unrecorded.isEmpty else {
             return nil
         }
         let shown = VaultRmPlan.short(dir, home)
-        let what = if unowned.count == profiles.count {
+        let what = if unrecorded.count == profiles.count {
             profiles.count == 1 ? "it" : "them"
         } else {
-            "the \(unowned.count) with no other owner"
+            "the \(unrecorded.count) that record no other config"
         }
         return "jit migrate remove \(shown) will then take \(what) too"
     }

@@ -92,25 +92,25 @@ extension StatusItemController {
         applyInApp([VaultOrphans.pruneArguments], stdin: nil, action: action, row: row)
     }
 
-    /// Adopt and Remove Profile: jit's dry run first, then one dialog worded
-    /// from it, then exactly the command that dialog names (adopt runs the
+    /// Attach and Remove Profile: jit's dry run first, then one dialog worded
+    /// from it, then exactly the command that dialog names (attach runs the
     /// profile names it listed; rm the one profile). Nothing runs when the
     /// dry run fails, which is what a jit older than 2.0 does: it has no
-    /// `jit profile`. A plan with nothing to run (already adopted, in use
+    /// `jit profile`. A plan with nothing to run (already attached, in use
     /// after all) rechecks, since the row it came from is out of date.
     private func performPlanned(_ planned: DoctorAction.Planned, action: DoctorAction, row: String) {
         let answer: Result<DeleteConfirmation, Error>
         let unavailable: (String) -> DeleteConfirmation
         // The file the dialog is about, one click from Finder: the config
-        // adopting records as owner, the manifest removing deletes (vault
+        // attaching records, the manifest removing deletes (vault
         // paths only, never a value).
         let reveal: RevealLink
         switch planned {
-        case let .adopt(config):
+        case let .attach(config):
             reveal = RevealLink(title: "Show Config", path: config)
-            answer = JitCLI.profileAdoptPlan(config).map { $0.confirmation() }
+            answer = JitCLI.profileAttachPlan(config).map { $0.confirmation() }
             unavailable = {
-                .profileUnavailable("Can't check what adopting would change", command: "jit profile adopt", reason: $0)
+                .profileUnavailable("Can't check what attaching would change", command: "jit profile attach", reason: $0)
             }
         case let .removeProfile(name, manifest):
             reveal = RevealLink(title: "Show Profile File", path: ProfileFiles.manifest(name, reported: manifest))

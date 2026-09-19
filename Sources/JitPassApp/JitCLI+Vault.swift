@@ -30,9 +30,9 @@ extension JitCLI {
         }
     }
 
-    /// `jit profile adopt --dry-run --format json <config>` (jit 2.0+).
-    static func profileAdoptPlan(_ config: String) -> Result<ProfileAdoptPlan, Error> {
-        dryRun(ProfileAdoptPlan.arguments(for: config), parse: ProfileAdoptPlan.parse)
+    /// `jit profile attach --dry-run --format json <config>` (jit 2.0+).
+    static func profileAttachPlan(_ config: String) -> Result<ProfileAttachPlan, Error> {
+        dryRun(ProfileAttachPlan.arguments(for: config), parse: ProfileAttachPlan.parse)
     }
 
     /// `jit profile rm --dry-run --format json <name>` (jit 2.0+).
