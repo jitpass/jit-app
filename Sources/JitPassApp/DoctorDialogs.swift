@@ -85,6 +85,46 @@ enum DoctorDialogs {
     }
 }
 
+/// A file a dialog is about, offered under its text as a link ("Show
+/// Profile File", "Show Config"): it selects the file in Finder and leaves
+/// the dialog up, since an accessory button never ends an alert's modal
+/// run. Disabled when the file is gone. Never opens the file: a click must
+/// not launch an editor on one that may hold plaintext.
+struct RevealLink {
+    var title: String
+    var path: String
+}
+
+@MainActor
+final class RevealButton: NSButton {
+    private let url: URL
+
+    init(_ link: RevealLink) {
+        url = URL(fileURLWithPath: link.path)
+        super.init(frame: .zero)
+        let exists = FileManager.default.fileExists(atPath: link.path)
+        isBordered = false
+        attributedTitle = NSAttributedString(string: link.title, attributes: [
+            .foregroundColor: exists ? NSColor.linkColor : NSColor.disabledControlTextColor,
+            .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        ])
+        isEnabled = exists
+        toolTip = exists ? Format.home(link.path) : "Not there any more: \(Format.home(link.path))"
+        target = self
+        action = #selector(reveal)
+        sizeToFit()
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        nil
+    }
+
+    @objc private func reveal() {
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+}
+
 /// Two labelled passphrase fields and a checkbox that reveals them.
 /// NSSecureTextField cannot switch to plain text in place, so the box swaps
 /// each secure field for a plain one carrying the same value, and back.

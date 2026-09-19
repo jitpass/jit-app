@@ -50,11 +50,13 @@ extension StatusItemController {
     /// A deletion's dialog. The delete button comes first and is the
     /// default, except for a break-profiles delete: there no button takes
     /// Return, so Return never breaks a profile, and Cancel keeps Escape.
-    /// With no button it only informs.
-    static func confirmDeletion(_ confirmation: DeleteConfirmation) -> Bool {
+    /// With no button it only informs. `reveal` puts a link under the
+    /// text that shows the file it is about in Finder, dialog still up.
+    static func confirmDeletion(_ confirmation: DeleteConfirmation, reveal: RevealLink? = nil) -> Bool {
         let alert = NSAlert()
         alert.messageText = confirmation.title
         alert.informativeText = confirmation.message
+        alert.accessoryView = reveal.map(RevealButton.init)
         alert.alertStyle = confirmation.button == nil || !confirmation.destructive ? .informational : .warning
         guard let button = confirmation.button else {
             alert.addButton(withTitle: "OK")

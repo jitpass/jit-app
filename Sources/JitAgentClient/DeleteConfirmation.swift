@@ -100,13 +100,16 @@ public extension VaultRmPlan {
         missing.isEmpty ? "" : " Not stored, so not deleted: \(missing.joined(separator: ", "))."
     }
 
-    private func command(_ arguments: [String]) -> String {
-        "jit " + arguments.joined(separator: " ")
+    /// The command with the paths it deletes: on the line when there are
+    /// a few, one per line under it past that, where a long list wrapped
+    /// mid-path. What runs is `arguments`, every path in it.
+    private func command(_ fixed: [String]) -> String {
+        CommandText.shown(fixed, names: paths, noun: ("secret", "secrets"), listedAbove: false)
     }
 
     private var cleanConfirmation: DeleteConfirmation {
         let arguments = ["vault", "rm", "--yes"] + paths
-        let message = "This runs:\n\n\(command(arguments))\n\n\(deletes). "
+        let message = "This runs:\n\n\(command(["vault", "rm", "--yes"]))\n\n\(deletes). "
             + "No profile, mount or pointer file jit can find uses \(pronoun)." + missingNote
             + " Nothing asks again. Touch ID follows."
         return DeleteConfirmation(
@@ -129,7 +132,7 @@ public extension VaultRmPlan {
         } else if users.isEmpty {
             parts.append("jit would refuse this delete without --break-profiles.")
         }
-        parts.append("This runs:\n\n\(command(arguments))\n\n\(deletes), and nothing asks again."
+        parts.append("This runs:\n\n\(command(["vault", "rm", "--break-profiles", "--yes"]))\n\n\(deletes), and nothing asks again."
             + missingNote + (users.isEmpty ? " Touch ID follows." : " Touch ID follows, naming what breaks."))
         let inUse = Set(inUse.map(\.path)).count
         let title = if error != nil, users.isEmpty {

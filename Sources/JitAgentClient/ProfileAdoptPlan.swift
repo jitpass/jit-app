@@ -94,7 +94,12 @@ public extension ProfileAdoptPlan {
         }
         parts.append(owning + ".")
         let arguments = ["profile", "adopt", "--yes", config] + names
-        parts.append("This runs:\n\njit " + (["profile", "adopt", "--yes", shown] + names).joined(separator: " ")
+        // The names are listed above; on the command line they wrapped at
+        // their hyphens. The argv still carries every one.
+        let command = CommandText.shown(
+            ["profile", "adopt", "--yes", shown], names: names, noun: ("profile", "profiles"), listedAbove: true, always: true
+        )
+        parts.append("This runs:\n\n" + command
             + "\n\nIt changes owner records only: no secret is read or changed, and nothing asks again.")
         return DeleteConfirmation(
             title: one ? "Adopt \(names[0])?" : "Adopt \(names.count) profiles?", message: parts.joined(separator: "\n\n"),

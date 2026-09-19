@@ -82,7 +82,8 @@ final class ProfilePlansTests: XCTestCase {
 
         This runs:
 
-        jit profile adopt --yes ~/Security-Ops/.mcp.json \(names.joined(separator: " "))
+        jit profile adopt --yes ~/Security-Ops/.mcp.json
+        + the 7 profiles listed above
 
         It changes owner records only: no secret is read or changed, and nothing asks again.
         """)

@@ -8,8 +8,8 @@ import Foundation
 /// what starts each profile and what points at each secret.
 ///
 /// - launcher_broken: a config names a profile no store holds. No button:
-///   the fix is an edit to a file jit doesn't own, which the row's note,
-///   the engine's own sentence, names.
+///   the fix is an edit to a file jit doesn't own, which the engine's own
+///   advice, said once under the rows of one launcher kind, names.
 /// - pointer_missing: a jit:// pointer names a missing secret. Set Value.
 /// - owner_gone, no_owner: an MCP profile no live config owns. One Adopt
 ///   per launching config, on the group, confirmed from
@@ -47,8 +47,8 @@ extension DoctorAdvice {
     ]
 
     static let ownershipBuilders: [String: Builder] = [
-        // The fix is an edit to a file jit doesn't own; the row's note,
-        // the engine's own sentence, says which.
+        // The fix is an edit to a file jit doesn't own; the run's note,
+        // the engine's own advice, says which.
         "launcher_broken": { _ in [] },
         "pointer_missing": { item in [setValue("Set Value", item)] },
         // One Adopt per launching config, on the group: see adoptActions.
@@ -57,24 +57,59 @@ extension DoctorAdvice {
         "unlaunched": removeProfile
     ]
 
+    /// Actions for the whole group: every stale mount unmounted in one
+    /// terminal run, one line per mount, each asking its own y/N; an Adopt
+    /// per launching config for the ownerless profiles.
+    static func groupActions(_ kind: String, _ items: [DoctorItem], among all: [DoctorItem]) -> [DoctorAction] {
+        if ownerKinds.contains(kind) {
+            return adoptActions(items, among: all)
+        }
+        let paths = kind == "mount_stale" ? items.compactMap(\.path) : []
+        return paths.count > 1 ? [DoctorAction("Unmount All", paths.map(unmountCommand).joined(separator: "\n"))] : []
+    }
+
     /// One Adopt per config the rows' fixes adopt into, in first-seen
     /// order: a profile two configs launch is adopted by the one doctor
-    /// names. Titled "Adopt" when there is one, else by config. The argv
-    /// is a fallback only: the dialog runs the names its dry run listed.
-    static func adoptActions(_ items: [DoctorItem]) -> [DoctorAction] {
+    /// names. The argv is a fallback only: the dialog runs the names its
+    /// dry run listed.
+    ///
+    /// Adopting a config takes every profile it launches, in both owner
+    /// groups, so each button counts them all across `all` ("Adopt 7"),
+    /// and the same config's button reads the same in either group: one
+    /// that counted only its own group's 2 read as if it adopted only
+    /// those. Named by config ("Adopt 7 for Security-Ops/.mcp.json") when
+    /// the report has more than one.
+    static func adoptActions(_ items: [DoctorItem], among all: [DoctorItem]) -> [DoctorAction] {
         var targets: [(config: String, command: String)] = []
         for item in items {
             for target in adoptTargets(item) where !targets.contains(where: { $0.config == target.config }) {
                 targets.append(target)
             }
         }
-        let one = targets.count == 1
+        var counts: [String: Int] = [:]
+        for item in all where ownerKinds.contains(item.kind) {
+            for config in Set(adoptTargets(item).map(\.config)) {
+                counts[config, default: 0] += 1
+            }
+        }
+        let one = Set(counts.keys).union(targets.map(\.config)).count == 1
         return targets.map { config, command in
-            DoctorAction(
-                one ? "Adopt" : "Adopt for " + ellipsis(homePath(config), 40), command,
+            let count = counts[config] ?? 0
+            let verb = count > 1 ? "Adopt \(count)" : "Adopt"
+            return DoctorAction(
+                one ? verb : verb + " for " + ellipsis(configShortName(config), 40), command,
                 argv: [["profile", "adopt", "--yes", config]], planned: .adopt(config: config)
             )
         }
+    }
+
+    /// A config as a button names it: its folder and file
+    /// ("Security-Ops/.mcp.json"), or the ~ path when that is all it is
+    /// ("~/.claude.json").
+    static func configShortName(_ config: String) -> String {
+        let shown = homePath(config)
+        let parts = shown.split(separator: "/", omittingEmptySubsequences: true)
+        return parts.count <= 2 ? shown : parts.suffix(2).joined(separator: "/")
     }
 
     /// The config an owner row's fix adopts into, and the command as the
@@ -104,24 +139,29 @@ extension DoctorAdvice {
         }
         return [DoctorAction(
             "Remove Profile", fix?.command ?? "jit profile rm \(name)", destructive: true,
-            argv: [["profile", "rm", "--yes", name]], planned: .removeProfile(name: name)
+            argv: [["profile", "rm", "--yes", name]], planned: .removeProfile(name: name, manifest: item.path?.nilIfEmpty)
         )]
     }
 
-    /// What every row of an owner group shares, said once under the title:
-    /// the gone owner and the launching config. Nil when the rows differ;
-    /// each row then says its own.
-    static func sharedFacts(_ kind: String, _ items: [DoctorItem]) -> String? {
+    /// What every row of an owner group shares, said once under the title,
+    /// one line each as `jit doctor` prints them: the gone owner ("Made by
+    /// ~/a/.mcp.json, now gone"), then the launching config ("Launched by
+    /// ~/b/.mcp.json"). Two lines, not one sentence: a sentence of two
+    /// paths wrapped mid-path. Empty when the rows differ; each row then
+    /// says its own.
+    static func sharedFacts(_ kind: String, _ items: [DoctorItem]) -> [DoctorFact] {
         guard ownerKinds.contains(kind), let first = items.first,
               items.allSatisfy({ ownerKey($0) == ownerKey(first) })
         else {
-            return nil
+            return []
         }
-        let launched = "Launched by \(pathsPhrase(first.configs ?? first.config.map { [$0] } ?? []))."
+        let configs = first.configs ?? first.config.map { [$0] } ?? []
+        let launched = DoctorFact("Launched by \(pathsPhrase(configs))", path: configs.first)
         guard kind == "owner_gone" else {
-            return launched
+            return [launched]
         }
-        return "Made by \(pathsPhrase(ownerFiles(first.owners ?? []))), now gone. " + launched
+        let owners = ownerFiles(first.owners ?? [])
+        return [DoctorFact("Made by \(pathsPhrase(owners)), now gone", path: owners.first), launched]
     }
 
     /// An ownership row: the thing that is wrong, in the fewest words.
@@ -149,19 +189,6 @@ extension DoctorAdvice {
         default:
             return item.profile ?? item.summary
         }
-    }
-
-    /// A second line under the row, where the engine's advice is specific
-    /// to the row: a broken launcher's "what to do", which differs by the
-    /// kind of file ("delete that [profile] block", "drop that jit run
-    /// layer"). The first clause, what fails, the group note already says.
-    public static func rowNote(_ item: DoctorItem) -> String? {
-        guard item.kind == "launcher_broken", let action = item.action, !action.isEmpty else {
-            return nil
-        }
-        let clauses = action.components(separatedBy: "; ")
-        let advice = clauses.count > 1 ? clauses.dropFirst().joined(separator: "; ") : action
-        return advice.prefix(1).uppercased() + advice.dropFirst()
     }
 
     /// "1 secret", "2 secrets, both missing", as `jit doctor` counts them.
@@ -215,7 +242,7 @@ public extension DoctorGroup {
     /// when the group's note could not say them once for all.
     func rowText(_ item: DoctorItem) -> String {
         let base = DoctorAdvice.rowText(item)
-        guard DoctorAdvice.ownerKinds.contains(kind), DoctorAdvice.sharedFacts(kind, items) == nil else {
+        guard DoctorAdvice.ownerKinds.contains(kind), DoctorAdvice.sharedFacts(kind, items).isEmpty else {
             return base
         }
         var text = base + " · launched by " + DoctorAdvice.pathsPhrase(item.configs ?? item.config.map { [$0] } ?? [])
