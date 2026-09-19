@@ -87,9 +87,9 @@ final class DoctorIgnoreTests: XCTestCase {
         )
     }
 
-    /// The ignored list is where jit says the finding would be, from its
-    /// severity, and counts toward nothing.
-    func testIgnoredFoldIntoOneList() throws {
+    /// An ignored row says where jit says the finding would be, from its
+    /// severity.
+    func testIgnoredRows() throws {
         let board = try board()
         XCTAssertEqual(board.ignored.map(\.text), ["aws-admin · Recommended · since 2026-09-19"])
         XCTAssertEqual(board.ignored.first?.showAgain, DoctorButton("Show Again", .unignore([
@@ -99,6 +99,42 @@ final class DoctorIgnoreTests: XCTestCase {
         XCTAssertEqual(DoctorBoard.make(problem).ignored.first?.section, .broken, "jit's severity, not a guess from the kind")
         let loggedOut = try XCTUnwrap(board.cards.first { $0.id == "not_logged_in" })
         XCTAssertEqual(loggedOut.rows.count, 1, "aws-admin is ignored, only aws-dev is counted")
+    }
+
+    /// Ignored is a tab after Tidy up, there only while something is
+    /// ignored, and the only place that counts the ignored findings.
+    func testIgnoredIsItsOwnTab() throws {
+        let board = try board()
+        XCTAssertEqual(board.tabs.map(\.title), ["All", "Broken now", "Recommended", "Tidy up", "Ignored"])
+        XCTAssertEqual(board.tabs.map(\.count), [board.cards.count, 2, 2, 1, 1])
+        XCTAssertEqual(board.tabs.last?.tab, .ignored)
+        XCTAssertEqual(board.tabs.last?.enabled, true)
+        let none = try DoctorBoard.make(report(#"{"ok":true,"problems":[],"warnings":[]}"#))
+        XCTAssertEqual(none.tabs.map(\.title), ["All", "Broken now", "Recommended", "Tidy up"], "no Ignored tab when none is")
+        XCTAssertEqual(none.tabs.map(\.enabled), [true, false, false, false])
+    }
+
+    /// All is the three tiers: an ignored finding is on no card and in no
+    /// count but its own tab's; the Ignored tab shows no tier.
+    func testAllLeavesTheIgnoredOut() throws {
+        let board = try board()
+        XCTAssertFalse(board.cards.contains { card in card.items.contains { $0.profile == "aws-admin" } })
+        XCTAssertEqual(board.tabs.first?.count, board.cards.count)
+        for tier in DoctorBoard.Tier.allCases {
+            XCTAssertTrue(board.shows(tier, on: .all))
+            XCTAssertFalse(board.shows(tier, on: .ignored))
+            XCTAssertEqual(board.shows(tier, on: .tier(.broken)), tier == .broken)
+        }
+        XCTAssertEqual(board.showing(.ignored), .ignored)
+    }
+
+    /// The last ignored row shown again: the Ignored tab falls back to All.
+    func testIgnoredFallsBackToAll() throws {
+        var board = try board()
+        board.ignored = []
+        XCTAssertEqual(board.showing(.ignored), .all)
+        XCTAssertTrue(board.shows(.broken, on: .ignored), "what All shows")
+        XCTAssertEqual(board.showing(.tier(.tidy)), .tier(.tidy), "a tier's tab stays put")
     }
 
     func testNotLoggedInLogsInInTheTerminal() throws {
@@ -123,7 +159,7 @@ final class DoctorIgnoreTests: XCTestCase {
     /// The window for this report, for a reviewer.
     func testRendersTheBoard() throws {
         let board = try board()
-        print(DoctorBoardTests.render(board) + "\n\n" + board.ignored.map { "\(board.ignored.count) ignored · \($0.text)" }
-            .joined(separator: "\n"))
+        print(DoctorBoardTests.render(board) + "\n\n[Ignored] \(board.ignored.count)\n"
+            + board.ignored.map { "● \($0.text)  [\($0.showAgain?.title ?? "")]" }.joined(separator: "\n"))
     }
 }

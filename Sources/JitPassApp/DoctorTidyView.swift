@@ -115,40 +115,60 @@ struct DoctorReviewSheet: View {
     }
 }
 
-/// The ignored findings folded into one line, "3 ignored · Show"; open,
-/// a row each (name · section · since) with Show Again.
-struct DoctorIgnoredFold: View {
+/// The Ignored tab: a row each (name · section · since), its dot the
+/// colour of where it would be (red for a problem, as jit prints it), and
+/// Show Again, which asks nothing.
+struct DoctorIgnoredList: View {
     let rows: [DoctorIgnoredRow]
     let state: (String) -> DoctorCardState
     let onShowAgain: (DoctorButton, String) -> Void
-    @State private var open = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("\(rows.count) ignored").font(.system(size: 12)).foregroundStyle(.secondary)
-                Text("·").font(.system(size: 12)).foregroundStyle(.secondary)
-                Button(open ? "Hide" : "Show") { open.toggle() }.buttonStyle(.link).font(.system(size: 12))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Circle().fill(Color.secondary.opacity(0.6)).frame(width: 8, height: 8)
+                Text("Ignored").font(.system(size: 13, weight: .semibold))
+                Text("\(rows.count)").font(.system(size: 13)).foregroundStyle(.secondary)
             }
-            if open {
-                ForEach(rows) { row in
-                    HStack(spacing: 10) {
-                        Text(row.text).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                        Spacer(minLength: 8)
-                        switch state(row.id) {
-                        case let .working(presence):
-                            DoctorWorkingLine(presence: presence)
-                        case let .idle(enabled):
-                            if let again = row.showAgain {
-                                Button(again.title) { onShowAgain(again, row.id) }.help(again.help).disabled(!enabled)
-                            }
-                        default:
-                            EmptyView()
-                        }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 {
+                        Divider()
                     }
+                    line(row).padding(.vertical, 8)
                 }
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func line(_ row: DoctorIgnoredRow) -> some View {
+        HStack(spacing: 10) {
+            Circle().fill(color(row.section)).frame(width: 6, height: 6)
+            Text(row.text).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
+            Spacer(minLength: 8)
+            switch state(row.id) {
+            case let .working(presence):
+                DoctorWorkingLine(presence: presence)
+            case let .idle(enabled):
+                if let again = row.showAgain {
+                    Button(again.title) { onShowAgain(again, row.id) }.help(again.help).disabled(!enabled)
+                }
+            default:
+                EmptyView()
+            }
+        }
+    }
+
+    private func color(_ section: DoctorBoard.Tier) -> Color {
+        switch section {
+        case .broken: Color(StatusMark.red)
+        case .recommended: Color(StatusMark.amber)
+        case .tidy: Color.secondary.opacity(0.6)
+        }
     }
 }

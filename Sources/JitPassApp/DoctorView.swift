@@ -17,26 +17,27 @@ struct DoctorView: View {
     @ObservedObject var model: MenuModel
     @ObservedObject var progress: DoctorProgress
     let actions: DoctorActions
-    /// nil is All.
-    @State private var tab: DoctorBoard.Tier?
+    @State private var tab = DoctorTab.all
     @State private var reviewing = false
 
     var body: some View {
         let board = model.doctor.map { DoctorBoard.make($0) }
         VStack(alignment: .leading, spacing: 0) {
             header(board)
-            if let board, board.isEmpty, progress.outcome == nil {
-                allGood
+            if let board, board.isEmpty, progress.outcome == nil, board.showing(tab) != .ignored {
+                allGood(board)
             } else if let board {
                 tabs(board)
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
                         ForEach(DoctorBoard.Tier.allCases) { tier in
-                            if tab == nil || tab == tier {
+                            if board.shows(tier, on: tab) {
                                 section(tier, shown(board, tier))
                             }
                         }
-                        ignoredFold(board)
+                        if board.showing(tab) == .ignored {
+                            DoctorIgnoredList(rows: board.ignored, state: state, onShowAgain: actions.showAgain)
+                        }
                     }
                     .padding(.horizontal, 22)
                     .padding(.bottom, 18)
@@ -48,6 +49,13 @@ struct DoctorView: View {
         }
         .frame(minWidth: 600, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        // The last ignored row shown again: the tab goes, so does its
+        // selection. Nothing else ever switches tabs for the user.
+        .onChange(of: model.doctor) { _, report in
+            if tab == .ignored, report?.ignored.isEmpty ?? true {
+                tab = .all
+            }
+        }
         .sheet(isPresented: $reviewing) {
             DoctorReviewSheet(model: model, actions: actions) { reviewing = false }
         }
@@ -118,10 +126,10 @@ struct DoctorView: View {
     // MARK: - Tabs
 
     private func tabs(_ board: DoctorBoard) -> some View {
-        HStack(spacing: 2) {
-            tabButton(nil, "All", board.cards.count)
-            ForEach(DoctorBoard.Tier.allCases) { tier in
-                tabButton(tier, tier.title, board.cards(in: tier).count)
+        let selected = board.showing(tab)
+        return HStack(spacing: 2) {
+            ForEach(board.tabs) { item in
+                tabButton(item, selected: selected == item.tab)
             }
         }
         .padding(2)
@@ -130,14 +138,13 @@ struct DoctorView: View {
         .padding(.bottom, 14)
     }
 
-    private func tabButton(_ tier: DoctorBoard.Tier?, _ title: String, _ count: Int) -> some View {
-        let selected = tab == tier
-        return Button {
-            tab = tier
+    private func tabButton(_ item: DoctorTabItem, selected: Bool) -> some View {
+        Button {
+            tab = item.tab
         } label: {
             HStack(spacing: 4) {
-                Text(title)
-                Text("\(count)").foregroundStyle(.secondary)
+                Text(item.title)
+                Text("\(item.count)").foregroundStyle(.secondary)
             }
             .font(.system(size: 12))
             .padding(.horizontal, 12)
@@ -150,8 +157,8 @@ struct DoctorView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(tier != nil && count == 0)
-        .opacity(tier != nil && count == 0 ? 0.45 : 1)
+        .disabled(!item.enabled)
+        .opacity(item.enabled ? 1 : 0.45)
     }
 
     // MARK: - Sections
@@ -211,14 +218,6 @@ struct DoctorView: View {
         return .idle(enabled: idle)
     }
 
-    /// "3 ignored · Show", at the bottom, counted nowhere else.
-    @ViewBuilder
-    private func ignoredFold(_ board: DoctorBoard) -> some View {
-        if !board.ignored.isEmpty {
-            DoctorIgnoredFold(rows: board.ignored, state: state, onShowAgain: actions.showAgain)
-        }
-    }
-
     private func handle(_ button: DoctorButton, _ card: DoctorCard, _ key: String) {
         if button.command == .review {
             reviewing = true
@@ -229,7 +228,7 @@ struct DoctorView: View {
 
     // MARK: - Nothing to fix, and the footer
 
-    private var allGood: some View {
+    private func allGood(_ board: DoctorBoard) -> some View {
         VStack(spacing: 12) {
             Spacer()
             DoctorMark(color: Color(StatusMark.green), size: 56)
@@ -238,8 +237,11 @@ struct DoctorView: View {
                 .font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 .frame(maxWidth: 420).fixedSize(horizontal: false, vertical: true)
             Button("Check Again", action: actions.recheck).disabled(!idle).padding(.top, 6)
-            if let board = model.doctor.map({ DoctorBoard.make($0) }) {
-                ignoredFold(board).frame(maxWidth: 520).padding(.top, 12)
+            // The one other way to the Ignored tab: nothing else is on
+            // screen to hold it.
+            if !board.ignored.isEmpty {
+                Button("\(board.ignored.count) ignored") { tab = .ignored }
+                    .buttonStyle(.link).font(.system(size: 12)).padding(.top, 4)
             }
             Spacer()
         }
