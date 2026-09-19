@@ -101,65 +101,6 @@ public enum DoctorAdvice {
     /// listed on demand.
     public static let listedKinds: Set<String> = ["orphan"]
 
-    static let titles: [String: (title: String, note: String?)] = [
-        "missing": (
-            "Missing secrets",
-            "A profile points at a secret the vault does not hold; a tool launched through it won't start."
-        ),
-        "corrupt": ("Unreadable secrets", "The stored value is not in a format this jit can decrypt."),
-        "parse": ("Profiles that won't load", nil),
-        "not_found": ("Profile not found", nil),
-        "vault_error": ("Vault errors", nil),
-        "bad_path": ("Bad secret paths", nil),
-        "vault_key": ("Master key missing", "Without this Mac's master key nothing in the vault decrypts."),
-        "rekey": ("Unfinished key rotation", "Every vault write is refused until the rotation completes."),
-        "wrap": ("Broken wrapped tools", "The tool now runs unwrapped, or not at all."),
-        "mcp": ("Broken MCP entries", nil),
-        "mcp_nested": (
-            "Doubly wrapped MCP entries",
-            "Still working, but the server launches through jit twice. Migrating again collapses it to one."
-        ),
-        "jit_path": ("Stale jit paths", "A credential helper points at a jit binary that is gone."),
-        "1password": ("1Password CLI", nil),
-        "1password_link": (
-            "Broken 1Password links",
-            "The 1Password item a secret links to does not resolve. Fix the item in 1Password, "
-                + "or relink it in the terminal with jit vault link <path> <op://…>."
-        ),
-        // Without an entry here the kind fell through to a bare, capitalized
-        // "Stale Pointers" with no note at all — a red card whose title was
-        // jit's internal noun and whose explanation was nothing, on the one
-        // surface that exists to explain.
-        "stale_pointers": (
-            "Leftover jit records",
-            "A file jit wrote lists secrets the vault no longer has. Nothing reads it, so the tool beside "
-                + "it is what to check: store the values, or delete the file."
-        ),
-        "orphan": ("Orphaned secrets", "In the vault but referenced by no profile jit can see. Harmless, but dead weight."),
-        "duplicates": ("Possible duplicates", "Vault groups that look like the same file stored twice."),
-        "origin_gone": (
-            "Origin files gone",
-            "The file these were migrated from no longer exists. Nothing to do if you still use them: the vault is where they live now."
-        ),
-        "shadowed": ("Shadowed profiles", "A project profile with the same name wins; the global copy is ignored there."),
-        "service": ("Background service", nil),
-        "backup": ("Backup", nil),
-        "mount": ("Mounts", nil),
-        "mount_stale": (
-            "Stale mounts",
-            "Registered mounts whose project was deleted without unmounting first. Unmounting touches no secret."
-        ),
-        "wrap_env": ("Wrapped tools, this shell only", "Only true of the shell the check ran in."),
-        "audit": ("Audit log", nil),
-        "install": (
-            "Extra jit installs",
-            "PATH order decides which copy runs. The Homebrew copy is this app's: brew uninstall jitpass removes JitPass too."
-        ),
-        "jit_path_upgrade": ("Version-pinned jit paths", "Still working, but the path will break on the next Homebrew upgrade."),
-        "completion": ("Shell completion", nil),
-        "legacy_envelope": ("Old secret format", nil)
-    ].merging(ownershipTitles) { known, _ in known }
-
     /// Problems then warnings, each grouped by kind in first-seen order.
     /// `all` is the whole report, for what a group counts across others:
     /// an Attach covers a config's profiles in both record groups.
@@ -218,6 +159,12 @@ public enum DoctorAdvice {
         // the deliberate one, and destructive on purpose — dropping a
         // variable the tool DOES need breaks it silently AND clears the
         // finding, which is worse than the finding.
+        // The engine's fix is complete as written (it carries the project
+        // directory), so these are one-click. Titled by what they do for the
+        // user, not by the subcommand: "relocate"/"register" are jit's words
+        // for a registry edit nobody outside jit thinks in.
+        "mount_moved": { item in mountFix(item, "Update Location", ["mount", "relocate"]) },
+        "mount_unregistered": { item in mountFix(item, "Serve This File", ["mount", "register"]) },
         "missing": { item in [
             setValue("Set Value", item),
             migrateAFile,
@@ -326,6 +273,20 @@ public enum DoctorAdvice {
 
     static func removeVariable(_ item: DoctorItem) -> DoctorAction {
         removeVariables(item.profile ?? "", [item.variable].compactMap { $0 })
+    }
+
+    /// One of the two mount repairs, retitled from the engine's fix. Returns
+    /// nothing when the report offers no such command — an ambiguous
+    /// relocation says "`jit mount relocate <project>`" with the choice left
+    /// to the user, and a placeholder must never become a button that looks
+    /// like it will finish the job.
+    static func mountFix(_ item: DoctorItem, _ title: String, _ prefix: [String]) -> [DoctorAction] {
+        guard let fix = (item.fixes ?? []).first(where: { $0.argv.starts(with: prefix) }),
+              fix.needs == nil, fix.argv.count > prefix.count
+        else {
+            return []
+        }
+        return [DoctorAction(title, fix.command, argv: [fix.argv + ["--yes"]], presence: fix.presence)]
     }
 
     /// A read-only command whose output is the point.
