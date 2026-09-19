@@ -122,12 +122,25 @@ final class DoctorOwnershipTests: XCTestCase {
         ])
         XCTAssertTrue(try group("unlaunched").note?.contains("can't see scripts or aliases") ?? false)
         XCTAssertTrue(try group("launcher_broken").note?.contains("doesn't exist") ?? false)
-        let gone = try XCTUnwrap(group("owner_gone").note)
-        XCTAssertTrue(gone.hasSuffix(
-            "Made by \(home("/Users/me/Documents/ai_security_workspace/.mcp.json")), now gone. "
-                + "Launched by \(home("/Users/me/Security-Ops/.mcp.json"))."
-        ), gone)
-        XCTAssertTrue(try group("no_owner").note?.hasSuffix("Launched by \(home("/Users/me/Security-Ops/.mcp.json")).") ?? false)
+        XCTAssertFalse(try group("owner_gone").note?.contains("Made by") ?? true, "the facts are their own lines")
+    }
+
+    /// An owner group's shared facts are two lines, as `jit doctor` prints
+    /// them, each naming its file: one sentence of two paths wrapped
+    /// mid-path. A no-owner group has only the launcher.
+    func testOwnerFactsAreOneLineEach() throws {
+        XCTAssertEqual(try group("owner_gone").facts, [
+            DoctorFact(
+                "Made by \(home("/Users/me/Documents/ai_security_workspace/.mcp.json")), now gone",
+                path: "/Users/me/Documents/ai_security_workspace/.mcp.json"
+            ),
+            DoctorFact("Launched by \(home("/Users/me/Security-Ops/.mcp.json"))", path: "/Users/me/Security-Ops/.mcp.json")
+        ])
+        XCTAssertEqual(try group("no_owner").facts, [
+            DoctorFact("Launched by \(home("/Users/me/Security-Ops/.mcp.json"))", path: "/Users/me/Security-Ops/.mcp.json")
+        ])
+        XCTAssertEqual(try group("unlaunched").facts, [])
+        XCTAssertEqual(try group("launcher_broken").facts, [])
     }
 
     func testRowText() throws {
@@ -136,11 +149,10 @@ final class DoctorOwnershipTests: XCTestCase {
             home("/Users/me/.aws/config") + " [profile dev] names aws-dev",
             home("/Users/me/.aws/config") + " [profile admin] names aws-admin"
         ])
-        XCTAssertEqual(DoctorAdvice.rowNote(broken.items[0]), "Mint it again, or delete that [profile] block")
         let pointers = try group("pointer_missing")
         XCTAssertEqual(pointers.rowText(pointers.items[1]), home("/Users/me/.clisso.yaml") + " · wrap-clisso/blockaid-client-secret")
         XCTAssertTrue(DoctorAdvice.rowIsPath(pointers.items[1]))
-        XCTAssertNil(DoctorAdvice.rowNote(pointers.items[1]))
+        XCTAssertEqual(pointers.runs.map(\.note), [nil])
         let gone = try group("owner_gone")
         XCTAssertEqual(gone.items.map(gone.rowText), ["mcp-caido", "mcp-okta"], "the shared facts are on the note")
         let unlaunched = try group("unlaunched")
@@ -159,12 +171,9 @@ final class DoctorOwnershipTests: XCTestCase {
             command: "jit profile adopt ~/other/.mcp.json", argv: ["profile", "adopt", "/Users/me/other/.mcp.json"], destructive: false
         )]
         let group = try XCTUnwrap(DoctorAdvice.groups(rows).first)
-        XCTAssertFalse(group.note?.contains("Launched by") ?? false)
+        XCTAssertEqual(group.facts, [])
         XCTAssertEqual(group.rowText(rows[1]), "mcp-urlscan · launched by " + home("/Users/me/other/.mcp.json"))
-        XCTAssertEqual(group.groupActions.map(\.title), [
-            "Adopt for " + DoctorAdvice.ellipsis(home("/Users/me/Security-Ops/.mcp.json"), 40),
-            "Adopt for " + DoctorAdvice.ellipsis(home("/Users/me/other/.mcp.json"), 40)
-        ])
+        XCTAssertEqual(group.groupActions.map(\.title), ["Adopt for Security-Ops/.mcp.json", "Adopt for other/.mcp.json"])
         XCTAssertEqual(group.groupActions.map(\.planned), [
             .adopt(config: "/Users/me/Security-Ops/.mcp.json"), .adopt(config: "/Users/me/other/.mcp.json")
         ])
@@ -186,7 +195,7 @@ final class DoctorOwnershipTests: XCTestCase {
                 XCTAssertEqual(DoctorAdvice.actions(for: item), [], "adopt is the group's button, not the row's")
             }
             let adopt = try group(kind).groupActions
-            XCTAssertEqual(adopt.map(\.title), ["Adopt"], "one config, one button")
+            XCTAssertEqual(adopt.map(\.title), ["Adopt 4"], "one config, one button, counting both groups' rows")
             XCTAssertEqual(adopt[0].command, "jit profile adopt ~/Security-Ops/.mcp.json")
             XCTAssertEqual(adopt[0].planned, .adopt(config: "/Users/me/Security-Ops/.mcp.json"))
             XCTAssertFalse(adopt[0].destructive)
@@ -197,7 +206,7 @@ final class DoctorOwnershipTests: XCTestCase {
         XCTAssertEqual(remove.map { $0.map(\.title) }, [["Remove Profile"], ["Remove Profile"]])
         let token = remove[1][0]
         XCTAssertEqual(token.command, "jit profile rm token")
-        XCTAssertEqual(token.planned, .removeProfile(name: "token"))
+        XCTAssertEqual(token.planned, .removeProfile(name: "token", manifest: "/Users/me/.jit/profiles/token.yaml"))
         XCTAssertEqual(token.argv, [["profile", "rm", "--yes", "token"]])
         XCTAssertTrue(token.destructive)
         XCTAssertTrue(token.presence, "the engine: Touch ID when secrets go")

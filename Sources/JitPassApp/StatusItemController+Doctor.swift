@@ -101,13 +101,19 @@ extension StatusItemController {
     private func performPlanned(_ planned: DoctorAction.Planned, action: DoctorAction, row: String) {
         let answer: Result<DeleteConfirmation, Error>
         let unavailable: (String) -> DeleteConfirmation
+        // The file the dialog is about, one click from Finder: the config
+        // adopting records as owner, the manifest removing deletes (vault
+        // paths only, never a value).
+        let reveal: RevealLink
         switch planned {
         case let .adopt(config):
+            reveal = RevealLink(title: "Show Config", path: config)
             answer = JitCLI.profileAdoptPlan(config).map { $0.confirmation() }
             unavailable = {
                 .profileUnavailable("Can't check what adopting would change", command: "jit profile adopt", reason: $0)
             }
-        case let .removeProfile(name):
+        case let .removeProfile(name, manifest):
+            reveal = RevealLink(title: "Show Profile File", path: ProfileFiles.manifest(name, reported: manifest))
             answer = JitCLI.profileRmPlan(name).map { $0.confirmation() }
             unavailable = {
                 .profileUnavailable("Can't check what removing \(name) deletes", command: "jit profile rm", reason: $0)
@@ -119,7 +125,7 @@ extension StatusItemController {
         case let .failure(error):
             unavailable(Self.describe(error))
         }
-        guard Self.confirmDeletion(confirmation) else {
+        guard Self.confirmDeletion(confirmation, reveal: reveal) else {
             if confirmation.button == nil, case .success = answer {
                 runDoctor(afterAction: true)
             }

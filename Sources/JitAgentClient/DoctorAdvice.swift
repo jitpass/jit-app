@@ -34,8 +34,8 @@ public struct DoctorAction: Equatable, Sendable {
     public enum Planned: Equatable, Sendable {
         /// `jit profile adopt <config>`.
         case adopt(config: String)
-        /// `jit profile rm <profile>`.
-        case removeProfile(name: String)
+        /// `jit profile rm <profile>`, and its manifest as doctor reported it.
+        case removeProfile(name: String, manifest: String? = nil)
     }
 
     public var title: String
@@ -148,7 +148,9 @@ public enum DoctorAdvice {
     ].merging(ownershipTitles) { known, _ in known }
 
     /// Problems then warnings, each grouped by kind in first-seen order.
-    public static func groups(_ items: [DoctorItem]) -> [DoctorGroup] {
+    /// `all` is the whole report, for what a group counts across others:
+    /// an Adopt covers a config's ownerless profiles in both owner groups.
+    public static func groups(_ items: [DoctorItem], among all: [DoctorItem]? = nil) -> [DoctorGroup] {
         var order: [String] = []
         var byKind: [String: [DoctorItem]] = [:]
         for item in items {
@@ -163,9 +165,9 @@ public enum DoctorAdvice {
             return DoctorGroup(
                 kind: kind,
                 title: named?.title ?? kind.replacingOccurrences(of: "_", with: " ").capitalized,
-                note: [named?.note, sharedFacts(kind, members)].compactMap { $0 }.joined(separator: "\n").nilIfEmpty,
+                note: named?.note,
                 items: members,
-                groupActions: groupActions(kind, members)
+                groupActions: groupActions(kind, members, among: all ?? items)
             )
         }
     }
@@ -291,17 +293,6 @@ public enum DoctorAdvice {
         DoctorAction("Delete All", "jit vault orphans --prune", destructive: true, argv: [["vault", "orphans", "--prune", "--yes"]])
     ]
 
-    /// Actions for the whole group: every stale mount unmounted in one
-    /// terminal run, one line per mount, each asking its own y/N; an Adopt
-    /// per launching config for the ownerless profiles.
-    static func groupActions(_ kind: String, _ items: [DoctorItem]) -> [DoctorAction] {
-        if ownerKinds.contains(kind) {
-            return adoptActions(items)
-        }
-        let paths = kind == "mount_stale" ? items.compactMap(\.path) : []
-        return paths.count > 1 ? [DoctorAction("Unmount All", paths.map(unmountCommand).joined(separator: "\n"))] : []
-    }
-
     /// `jit unmount <path>` as the terminal runs it: the home-relative path
     /// when the shell reads it as written, the full path single-quoted
     /// when it holds a space or anything else the shell would act on.
@@ -373,11 +364,11 @@ public extension DoctorAdvice {
 
 public extension DoctorReport {
     var problemGroups: [DoctorGroup] {
-        DoctorAdvice.groups(problems)
+        DoctorAdvice.groups(problems, among: problems + warnings)
     }
 
     var warningGroups: [DoctorGroup] {
-        DoctorAdvice.groups(warnings)
+        DoctorAdvice.groups(warnings, among: problems + warnings)
     }
 
     /// Warnings as a reader counts them: a listed kind (every orphaned
