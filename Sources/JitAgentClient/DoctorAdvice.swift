@@ -126,6 +126,15 @@ public enum DoctorAdvice {
             "The 1Password item a secret links to does not resolve. Fix the item in 1Password, "
                 + "or relink it in the terminal with jit vault link <path> <op://…>."
         ),
+        // Without an entry here the kind fell through to a bare, capitalized
+        // "Stale Pointers" with no note at all — a red card whose title was
+        // jit's internal noun and whose explanation was nothing, on the one
+        // surface that exists to explain.
+        "stale_pointers": (
+            "Leftover jit records",
+            "A file jit wrote lists secrets the vault no longer has. Nothing reads it, so the tool beside "
+                + "it is what to check: store the values, or delete the file."
+        ),
         "orphan": ("Orphaned secrets", "In the vault but referenced by no profile jit can see. Harmless, but dead weight."),
         "duplicates": ("Possible duplicates", "Vault groups that look like the same file stored twice."),
         "origin_gone": (
@@ -212,7 +221,7 @@ public enum DoctorAdvice {
         "missing": { item in [
             setValue("Set Value", item),
             migrateAFile,
-            dropEntry(item)
+            removeVariable(item)
         ] },
         "corrupt": { item in [
             show("Show History", ["vault", "history", item.path ?? ""]),
@@ -293,18 +302,30 @@ public enum DoctorAdvice {
         )
     }
 
-    /// Remove one variable from the manifest that asks for it. Carries the
-    /// profile and variable outright, so the button never becomes a Choose…
+    /// Remove variables from the profile that asks for them. Carries the
+    /// profile and the names outright, so the button never becomes a Choose…
     /// the user has to finish — a fix you have to complete in a terminal is
     /// one nobody uses, which is how these entries went unfixable.
-    static func dropEntry(_ item: DoctorItem) -> DoctorAction {
-        guard let profile = item.profile, let variable = item.variable else {
-            return DoctorAction("Drop Entry", "")
+    ///
+    /// "Remove Variable", not "Drop Entry": the row says `hibob ·
+    /// HIBOB_BASE_URL` and the card says "names 4 secrets the vault doesn't
+    /// hold". Nothing the reader can see is called an entry — that is `jit
+    /// profile drop`'s own word for a line in a manifest, and it leaked.
+    /// "Set Value" and "Remove Variable" also read as the opposite answers
+    /// they are.
+    static func removeVariables(_ profile: String, _ variables: [String]) -> DoctorAction {
+        guard !profile.isEmpty, !variables.isEmpty else {
+            return DoctorAction("Remove Variable", "")
         }
+        let title = variables.count == 1 ? "Remove Variable" : "Remove \(variables.count) Variables"
         return DoctorAction(
-            "Drop Entry", "jit profile drop \(profile) \(variable)", destructive: true,
-            argv: [["profile", "drop", profile, variable, "--yes"]]
+            title, "jit profile drop \(profile) " + variables.joined(separator: " "), destructive: true,
+            argv: [["profile", "drop", profile] + variables + ["--yes"]]
         )
+    }
+
+    static func removeVariable(_ item: DoctorItem) -> DoctorAction {
+        removeVariables(item.profile ?? "", [item.variable].compactMap { $0 })
     }
 
     /// A read-only command whose output is the point.

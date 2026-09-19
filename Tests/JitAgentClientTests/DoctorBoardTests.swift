@@ -81,14 +81,20 @@ final class DoctorBoardTests: XCTestCase {
             [["vault", "set", "mcp-okta-mcp-server/OKTA_SCOPES", "--stdin", "--yes"]]
         ], "the existing Set Value, once per secret, each its own hidden field")
         XCTAssertEqual(okta.primary?.presence, true)
-        // Set Values… stays the prominent primary; the drops sit in the
-        // overflow, one per variable and each naming its own, because two
-        // buttons reading "Drop Entry…" on one card say nothing about which
-        // variable would go.
+        // Set Values… stays the prominent primary, and its opposite is ONE
+        // control carrying every variable — not one per row. `jit profile
+        // drop` takes VAR..., so the click cost of the two answers matches
+        // instead of the remove costing a click and a dialog per variable.
         XCTAssertEqual(titles(okta.menu), [
             "Show Config in Finder", "Show Profile File", "Copy Path", "—", "Migrate a File…",
-            "Drop Entry… · OKTA_ORG_URL", "Drop Entry… · OKTA_SCOPES", "Open in Terminal"
+            "Remove 2 Variables…", "Open in Terminal"
         ])
+        XCTAssertEqual(
+            okta.menu.dropLast().last,
+            .button(DoctorButton("Remove 2 Variables…", .run([DoctorAdvice.removeVariables(
+                "mcp-okta-mcp-server", ["OKTA_ORG_URL", "OKTA_SCOPES"]
+            )])))
+        )
         XCTAssertEqual(okta.menu.last, .button(DoctorButton("Open in Terminal", .terminal(
             "jit vault set mcp-okta-mcp-server/OKTA_ORG_URL\njit vault set mcp-okta-mcp-server/OKTA_SCOPES"
         ))))
@@ -281,5 +287,70 @@ final class DoctorBoardTests: XCTestCase {
         let text = try Self.render(Self.board())
         XCTAssertTrue(text.hasPrefix("2 tools won't start"))
         print(text)
+    }
+}
+
+/// Leftover `.pointers` records: the card a lone one produces, which is the
+/// common case and was the broken one.
+final class DoctorStalePointersCardTests: XCTestCase {
+    private func board(_ count: Int) throws -> DoctorBoard {
+        let findings = (0 ..< count).map { n in
+            let file = "/Users/me/Security-Ops/custom_scripts/wiz\(n)/.env.pointers"
+            return #"{"kind":"stale_pointers","file":"\#(file)","path":"wiz\#(n)","#
+                + #""detail":"~/x/.env.pointers expects 3 values under wiz\#(n)/, and the vault has nothing there","#
+                + #""action":"store those values, or `jit migrate forget <file>`","#
+                + #""fixes":[{"command":"jit migrate forget \#(file)","#
+                + #""argv":["migrate","forget","\#(file)"],"destructive":true}]}"#
+        }
+        return try DoctorBoardTests.board(
+            #"{"schema_version":2,"ok":false,"problems":[\#(findings.joined(separator: ","))],"warnings":[]}"#
+        )
+    }
+
+    private func card(_ board: DoctorBoard) throws -> DoctorCard {
+        try XCTUnwrap(board.cards.first { $0.id.contains("stale_pointers") }, "no card in \(board.cards.map(\.id))")
+    }
+
+    /// The regression: Edit was built only on ROWS, and a single finding
+    /// renders as a card with no rows. So the one stale record — much the
+    /// commonest shape — offered no way to read the file, and the card's
+    /// single prominent button was the one that deletes it.
+    func testALoneRecordOffersEditFirstAndNeverAProminentDelete() throws {
+        let card = try card(board(1))
+        XCTAssertEqual(card.primary?.title, "Edit", "reading the file is the first move")
+        XCTAssertFalse(card.primaryProminent, "a destructive action must never be the card's blue call to action")
+        if case let .edit(path) = card.primary?.command {
+            XCTAssertEqual(path, "/Users/me/Security-Ops/custom_scripts/wiz0/.env.pointers")
+        } else {
+            XCTFail("Edit must open the file itself, got \(String(describing: card.primary?.command))")
+        }
+        let menu = card.menu.map { entry -> String in
+            if case let .button(button) = entry {
+                return button.title
+            }
+            return "—"
+        }
+        XCTAssertTrue(menu.contains { $0.hasPrefix("Delete File") }, "\(menu)")
+        XCTAssertTrue(menu.contains("Show File in Finder"), "jit's own file is not somebody's config: \(menu)")
+    }
+
+    /// The title and note the kind never had: it fell through to a bare,
+    /// capitalized "Stale Pointers" with no explanation at all.
+    func testTheCardSaysWhatALeftoverRecordIs() throws {
+        let card = try card(board(1))
+        XCTAssertEqual(card.title, "Leftover jit records")
+        let reason = try XCTUnwrap(card.reason)
+        XCTAssertFalse(reason.isEmpty)
+        XCTAssertFalse(card.title.contains("Pointers"), "jit's own noun must not be the heading")
+    }
+
+    /// Several records keep a per-row Edit, which is where it already was.
+    func testEveryRowKeepsItsOwnEdit() throws {
+        let card = try card(board(3))
+        XCTAssertEqual(card.rows.count, 3)
+        for row in card.rows {
+            XCTAssertEqual(row.buttons.first?.title, "Edit", "\(row.buttons.map(\.title))")
+            XCTAssertTrue(row.buttons.contains { $0.title.hasPrefix("Delete File") }, "\(row.buttons.map(\.title))")
+        }
     }
 }
