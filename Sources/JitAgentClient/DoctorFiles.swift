@@ -92,7 +92,7 @@ public extension DoctorAdvice {
         let path: String? = switch item.kind {
         case "profile_missing":
             item.file ?? item.launchers?.first?.file
-        case "pointer_missing":
+        case "pointer_missing", "stale_pointers":
             item.file
         case "config_deleted", "config_not_recorded", "no_known_tool", "mcp", "mcp_nested", "jit_path", "jit_path_upgrade",
              "mount", "mount_stale", "install", "completion", "origin_gone":
