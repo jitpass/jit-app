@@ -25,7 +25,7 @@ public struct DoctorItem: Codable, Sendable, Equatable, Identifiable {
     /// commands are recovered from the action's backticks instead; in a
     /// schema 2 report an absent list means the action names none.
     public var fixes: [DoctorFix]?
-    /// The ownership kinds' structured half (jit 1.10: launcher_broken,
+    /// The ownership kinds' structured half (jit 2.0: launcher_broken,
     /// pointer_missing, owner_gone, no_owner, unlaunched). `file` is the
     /// launcher or pointer file; `config` the MCP config doctor's adopt
     /// command names, `configs` every config that launches the profile;

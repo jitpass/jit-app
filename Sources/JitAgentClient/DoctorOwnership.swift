@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// Doctor's ownership kinds (jit 1.10, jitpass/jit
+/// Doctor's ownership kinds (jit 2.0, jitpass/jit
 /// internal/cli/doctorownership.go), read from the engine's launcher map:
 /// what starts each profile and what points at each secret.
 ///

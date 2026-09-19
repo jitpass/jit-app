@@ -4,7 +4,7 @@
 @testable import JitAgentClient
 import XCTest
 
-/// `jit profile adopt --dry-run` and `jit profile rm --dry-run` (jit 1.10),
+/// `jit profile adopt --dry-run` and `jit profile rm --dry-run` (jit 2.0),
 /// and the one dialog the app words from each before it runs anything.
 /// Fixtures are real output of jit main, home renamed to /Users/me.
 final class ProfilePlansTests: XCTestCase {
@@ -238,7 +238,7 @@ final class ProfilePlansTests: XCTestCase {
         XCTAssertNil(dialog.button)
         XCTAssertEqual(dialog.arguments, [])
         XCTAssertTrue(dialog.message.hasPrefix("Nothing was changed."), dialog.message)
-        XCTAssertTrue(dialog.message.hasSuffix("That jit is older than 1.10, the first with jit profile. Update it."), dialog.message)
+        XCTAssertTrue(dialog.message.hasSuffix("That jit is older than 2.0, the first with jit profile. Update it."), dialog.message)
         let other = DeleteConfirmation.profileUnavailable("t", command: "jit profile adopt", reason: "permission denied")
         XCTAssertFalse(other.message.contains("older"))
     }

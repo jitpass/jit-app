@@ -4,13 +4,13 @@
 @testable import JitAgentClient
 import XCTest
 
-/// Doctor's ownership kinds (jit 1.10): what the window titles them, what
+/// Doctor's ownership kinds (jit 2.0): what the window titles them, what
 /// each row says, and which buttons they get. Broken launchers get none,
 /// a missing pointer Set Value, ownerless profiles one Adopt per config on
 /// the group, an unlaunched profile Remove Profile.
 final class DoctorOwnershipTests: XCTestCase {
     /// Trimmed from a real `jit doctor --format json` of jit main (to be
-    /// 1.10), home renamed: two findings of each ownership kind.
+    /// 2.0), home renamed: two findings of each ownership kind.
     private let json = #"""
     {"schema_version":2,"tool":{"version":"v1.9.1"},"ok":false,"problems":[{"kind":"launcher_broken",
     "profile":"aws-dev","detail":"~/.aws/config [profile dev] names profile aws-dev, which no jit store holds",
