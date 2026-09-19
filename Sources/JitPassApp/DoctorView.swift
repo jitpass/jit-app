@@ -6,9 +6,12 @@ import SwiftUI
 
 /// Doctor: the same findings `jit doctor` reports, problems first, grouped
 /// by kind under a title and a one-line note, each row with buttons named
-/// for what they do. The app shows and never fixes; every button runs its
-/// command in the terminal, where jit's own confirmations apply. A
-/// destructive one is red and confirmed by the app first.
+/// for what they do. A button runs the jit command doctor named: in the
+/// app when it can run unattended (every y/N pre-answered, any value typed
+/// into a hidden field), in the terminal otherwise, where jit's own
+/// confirmations apply. A destructive one is red and confirmed by the app
+/// first. One action at a time: while one runs, or a check, every button
+/// is disabled and the running row says so until the recheck lands.
 struct DoctorView: View {
     @ObservedObject var model: MenuModel
     let actions: DoctorActions
@@ -49,7 +52,7 @@ struct DoctorView: View {
                     Text("Doctor").font(.headline)
                 }
                 Spacer(minLength: 16)
-                Button("Check Again", action: actions.recheck).disabled(model.doctorRunning)
+                Button("Check Again", action: actions.recheck).disabled(!idle)
                 Button("Open in Terminal", action: actions.openInTerminal)
             }
             if let report = model.doctor {
@@ -58,7 +61,18 @@ struct DoctorView: View {
             if let message = model.doctorMessage {
                 Text(message).font(.subheadline).foregroundStyle(Color(StatusMark.red))
             }
+            if model.doctorFailed, !model.doctorRunning {
+                Text(model.doctor == nil
+                    ? "jit doctor gave no report."
+                    : "jit doctor gave no report; the findings below are from an earlier check.")
+                    .font(.subheadline).foregroundStyle(Color(StatusMark.red))
+            }
         }
+    }
+
+    /// Nothing running: no action, no check.
+    private var idle: Bool {
+        model.doctorBusy == nil && !model.doctorRunning
     }
 
     private func dot(_ report: DoctorReport) -> Color {
@@ -99,7 +113,11 @@ struct DoctorView: View {
             }
             Spacer()
             if let action = group.groupAction {
-                Button(action.title) { actions.perform(action) }.controlSize(.small)
+                if model.doctorBusy == groupRow(group) {
+                    working
+                } else {
+                    Button(action.title) { actions.perform(action, groupRow(group)) }.controlSize(.small).disabled(!idle)
+                }
             }
         }
     }
@@ -132,7 +150,7 @@ struct DoctorView: View {
                     }
                 }
                 .buttonStyle(.link).font(.system(size: 11))
-                buttons(DoctorAdvice.orphanActions)
+                buttons(DoctorAdvice.orphanActions, row: groupRow(group))
             }
             if expanded.contains(group.kind) {
                 ForEach(group.items) { item in
@@ -152,29 +170,48 @@ struct DoctorView: View {
                 Text(DoctorAdvice.rowText(item)).font(.system(size: 12)).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
-            buttons(DoctorAdvice.actions(for: item))
-            if item.isGlobalProfileProblem, let profile = item.profile {
-                Button("Delete Profile") { actions.deleteProfile(profile) }
-                    .buttonStyle(.link).font(.system(size: 11)).foregroundStyle(Color(StatusMark.red))
-            }
+            buttons(DoctorAdvice.actions(for: item), row: item.id)
         }
     }
 
-    private func buttons(_ list: [DoctorAction]) -> some View {
-        HStack(spacing: 10) {
-            ForEach(list, id: \.command) { action in
-                Button(action.title) { actions.perform(action) }
-                    .buttonStyle(.link).font(.system(size: 11))
-                    .foregroundStyle(action.destructive ? Color(StatusMark.red) : Color.accentColor)
-                    .help(action.command)
+    /// A row's buttons, or in their place, while its action runs and until
+    /// the recheck after it lands, a spinner saying so.
+    @ViewBuilder
+    private func buttons(_ list: [DoctorAction], row: String) -> some View {
+        if model.doctorBusy == row {
+            working
+        } else {
+            HStack(spacing: 10) {
+                ForEach(list, id: \.command) { action in
+                    Button(action.title) { actions.perform(action, row) }
+                        .buttonStyle(.link).font(.system(size: 11))
+                        .foregroundStyle(action.destructive ? Color(StatusMark.red) : Color.accentColor)
+                        .help(action.command)
+                }
             }
+            .disabled(!idle)
+            // A link-styled button keeps its colour when disabled.
+            .opacity(idle ? 1 : 0.4)
         }
+    }
+
+    private var working: some View {
+        HStack(spacing: 6) {
+            ProgressView().controlSize(.mini)
+            Text("Working…").font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+    }
+
+    /// The busy key for a group's own buttons, apart from any row's id.
+    private func groupRow(_ group: DoctorGroup) -> String {
+        "group:\(group.kind)"
     }
 }
 
 struct DoctorActions {
     var recheck: () -> Void = {}
     var openInTerminal: () -> Void = {}
-    var perform: (DoctorAction) -> Void = { _ in }
-    var deleteProfile: (String) -> Void = { _ in }
+    /// The action, and the row it belongs to (a finding's id or a group's
+    /// key), which shows as busy while it runs.
+    var perform: (DoctorAction, String) -> Void = { _, _ in }
 }
