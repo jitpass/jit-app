@@ -39,6 +39,9 @@ extension StatusItemController {
         if action.argv == [VaultOrphans.pruneArguments] {
             return pruneOrphansFromDoctor(action, row: row)
         }
+        if let planned = action.planned {
+            return performPlanned(planned, action: action, row: row)
+        }
         if action.destructive, !confirmDestructive(action) {
             return
         }
@@ -87,6 +90,48 @@ extension StatusItemController {
             return
         }
         applyInApp([VaultOrphans.pruneArguments], stdin: nil, action: action, row: row)
+    }
+
+    /// Attach and Remove Profile: jit's dry run first, then one dialog worded
+    /// from it, then exactly the command that dialog names (attach runs the
+    /// profile names it listed; rm the one profile). Nothing runs when the
+    /// dry run fails, which is what a jit older than 2.0 does: it has no
+    /// `jit profile`. A plan with nothing to run (already attached, in use
+    /// after all) rechecks, since the row it came from is out of date.
+    private func performPlanned(_ planned: DoctorAction.Planned, action: DoctorAction, row: String) {
+        let answer: Result<DeleteConfirmation, Error>
+        let unavailable: (String) -> DeleteConfirmation
+        // The file the dialog is about, one click from Finder: the config
+        // attaching records, the manifest removing deletes (vault
+        // paths only, never a value).
+        let reveal: RevealLink
+        switch planned {
+        case let .attach(config):
+            reveal = RevealLink(title: "Show Config", path: config)
+            answer = JitCLI.profileAttachPlan(config).map { $0.confirmation() }
+            unavailable = {
+                .profileUnavailable("Can't check what attaching would change", command: "jit profile attach", reason: $0)
+            }
+        case let .removeProfile(name, manifest):
+            reveal = RevealLink(title: "Show Profile File", path: ProfileFiles.manifest(name, reported: manifest))
+            answer = JitCLI.profileRmPlan(name).map { $0.confirmation() }
+            unavailable = {
+                .profileUnavailable("Can't check what removing \(name) deletes", command: "jit profile rm", reason: $0)
+            }
+        }
+        let confirmation: DeleteConfirmation = switch answer {
+        case let .success(worded):
+            worded
+        case let .failure(error):
+            unavailable(Self.describe(error))
+        }
+        guard Self.confirmDeletion(confirmation, reveal: reveal) else {
+            if confirmation.button == nil, case .success = answer {
+                runDoctor(afterAction: true)
+            }
+            return
+        }
+        applyInApp([confirmation.arguments], stdin: nil, action: action, row: row)
     }
 
     /// Nil when the user cancelled; otherwise the placeholder (if any)

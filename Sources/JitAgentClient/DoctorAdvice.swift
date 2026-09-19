@@ -27,6 +27,17 @@ public struct DoctorAction: Equatable, Sendable {
         case passphrase(prompt: String)
     }
 
+    /// An action whose confirmation is worded from the engine's own dry
+    /// run, fetched the moment it is clicked, and whose command is the one
+    /// that confirmation returns: `argv` is then only what the button would
+    /// run if the dry run changed nothing.
+    public enum Planned: Equatable, Sendable {
+        /// `jit profile attach <config>`.
+        case attach(config: String)
+        /// `jit profile rm <profile>`, and its manifest as doctor reported it.
+        case removeProfile(name: String, manifest: String? = nil)
+    }
+
     public var title: String
     /// What a hover shows, and what runs when `argv` is nil.
     public var command: String
@@ -46,10 +57,12 @@ public struct DoctorAction: Equatable, Sendable {
     /// jit asks for a fresh Touch ID or passcode itself, per the engine's
     /// `fixes` (false when the report predates them).
     public var presence: Bool
+    public var planned: Planned?
 
     public init(
         _ title: String, _ command: String, destructive: Bool = false, needs: Needs = .nothing,
-        argv: [[String]]? = nil, input: Input? = nil, showsOutput: Bool = false, presence: Bool = false
+        argv: [[String]]? = nil, input: Input? = nil, showsOutput: Bool = false, presence: Bool = false,
+        planned: Planned? = nil
     ) {
         self.title = title
         self.command = command
@@ -59,6 +72,7 @@ public struct DoctorAction: Equatable, Sendable {
         self.input = input
         self.showsOutput = showsOutput
         self.presence = presence
+        self.planned = planned
     }
 }
 
@@ -69,8 +83,9 @@ public struct DoctorGroup: Equatable, Sendable, Identifiable {
     public var title: String
     public var note: String?
     public var items: [DoctorItem]
-    /// A group-level action (unmount all), present when it saves clicks.
-    public var groupAction: DoctorAction?
+    /// Group-level actions: Unmount All, when it saves clicks; one Attach
+    /// per MCP config that starts profiles recording no live config.
+    public var groupActions: [DoctorAction]
 
     public var id: String {
         kind
@@ -130,10 +145,12 @@ public enum DoctorAdvice {
         "jit_path_upgrade": ("Version-pinned jit paths", "Still working, but the path will break on the next Homebrew upgrade."),
         "completion": ("Shell completion", nil),
         "legacy_envelope": ("Old secret format", nil)
-    ]
+    ].merging(ownershipTitles) { known, _ in known }
 
     /// Problems then warnings, each grouped by kind in first-seen order.
-    public static func groups(_ items: [DoctorItem]) -> [DoctorGroup] {
+    /// `all` is the whole report, for what a group counts across others:
+    /// an Attach covers a config's profiles in both record groups.
+    public static func groups(_ items: [DoctorItem], among all: [DoctorItem]? = nil) -> [DoctorGroup] {
         var order: [String] = []
         var byKind: [String: [DoctorItem]] = [:]
         for item in items {
@@ -150,7 +167,7 @@ public enum DoctorAdvice {
                 title: named?.title ?? kind.replacingOccurrences(of: "_", with: " ").capitalized,
                 note: named?.note,
                 items: members,
-                groupAction: groupAction(kind, members)
+                groupActions: groupActions(kind, members, among: all ?? items)
             )
         }
     }
@@ -176,7 +193,7 @@ public enum DoctorAdvice {
             .map { reconciled($0, with: item.fixes) }
     }
 
-    private typealias Builder = (DoctorItem) -> [DoctorAction]
+    typealias Builder = (DoctorItem) -> [DoctorAction]
 
     private static let builders: [String: Builder] = [
         "missing": { item in [
@@ -242,7 +259,7 @@ public enum DoctorAdvice {
         "1password_link": { _ in [] },
         "completion": { item in item.commands.map { DoctorAction("Install Completion", $0) } },
         "1password": { item in item.commands.map { DoctorAction("Install op CLI", $0) } }
-    ]
+    ].merging(ownershipBuilders) { known, _ in known }
 
     private static let unmount: Builder = { item in
         item.commands.filter { $0.hasPrefix("jit unmount") }
@@ -256,7 +273,7 @@ public enum DoctorAdvice {
     /// `jit vault set <path>` with the value typed into the app, hidden,
     /// and fed on stdin. --yes because a corrupt value is being replaced
     /// on purpose; the previous version stays in the vault's history.
-    private static func setValue(_ title: String, _ item: DoctorItem, destructive: Bool = false) -> DoctorAction {
+    static func setValue(_ title: String, _ item: DoctorItem, destructive: Bool = false) -> DoctorAction {
         guard let path = item.path else {
             return DoctorAction(title, "")
         }
@@ -275,19 +292,6 @@ public enum DoctorAdvice {
         show("Inspect", ["vault", "orphans"]),
         DoctorAction("Delete All", "jit vault orphans --prune", destructive: true, argv: [["vault", "orphans", "--prune", "--yes"]])
     ]
-
-    /// One action for the whole group: every stale mount unmounted in one
-    /// terminal run, one line per mount, each asking its own y/N.
-    static func groupAction(_ kind: String, _ items: [DoctorItem]) -> DoctorAction? {
-        guard kind == "mount_stale", items.count > 1 else {
-            return nil
-        }
-        let paths = items.compactMap(\.path)
-        guard paths.count > 1 else {
-            return nil
-        }
-        return DoctorAction("Unmount All", paths.map(unmountCommand).joined(separator: "\n"))
-    }
 
     /// `jit unmount <path>` as the terminal runs it: the home-relative path
     /// when the shell reads it as written, the full path single-quoted
@@ -328,6 +332,8 @@ public extension DoctorAdvice {
             return item.path.map(homePath) ?? item.summary
         case "origin_gone":
             return originRow(item)
+        case _ where ownershipKinds.contains(item.kind):
+            return ownershipRow(item)
         default:
             if let profile = item.profile, let variable = item.variable, item.detail?.isEmpty ?? true {
                 return "\(profile) · \(variable)"
@@ -343,6 +349,8 @@ public extension DoctorAdvice {
             item.path != nil
         case "origin_gone", "missing", "corrupt", "bad_path":
             true
+        case "pointer_missing":
+            item.file != nil && item.path != nil
         default:
             false
         }
@@ -356,11 +364,11 @@ public extension DoctorAdvice {
 
 public extension DoctorReport {
     var problemGroups: [DoctorGroup] {
-        DoctorAdvice.groups(problems)
+        DoctorAdvice.groups(problems, among: problems + warnings)
     }
 
     var warningGroups: [DoctorGroup] {
-        DoctorAdvice.groups(warnings)
+        DoctorAdvice.groups(warnings, among: problems + warnings)
     }
 
     /// Warnings as a reader counts them: a listed kind (every orphaned
