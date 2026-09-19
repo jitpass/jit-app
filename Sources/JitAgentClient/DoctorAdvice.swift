@@ -36,6 +36,10 @@ public struct DoctorAction: Equatable, Sendable {
         case attach(config: String)
         /// `jit profile rm <profile>`, and its manifest as doctor reported it.
         case removeProfile(name: String, manifest: String? = nil)
+        /// `jit migrate <targets>`, its plan read from --dry-run first.
+        case migrate(targets: [String])
+        /// `jit migrate undo <targets>`: plaintext back on disk.
+        case undoMigration(targets: [String])
     }
 
     public var title: String
@@ -198,7 +202,7 @@ public enum DoctorAdvice {
     private static let builders: [String: Builder] = [
         "missing": { item in [
             setValue("Set Value", item),
-            DoctorAction("Migrate a File", "jit migrate <path>", needs: .existingPath(placeholder: "<path>"))
+            migrateAFile
         ] },
         "corrupt": { item in [
             show("Show History", ["vault", "history", item.path ?? ""]),
@@ -242,10 +246,10 @@ public enum DoctorAdvice {
             argv: [["vault", "export", "<file>", "--stdin"], ["vault", "import", "<file>", "--stdin", "--yes"]],
             input: .passphrase(prompt: "A passphrase for the backup file the re-encryption goes through")
         )] },
-        "mcp": migrate,
-        "mcp_nested": migrate,
-        "jit_path": migrate,
-        "jit_path_upgrade": migrate,
+        "mcp": migrateActions,
+        "mcp_nested": migrateActions,
+        "jit_path": migrateActions,
+        "jit_path_upgrade": migrateActions,
         // `brew uninstall jitpass` is never offered (actions(for:) drops it):
         // the cask is this app. `sudo rm` is titled with what it deletes,
         // which in the Homebrew case is not the row's path but the copy
@@ -264,10 +268,6 @@ public enum DoctorAdvice {
     private static let unmount: Builder = { item in
         item.commands.filter { $0.hasPrefix("jit unmount") }
             .map { DoctorAction($0.hasSuffix("--all") ? "Unmount All" : "Unmount", $0) }
-    }
-
-    private static let migrate: Builder = { item in
-        item.commands.map { DoctorAction($0.contains("migrate undo") ? "Undo Migration" : "Migrate Again", $0) }
     }
 
     /// `jit vault set <path>` with the value typed into the app, hidden,

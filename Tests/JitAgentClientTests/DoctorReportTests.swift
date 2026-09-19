@@ -182,7 +182,9 @@ final class DoctorAdviceTests: XCTestCase {
         XCTAssertEqual(actions.map(\.title), ["Set Value", "Migrate a File"])
         XCTAssertEqual(actions[0].argv, [["vault", "set", "mcp/URL", "--stdin", "--yes"]], "typed in the app, fed on stdin")
         XCTAssertEqual(actions[0].input, .secret(prompt: "The value for mcp/URL"))
-        XCTAssertNil(actions[1].argv, "a migrate shows its plan, so it stays in the terminal")
+        XCTAssertEqual(actions[1].planned, .migrate(targets: ["<path>"]), "its plan is read from --dry-run and shown first")
+        XCTAssertEqual(actions[1].argv, [["migrate", "--yes", "<path>"]], "in the app, the chosen file in place of <path>")
+        XCTAssertEqual(actions[1].needs, .existingPath(placeholder: "<path>"))
     }
 
     func testOrphansCountOnceInTheVerdict() throws {
