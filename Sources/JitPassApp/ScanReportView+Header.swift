@@ -93,35 +93,16 @@ extension ScanReportView {
     }
 
     /// One pill per tier this scan has, with its count. A tier with
-    /// nothing in it is absent, never greyed.
+    /// nothing in it is absent, never greyed. No dot: a scan's tiers are
+    /// all findings, so a dot on every pill would say nothing.
     func filter(_ report: ScanReport) -> some View {
-        HStack(spacing: 2) {
-            pill("All", count: report.summary.totalFindings, tier: nil)
-            ForEach(report.tiersPresent) { present in
-                pill(Format.tierLabel(present), count: report.count(in: present), tier: present)
-            }
-        }
-        .padding(2)
-        .background(WindowSurface.segmentTrack, in: RoundedRectangle(cornerRadius: Win.control, style: .continuous))
+        AppSegmented(items: pills(report), selection: $tier)
     }
 
-    func pill(_ label: String, count: Int, tier pillTier: ScanTier?) -> some View {
-        let selected = tier == pillTier
-        return Button {
-            tier = pillTier
-        } label: {
-            HStack(spacing: 5) {
-                Text(label).font(Win.button12)
-                Text("\(count)").font(Win.button12).foregroundStyle(selected ? .secondary : .tertiary)
+    private func pills(_ report: ScanReport) -> [AppSegmentItem<ScanTier?>] {
+        [AppSegmentItem(value: nil, title: "All", count: report.summary.totalFindings)]
+            + report.tiersPresent.map {
+                AppSegmentItem(value: $0, title: Format.tierLabel($0), count: report.count(in: $0))
             }
-            .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
-            .padding(.horizontal, Win.s5)
-            .padding(.vertical, Win.s2)
-            .background(
-                selected ? WindowSurface.segmentOn : .clear,
-                in: RoundedRectangle(cornerRadius: Win.segment, style: .continuous)
-            )
-        }
-        .buttonStyle(.plain)
     }
 }
