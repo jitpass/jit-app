@@ -4,12 +4,15 @@
 import AppKit
 import JitAgentClient
 
-/// The Tools window and the AI Agents row (docs/design/tools-window.md).
+/// The Tools window (docs/design/tools-window.md); the AI Agents window
+/// is wired in `StatusItemController+Agents.swift` and sends the same
+/// commands.
 /// The listing is `jit wrap list --all`, prompt-free. Every change is a jit
 /// command run from here after a sheet or dialog that says what runs, with
 /// `--yes` only where that dialog asked the CLI's own question; the CLI's
-/// output comes back verbatim in a result sheet, because the CLI is the one
-/// that says what it found and moved. The app never touches the manifest,
+/// output comes back verbatim, because the CLI is the one that says what it
+/// found and moved: in a result sheet here, and in the AI Agents window's
+/// banner, one click from the sentence. The app never touches the manifest,
 /// the shims or an rc file itself. Minting a session stays in the terminal:
 /// it is the IdP's MFA prompt, not jit's.
 extension StatusItemController {
@@ -45,38 +48,6 @@ extension StatusItemController {
         toolsWindow.present()
     }
 
-    /// The AI Agents window: the same listing, scan and status, laid out
-    /// as the website's "ai agents" page tells it.
-    func openAgents() {
-        panel.dismiss()
-        reloadTools()
-        agentsWindow.present()
-    }
-
-    var agentsActions: AgentsActions {
-        AgentsActions(
-            reload: { [weak self] in self?.reloadTools() },
-            openSheet: { [weak self] sheet in
-                self?.model.toolsMessage = nil
-                self?.model.agentsSheet = sheet
-            },
-            closeSheet: { [weak self] in self?.model.agentsSheet = nil },
-            wrap: { [weak self] tool, value in self?.wrapTool(tool, value: value) },
-            unwrap: { [weak self] tool in self?.unwrapTool(tool) },
-            cleanCaches: { [weak self] in self?.cleanCaches() },
-            protectFile: { [weak self] path in self?.protectFile(path) },
-            scanNow: { [weak self] in
-                self?.model.scanScope = nil
-                self?.runScan(wholeMac: true)
-            },
-            newGrant: { [weak self] in self?.openGrantSheet() },
-            openGrants: { [weak self] in self?.openGrants() },
-            openScan: { [weak self] in self?.openScan() },
-            openSettings: { [weak self] in self?.openSettings() },
-            open: { path in Editor.open(path, line: nil) }
-        )
-    }
-
     /// `jit migrate <file> --yes` for one MCP config, after a dialog: the
     /// env-block tokens move into the vault, the file is rewritten to
     /// point at them, and it is backed up encrypted first.
@@ -99,13 +70,16 @@ extension StatusItemController {
         })
     }
 
-    /// The result sheet goes to whichever window is in front.
+    /// The result goes to whichever window is in front. The AI Agents
+    /// window has a banner region, so there it is a sentence in the
+    /// window with jit's own words one click away, and not a modal on top
+    /// of the state it just changed.
     func showResult(title: String, text: String) {
         let sheet = ToolsSheet.result(title: title, text: text)
         if scanWindow.isKeyWindow {
             model.scanSheet = sheet
         } else if agentsWindow.isKeyWindow || (agentsWindow.isVisible && !toolsWindow.isVisible) {
-            model.agentsSheet = sheet
+            model.agentsOutcome = AgentsOutcome(title: title, text: text)
         } else {
             model.toolsSheet = sheet
         }
@@ -161,7 +135,7 @@ extension StatusItemController {
     /// `jit vault set <path> --stdin` runs first: the CLI cannot take the
     /// key in the same step, and that one field is the reason wrapping is
     /// in-app at all. Two Touch IDs then, and the sheet said so.
-    private func wrapTool(_ tool: String, value: String?) {
+    func wrapTool(_ tool: String, value: String?) {
         let record = model.toolListing?.tool(named: tool)
         if value == nil, let key = record?.shellConfigKey(scan: model.macScan) {
             wrapFromShellConfig(tool, key: key)
@@ -260,7 +234,7 @@ extension StatusItemController {
 
     /// `jit wrap undo <tool>`: prompt-free; the dialog exists because the
     /// shim comes out at once and open shells notice on their next call.
-    private func unwrapTool(_ tool: String) {
+    func unwrapTool(_ tool: String) {
         let alert = NSAlert()
         alert.messageText = "Unwrap \(tool)?"
         alert.informativeText = "The shim and the wrap profile are removed; \(tool) runs without jit from its next call. "

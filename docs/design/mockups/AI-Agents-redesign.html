@@ -1,0 +1,1502 @@
+<title>AI Agents, Redrawn</title>
+<style>
+  /* ---------------------------------------------------------------
+     JitPass design system tokens.
+     Web tokens (bg, panel, line, text, muted, accent) carry the page.
+     App tokens (app-*) carry the window recreations; they are single
+     values in both themes, like the system's terminals, because they
+     sample a macOS dark material.
+     --------------------------------------------------------------- */
+  :root {
+    --bg: #f6f8f6;
+    --bg-2: #fbfcfb;
+    --panel: #ffffff;
+    --panel-2: #f4f7f4;
+    --line: rgba(18, 55, 38, 0.12);
+    --line-strong: rgba(18, 55, 38, 0.2);
+    --text: #0e1512;
+    --muted: #566258;
+    --accent: #0f9d63;
+    --accent-dim: rgba(15, 157, 99, 0.11);
+    --amber: #b06a1f;
+    --amber-dim: rgba(176, 106, 31, 0.12);
+    --red: #c93b3b;
+    --red-dim: rgba(201, 59, 59, 0.1);
+    --desk: #0d2536;
+
+    /* App window material: the same in both themes. */
+    --app-window: #323438;
+    --app-card: #414347;
+    --app-titlebar: #343536;
+    --app-window-line: rgba(255, 255, 255, 0.09);
+    --app-separator: rgba(255, 255, 255, 0.10);
+    --app-row-line: rgba(255, 255, 255, 0.07);
+    --app-hover: rgba(255, 255, 255, 0.05);
+    --app-field: rgba(255, 255, 255, 0.07);
+    --app-btn-line: rgba(255, 255, 255, 0.16);
+    --app-button-quiet: rgba(255, 255, 255, 0.13);
+    --app-button-2: rgba(255, 255, 255, 0.28);
+    --app-segment-track: rgba(255, 255, 255, 0.08);
+    --app-segment-on: rgba(255, 255, 255, 0.16);
+    --app-verbatim: rgba(0, 0, 0, 0.20);
+    --app-label: rgba(255, 255, 255, 0.85);
+    --app-label-2: rgba(255, 255, 255, 0.55);
+    --app-label-3: rgba(255, 255, 255, 0.25);
+    --app-control-accent: #0068dc;
+    --app-unlocked: #3ecf8e;
+    --app-locked: #e5484d;
+    --app-asking: #f0b545;
+    --app-action: #7fd4ff;
+    --app-unlocked-dim: rgba(62, 207, 142, 0.22);
+    --app-asking-dim: rgba(240, 181, 69, 0.22);
+    --app-locked-dim: rgba(229, 72, 77, 0.18);
+    --app-track: #414346;
+
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    --max: 1120px;
+    --gutter: 24px;
+    --prose: 680px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #090c0a;
+      --bg-2: #0b0f0c;
+      --panel: #0f1411;
+      --panel-2: #121813;
+      --line: rgba(150, 230, 190, 0.10);
+      --line-strong: rgba(150, 230, 190, 0.18);
+      --text: #e8efe9;
+      --muted: #8c968e;
+      --accent: #3ecf8e;
+      --accent-dim: rgba(62, 207, 142, 0.13);
+      --amber: #f0a94a;
+      --amber-dim: rgba(240, 169, 74, 0.15);
+      --red: #ff6b6b;
+      --red-dim: rgba(255, 107, 107, 0.12);
+      --desk: #0a1c29;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #090c0a;
+    --bg-2: #0b0f0c;
+    --panel: #0f1411;
+    --panel-2: #121813;
+    --line: rgba(150, 230, 190, 0.10);
+    --line-strong: rgba(150, 230, 190, 0.18);
+    --text: #e8efe9;
+    --muted: #8c968e;
+    --accent: #3ecf8e;
+    --accent-dim: rgba(62, 207, 142, 0.13);
+    --amber: #f0a94a;
+    --amber-dim: rgba(240, 169, 74, 0.15);
+    --red: #ff6b6b;
+    --red-dim: rgba(255, 107, 107, 0.12);
+    --desk: #0a1c29;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: var(--max);
+    margin: 0 auto;
+    padding-inline: var(--gutter);
+    padding-block: 56px 88px;
+  }
+
+  /* ---------------- Page typography ---------------- */
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-size: clamp(28px, 4.4vw, 40px);
+    font-weight: 680;
+    letter-spacing: -0.025em;
+    line-height: 1.12;
+    text-wrap: balance;
+    margin: 0 0 14px;
+  }
+
+  h2 {
+    font-size: 21px;
+    font-weight: 680;
+    letter-spacing: -0.025em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 8px;
+  }
+
+  h3 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+  }
+
+  p { margin: 0 0 14px; max-width: var(--prose); }
+  p.lede { font-size: 17px; color: var(--muted); }
+  p:last-child { margin-bottom: 0; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+  code, .path {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  section { padding-block: 44px 0; }
+  section + section { border-top: 1px solid var(--line); margin-top: 44px; }
+
+  .sec-head { margin-bottom: 26px; }
+
+  /* ---------------- Specimen framing ---------------- */
+
+  .specimen { margin-bottom: 34px; }
+
+  .specimen__label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 12px;
+    margin-bottom: 12px;
+  }
+
+  .specimen__n {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 2px 9px;
+  }
+
+  .specimen__n--now { color: var(--red); border-color: var(--red); }
+
+  .specimen__title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .specimen__note { font-size: 13px; color: var(--muted); }
+
+  .stage {
+    background: var(--desk);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 26px;
+    overflow-x: auto;
+  }
+
+  .stage--tight { padding: 20px; }
+
+  /* =====================================================================
+     The app window. Every number below is a token from windows.md:
+     inset 18, gaps 2/4/6/8/12/18, type 11/12/13/15, radius 6/10, dot 8.
+     ===================================================================== */
+
+  .jp-window {
+    width: 720px;
+    min-width: 720px;
+    background: var(--app-window);
+    border: 1px solid var(--app-window-line);
+    border-radius: 10px;
+    overflow: hidden;
+    color: var(--app-label);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.4;
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+  }
+
+  .jp-window--l { width: 900px; min-width: 900px; }
+
+  .jp-window__bar {
+    position: relative;
+    height: 28px;
+    background: var(--app-titlebar);
+    border-bottom: 1px solid var(--app-separator);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--app-label);
+  }
+
+  .jp-window__lights {
+    position: absolute;
+    left: 10px;
+    display: flex;
+    gap: 6px;
+  }
+
+  .jp-window__lights i {
+    width: 11px;
+    height: 11px;
+    border-radius: 999px;
+    display: block;
+  }
+
+  .jp-window__lights i:nth-child(1) { background: #ff5f57; }
+  .jp-window__lights i:nth-child(2) { background: #febc2e; }
+  .jp-window__lights i:nth-child(3) { background: #28c840; }
+
+  /* Regions: one 18px inset, a 1px rule between each. */
+  .jp-region {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--app-separator);
+  }
+
+  .jp-region--banner { padding: 8px 18px; background: rgba(62, 207, 142, 0.09); }
+  .jp-region--body { padding: 18px; border-bottom: none; display: flex; flex-direction: column; gap: 12px; }
+  .jp-region--foot {
+    padding: 8px 18px;
+    background: var(--app-titlebar);
+    border-bottom: none;
+    border-top: 1px solid var(--app-separator);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Header */
+  .jp-head { display: flex; align-items: flex-start; gap: 12px; }
+  .jp-head__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .jp-head__h { font-size: 15px; font-weight: 600; letter-spacing: -0.005em; }
+  .jp-head__sub { font-size: 12px; font-weight: 400; color: var(--app-label-2); max-width: 62ch; }
+  .jp-head__acts { display: flex; gap: 6px; flex-shrink: 0; padding-top: 1px; }
+
+  /* The mark: a dot in its own soft ring. */
+  .jp-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    background: var(--app-unlocked-dim);
+  }
+
+  .jp-mark::after {
+    content: "";
+    width: 56%;
+    height: 56%;
+    border-radius: 999px;
+    background: var(--app-unlocked);
+  }
+
+  .jp-mark--asking { background: var(--app-asking-dim); }
+  .jp-mark--asking::after { background: var(--app-asking); }
+  .jp-mark--locked { background: var(--app-locked-dim); }
+  .jp-mark--locked::after { background: var(--app-locked); }
+  .jp-mark--lg { width: 56px; height: 56px; }
+
+  /* A state dot: 8px, and never without its word. */
+  .jp-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--app-unlocked);
+    flex-shrink: 0;
+    display: inline-block;
+  }
+
+  .jp-dot--asking { background: var(--app-asking); }
+  .jp-dot--locked { background: var(--app-locked); }
+  .jp-dot--none { background: var(--app-label-3); }
+
+  /* Toolbar */
+  .jp-toolbar { display: flex; align-items: center; gap: 12px; }
+
+  .jp-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    background: var(--app-segment-track);
+    border-radius: 7px;
+  }
+
+  .jp-seg__pill {
+    font: 400 12px/1 var(--sans);
+    color: var(--app-label-2);
+    background: none;
+    border: 0;
+    border-radius: 5px;
+    padding: 5px 12px;
+    cursor: default;
+  }
+
+  .jp-seg__pill--on { background: var(--app-segment-on); color: var(--app-label); }
+  .jp-seg__pill b { font-weight: 400; color: var(--app-label-3); margin-left: 5px; }
+  .jp-seg__pill--on b { color: var(--app-label-2); }
+
+  .jp-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    height: 22px;
+    padding: 0 8px;
+    background: var(--app-field);
+    border: 1px solid var(--app-btn-line);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--app-label-2);
+  }
+
+  /* Buttons */
+  .jp-abtn {
+    font: 400 12px/1 var(--sans);
+    height: 22px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    background: var(--app-button-2);
+    color: #fff;
+    cursor: default;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .jp-abtn--quiet { background: var(--app-button-quiet); color: var(--app-label); }
+  .jp-abtn--primary { background: var(--app-control-accent); color: #fff; font-weight: 600; }
+  .jp-abtn--destructive { background: var(--app-locked); color: #fff; font-weight: 600; }
+  .jp-abtn--plain { background: none; color: var(--app-action); padding: 0 4px; }
+  .jp-abtn--more { padding: 0 9px; letter-spacing: 0.06em; }
+  .jp-abtn[disabled] { opacity: 0.45; }
+
+  /* Cards: eyebrow, title + note, actions on the title's line, rows. */
+  .jp-card {
+    background: var(--app-card);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .jp-card__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--app-label-2);
+  }
+
+  .jp-card__top { display: flex; align-items: flex-start; gap: 12px; }
+  .jp-card__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .jp-card__title { font-size: 13px; font-weight: 600; }
+  .jp-card__note { font-size: 12px; font-weight: 400; color: var(--app-label-2); max-width: 62ch; margin: 0; }
+  .jp-card__acts { display: flex; gap: 6px; flex-shrink: 0; }
+
+  .jp-card__rows { border-top: 1px solid var(--app-separator); margin-top: 0; }
+
+  /* Rows */
+  .jp-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--app-row-line);
+    border-radius: 5px;
+  }
+
+  .jp-row:last-child { border-bottom: none; }
+  .jp-row--hover { background: var(--app-hover); }
+
+  .jp-row__icon { width: 16px; height: 16px; flex-shrink: 0; opacity: 0.5; }
+  .jp-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+  .jp-row__name {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .jp-row__name span {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--app-label-2);
+    margin-left: 6px;
+  }
+
+  .jp-row__fact {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--app-label-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .jp-row__fact .mono { font-family: var(--mono); }
+  .jp-row__acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+  .jp-spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 2px solid var(--app-asking-dim);
+    border-top-color: var(--app-asking);
+    flex-shrink: 0;
+  }
+
+  /* Footer */
+  .jp-foot__text {
+    font-size: 11px;
+    color: var(--app-label-2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Empty state */
+  .jp-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 44px 18px;
+    text-align: center;
+  }
+
+  .jp-empty__title { font-size: 14px; font-weight: 600; }
+  .jp-empty__msg { font-size: 12px; color: var(--app-label-2); max-width: 400px; margin: 0; }
+
+  /* ---------------- The "today" recreation ---------------- */
+
+  .today { position: relative; }
+
+  .today .sec-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--app-label-2);
+    padding-left: 2px;
+    margin-bottom: 6px;
+  }
+
+  .today .slab {
+    background: rgba(255, 255, 255, 0.045);
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .today .block { margin-bottom: 18px; }
+  .today .block:last-child { margin-bottom: 0; }
+
+  .today .clipped {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .today .dead {
+    height: 160px;
+    display: grid;
+    place-items: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--app-label-3);
+    border-top: 1px dashed rgba(255, 255, 255, 0.09);
+    margin-top: 18px;
+  }
+
+  .flag {
+    display: inline-grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    border-radius: 999px;
+    background: var(--app-locked);
+    color: #fff;
+    font: 600 10px/1 var(--mono);
+    vertical-align: middle;
+    margin-left: 7px;
+    flex-shrink: 0;
+  }
+
+  /* ---------------- Findings list ---------------- */
+
+  .findings { display: grid; gap: 0; margin-top: 8px; border-top: 1px solid var(--line); }
+
+  .finding {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px 18px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: start;
+  }
+
+  .finding__n {
+    font: 600 11px/1.5 var(--mono);
+    color: var(--red);
+  }
+
+  .finding__what { font-size: 14px; }
+  .finding__what b { font-weight: 600; }
+
+  .finding__rule {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .finding__rule em {
+    font-style: normal;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  @media (max-width: 720px) {
+    .finding { grid-template-columns: 22px minmax(0, 1fr); }
+    .finding__rule { grid-column: 2; }
+  }
+
+  /* ---------------- Decisions ---------------- */
+
+  .decisions { display: grid; gap: 14px; margin-top: 20px; }
+
+  .decision {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+
+  .decision h3 { display: flex; align-items: center; gap: 8px; }
+
+  .decision .tag--kept { color: var(--accent); border-color: var(--accent); }
+
+  .decision .tag {
+    font: 400 11px/1 var(--mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    border-radius: 999px;
+    padding: 3px 8px;
+  }
+
+  .decision p { font-size: 14px; color: var(--muted); margin: 0; }
+  .decision p + p { margin-top: 8px; }
+  .decision p b { color: var(--text); font-weight: 600; }
+
+  /* ---------------- Scope list ---------------- */
+
+  ul.scope { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; max-width: var(--prose); }
+
+  ul.scope li {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 10px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+
+  ul.scope li::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--accent);
+    margin-top: 8px;
+  }
+
+  ul.scope li b { color: var(--text); font-weight: 600; }
+
+  .note {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: none;
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 14px;
+    color: var(--muted);
+    max-width: var(--prose);
+  }
+
+  .note b { color: var(--text); font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">JitPass · design review · for approval</p>
+    <h1>AI Agents, redrawn</h1>
+    <p class="lede">
+      The AI&nbsp;Agents window rebuilt on the design system's <b>Windows</b> section: a stack of regions
+      at one inset, holding cards, holding rows. Same facts, same jit commands, nothing new in the engine.
+      Approve the frames below and I'll build them in <code>AgentsView.swift</code> on the existing
+      <code>AppWindowKit</code>.
+    </p>
+  </header>
+
+  <!-- ============================ TODAY ============================ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Where it stands</p>
+      <h2>Today</h2>
+      <p>
+        Drawn from the shipping build. The eight flags are rules in <b>Windows</b>, not preferences.
+      </p>
+    </div>
+
+    <div class="specimen">
+      <div class="specimen__label">
+        <span class="specimen__n specimen__n--now">Now</span>
+        <span class="specimen__title">720 × 600, fixed</span>
+        <span class="specimen__note">One agent, one cached copy, no MCP configs.</span>
+      </div>
+      <div class="stage stage--tight">
+        <div class="jp-window today">
+          <div class="jp-window__bar">
+            <span class="jp-window__lights"><i></i><i></i><i></i></span>
+            JitPass AI Agents<span class="flag">2</span>
+          </div>
+          <div class="jp-region">
+            <div class="jp-head">
+              <div class="jp-head__text">
+                <div class="jp-head__h" style="display:flex;align-items:center;gap:10px">
+                  1 copy of your secrets in agent caches
+                  <span class="jp-spinner"></span>
+                </div>
+                <div class="jp-head__fact" style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--app-label-2);margin-top:4px">
+                  <span class="jp-dot" style="width:7px;height:7px"></span>
+                  asks you before a machine credential<span class="flag">4</span>
+                </div>
+              </div>
+              <div class="jp-head__acts">
+                <button class="jp-abtn jp-abtn--quiet" disabled>Refresh</button>
+                <button class="jp-abtn">Scan Now</button>
+              </div>
+            </div>
+          </div>
+          <div class="jp-region--body" style="padding:16px;gap:0">
+            <div class="block">
+              <div class="sec-title">Agents<span class="flag">5</span></div>
+              <div class="slab">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="jp-dot jp-dot--locked" style="width:7px;height:7px"></span>
+                  <span style="font-weight:600;width:110px;flex-shrink:0">claude</span>
+                  <span class="clipped" style="color:var(--app-label-2);width:140px;flex-shrink:0">Anthropic…</span>
+                  <span class="clipped" style="font-size:12px;width:150px;flex-shrink:0">
+                    <span style="color:var(--app-label-3)">key</span>
+                    <span style="color:var(--app-label-2)">none found</span>
+                  </span>
+                  <span class="clipped" style="font-size:12px;width:150px;flex-shrink:0">
+                    <span style="color:var(--app-label-3)">caches</span>
+                    <span style="color:var(--app-label-2)">1 copy of your s…</span>
+                  </span>
+                  <span class="flag">1</span>
+                  <span style="flex:1"></span>
+                  <span style="color:var(--app-action);font-size:12px;width:52px;text-align:center;line-height:1.15">add a key…</span>
+                  <span class="flag">3</span>
+                  <button class="jp-abtn jp-abtn--quiet" style="max-width:88px;overflow:hidden">Clean C…</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="sec-title">What agents read</div>
+              <div class="slab" style="display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:baseline;gap:8px">
+                  <span style="font-size:12px;font-weight:500;width:52px;text-align:right">Decoys</span>
+                  <span style="font-size:12px;color:var(--app-label-2)">2 files serve decoys</span>
+                  <span style="flex:1"></span>
+                  <button class="jp-abtn jp-abtn--quiet">Scan</button>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:8px">
+                  <span style="font-size:12px;font-weight:500;width:52px;text-align:right">Grants</span>
+                  <span style="font-size:12px;color:var(--app-label-2)">none active</span>
+                  <span style="flex:1"></span>
+                  <button class="jp-abtn jp-abtn--quiet">New Grant…</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="sec-title">Cached copies</div>
+              <div class="slab">
+                <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+                  <span class="jp-dot jp-dot--locked" style="width:7px;height:7px"></span>
+                  <span style="font-size:12px;font-weight:500">Claude Code · transcripts</span>
+                  <span style="font-size:11px;color:var(--app-label-2)">1 copy in 1 file, from ~/code/notion-sync/.env</span>
+                </div>
+                <button class="jp-abtn jp-abtn--quiet">Clean Caches…</button><span class="flag">6</span>
+              </div>
+            </div>
+
+            <div class="block">
+              <div class="sec-title">MCP servers</div>
+              <div class="slab">
+                <span style="font-size:12px;color:var(--app-label-2)">none found</span><span class="flag">7</span>
+              </div>
+            </div>
+
+            <div class="dead">≈ 160 pt of empty window <span class="flag">8</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="findings">
+      <div class="finding">
+        <span class="finding__n">1</span>
+        <div class="finding__what">
+          <b>Four fixed columns in one row.</b> 110 pt and 150 pt tracks clip the facts that decide the
+          row: "Anthropic…", "1 copy of your s…", "Clean C…".
+        </div>
+        <div class="finding__rule">
+          A row is a name, one fact on a second line, and at most two verbs. <em>Rows</em>
+        </div>
+      </div>
+      <div class="finding">
+        <span class="finding__n">2</span>
+        <div class="finding__what">
+          <b>"JitPass AI Agents" in the title bar.</b>
+        </div>
+        <div class="finding__rule">
+          The surface's name alone. The app is already in the menu bar. <em>Title bar</em>
+        </div>
+      </div>
+      <div class="finding">
+        <span class="finding__n">3</span>
+        <div class="finding__what">
+          <b>"add a key…" wraps onto two lines,</b> as a blue link squeezed between two buttons.
+        </div>
+        <div class="finding__rule">
+          Five button kinds, none of them a wrapping link inside a row. <em>Controls</em>
+        </div>
+      </div>
+      <div class="finding">
+        <span class="finding__n">4</span>
+        <div class="finding__what">
+          <b>Every explanation is a tooltip.</b> What a decoy is, what consent covers, what the scan
+          cannot see: all in <code>.help()</code>.
+        </div>
+        <div class="finding__rule">
+          A hover nobody performs is not an explanation. <em>Controls</em>
+        </div>
+      </div>
+      <div class="finding">
+        <span class="finding__n">5</span>
+        <div class="finding__what">
+          <b>Uppercase section headings above slabs.</b>
+        </div>
+        <div class="finding__rule">
+          Headings above cards are what the card's eyebrow replaced. <em>Cards</em>
+        </div>
+      </div>
+      <div class="finding">
+        <span class="finding__n">6</span>
+        <div class="finding__what">
+          <b>"Clean Caches…" appears twice,</b> once on the agent row and once in its own section, for
+          the same one file.
+        </div>
+        <div class="finding__rule">
+          One count, counted once. <em>Cards</em>
+        </div>
+      </div>
+      <div class="finding">
+        <span class="finding__n">7</span>
+        <div class="finding__what">
+          <b>An empty card that says "none found".</b>
+        </div>
+        <div class="finding__rule">
+          Say what is true, not that a list is empty. <em>Empty states</em>
+        </div>
+      </div>
+      <div class="finding">
+        <span class="finding__n">8</span>
+        <div class="finding__what">
+          <b>The window opens at 600 pt and the content stops at about 440.</b> Also: 16 pt inset instead
+          of 18, 7 pt dots instead of 8, gaps at 10 and 18 instead of the six steps.
+        </div>
+        <div class="finding__rule">
+          A window opens at the height of its content. Every number is a token. <em>Which window</em>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ REDESIGN ============================ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">The proposal</p>
+      <h2>Redrawn</h2>
+      <p>
+        <code>size-win-m</code> 720 wide, opening at the height of its content. Four regions: header,
+        body, footer, and a banner after an action. The four subjects stay in the order you already
+        have them, with the agent's two facts moved next to each other; what changes is that each one
+        is a card whose eyebrow carries its state, and each row gets a line to say its fact in full.
+      </p>
+    </div>
+
+    <div class="specimen">
+      <div class="specimen__label">
+        <span class="specimen__n">1</span>
+        <span class="specimen__title">Your Mac, as it is now</span>
+        <span class="specimen__note">Opens at 468 pt. One agent, one cached copy, no MCP configs.</span>
+      </div>
+      <div class="stage">
+        <div class="jp-window">
+          <div class="jp-window__bar">
+            <span class="jp-window__lights"><i></i><i></i><i></i></span>
+            AI Agents
+          </div>
+
+          <div class="jp-region">
+            <div class="jp-head">
+              <span class="jp-mark jp-mark--locked"></span>
+              <div class="jp-head__text">
+                <div class="jp-head__h">Claude Code is holding a copy of one secret</div>
+                <div class="jp-head__sub">
+                  jit checked 1 agent, its key, its caches and every MCP config in your home folder.
+                  A value an agent already sent upstream needs rotating; jit cannot take that back.
+                </div>
+              </div>
+              <div class="jp-head__acts">
+                <button class="jp-abtn jp-abtn--quiet">Rescan</button>
+                <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="jp-region--body">
+
+            <!-- Card: agents -->
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot"></span>Nothing to move</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">Agents</div>
+                  <p class="jp-card__note">
+                    Where each agent's own key sits. A key in the vault is handed over at launch and
+                    never written to a file.
+                  </p>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">claude <span>Claude Code</span></div>
+                    <div class="jp-row__fact">No key in a file or a keychain · nothing in the open to move</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Add Key…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card: cached copies -->
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--locked"></span>Fix now</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">Cached copies</div>
+                  <p class="jp-card__note">
+                    An agent keeps a snapshot of every file it reads. One holds a value the vault
+                    still uses.
+                  </p>
+                </div>
+                <div class="jp-card__acts">
+                  <button class="jp-abtn">Clean Caches…</button>
+                  <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">transcripts <span>Claude Code</span></div>
+                    <div class="jp-row__fact">
+                      1 copy of <span class="mono">notion/API_KEY</span>, read from <span class="mono">~/code/notion-sync/.env</span>
+                    </div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Show…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card: what agents read -->
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot"></span>Working</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">What agents read</div>
+                  <p class="jp-card__note">
+                    A protected file answers an agent with a decoy: the value in its transcript is
+                    fake, and so is the one it sends upstream.
+                  </p>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Decoys</div>
+                    <div class="jp-row__fact">2 files answer with fakes · real values only inside a run you allowed</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Scan…</button>
+                  </div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Asking</div>
+                    <div class="jp-row__fact">JitPass asks you before an agent's tool gets a machine credential</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Settings…</button>
+                  </div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Grants</div>
+                    <div class="jp-row__fact">None active · an agent working while you are away needs one</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">New Grant…</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="jp-region--foot">
+            <span class="jp-foot__text">
+              <span class="jp-dot"></span>
+              Checked claude, 4 cache areas and every MCP config · no MCP config holds a key · 16:41
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="specimen">
+      <div class="specimen__label">
+        <span class="specimen__n">2</span>
+        <span class="specimen__title">After Clean Caches</span>
+        <span class="specimen__note">The banner says what happened and offers the undo. No modal, no terminal pane.</span>
+      </div>
+      <div class="stage">
+        <div class="jp-window">
+          <div class="jp-window__bar">
+            <span class="jp-window__lights"><i></i><i></i><i></i></span>
+            AI Agents
+          </div>
+
+          <div class="jp-region jp-region--banner">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="jp-dot"></span>
+              <span style="font-size:12px;color:var(--app-label)">Removed 1 cached copy from Claude Code's transcripts.</span>
+              <span style="flex:1"></span>
+              <button class="jp-abtn jp-abtn--plain">What jit Did…</button>
+            </div>
+          </div>
+
+          <div class="jp-region">
+            <div class="jp-head">
+              <span class="jp-mark"></span>
+              <div class="jp-head__text">
+                <div class="jp-head__h">Nothing of yours is sitting in an agent</div>
+                <div class="jp-head__sub">
+                  jit checked 1 agent, its key, its caches and every MCP config in your home folder.
+                  A value an agent already sent upstream needs rotating; jit cannot take that back.
+                </div>
+              </div>
+              <div class="jp-head__acts">
+                <button class="jp-abtn jp-abtn--quiet">Rescan</button>
+                <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="jp-region--body">
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot"></span>Nothing to move</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">Agents</div>
+                  <p class="jp-card__note">
+                    Where each agent's own key sits. A key in the vault is handed over at launch and
+                    never written to a file.
+                  </p>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">claude <span>Claude Code</span></div>
+                    <div class="jp-row__fact">No key in a file or a keychain · caches clean as of 16:44</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Add Key…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot"></span>Working</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">What agents read</div>
+                  <p class="jp-card__note">
+                    A protected file answers an agent with a decoy: the value in its transcript is
+                    fake, and so is the one it sends upstream.
+                  </p>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Decoys</div>
+                    <div class="jp-row__fact">2 files answer with fakes · real values only inside a run you allowed</div>
+                  </div>
+                  <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Scan…</button></div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Asking</div>
+                    <div class="jp-row__fact">JitPass asks you before an agent's tool gets a machine credential</div>
+                  </div>
+                  <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Settings…</button></div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Grants</div>
+                    <div class="jp-row__fact">None active · an agent working while you are away needs one</div>
+                  </div>
+                  <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">New Grant…</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="jp-region--foot">
+            <span class="jp-foot__text">
+              <span class="jp-dot"></span>
+              Checked claude, 4 cache areas and every MCP config · no MCP config holds a key · 16:44
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="specimen">
+      <div class="specimen__label">
+        <span class="specimen__n">3</span>
+        <span class="specimen__title">A busy Mac</span>
+        <span class="specimen__note">Three agents, MCP findings, a grant running. The toolbar earns its place; the footer acts.</span>
+      </div>
+      <div class="stage">
+        <div class="jp-window">
+          <div class="jp-window__bar">
+            <span class="jp-window__lights"><i></i><i></i><i></i></span>
+            AI Agents
+          </div>
+
+          <div class="jp-region">
+            <div class="jp-head">
+              <span class="jp-mark jp-mark--locked"></span>
+              <div class="jp-head__text">
+                <div class="jp-head__h">4 copies of your secrets are sitting in agents</div>
+                <div class="jp-head__sub">
+                  jit checked 3 agents, their keys, their caches and every MCP config in your home
+                  folder. A value an agent already sent upstream needs rotating; jit cannot take that
+                  back.
+                </div>
+              </div>
+              <div class="jp-head__acts">
+                <button class="jp-abtn jp-abtn--quiet">Rescan</button>
+                <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="jp-region">
+            <div class="jp-toolbar">
+              <span class="jp-seg">
+                <button class="jp-seg__pill jp-seg__pill--on">All <b>9</b></button>
+                <button class="jp-seg__pill">Fix now <b>4</b></button>
+                <button class="jp-seg__pill">Needs you <b>1</b></button>
+                <button class="jp-seg__pill">Working <b>4</b></button>
+              </span>
+            </div>
+          </div>
+
+          <div class="jp-region--body">
+
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--asking"></span>Needs you</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">Agents</div>
+                  <p class="jp-card__note">
+                    Where each agent's own key sits. A key in the vault is handed over at launch and
+                    never written to a file.
+                  </p>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row jp-row--hover">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">cursor <span>Cursor CLI</span></div>
+                    <div class="jp-row__fact">Key in plain text in <span class="mono">~/.cursor/cli-config.json</span> · readable by anything running as you</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Show…</button>
+                    <button class="jp-abtn">Move to Vault…</button>
+                  </div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">claude <span>Claude Code</span></div>
+                    <div class="jp-row__fact">Key in the vault since 12 Sep · handed over at launch</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Unwrap…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">codex <span>OpenAI Codex</span></div>
+                    <div class="jp-row__fact">No key in a file or a keychain · nothing in the open to move</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Add Key…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--locked"></span>Fix now</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">Cached copies</div>
+                  <p class="jp-card__note">
+                    An agent keeps a snapshot of every file it reads, plus pasted text and your shell
+                    environment. These hold values the vault still uses.
+                  </p>
+                </div>
+                <div class="jp-card__acts">
+                  <button class="jp-abtn">Clean All 3…</button>
+                  <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">transcripts <span>Claude Code</span></div>
+                    <div class="jp-row__fact">
+                      2 copies in 2 files, of <span class="mono">notion/API_KEY</span> and <span class="mono">aws-prod/SECRET_ACCESS_KEY</span>
+                    </div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Show…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">shell snapshots <span>Cursor CLI</span></div>
+                    <div class="jp-row__fact">
+                      1 copy in 1 file, of <span class="mono">stripe/SK_LIVE</span>, read from <span class="mono">~/code/billing/.env</span>
+                    </div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Show…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">history <span>Codex</span></div>
+                    <div class="jp-row__fact">
+                      1 copy in 1 file, of <span class="mono">gh/TOKEN</span> · already rotated on 14 Sep
+                    </div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Show…</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--locked"></span>Fix now</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">MCP servers</div>
+                  <p class="jp-card__note">
+                    A key written into an MCP server's <span class="mono">env</span> block is a key in
+                    a config file. Protect moves it into the vault and leaves a pointer.
+                  </p>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">.mcp.json <span>~/code/billing</span></div>
+                    <div class="jp-row__fact"><span class="mono">STRIPE_API_KEY</span>, <span class="mono">POSTGRES_URL</span> · both can move</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Open</button>
+                    <button class="jp-abtn">Protect…</button>
+                  </div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">.claude.json <span>~</span></div>
+                    <div class="jp-row__fact"><span class="mono">LINEAR_TOKEN</span> · reported, not moved: jit cannot rewrite this file safely</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Open</button>
+                    <button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="jp-card">
+              <div class="jp-card__eyebrow"><span class="jp-dot"></span>Working</div>
+              <div class="jp-card__top">
+                <div class="jp-card__text">
+                  <div class="jp-card__title">What agents read</div>
+                  <p class="jp-card__note">
+                    A protected file answers an agent with a decoy: the value in its transcript is
+                    fake, and so is the one it sends upstream.
+                  </p>
+                </div>
+              </div>
+              <div class="jp-card__rows">
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Decoys</div>
+                    <div class="jp-row__fact">39 files answer with fakes · real values only inside a run you allowed</div>
+                  </div>
+                  <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Scan…</button></div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Asking</div>
+                    <div class="jp-row__fact">JitPass asks you before an agent's tool gets a machine credential</div>
+                  </div>
+                  <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Settings…</button></div>
+                </div>
+                <div class="jp-row">
+                  <div class="jp-row__text">
+                    <div class="jp-row__name">Grants</div>
+                    <div class="jp-row__fact">claude covered until 18:30 · aws-prod, notion</div>
+                  </div>
+                  <div class="jp-row__acts">
+                    <button class="jp-abtn jp-abtn--quiet">Grants</button>
+                    <button class="jp-abtn jp-abtn--quiet">New Grant…</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="jp-region--foot">
+            <span class="jp-foot__text">
+              <span class="jp-dot jp-dot--locked"></span>
+              4 copies and 1 key in the open · checked 16:41
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="specimen">
+      <div class="specimen__label">
+        <span class="specimen__n">4</span>
+        <span class="specimen__title">All clear</span>
+        <span class="specimen__note">Opens at 236 pt. Says what is true, not that a list is empty.</span>
+      </div>
+      <div class="stage">
+        <div class="jp-window">
+          <div class="jp-window__bar">
+            <span class="jp-window__lights"><i></i><i></i><i></i></span>
+            AI Agents
+          </div>
+          <div class="jp-region--body" style="padding:0">
+            <div class="jp-empty">
+              <span class="jp-mark jp-mark--lg"></span>
+              <div class="jp-empty__title">Nothing of yours is sitting in an agent</div>
+              <p class="jp-empty__msg">
+                claude's key is in the vault, its caches are clean, no MCP config holds a key, and
+                every file it reads answers with a decoy.
+              </p>
+              <button class="jp-abtn jp-abtn--quiet">Rescan</button>
+            </div>
+          </div>
+          <div class="jp-region--foot">
+            <span class="jp-foot__text">
+              <span class="jp-dot"></span>
+              Checked claude, 4 cache areas and every MCP config · 16:44
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ DECISIONS ============================ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Three calls I made</p>
+      <h2>Worth a yes or a no before I build</h2>
+      <p>Everything else above is the system applied literally. These three are judgement, and easy to reverse now.</p>
+    </div>
+
+    <div class="decisions">
+      <div class="decision">
+        <h3>MCP servers has no card when nothing is found <span class="tag tag--kept">Shipped</span></h3>
+        <p>
+          Today it draws a card reading "none found". <b>Windows</b> calls an empty card furniture, so
+          the fact moves into the footer: <b>"…and every MCP config · no MCP config holds a key"</b>. You
+          still learn that jit looked. The card comes back the moment there is a finding, as in frame 3.
+        </p>
+        <p>The alternative: keep an always-present MCP card. Say the word and I will.</p>
+      </div>
+
+      <div class="decision">
+        <h3>Card order changes by one position <span class="tag tag--kept">Shipped</span></h3>
+        <p>
+          Today: Agents, What agents read, Cached copies, MCP. I moved <b>Cached copies</b> up to second,
+          so an agent's two facts — where its key sits, what its caches hold — sit next to each other.
+          Order stays fixed no matter the state, so the window never rearranges itself under your cursor.
+        </p>
+      </div>
+
+      <div class="decision">
+        <h3>"key none found" becomes a row that says nothing is wrong <span class="tag tag--kept">Shipped</span></h3>
+        <p>
+          Today a missing key shows as <b>"none found"</b> beside a blue "add a key…" link, which reads
+          as a problem. It is not one: no key on disk is the healthy state. The row now says
+          <b>"No key in a file or a keychain · nothing in the open to move"</b> under a green eyebrow,
+          and <b>Add Key…</b> stays as a quiet offer for when you do have one to paste.
+        </p>
+      </div>
+
+      <div class="decision">
+        <h3>The footer states, it does not act <span class="tag">Changed in build</span></h3>
+        <p>
+          The draft gave frame 3's footer a <b>Fix All 5…</b> that would have cleaned three caches,
+          moved a key and protected two MCP keys in one press. The repo's rule is that every button is
+          one jit command the CLI can also send, and that batch is five commands across three kinds.
+          It is gone. Each finding's action stays on the card that found it, and the footer says what
+          jit checked and when.
+        </p>
+        <p>
+          <b>This also fixed a bug I had written in.</b> The first build put <b>Clean Caches…</b> in the
+          footer <i>and</i> on the card: the same button twice for the same file, which is finding 6 in
+          the list above. One button now, on the card.
+        </p>
+      </div>
+
+      <div class="decision">
+        <h3>The banner offers jit's own words, not an Undo <span class="tag">Changed in build</span></h3>
+        <p>
+          An Undo beside "Removed 1 cached copy" would run <span class="path">jit migrate undo</span>,
+          which reaches further than the one file the sentence names. Instead the banner carries
+          <b>What jit Did…</b>, which opens exactly what the command printed. Honest, and one click away.
+        </p>
+      </div>
+
+      <div class="decision">
+        <h3>No search field, and the filter only when it earns its place <span class="tag">Changed in build</span></h3>
+        <p>
+          A search field over at most eleven rows is furniture. It is gone. The segmented filter now
+          appears only when there are four cards <i>and</i> at least one of them needs you, which is
+          frame 3 and never frame 1.
+        </p>
+      </div>
+
+      <div class="decision">
+        <h3>MCP configs are protected one file at a time <span class="tag">Changed in build</span></h3>
+        <p>
+          <b>Protect All…</b> on the MCP card was the same cross-kind batch. Each file is its own
+          <span class="path">jit migrate &lt;file&gt; --yes</span> behind its own dialog, so the button
+          lives on the row.
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================ SCOPE ============================ -->
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">If you approve</p>
+      <h2>What I would change in the repo</h2>
+    </div>
+
+    <ul class="scope">
+      <li><b><code>AgentsView.swift</code> rebuilt on <code>AppWindowKit</code></b> — <code>Win</code>, <code>AppCard</code>, <code>AppCardRows</code>, <code>AppRow</code>, <code>AppButton</code>, <code>WindowMark</code>, <code>WindowEmptyState</code>, <code>windowRegion()</code>. The same kit the Scan and Doctor windows already use, so no new components.</li>
+      <li><b><code>AgentsFindings.swift</code>: <code>AgentsSection</code> deleted.</b> Its uppercase heading and hard-coded 8 / 12 / 2 pt values are what <code>AppCard</code> replaces.</li>
+      <li><b>The window becomes <code>Design.Window.medium</code></b> with <code>minimum(for:)</code>, and its title becomes <code>"AI Agents"</code> — <code>StatusItemController.swift:46</code>.</li>
+      <li><b>Every tooltip string moves into a card note or a row fact.</b> Nothing load-bearing stays in <code>.help()</code>.</li>
+      <li><b>A banner region</b> so a finished action reports in the window, per the repo's own "no terminal pane reports success" rule.</li>
+      <li><b>No engine change.</b> Every button is the same jit command it is today: <code>jit wrap</code>, <code>jit migrate</code>, <code>jit grant</code>, the cache clean.</li>
+    </ul>
+
+    <p class="note" style="margin-top:26px">
+      <b>On the data in these frames.</b> Every path, profile and key name above is invented —
+      <span class="path">~/code/notion-sync/.env</span>, <span class="path">notion/API_KEY</span>,
+      <span class="path">aws-prod</span>. Your screenshot showed a real path from a real repo, and the
+      brand book's rule is that a published image comes from a demo vault, never a real one. If you want
+      these frames to mirror your actual Mac for review, that is fine — just don't publish them.
+    </p>
+  </section>
+
+</div>

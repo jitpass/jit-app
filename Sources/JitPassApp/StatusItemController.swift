@@ -42,11 +42,13 @@ final class StatusItemController {
         size: NSSize(width: 860, height: 540),
         minSize: NSSize(width: 720, height: 400)
     )
+    /// "AI Agents", not "JitPass AI Agents": the app is already in the
+    /// menu bar, and the window is not a second place to say so.
     lazy var agentsWindow = ReportWindow(
-        title: "JitPass AI Agents",
+        title: "AI Agents",
         content: AgentsView(model: model, actions: agentsActions),
-        size: NSSize(width: 720, height: 600),
-        minSize: NSSize(width: 600, height: 400)
+        size: Design.Window.medium,
+        minSize: Design.Window.minimum(for: Design.Window.medium)
     )
     lazy var toolsWindow = ReportWindow(
         title: "JitPass Tools",
