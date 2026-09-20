@@ -39,14 +39,9 @@ extension ScanReportView {
     }
 
     /// "9 copies in 4 files, from ~/proj/.env and ~/.aws/credentials".
+    /// The AI Agents window says the same thing about the same group, so
+    /// the sentence lives in `Format` where one change reaches both.
     func agentDetail(_ g: ScanAgentGroup) -> String {
-        let copies = g.findings.count
-        let files = g.files.count
-        var text = "\(copies) cop\(copies == 1 ? "y" : "ies") in \(files) file\(files == 1 ? "" : "s")"
-        let origins = g.origins.map(Format.home)
-        if !origins.isEmpty {
-            text += ", from " + origins.prefix(2).joined(separator: ", ") + (origins.count > 2 ? ", …" : "")
-        }
-        return text
+        Format.agentCacheDetail(g)
     }
 }
