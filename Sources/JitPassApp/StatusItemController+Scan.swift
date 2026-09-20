@@ -138,21 +138,17 @@ extension StatusItemController {
 
     // MARK: - Protect
 
-    /// A Protect command as the dialog shows it. Past a few files the
-    /// migrate line lists them one per line under it, where on the line
-    /// they wrapped mid-path; what runs is the command, every file in it.
-    static func shownCommand(_ command: [String]) -> String {
-        guard command.first == "migrate", command.last == "--yes" else {
-            return "jit " + command.map(Format.home).joined(separator: " ")
-        }
-        return CommandText.shown(
-            ["migrate", "--yes"], names: command.dropFirst().dropLast().map(Format.home), noun: ("file", "files"), listedAbove: false
-        )
+    /// What the plan protects, one per line: the files by path and the
+    /// tools by name. The dialog used to list its commands instead, and
+    /// that block was the only place these names appeared, so it is the
+    /// one command line whose removal had to put something back.
+    static func protectedNames(_ plan: ProtectPlan) -> String {
+        (plan.migrate.map(Format.home) + plan.wrap.map { "the \($0) command" }).joined(separator: "\n")
     }
 
     /// The scan window's Protect, in-app: one `jit migrate a b c --yes`
     /// for every file (one plan, one Touch ID), then `jit wrap <tool>` for
-    /// each wrap finding, after a dialog that names the commands. The
+    /// each wrap finding, after a dialog that names what it protects. The
     /// output goes to a sheet, and the Mac is rescanned so the report and
     /// the panel row move together.
     func protectPlan(_ plan: ProtectPlan) {
@@ -176,15 +172,14 @@ extension StatusItemController {
         for tool in plan.wrap {
             commands.append(["wrap", tool])
         }
-        let shown = commands.map(Self.shownCommand).joined(separator: "\n")
         let alert = NSAlert()
         alert.messageText = plan.count == 1
             ? "Protect \(plan.migrate.first.map(Format.home) ?? plan.wrap.first ?? "")?"
             : "Protect \(plan.count) findings?"
         alert.informativeText = (createsVault ? "This Mac has no vault yet, so this creates one first. " : "")
-            + "This runs:\n\n\(shown)\n\n"
-            + "The secrets move into the vault and each file is rewritten so what reads it keeps working. "
-            + "Every file is backed up encrypted first; jit migrate undo restores it. Touch ID follows."
+            + "These move into the vault:\n\n\(Self.protectedNames(plan))\n\n"
+            + "Each file is rewritten so what reads it keeps working, and is backed up encrypted first; "
+            + "jit migrate undo restores it. Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {

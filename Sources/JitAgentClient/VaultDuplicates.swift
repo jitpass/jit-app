@@ -182,10 +182,10 @@ public extension VaultDuplicates {
         let noun = "stale secret" + (paths.count == 1 ? "" : "s")
         return DeleteConfirmation(
             title: "Prune \(paths.count) \(noun)?",
-            message: "This runs:\n\njit vault duplicates --prune --yes\n\nAs of the comparison just now, it deletes for good:\n"
+            message: "As of the comparison just now, it deletes for good:\n"
                 + VaultOrphans.capped(paths, limit)
                 + "\n\nEach is a copy whose origin file is gone and which no profile or pointer file jit can find uses. "
-                + "Every other finding keeps its printed command. Nothing asks again. Touch ID follows, once per class again.",
+                + "Every other finding keeps its printed command. Touch ID follows, once per class again.",
             button: "Prune", breaks: false, arguments: Self.pruneArguments, paths: paths
         )
     }

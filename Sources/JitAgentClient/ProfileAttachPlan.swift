@@ -105,13 +105,8 @@ public extension ProfileAttachPlan {
         }
         parts.append(recording + ".")
         let arguments = ["profile", "attach", "--yes", config] + names
-        // The names are listed above; on the command line they wrapped at
-        // their hyphens. The argv still carries every one.
-        let command = CommandText.shown(
-            ["profile", "attach", "--yes", shown], names: names, noun: ("profile", "profiles"), listedAbove: true, always: true
-        )
-        parts.append("This runs:\n\n" + command + "\n\nIt changes which configs the "
-            + (one ? "profile records" : "profiles record") + ": no secret is read or changed, and nothing asks again.")
+        parts.append("It changes which configs the "
+            + (one ? "profile records" : "profiles record") + ": no secret is read or changed.")
         let target = DoctorAdvice.configShortName(config, home: home)
         return DeleteConfirmation(
             title: one ? "Record \(target) on \(names[0])?" : "Record \(target) on \(names.count) profiles?",

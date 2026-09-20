@@ -107,9 +107,9 @@ public extension ProfileRmPlan {
             + "and it never sees scripts or aliases. Whatever runs it stops working."]
         parts += secretsParts
         let arguments = ["profile", "rm", "--yes", profile]
-        parts.append("This runs:\n\njit \(arguments.joined(separator: " "))\n\n" + (deleteSecrets.isEmpty
-                ? "Nothing asks again, and no Touch ID: no secret is deleted."
-                : "Nothing asks again. Touch ID follows."))
+        parts.append(deleteSecrets.isEmpty
+            ? "No secret is deleted, so nothing asks for Touch ID."
+            : "Touch ID follows.")
         return DeleteConfirmation(
             title: coverageComplete ? "Remove profile \(profile)?" : "jit can't see every tool that might use \(profile)",
             message: parts.joined(separator: "\n\n"), button: coverageComplete ? "Remove Profile" : "Remove Anyway",
