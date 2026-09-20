@@ -183,7 +183,8 @@ extension StatusItemController {
         } else {
             Self.link(from: link, to: bundledJit)
         }
-        model.settingsMessage = outcome ?? "jit is on your PATH at \(link). Open a new terminal to use it."
+        model.settingsOutcome = outcome.map { SettingsOutcome.failed(.commandLineTool, line: $0) }
+            ?? .applied(.commandLineTool, value: "jit is on your PATH at \(link). Open a new terminal to use it.")
         refreshCommandLineTool()
     }
 
