@@ -118,6 +118,9 @@ final class MenuModel: ObservableObject {
     @Published var agentsSheet: ToolsSheet?
     /// The scan window's sheet: what an in-app Protect printed.
     @Published var scanSheet: ToolsSheet?
+    /// The file whose flagged lines the scan window is showing. A row
+    /// carries one fact; the list of lines is a sheet on top of it.
+    @Published var scanLines: ScanFileGroup?
     /// The guard command running, if one is; the toggle waits on it.
     @Published var guardBusy = false
     @Published var settingsBusy = false

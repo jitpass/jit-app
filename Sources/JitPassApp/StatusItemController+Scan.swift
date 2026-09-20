@@ -22,7 +22,6 @@ extension StatusItemController {
                 self?.model.scanScope = nil
                 self?.runScan()
             },
-            openInTerminal: { [weak self] in self?.openScanInTerminal() },
             protect: { [weak self] finding in
                 if let tool = finding.wrapTool {
                     self?.protectPlan(ProtectPlan(wrap: [tool]))
@@ -34,6 +33,11 @@ extension StatusItemController {
             closeSheet: { [weak self] in self?.model.scanSheet = nil },
             open: { path, line in Editor.open(path, line: line) },
             reveal: { path in Editor.reveal(path) },
+            copyPath: { path in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(path, forType: .string)
+            },
+            showLines: { [weak self] group in self?.model.scanLines = group },
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
             cleanCaches: { [weak self] in self?.cleanCaches() }
         )
@@ -87,11 +91,6 @@ extension StatusItemController {
         }
         model.scanScope = url.path
         runScan()
-    }
-
-    func openScanInTerminal() {
-        let scope = model.scanScope.map { " " + Terminal.quoted($0) } ?? ""
-        runInTerminal("jit scan --full" + scope)
     }
 
     /// Runs `jit scan` off the main thread and publishes the report. The
