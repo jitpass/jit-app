@@ -4,6 +4,27 @@
 import JitAgentClient
 import SwiftUI
 
+/// The sheet the Tools window has open, if any.
+enum ToolsSheet: Identifiable, Equatable {
+    /// Wrap (or re-wrap) a catalog tool, with the key typed in when jit
+    /// has nothing to discover.
+    case wrap(tool: String)
+    /// Wrap a tool outside the catalog: name, the variable it reads, the
+    /// key. `jit wrap add`.
+    case handWrap
+    /// What a command printed, verbatim: the CLI is the one that says what
+    /// it found and moved.
+    case result(title: String, text: String)
+
+    var id: String {
+        switch self {
+        case let .wrap(tool): "wrap:" + tool
+        case .handWrap: "handwrap"
+        case let .result(title, _): "result:" + title
+        }
+    }
+}
+
 /// Wrap a catalog tool. Says what `jit wrap <tool>` will do in the
 /// catalog's own words before anything runs, and offers the key field
 /// when the vault holds nothing for it yet: the CLI would install the

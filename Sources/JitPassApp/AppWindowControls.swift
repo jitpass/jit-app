@@ -123,22 +123,32 @@ struct AppSwitch: View {
 }
 
 /// What just happened, in the window rather than in a modal over it. It
-/// clears on the next action.
-struct WindowBanner: View {
+/// clears on the next action, and carries on its right the one thing the
+/// sentence leaves open: an undo, or jit's own words.
+struct WindowBanner<Actions: View>: View {
     let tint: Color
     let text: String
+    @ViewBuilder var actions: () -> Actions
 
     var body: some View {
         HStack(spacing: Win.s3) {
             StateDot(tint: tint)
             Text(text).font(Win.sub)
             Spacer(minLength: Win.s5)
+            HStack(spacing: Win.s3) { actions() }
         }
         .padding(.horizontal, Win.s6)
         .padding(.vertical, Win.s4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(tint.opacity(0.13))
         .overlay(alignment: .bottom) { Rectangle().fill(WindowSurface.separator).frame(height: 1) }
+    }
+}
+
+extension WindowBanner where Actions == EmptyView {
+    /// A banner whose sentence is the whole of it.
+    init(tint: Color, text: String) {
+        self.init(tint: tint, text: text) { EmptyView() }
     }
 }
 

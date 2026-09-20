@@ -4,40 +4,67 @@
 import JitAgentClient
 import SwiftUI
 
-/// The AI Agents window, in the order the website's "ai agents" page tells
-/// it: the agents themselves (key, caches, reach), the files they read and
-/// the grants that keep them working unattended, the copies they already
-/// made, the MCP configs, and what none of this covers. Every fact is the
-/// engine's; every button is one jit command after a sheet or dialog.
+/// The AI Agents window, built from the window system (`docs/design/
+/// mockups/AI-Agents-redesign.html` and the design system's Windows
+/// page): banner, header, filter, body at one inset, footer. The body
+/// holds one card per subject that has anything in it, and each card
+/// carries its own tier in its eyebrow, so the red one is findable
+/// without the reader opening every tooltip.
+///
+/// The four subjects keep the order the website's "ai agents" page tells
+/// them, with the caches next to the keys because they are the two facts
+/// about one agent: the agents and their keys, the copies they already
+/// made, the MCP configs, and the files they read. The order never
+/// changes with the state, so the window does not rearrange itself under
+/// the pointer.
+///
+/// Every fact is the engine's and every button is one jit command. What
+/// used to wait for a hover is on screen.
 struct AgentsView: View {
     @ObservedObject var model: MenuModel
     let actions: AgentsActions
 
-    private static let readsNote = "A migrated file (.env, ~/.aws/credentials) answers an agent with a decoy: "
-        + "the value in the transcript is fake, and so is the one sent upstream. A grant keeps an agent's tools "
-        + "working while you are away, for a window you choose."
+    /// The tier the filter is on; nil is all of them. Reset by a new
+    /// listing or scan, because a pill for a tier the window no longer
+    /// has would leave the body empty with no way back.
+    @State var tier: AgentsBoard.Tier?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header.padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 6)
-            reachLine.padding(.horizontal, 16).padding(.bottom, 10)
-            Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    agentsSection
-                    readsSection
-                    AgentsFindings(model: model, actions: actions)
+        let board = AgentsBoard.make(model)
+        VStack(spacing: 0) {
+            if let outcome = model.agentsOutcome {
+                WindowBanner(tint: Color(StatusMark.green), text: outcome.title) {
+                    Button("What jit Did…") { actions.openSheet(.result(title: outcome.title, text: outcome.text)) }
+                        .buttonStyle(AppButton(kind: .plain))
                 }
-                .padding(16)
             }
+            header(board)
+            if showsFilter(board) {
+                AppSegmented(items: pills(board), selection: $tier).windowRegion()
+            }
+            body(board)
+            footer(board)
         }
-        .frame(minWidth: 600, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
+        .frame(
+            minWidth: Win.width, maxWidth: .infinity,
+            minHeight: Win.minimum(Win.height), maxHeight: .infinity,
+            alignment: .top
+        )
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .onChange(of: model.macScan) { _, _ in tier = nil }
+        .onChange(of: model.toolListing) { _, _ in tier = nil }
+        .onPreferenceChange(WindowHeightKey.self) { height in
+            actions.fit(height + Self.chrome(filter: showsFilter(board), banner: model.agentsOutcome != nil))
+        }
         .sheet(item: $model.agentsSheet) { sheet in
             switch sheet {
             case let .wrap(tool):
                 if let record = model.toolListing?.tool(named: tool) {
-                    WrapSheet(model: model, actions: ToolsActions(closeSheet: actions.closeSheet, wrap: actions.wrap), tool: record)
+                    WrapSheet(
+                        model: model,
+                        actions: ToolsActions(closeSheet: actions.closeSheet, wrap: actions.wrap),
+                        tool: record
+                    )
                 }
             case .handWrap:
                 // The Tools window's button; never opened from here.
@@ -49,225 +76,189 @@ struct AgentsView: View {
         .onAppear(perform: actions.reload)
     }
 
-    /// What none of this covers, on the scan button's tooltip.
-    private static let limitsNote = "Scans the whole Mac. Not covered: a run you started sees real values; "
-        + "a value typed only into a prompt has no file copy to match; a value already sent needs rotation."
+    /// The regions above and below the body, which the window adds to the
+    /// height the body asks for.
+    static func chrome(filter: Bool, banner: Bool) -> CGFloat {
+        112 + (filter ? 49 : 0) + (banner ? 39 : 0)
+    }
 
     // MARK: - Header
 
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(summary).font(.headline)
-            if model.toolsRefreshing {
-                ProgressView().controlSize(.small)
+    /// What you are looking at, counted once, and the one sentence that
+    /// changes the decision: what jit checked, and what it cannot undo.
+    private func header(_ board: AgentsBoard) -> some View {
+        HStack(alignment: .top, spacing: Win.s5) {
+            WindowMark(tint: Color(board.tier.tint), hollow: !board.scanned && board.hasAgents)
+            VStack(alignment: .leading, spacing: Win.s1) {
+                Text(Format.agentsHeadline(board)).font(Win.head)
+                Text(Format.agentsSubline(board)).font(Win.sub).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
-            Button("Refresh", action: actions.reload).disabled(model.toolsRefreshing)
-            Button("Scan Now", action: actions.scanNow).disabled(model.scanning)
-                .help(Self.limitsNote)
-        }
-    }
-
-    private var summary: String {
-        guard let listing = model.toolListing else {
-            return "AI Agents"
-        }
-        let agents = listing.agents
-        if agents.isEmpty {
-            return "No AI agent CLI installed here"
-        }
-        if let copies = model.macScan?.agentCopies.count, copies > 0 {
-            return "\(copies) cop\(copies == 1 ? "y" : "ies") of your secrets in agent caches"
-        }
-        let protected = agents.filter { model.agentProtected($0) }.count
-        return "\(protected) of \(agents.count) agent\(agents.count == 1 ? "" : "s") protected"
-    }
-
-    /// Consent is one machine-wide setting, so it is one line, not a line
-    /// on every agent.
-    private var reachLine: some View {
-        HStack(spacing: 8) {
-            Circle().fill(reachColor).frame(width: 7, height: 7)
-            Text(reachText).font(.system(size: 12)).foregroundStyle(.secondary)
-                .help("When an agent runs a tool that needs a machine credential (aws, git, docker…), "
-                    + "JitPass asks you first. Settings › Service turns this off.")
-            Spacer()
-            if model.consentEnabled == false {
-                Button("Settings…", action: actions.openSettings).controlSize(.small)
-            }
-        }
-    }
-
-    private var reachColor: Color {
-        switch model.consentEnabled {
-        case true: Color(StatusMark.green)
-        case false: Color(StatusMark.amber)
-        default: Color.secondary.opacity(0.5)
-        }
-    }
-
-    // MARK: - Agents
-
-    private var agentsSection: some View {
-        AgentsSection("Agents", "Two things per agent: where its own key sits, and whether its caches hold copies of your other secrets.") {
-            if let listing = model.toolListing {
-                if listing.agents.isEmpty {
-                    Text("none installed").font(.system(size: 12)).foregroundStyle(.secondary)
-                        .help("jit can wrap " + ToolRecord.agentTools.sorted().joined(separator: ", "))
+            Spacer(minLength: Win.s5)
+            HStack(spacing: Win.s3) {
+                if model.scanning || model.toolsRefreshing {
+                    ProgressView().controlSize(.small)
                 }
-                ForEach(listing.agents) { agentRow($0) }
-            } else {
-                Text(model.toolsMessage ?? "Reading…").font(.system(size: 12)).foregroundStyle(.secondary)
+                Button(board.scanned ? "Rescan" : "Scan Now", action: actions.scanNow)
+                    .buttonStyle(AppButton()).disabled(model.scanning)
+                moreMenu
             }
+            .padding(.top, Win.s1)
         }
+        .windowRegion()
     }
 
-    /// One row per agent: the key and the caches as two aligned columns,
-    /// the way the Tools window lays out its rows.
-    private func agentRow(_ tool: ToolRecord) -> some View {
-        HStack(spacing: 10) {
-            Circle().fill(agentColor(tool)).frame(width: 7, height: 7)
-            Text(tool.tool).fontWeight(.semibold).frame(width: 110, alignment: .leading)
-            Text(tool.shortDoc).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail).help(tool.doc ?? "")
-            Spacer()
-            column("key", keyText(tool))
-            if let label = tool.agentLabel {
-                column("caches", cachesText(label))
-            }
-            if model.toolsBusy == tool.tool {
-                Text("Touch ID…").foregroundStyle(.secondary)
-            } else {
-                keyButton(tool)
-                if let label = tool.agentLabel {
-                    cachesButton(label)
-                }
-            }
+    /// The surfaces this window sends you to, in one menu, so the header
+    /// never holds four buttons that truncate as it narrows.
+    private var moreMenu: some View {
+        Menu {
+            Button("Refresh Listing", action: actions.reload).disabled(model.toolsRefreshing)
+            Divider()
+            Button("Tools…", action: actions.openTools)
+            Button("Audit…", action: actions.openAudit)
+            Button("Settings…", action: actions.openSettings)
+        } label: {
+            Text("···")
         }
-        .padding(.vertical, 2)
-        .disabled(model.toolsBusy != nil)
+        .menuStyle(.button)
+        .buttonStyle(AppButton())
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 
-    private func column(_ label: String, _ text: String) -> some View {
-        HStack(spacing: 4) {
-            Text(label).foregroundStyle(.tertiary)
-            Text(text).foregroundStyle(.secondary)
-        }
-        .font(.system(size: 12))
-        .lineLimit(1)
-        .frame(width: 150, alignment: .leading)
+    // MARK: - Filter
+
+    /// A filter over four cards is furniture unless one of them needs the
+    /// reader: then it is the way to the one that does.
+    func showsFilter(_ board: AgentsBoard) -> Bool {
+        let cards = AgentsCard.shown(board)
+        return cards.count >= 4 && cards.contains { $0.tier(board).needsAttention }
     }
 
-    private func fact(_ label: String, _ text: String, @ViewBuilder button: () -> some View) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label).font(.system(size: 12, weight: .medium)).frame(width: 52, alignment: .trailing)
-            Text(text).font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            Spacer()
-            button()
+    private func pills(_ board: AgentsBoard) -> [AppSegmentItem<AgentsBoard.Tier?>] {
+        let cards = AgentsCard.shown(board)
+        var items: [AppSegmentItem<AgentsBoard.Tier?>] = [
+            AppSegmentItem(value: nil, title: "All", count: cards.reduce(0) { $0 + $1.rows(board) })
+        ]
+        for tier in AgentsCard.tiersPresent(board) {
+            let rows = cards.filter { $0.tier(board) == tier }.reduce(0) { $0 + $1.rows(board) }
+            items.append(AppSegmentItem(
+                value: tier,
+                title: tier.word,
+                count: rows,
+                dot: tier.needsAttention ? Color(tier.tint) : nil
+            ))
         }
+        return items
     }
 
-    /// Green when all three facts hold, red on cached copies, amber when
-    /// the key is in a plaintext file or consent is off, grey otherwise.
-    private func agentColor(_ tool: ToolRecord) -> Color {
-        if let label = tool.agentLabel, let scan = model.macScan, scan.agentCopies(in: label) > 0 {
-            return Color(StatusMark.red)
-        }
-        if model.agentProtected(tool) {
-            return Color(StatusMark.green)
-        }
-        if tool.keyState(scan: model.macScan).needsAction || model.consentEnabled == false {
-            return Color(StatusMark.amber)
-        }
-        return Color.secondary.opacity(0.5)
-    }
+    // MARK: - Body
 
-    private func keyText(_ tool: ToolRecord) -> String {
-        if tool.wrapped {
-            return tool.isHealthy ? "wrapped" : tool.stateLabel
-        }
-        switch tool.keyState(scan: model.macScan) {
-        case .protected: return "protected"
-        case let .found(source) where source.hasPrefix("~") || source.hasPrefix("/"): return "in " + Format.home(source)
-        case .found: return "in \(tool.tool)'s keychain"
-        case .none: return "none found"
-        case .unknown: return "not checked"
-        }
-    }
-
-    @ViewBuilder private func keyButton(_ tool: ToolRecord) -> some View {
-        if tool.wrapped {
-            Button("Unwrap…") { actions.unwrap(tool.tool) }.controlSize(.small)
-            if !tool.isHealthy {
-                Button("Repair…") { actions.openSheet(.wrap(tool: tool.tool)) }.controlSize(.small)
-            }
-        } else if tool.keyState(scan: model.macScan).found || tool.keyState(scan: model.macScan) == .unknown {
-            Button("Wrap…") { actions.openSheet(.wrap(tool: tool.tool)) }.controlSize(.small)
+    @ViewBuilder
+    private func body(_ board: AgentsBoard) -> some View {
+        if board.isClear, model.toolsMessage == nil, model.agentsOutcome == nil {
+            clear(board).measureWindowHeight()
+            Spacer(minLength: 0)
+        } else if !board.hasAgents, model.toolListing != nil, model.toolsMessage == nil {
+            noAgents.measureWindowHeight()
+            Spacer(minLength: 0)
         } else {
-            // Nothing to move: the sheet is still there for a key the user
-            // has to paste, as a link rather than a button that nags.
-            Button("add a key…") { actions.openSheet(.wrap(tool: tool.tool)) }.buttonStyle(.link).font(.system(size: 12))
-        }
-    }
-
-    private func cachesText(_ label: String) -> String {
-        guard let scan = model.macScan else {
-            return "not scanned yet"
-        }
-        let copies = scan.agentCopies(in: label)
-        return copies == 0 ? "clean" : "\(copies) cop\(copies == 1 ? "y" : "ies") of your secrets"
-    }
-
-    @ViewBuilder private func cachesButton(_ label: String) -> some View {
-        if model.macScan == nil {
-            Button("Scan Now", action: actions.scanNow).controlSize(.small).disabled(model.scanning)
-        } else if model.macScan?.agentCopies(in: label) ?? 0 > 0 {
-            Button("Clean Caches…", action: actions.cleanCaches).controlSize(.small)
-        }
-    }
-
-    private var reachText: String {
-        switch model.consentEnabled {
-        case true: "asks you before a machine credential"
-        case false: "consent off: machine credentials without asking"
-        default: "service not running"
-        }
-    }
-
-    // MARK: - What agents read, and grants
-
-    private var readsSection: some View {
-        AgentsSection("What agents read", Self.readsNote) {
-            fact("Decoys", mountsText) {
-                Button("Scan", action: actions.openScan).controlSize(.small)
-            }
-            fact("Grants", grantsText) {
-                if !model.grants.isEmpty {
-                    Button("Grants", action: actions.openGrants).controlSize(.small)
+            ScrollView {
+                VStack(alignment: .leading, spacing: Win.s5) {
+                    if let message = model.toolsMessage {
+                        failed(message)
+                    }
+                    ForEach(shown(board)) { card in
+                        self.card(card, board)
+                    }
                 }
-                Button("New Grant…", action: actions.newGrant).controlSize(.small)
+                .padding(Win.s6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .measureWindowHeight()
             }
         }
     }
 
-    private var mountsText: String {
-        guard let mounts = model.cli?.mounts else {
-            return "not read yet"
+    /// The cards the body draws: the filter's tier, or every card that
+    /// has something in it.
+    private func shown(_ board: AgentsBoard) -> [AgentsCard] {
+        let cards = AgentsCard.shown(board)
+        guard let tier, cards.contains(where: { $0.tier(board) == tier }) else {
+            return cards
         }
-        if mounts.registered == 0 {
-            return "none: protect a file in the scan window first"
-        }
-        return "\(mounts.registered) file\(mounts.registered == 1 ? "" : "s") serve decoys"
-            + (mounts.servingReal ? " · real values inside a run" : "")
+        return cards.filter { $0.tier(board) == tier }
     }
 
-    private var grantsText: String {
-        if model.grants.isEmpty {
-            return "none active"
+    @ViewBuilder
+    private func card(_ card: AgentsCard, _ board: AgentsBoard) -> some View {
+        switch card {
+        case .agents: agentsCard(board)
+        case .caches: cachesCard(board)
+        case .mcp: mcpCard(board)
+        case .reads: readsCard(board)
         }
-        let lines = model.grants.prefix(2).map { g in
-            (g.name ?? g.anchor ?? "pid \(g.pid)") + " until " + Format.clock(g.expires)
+    }
+
+    /// A command that did not work: the sentence that says what to do,
+    /// and jit's own words under it. The one place raw output belongs on
+    /// screen, and never in a black pane.
+    private func failed(_ message: String) -> some View {
+        AppCard(
+            eyebrow: AgentsBoard.Tier.fixNow.word,
+            eyebrowTint: Color(StatusMark.red),
+            title: "jit did not finish that",
+            note: "Nothing was changed. Fix what it names below and run it again."
+        ) {
+            Button("Dismiss") { model.toolsMessage = nil }.buttonStyle(AppButton())
+        } rows: {
+            AppCardRows {
+                AppNoteRow(mark: .failed, name: "jit said", verbatim: message, last: true) { EmptyView() }
+            }
         }
-        return lines.joined(separator: " · ") + (model.grants.count > 2 ? " · …" : "")
+    }
+
+    // MARK: - Empty states
+
+    /// Nothing to report, said as what is true rather than as an empty
+    /// list.
+    private func clear(_ board: AgentsBoard) -> some View {
+        WindowEmptyState(
+            tint: Color(StatusMark.green),
+            title: "Nothing of yours is sitting in an agent",
+            message: Format.agentsClear(board)
+        ) {
+            Button("Rescan", action: actions.scanNow).buttonStyle(AppButton()).disabled(model.scanning)
+        }
+    }
+
+    private var noAgents: some View {
+        WindowEmptyState(
+            tint: Color(StatusMark.green),
+            hollow: true,
+            title: "No AI agent CLI on this Mac",
+            message: "jit wraps " + ToolRecord.agentTools.sorted().prefix(4).joined(separator: ", ")
+                + " and others. Install one and it shows up here, with its key and its caches."
+        ) {
+            Button("Tools…", action: actions.openTools).buttonStyle(AppButton())
+        }
+    }
+
+    // MARK: - Footer
+
+    /// What jit checked and when. This footer only states: the one action
+    /// for each finding is on the card that found it, and a Clean Caches
+    /// here as well would be the same button twice for the same file.
+    private func footer(_ board: AgentsBoard) -> some View {
+        HStack(spacing: Win.s4) {
+            StateDot(tint: Color(board.tier.tint))
+            Text(Format.agentsFooter(board)).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+            Spacer(minLength: Win.s5)
+        }
+        .padding(.horizontal, Win.s6)
+        .padding(.vertical, Win.s4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WindowSurface.hover)
+        .overlay(alignment: .top) { Rectangle().fill(WindowSurface.separator).frame(height: 1) }
     }
 }
 
@@ -284,5 +275,19 @@ struct AgentsActions {
     var openGrants: () -> Void = {}
     var openScan: () -> Void = {}
     var openSettings: () -> Void = {}
+    var openTools: () -> Void = {}
+    var openAudit: () -> Void = {}
     var open: (String) -> Void = { _ in }
+    var reveal: (String) -> Void = { _ in }
+    var copyPath: (String) -> Void = { _ in }
+    /// The window asks to be the height of what it holds.
+    var fit: (CGFloat) -> Void = { _ in }
+}
+
+/// What the last action in this window did: the banner's sentence, with
+/// jit's own words one click away rather than in a modal that reports
+/// success.
+struct AgentsOutcome: Equatable {
+    var title: String
+    var text: String
 }
