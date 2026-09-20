@@ -4,269 +4,178 @@
 import JitAgentClient
 import SwiftUI
 
-/// The scan report, compact: the score, then "jit will protect these" (one
-/// finding per line, each with a Protect button and one for the lot) and
-/// "Needs you" (one row per file, the flagged lines under it, with Open
-/// and Reveal). The terminal keeps the full evidence. Protect runs
-/// `jit migrate` in-app after a dialog that names the command, and shows
-/// what it printed in a sheet.
+/// The scan report, built from the window system (`docs/design/windows.md`
+/// and the design system's own page): header, filter, body, footer, at one
+/// inset, holding one card per tier that has anything in it, holding one
+/// row per file. A tier with nothing in it has no card, so the window
+/// never prints the word "nothing"; a file's flagged lines open in a sheet
+/// rather than nesting a fourth level under its row.
 struct ScanReportView: View {
     @ObservedObject var model: MenuModel
     let actions: ScanActions
 
+    /// The tier the filter is on; nil is all of them. It is reset by a new
+    /// report, because a pill for a tier that scan no longer has would
+    /// leave the body empty with no way back.
+    @State var tier: ScanTier?
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            Divider().padding(.vertical, 8)
+        VStack(spacing: 0) {
             if let error = model.scanError {
-                Text(error).foregroundStyle(.secondary).padding(.vertical, 20)
+                failed(error)
+            } else if model.scanning {
+                scanning
             } else if let report = model.scan {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        protectSection(report)
-                        if !report.agentCopies.isEmpty {
-                            agentSection(report.agentCacheGroups)
-                        }
-                        manualSection(report.manualByFile)
-                        if !report.scaffolding.isEmpty {
-                            fileSection("Test fixtures and examples", ScanFileGroup.group(report.scaffolding))
-                            Text(Self.scaffoldingNote).font(.system(size: 11)).foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.bottom, 12)
-                    .padding(.trailing, 14)
-                }
-            } else if !model.scanning {
-                chooser
+                report_(report)
             } else {
-                Spacer()
+                chooser
             }
         }
-        .padding(16)
-        .frame(minWidth: 480, maxWidth: .infinity, minHeight: 320, maxHeight: .infinity)
+        .frame(
+            minWidth: Win.width, maxWidth: .infinity,
+            minHeight: Win.minHeight, maxHeight: .infinity,
+            alignment: .top
+        )
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .onChange(of: model.scan) { _ in tier = nil }
         .sheet(item: $model.scanSheet) { sheet in
             if case let .result(title, text) = sheet {
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
             }
         }
-    }
-
-    /// The first thing the window shows: nothing is scanned until the user
-    /// says where. A whole-home scan takes seconds and reads everything, so
-    /// it is a choice, not a default.
-    private var chooser: some View {
-        VStack(spacing: 14) {
-            Spacer()
-            Text("What should jit scan?").font(.headline)
-            Text(
-                "A folder scan looks only there. The whole Mac covers your home folder,\nshell configs, credential files and agent caches."
-            )
-            .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-            HStack(spacing: 10) {
-                Button("Choose Folder…", action: actions.chooseFolder).keyboardShortcut(.defaultAction)
-                Button("Scan Whole Mac", action: actions.scanWholeMac)
-            }
-            accessNote
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    /// Whether a whole-Mac scan will run quietly or trigger a prompt per
-    /// protected folder, and the one place that changes it.
-    private var accessNote: some View {
-        HStack(spacing: 6) {
-            if model.fullDiskAccess {
-                Text("Full Disk Access granted: a whole-Mac scan runs without prompts.")
-            } else {
-                Text("Without Full Disk Access, macOS asks once per protected folder.")
-                Button("Grant in System Settings", action: actions.grantFullDiskAccess).buttonStyle(.link)
-            }
-        }
-        .font(.system(size: 11)).foregroundStyle(.secondary).padding(.top, 6)
-    }
-
-    private static let scaffoldingNote = "Real-looking values in test files or documentation. "
-        + "The scanner counts them in the score; check they are not live."
-
-    /// The CLI's headline, not a score: secrets protected over secrets
-    /// known, the bar, and what closes the gap. A folder scan has no
-    /// ledger of its own, so it leads with its findings instead.
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
-                if model.scanning {
-                    ProgressView().controlSize(.small)
-                    Text(model.scanScope == nil ? "Scanning your Mac…" : "Scanning…").font(.headline)
-                } else if let s = model.scan?.summary, model.scanScope == nil {
-                    Text("\(s.secretsProtected) of \(s.secretsTotal) secrets protected · \(s.percent)%").font(.headline)
-                } else if let s = model.scan?.summary {
-                    Text("\(s.totalFindings) finding\(s.totalFindings == 1 ? "" : "s")").font(.headline)
-                } else {
-                    Text("Protected").font(.headline)
-                }
-                Spacer(minLength: 16)
-                if model.scan != nil, !model.scanning {
-                    Button("New Scan", action: actions.newScan)
-                        .help("Back to choosing what to scan. The last whole-Mac result stays behind the Protected row.")
-                }
-                if !model.fullDiskAccess {
-                    Button("Grant Full Disk Access", action: actions.grantFullDiskAccess)
-                        .help("Opens System Settings › Privacy & Security › Full Disk Access. Add JitPass there.")
-                }
-                Button("Scan Folder…", action: actions.chooseFolder).disabled(model.scanning)
-                Button("Rescan", action: actions.rescan).disabled(model.scanning || model.scan == nil)
-                Button("Open in Terminal", action: actions.openInTerminal)
-            }
-            if !model.scanning, let s = model.scan?.summary, model.scanScope == nil {
-                coverageBar(s)
-            }
-            HStack(spacing: 6) {
-                if let line = summaryLine {
-                    Text(line)
-                    Text("·")
-                }
-                if !model.scanExcludes.isEmpty {
-                    Text("excluding \(model.scanExcludes.count) folder" + (model.scanExcludes.count == 1 ? "" : "s"))
-                    Button("edit", action: actions.openSettings).buttonStyle(.link)
-                    Text("·")
-                }
-                if let scope = model.scanScope {
-                    Text("in " + Format.home(scope)).lineLimit(1).truncationMode(.middle)
-                    Button("whole Mac", action: actions.scanWholeMac).buttonStyle(.link).disabled(model.scanning)
-                } else {
-                    Text("whole Mac")
-                }
-            }
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
+        .sheet(item: $model.scanLines) { group in
+            ScanLinesSheet(group: group, actions: actions) { model.scanLines = nil }
         }
     }
 
-    private var summaryLine: String? {
-        guard !model.scanning, let s = model.scan?.summary else {
-            return nil
-        }
-        let line = Format.scanSummary(s, wholeMac: model.scanScope == nil)
-        return line.isEmpty ? nil : line
-    }
+    // MARK: - The report
 
-    /// The CLI's ten-cell bar and its "to 100%" line.
-    private func coverageBar(_ s: ScanSummary) -> some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 2) {
-                ForEach(0 ..< 10, id: \.self) { cell in
-                    RoundedRectangle(cornerRadius: 1.5)
-                        .fill(cell < s.percent / 10 ? Color(StatusMark.green) : Color(nsColor: .separatorColor))
-                        .frame(width: 14, height: 6)
+    @ViewBuilder
+    private func report_(_ report: ScanReport) -> some View {
+        header(report)
+        if report.showsTierFilter {
+            filter(report).windowRegion()
+        }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Win.s5) {
+                ForEach(shown(report)) { tier in
+                    card(tier, report)
                 }
             }
-            if let line = s.toFullLine {
-                Text(line).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
-            }
+            .padding(Win.s6)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, 2)
+        footer(report)
     }
 
-    private static let manualNote = "jit can't rewrite these safely. Rotate or move each value yourself."
-
-    func heading(_ title: String, _ count: Int) -> some View {
-        HStack(spacing: 6) {
-            Text(title).font(.system(size: 13, weight: .semibold))
-            Text("\(count)").foregroundStyle(.secondary)
+    /// The tiers the body draws: the filter's one, or all of the ones this
+    /// scan has.
+    private func shown(_ report: ScanReport) -> [ScanTier] {
+        guard let tier, report.count(in: tier) > 0 else {
+            return report.tiersPresent
         }
+        return [tier]
     }
 
-    private func protectSection(_ report: ScanReport) -> some View {
-        let findings = report.migratable
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                heading("jit will protect these", findings.count)
-                Spacer()
-                if findings.count > 1 {
-                    Button("Protect All") { actions.protectAll(report.protectPlan) }.controlSize(.small)
+    // MARK: - Cards
+
+    @ViewBuilder
+    private func card(_ tier: ScanTier, _ report: ScanReport) -> some View {
+        if tier == .agentCaches {
+            agentCard(report.agentCacheGroups)
+        } else {
+            let groups = report.groups(in: tier)
+            AppCard(
+                eyebrow: Format.tierLabel(tier),
+                eyebrowTint: Color(Self.tierTint(tier)),
+                title: Format.tierTitle(tier, files: groups.count),
+                note: Format.tierNote(tier)
+            ) {
+                if tier == .protect, report.migratable.count > 1 {
+                    Button("Protect All \(groups.count)…") { actions.protectAll(report.protectPlan) }
+                        .buttonStyle(AppButton(kind: .secondary))
                         .disabled(model.toolsBusy != nil)
                 }
-            }
-            if findings.isEmpty {
-                Text("nothing").font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            ForEach(findings) { f in
-                HStack(alignment: .top, spacing: 8) {
-                    dot(f.severity)
-                    VStack(alignment: .leading, spacing: 1) {
-                        path(f.filePath)
-                        detail(f)
-                    }
-                    Spacer()
-                    fileButtons(f.filePath, line: f.line)
-                    if f.fixCommand != nil {
-                        Button("Protect") { actions.protect(f) }.buttonStyle(.link).font(.system(size: 12))
-                            .disabled(model.toolsBusy != nil)
+            } rows: {
+                AppCardRows {
+                    ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
+                        fileRow(group, tier: tier, last: index == groups.count - 1)
                     }
                 }
             }
         }
     }
 
-    private func manualSection(_ groups: [ScanFileGroup]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            fileSection("Needs you", groups)
-            if !groups.isEmpty {
-                Text(Self.manualNote).font(.system(size: 11)).foregroundStyle(.secondary)
+    static func tierTint(_ tier: ScanTier) -> NSColor {
+        switch tier {
+        case .protect: StatusMark.amber
+        case .needsYou, .agentCaches: StatusMark.red
+        case .testFixtures: .tertiaryLabelColor
+        }
+    }
+
+    /// One file. The name comes first and its folder after it, so two
+    /// rows never open with the same six words, and the fact under them
+    /// is one clause: the flagged line, or how many there are.
+    private func fileRow(_ group: ScanFileGroup, tier: ScanTier, last: Bool) -> some View {
+        AppRow(
+            name: Format.fileName(group.filePath),
+            detail: Format.parentFolder(group.filePath),
+            fact: group.fact,
+            last: last
+        ) {
+            if group.findings.count > 1, tier != .protect {
+                Button("\(group.findings.count) Lines…") { actions.showLines(group) }
+                    .buttonStyle(AppButton(kind: .plain))
+            }
+            Button("Open") { actions.open(group.filePath, group.firstLine) }
+                .buttonStyle(AppButton())
+            if tier == .protect, let finding = group.findings.first(where: { $0.fixCommand != nil }) {
+                Button("Protect…") { actions.protect(finding) }
+                    .buttonStyle(AppButton(kind: .secondary))
+                    .disabled(model.toolsBusy != nil)
+            }
+            rowMenu(group)
+        }
+    }
+
+    /// Everything cheap and reversible, where a mis-click costs nothing.
+    private func rowMenu(_ group: ScanFileGroup) -> some View {
+        Menu {
+            Button("Reveal in Finder") { actions.reveal(group.filePath) }
+            Button("Copy Path") { actions.copyPath(group.filePath) }
+            if group.findings.count > 1 {
+                Divider()
+                Button("Show \(group.findings.count) Lines…") { actions.showLines(group) }
+            }
+        } label: {
+            Text("···")
+        }
+        .menuStyle(.button)
+        .buttonStyle(AppButton())
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    // MARK: - Footer
+
+    /// What the scan found on the left, the one action on the right.
+    private func footer(_ report: ScanReport) -> some View {
+        HStack(spacing: Win.s4) {
+            StateDot(tint: Color(report.tiersPresent.isEmpty ? StatusMark.green : Self.tierTint(report.tiersPresent[0])))
+            Text(Format.scanFooter(report)).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+            Spacer(minLength: Win.s5)
+            if report.count(in: .protect) > 0 {
+                Button("Protect All \(report.groups(in: .protect).count)…") { actions.protectAll(report.protectPlan) }
+                    .buttonStyle(AppButton(kind: .primary))
+                    .disabled(model.toolsBusy != nil)
             }
         }
-    }
-
-    /// One row per file: the path, then each flagged line under it.
-    private func fileSection(_ title: String, _ groups: [ScanFileGroup]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            heading(title, groups.reduce(0) { $0 + $1.findings.count })
-            if groups.isEmpty {
-                Text("nothing").font(.system(size: 12)).foregroundStyle(.secondary)
-            }
-            ForEach(groups) { g in
-                HStack(alignment: .top, spacing: 8) {
-                    dot(g.severity)
-                    VStack(alignment: .leading, spacing: 1) {
-                        path(g.filePath)
-                        ForEach(g.findings) { detail($0, numbered: true) }
-                    }
-                    Spacer()
-                    fileButtons(g.filePath, line: g.findings.compactMap(\.line).first)
-                }
-            }
-        }
-    }
-
-    /// Open in the editor (at `line` when there is one) and Reveal in
-    /// Finder, on every row: a reader wants to see the file whether jit
-    /// can rewrite it or not.
-    func fileButtons(_ filePath: String, line: Int?) -> some View {
-        HStack(spacing: 8) {
-            Button("Open") { actions.open(filePath, line) }
-            Button("Reveal") { actions.reveal(filePath) }
-        }
-        .buttonStyle(.link).font(.system(size: 12))
-    }
-
-    func dot(_ severity: String) -> some View {
-        Circle().fill(Severity.color(severity)).frame(width: 7, height: 7).padding(.top, 5)
-    }
-
-    /// Truncated at the start: the filename and its parent are what tell
-    /// two paths apart, and the home prefix is the part a reader can guess.
-    private func path(_ filePath: String) -> some View {
-        Text(Format.home(filePath)).font(.system(size: 12, design: .monospaced)).lineLimit(1).truncationMode(.head)
-    }
-
-    private func detail(_ f: ScanFinding, numbered: Bool = false) -> some View {
-        var parts = [Format.findingType(f.findingType), f.evidence]
-        if numbered, let line = f.line {
-            parts.insert("line \(line)", at: 0)
-        }
-        return Text(parts.joined(separator: " · ")).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+        .padding(.horizontal, Win.s6)
+        .padding(.vertical, Win.s4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WindowSurface.hover)
+        .overlay(alignment: .top) { Rectangle().fill(WindowSurface.separator).frame(height: 1) }
     }
 }
 
@@ -276,12 +185,13 @@ struct ScanActions {
     var openSettings: () -> Void = {}
     var chooseFolder: () -> Void = {}
     var scanWholeMac: () -> Void = {}
-    var openInTerminal: () -> Void = {}
     var protect: (ScanFinding) -> Void = { _ in }
     var protectAll: (ProtectPlan) -> Void = { _ in }
     var closeSheet: () -> Void = {}
     var open: (String, Int?) -> Void = { _, _ in }
     var reveal: (String) -> Void = { _ in }
+    var copyPath: (String) -> Void = { _ in }
+    var showLines: (ScanFileGroup) -> Void = { _ in }
     var grantFullDiskAccess: () -> Void = {}
     var cleanCaches: () -> Void = {}
 }

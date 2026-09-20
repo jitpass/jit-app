@@ -60,11 +60,13 @@ final class StatusItemController {
     var vaultObservers: [NSObjectProtocol] = []
     /// When the tool listing was last read, for the panel rows.
     var toolsReadAt: Date?
+    // "Settings", not "JitPass Settings": the app is already in the menu
+    // bar, and the window is not a second place to say so.
     lazy var settingsWindow = ReportWindow(
-        title: "JitPass Settings",
+        title: "Settings",
         content: SettingsView(model: model, actions: settingsActions),
-        size: NSSize(width: 480, height: 360),
-        minSize: NSSize(width: 480, height: 360)
+        size: NSSize(width: Win.widthSmall, height: Win.heightSmall),
+        minSize: NSSize(width: Win.widthSmall, height: Win.minimum(Win.heightSmall))
     )
     let doctorProgress = DoctorProgress()
     /// The press waiting on the confirm sheet's answer.
@@ -78,10 +80,10 @@ final class StatusItemController {
         minSize: Design.Window.minimum(for: Design.Window.medium)
     )
     lazy var scanWindow = ReportWindow(
-        title: "JitPass Scan",
+        title: "Scan",
         content: ScanReportView(model: model, actions: scanActions),
-        size: NSSize(width: 640, height: 520),
-        minSize: NSSize(width: 480, height: 320)
+        size: NSSize(width: Win.width, height: Win.height),
+        minSize: NSSize(width: Win.width, height: Win.minHeight)
     )
     let onboarding = OnboardingModel()
     var onboardingScanRun: JitCLI.ScanRun?

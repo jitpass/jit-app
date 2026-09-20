@@ -118,10 +118,13 @@ final class MenuModel: ObservableObject {
     @Published var agentsSheet: ToolsSheet?
     /// The scan window's sheet: what an in-app Protect printed.
     @Published var scanSheet: ToolsSheet?
-    /// The guard command running, if one is; the toggle waits on it.
-    @Published var guardBusy = false
-    @Published var settingsBusy = false
-    @Published var settingsMessage: String?
+    /// The file whose flagged lines the scan window is showing. A row
+    /// carries one fact; the list of lines is a sheet on top of it.
+    @Published var scanLines: ScanFileGroup?
+    /// The setting being applied, so the spinner sits on that row.
+    @Published var settingsApplying: SettingsOutcome.Row?
+    /// What the last change did: the banner, or a row under the control.
+    @Published var settingsOutcome: SettingsOutcome?
     @Published var launchAtLogin = false
     @Published var terminalApp = ""
     /// The bundle identifier of the editor scan rows open files with; "" is the system default.
