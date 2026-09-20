@@ -30,10 +30,13 @@ extension DoctorAdvice {
     /// only a jit command with its own y/N does, sudo asks for a password
     /// and not whether you are sure.
     public static func confirmation(for action: DoctorAction) -> String {
-        confirmationBody(for: action) + (action.presence ? " Touch ID follows." : "")
+        confirm(action).text
     }
 
-    private static func confirmationBody(for action: DoctorAction) -> String {
+    /// The sentence under the question: what this action does, and what it
+    /// does not. `confirm` words the families that have checks of their
+    /// own; everything else lands here.
+    static func body(for action: DoctorAction) -> String {
         let command = action.command
         if action.argv != nil {
             let subject = Self.subject(of: action)
@@ -58,11 +61,6 @@ extension DoctorAdvice {
                     + "starts. If one of them does need \(them), it will fail with nothing to say why, and Doctor "
                     + "won't flag it again. No stored secret is deleted, and jit refuses to run this if the vault "
                     + "holds a value for \(them)."
-            }
-            if action.argv?.contains(where: { $0.starts(with: ["migrate", "forget"]) }) == true {
-                return "It deletes \(subject) and nothing else: no secret, no profile, "
-                    + "no mount. jit refuses if a mount is still serving that file, or if the secrets it lists are "
-                    + "still in the vault."
             }
             // The only in-app case with nothing else to name it by: an
             // unknown destructive command keeps its line rather than
@@ -92,8 +90,7 @@ extension DoctorAdvice {
     /// and a sentence naming only `c/D` would understate a delete, which is
     /// worse than the command line it replaced.
     private static func subject(of action: DoctorAction) -> String {
-        let arguments = action.argv?.first ?? []
-        return BoardText.list(arguments.dropFirst(2).filter { !$0.hasPrefix("-") }.map(homePath))
+        BoardText.list(targets(of: action))
     }
 
     /// What a destructive terminal command does, in a clause: not every

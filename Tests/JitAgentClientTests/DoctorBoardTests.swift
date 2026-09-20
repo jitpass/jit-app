@@ -86,18 +86,17 @@ final class DoctorBoardTests: XCTestCase {
         // drop` takes VAR..., so the click cost of the two answers matches
         // instead of the remove costing a click and a dialog per variable.
         XCTAssertEqual(titles(okta.menu), [
-            "Show Config in Finder", "Show Profile File", "Copy Path", "—", "Migrate a File…",
-            "Remove 2 Variables…", "Open in Terminal"
+            "Show Config in Finder", "Show Profile File", "Copy Path", "—", "Migrate a File…", "Remove 2 Variables…"
         ])
         XCTAssertEqual(
-            okta.menu.dropLast().last,
+            okta.menu.last,
             .button(DoctorButton("Remove 2 Variables…", .run([DoctorAdvice.removeVariables(
                 "mcp-okta-mcp-server", ["OKTA_ORG_URL", "OKTA_SCOPES"]
             )])))
         )
-        XCTAssertEqual(okta.menu.last, .button(DoctorButton("Open in Terminal", .terminal(
-            "jit vault set mcp-okta-mcp-server/OKTA_ORG_URL\njit vault set mcp-okta-mcp-server/OKTA_SCOPES"
-        ))))
+        // No Open in Terminal, here or in any other card's ⋯: a window
+        // that hands the job back to a terminal is saying it did not work.
+        XCTAssertFalse(titles(okta.menu).contains("Open in Terminal"))
         XCTAssertEqual(
             okta.menu[1],
             .button(DoctorButton("Show Profile File", .reveal("/Users/me/.jit/profiles/mcp-okta-mcp-server.yaml")))
@@ -231,8 +230,7 @@ final class DoctorBoardTests: XCTestCase {
         let migrate = try XCTUnwrap(nested.primary?.steps.first)
         XCTAssertEqual(migrate.planned, .migrate(targets: ["/Users/me/Security-Ops/.mcp.json"]))
         XCTAssertEqual(migrate.argv, [["migrate", "--yes", "/Users/me/Security-Ops/.mcp.json"]])
-        XCTAssertEqual(titles(nested.menu), ["Show Config in Finder", "Copy Path", "—", "Open in Terminal"])
-        XCTAssertEqual(nested.menu.last, .button(DoctorButton("Open in Terminal", .terminal("jit migrate ~/Security-Ops/.mcp.json"))))
+        XCTAssertEqual(titles(nested.menu), ["Show Config in Finder", "Copy Path", "—"])
     }
 
     func testTidyRows() throws {
@@ -350,7 +348,7 @@ final class DoctorStalePointersCardTests: XCTestCase {
         XCTAssertEqual(card.rows.count, 3)
         for row in card.rows {
             XCTAssertEqual(row.buttons.first?.title, "Edit", "\(row.buttons.map(\.title))")
-            XCTAssertTrue(row.buttons.contains { $0.title.hasPrefix("Delete File") }, "\(row.buttons.map(\.title))")
+            XCTAssertTrue(row.buttons.contains { $0.title.hasPrefix("Delete") }, "\(row.buttons.map(\.title))")
         }
     }
 }

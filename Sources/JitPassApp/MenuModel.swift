@@ -62,6 +62,11 @@ final class MenuModel: ObservableObject {
     /// from the moment it starts until the recheck after it lands. One at
     /// a time; every action button in the window is disabled meanwhile.
     @Published var doctorBusy: String?
+    /// What is open over the Doctor window: its one question before a
+    /// destructive fix, the profiles review, an action's output. All
+    /// sheets on the window, so nothing about Doctor opens a window of
+    /// its own any more.
+    @Published var doctorSheet: DoctorSheet?
     /// An action finished while a check was already running: that check
     /// predates the action, so another follows it.
     var doctorRecheckPending = false

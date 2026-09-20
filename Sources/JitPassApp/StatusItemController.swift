@@ -67,11 +67,15 @@ final class StatusItemController {
         minSize: NSSize(width: 480, height: 360)
     )
     let doctorProgress = DoctorProgress()
+    /// The press waiting on the confirm sheet's answer.
+    var doctorPending: DoctorPending?
+    // "Doctor", not "JitPass Doctor": the app is already in the menu bar,
+    // and the window is not a second place to say so.
     lazy var doctorWindow = ReportWindow(
-        title: "JitPass Doctor",
+        title: "Doctor",
         content: DoctorView(model: model, progress: doctorProgress, actions: doctorActions),
-        size: NSSize(width: 760, height: 720),
-        minSize: NSSize(width: 600, height: 420)
+        size: Design.Window.medium,
+        minSize: Design.Window.minimum(for: Design.Window.medium)
     )
     lazy var scanWindow = ReportWindow(
         title: "JitPass Scan",
