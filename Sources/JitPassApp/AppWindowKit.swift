@@ -25,12 +25,23 @@ enum Win {
     static let s6: CGFloat = 18
 
     /// Sizes.
+    /// One purpose, one column: Settings, Grants, a single list.
+    static let widthSmall: CGFloat = 520
+    /// What such a window opens at when its content is taller.
+    static let heightSmall: CGFloat = 400
     /// The default window width: a list with a header and maybe a filter.
     static let width: CGFloat = 720
     /// What such a window opens at when its content is taller.
     static let height: CGFloat = 480
     /// Below the width, hide the toolbar before letting a row wrap.
     static let minHeight: CGFloat = 320
+
+    /// A window's minimum height: two thirds of what it opens at. The
+    /// rule lives here so a second window cannot pick a third fraction.
+    static func minimum(_ height: CGFloat) -> CGFloat {
+        (height * 2 / 3).rounded()
+    }
+
     static let sheetWide: CGFloat = 520
     static let button: CGFloat = 22
     static let mark: CGFloat = 34
@@ -73,6 +84,13 @@ enum WindowSurface {
     static let quiet = Color.primary.opacity(0.13)
     /// A secondary named action.
     static let secondary = Color.primary.opacity(0.28)
+    /// A search field, and the popup button drawn from its tokens.
+    static let field = Color.primary.opacity(0.07)
+    /// The border of a field or a popup button.
+    static let controlLine = Color.primary.opacity(0.16)
+    /// The block carrying jit's own words after a failure: a recess, not
+    /// an overlay, and the only place raw output belongs on screen.
+    static let verbatim = Color.black.opacity(0.20)
 }
 
 /// Every button in an app window. The default takes the system accent,
@@ -230,6 +248,9 @@ struct AppRow<Actions: View>: View {
     let name: String
     var detail: String?
     var fact: String?
+    /// A settings row explains what its control costs, and that sentence
+    /// is allowed the second line a list row is not.
+    var wraps = false
     var last = false
     @ViewBuilder var actions: () -> Actions
 
@@ -247,7 +268,9 @@ struct AppRow<Actions: View>: View {
                         }
                     }
                     if let fact {
-                        Text(fact).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1)
+                        Text(fact).font(Win.rowFact).foregroundStyle(.secondary)
+                            .lineLimit(wraps ? nil : 1)
+                            .fixedSize(horizontal: false, vertical: wraps)
                     }
                 }
                 Spacer(minLength: Win.s5)

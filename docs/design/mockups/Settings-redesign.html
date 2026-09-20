@@ -1,0 +1,1107 @@
+<!doctype html>
+<!-- Published mockup: https://claude.ai/artifact/8fST7yCDx6VTw1BxeQ9UZ3 · built on the JitPass design system, section Windows: https://claude.ai/artifact/AD9fUEBsrojwJMLyeTarY7 -->
+<html><head><meta charset="utf-8"><title>JitPass Settings Redesign</title>
+<style>
+:root{
+  --bg: #090c0a;
+  --bg-2: #0b0f0c;
+  --panel: #0f1411;
+  --panel-2: #121813;
+  --line: rgba(150,230,190,0.10);
+  --line-strong: rgba(150,230,190,0.18);
+  --text: #e8efe9;
+  --muted: #8c968e;
+  --faint: #5c665e;
+  --accent: #3ecf8e;
+  --accent-ink: #061a11;
+  --accent-dim: rgba(62,207,142,0.13);
+  --amber: #f0a94a;
+  --amber-dim: rgba(240,169,74,0.15);
+  --orange: #ff8a4c;
+  --red: #ff6b6b;
+  --glow: rgba(62,207,142,0.16);
+  --term-bg: #0c100e;
+  --term-head: #0f1411;
+  --term-line: rgba(255,255,255,0.065);
+  --term-text: #d6ddd7;
+  --term-dim: #6f7a72;
+  --term-light: #2c332e;
+  --app-unlocked: #3ecf8e;
+  --app-locked: #e5484d;
+  --app-asking: #f0b545;
+  --app-action: #7fd4ff;
+  --app-plate: #1c1f2b;
+  --app-panel-material: #262d32;
+  --app-sheet-material: #323438;
+  --app-label: rgba(255,255,255,0.85);
+  --app-label-2: rgba(255,255,255,0.55);
+  --app-label-3: rgba(255,255,255,0.25);
+  --app-separator: rgba(255,255,255,0.10);
+  --app-control-accent: #0068dc;
+  --app-button-2: #7e8081;
+  --app-window: #323438;
+  --app-card: #414347;
+  --app-titlebar: #343536;
+  --app-track: #414346;
+  --app-window-line: rgba(255,255,255,0.09);
+  --app-row-line: rgba(255,255,255,0.07);
+  --app-hover: rgba(255,255,255,0.05);
+  --app-field: rgba(255,255,255,0.07);
+  --app-btn-line: rgba(255,255,255,0.16);
+  --app-button-quiet: rgba(255,255,255,0.13);
+  --app-segment-track: rgba(255,255,255,0.08);
+  --app-segment-on: rgba(255,255,255,0.16);
+  --app-verbatim: rgba(0,0,0,0.20);
+  --app-unlocked-dim: rgba(62,207,142,0.22);
+  --app-asking-dim: rgba(240,181,69,0.22);
+  --app-locked-dim: rgba(229,72,77,0.18);
+  --space-pill-gap: 8px;
+  --space-cta-gap: 12px;
+  --space-eyebrow: 18px;
+  --space-gutter: 24px;
+  --space-hero-gap: 56px;
+  --space-section: 76px;
+  --space-app-divider: 5px;
+  --space-app-row-gap: 12px;
+  --space-app-inset: 14px;
+  --space-app-sheet: 18px;
+  --space-app-1: 2px;
+  --space-app-2: 4px;
+  --space-app-3: 6px;
+  --space-app-4: 8px;
+  --space-app-5: 12px;
+  --space-app-6: 18px;
+  --radius-code: 5px;
+  --radius-row: 5px;
+  --radius-callout: 6px;
+  --radius-btn: 8px;
+  --radius-panel: 10px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --radius-control: 6px;
+  --radius-segment: 5px;
+  --radius-box: 4px;
+  --size-mark-menubar: 16px;
+  --size-action-row: 24px;
+  --size-status-row: 26px;
+  --size-mark-panel: 34px;
+  --size-panel: 300px;
+  --size-sheet: 500px;
+  --size-prose: 680px;
+  --size-max: 1120px;
+  --size-titlebar: 28px;
+  --size-btn: 22px;
+  --size-btn-lg: 30px;
+  --size-win-s: 520px;
+  --size-win-m: 720px;
+  --size-win-l: 900px;
+  --size-win-flow: 620px;
+  --size-win-h-s: 400px;
+  --size-win-h-m: 480px;
+  --size-win-h-l: 560px;
+  --size-win-h-flow: 540px;
+  --size-sheet-wide: 520px;
+  --size-alert: 440px;
+  --shadow-term: 0 24px 60px -24px rgba(0,0,0,0.7), inset 0 2px 0 rgba(255,255,255,0.03);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Code", "JetBrains Mono", "Roboto Mono", monospace;
+}
+/* JitPass components: plain CSS over tokens.css. Web pieces (jp-btn, jp-pill,
+   jp-term) copy jitpass-landing/src/app/globals.css; app pieces (jp-mark,
+   jp-panel, jp-sheet, jp-window) recreate jit-app/Sources/JitPassApp in HTML
+   for static mockups, slides and the site. */
+
+.jp-sans { font-family: var(--font-sans); }
+.jp-mono { font-family: var(--font-mono); }
+
+/* ---------- web: button ---------- */
+.jp-btn {
+  font-family: var(--font-mono); font-size: 13.5px; font-weight: 600;
+  padding: 8px 15px; border-radius: var(--radius-btn); cursor: pointer;
+  border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px;
+  text-decoration: none; line-height: 1.6;
+  transition: transform .12s, background .15s, border-color .15s, color .15s;
+}
+.jp-btn:active { transform: translateY(1px); }
+.jp-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.jp-btn--primary { background: var(--accent); color: var(--accent-ink); }
+.jp-btn--primary:hover { background: color-mix(in srgb, var(--accent) 86%, #fff); }
+.jp-btn--ghost { border-color: var(--line-strong); color: var(--text); background: transparent; }
+.jp-btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
+.jp-btn--lg { padding: 12px 20px; font-size: 14px; }
+
+/* ---------- web: pill ---------- */
+.jp-pill {
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted); line-height: 1.6;
+  border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 5px 11px;
+  display: inline-flex; align-items: center; gap: 7px; background: var(--panel);
+}
+.jp-pill__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.jp-pills { display: flex; flex-wrap: wrap; gap: var(--space-pill-gap); }
+
+/* ---------- web: wordmark ---------- */
+.jp-wordmark { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 600; letter-spacing: -0.02em; font-size: 16px; color: var(--text); }
+.jp-wordmark__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-dim); }
+
+/* ---------- web: terminal ---------- */
+.jp-term {
+  background: var(--term-bg); border: 1px solid var(--term-line); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-term); overflow: hidden; font-family: var(--font-mono);
+  color: var(--term-text); font-size: 13.5px; line-height: 1.75;
+}
+.jp-term__head { display: flex; align-items: center; gap: 7px; padding: 11px 14px; border-bottom: 1px solid var(--term-line); background: var(--term-head); }
+.jp-term__light { width: 11px; height: 11px; border-radius: 50%; background: var(--term-light); }
+.jp-term__title { margin-left: 10px; color: var(--term-dim); font-size: 12px; letter-spacing: .01em; }
+.jp-term__body { padding: 16px 18px; overflow-x: auto; }
+.jp-term__body pre { margin: 0; white-space: pre; font: inherit; }
+.jp-term .cmt { color: var(--term-dim); }
+.jp-term .prompt, .jp-term .ok { color: var(--app-unlocked); }
+.jp-term .warn { color: var(--app-asking); }
+.jp-term .crit { color: var(--red); }
+.jp-term .act { color: var(--app-action); }
+.jp-term .b { font-weight: 700; color: #fff; }
+
+/* ---------- app: status mark ---------- */
+.jp-mark { --mark: var(--app-unlocked); position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none; }
+.jp-mark::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--mark); opacity: .22; }
+.jp-mark::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; background: var(--mark); }
+.jp-mark > svg { position: relative; z-index: 1; width: 30%; height: 30%; }
+.jp-mark--locked { --mark: var(--app-locked); }
+.jp-mark--asking { --mark: var(--app-asking); }
+.jp-mark--setup { --mark: var(--app-asking); }
+.jp-mark--setup::before { opacity: .16; }
+.jp-mark--setup::after { inset: 25%; background: transparent; border: 2.9px solid var(--mark); }
+.jp-mark--16 { width: 16px; height: 16px; }
+.jp-mark--setup.jp-mark--16::after { border-width: 1.4px; }
+
+/* ---------- app: menu bar panel ---------- */
+.jp-panel {
+  width: var(--size-panel); border-radius: var(--radius-panel); overflow: hidden;
+  background: var(--app-panel-material); color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 13px;
+  padding-bottom: 5px; box-shadow: 0 0 0 .5px rgba(255,255,255,.18), 0 12px 32px rgba(0,0,0,.45);
+  -webkit-font-smoothing: antialiased;
+}
+.jp-panel__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+.jp-panel__state { font-size: 15px; font-weight: 700; color: #fff; }
+.jp-panel__detail { font-size: 12px; color: var(--app-label-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-panel__intro { font-size: 12px; color: var(--app-label-2); padding: 0 14px 8px; line-height: 1.35; }
+.jp-panel__row { display: flex; align-items: center; gap: 12px; height: var(--size-status-row); padding: 0 14px; }
+.jp-panel__row svg { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.jp-panel__label { flex: 1; }
+.jp-panel__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.jp-panel__dot--ok { background: var(--app-unlocked); }
+.jp-panel__dot--warn { background: var(--app-asking); }
+.jp-panel__dot--risk { background: var(--app-locked); }
+.jp-panel__sep { height: 1px; background: var(--app-separator); margin: 5px 14px; }
+.jp-panel__action { position: relative; display: flex; align-items: center; height: var(--size-action-row); padding: 0 14px; }
+.jp-panel__action span { flex: 1; }
+.jp-panel__action kbd { font: inherit; font-size: 12px; color: var(--app-label-3); }
+.jp-panel__action--hover::before { content: ""; position: absolute; inset: 0 5px; border-radius: var(--radius-row); background: var(--app-control-accent); }
+.jp-panel__action--hover > * { position: relative; color: #fff; }
+.jp-panel__cta { margin: 2px 14px 8px; height: 28px; border-radius: 6px; background: var(--app-control-accent); color: #fff; display: grid; place-items: center; font-size: 13px; }
+
+/* ---------- app: window chrome ---------- */
+.jp-window {
+  border-radius: 10px; overflow: hidden; color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 13px;
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.2), 0 20px 50px rgba(0,0,0,.5);
+  -webkit-font-smoothing: antialiased;
+}
+.jp-window__bar { position: relative; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--app-titlebar); font-size: 13px; font-weight: 600; color: var(--app-label-2); }
+.jp-window__lights { position: absolute; left: 10px; top: 8px; display: flex; gap: 8px; }
+.jp-window__lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.jp-window__lights i:nth-child(2) { background: #febc2e; }
+.jp-window__lights i:nth-child(3) { background: #28c840; }
+.jp-window__lights--off i { background: #6a6c6e !important; }
+.jp-btn-mac { display: inline-grid; place-items: center; height: 22px; padding: 0 10px; border-radius: 5px; font-size: 13px; color: #fff; background: var(--app-button-2); }
+.jp-btn-mac--default { background: var(--app-control-accent); }
+
+/* ---------- app: consent sheet ---------- */
+.jp-sheet { width: var(--size-sheet); background: var(--app-sheet-material); }
+.jp-sheet__body { padding: var(--space-app-sheet); }
+.jp-sheet__head { display: flex; gap: 10px; }
+.jp-sheet__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--app-asking); margin-top: 5px; flex: none; }
+.jp-sheet__title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.35; }
+.jp-sheet__sub { font-size: 11px; color: var(--app-label-2); margin-top: 2px; }
+.jp-sheet__grid { display: grid; grid-template-columns: 90px 1fr; column-gap: 12px; row-gap: 7px; margin: 16px 0 14px; align-items: baseline; }
+.jp-sheet__k { text-align: right; color: var(--app-label-2); }
+.jp-sheet__v { color: var(--app-label); }
+.jp-sheet__v--cmd { font-family: var(--font-mono); font-size: 12px; line-height: 1.45; }
+.jp-sheet__notes { border-top: 1px solid var(--app-separator); padding-top: 10px; font-size: 11px; line-height: 1.6; color: var(--app-label-2); }
+.jp-sheet__buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* ---------- app: setup window ---------- */
+.jp-setup { width: 620px; background: var(--app-window); }
+.jp-setup__body { position: relative; height: 540px; padding: 26px 36px 0; box-sizing: border-box; }
+.jp-setup__hello { display: flex; align-items: center; gap: 16px; }
+.jp-setup__hello b { font-size: 13px; font-weight: 600; color: var(--app-label-2); }
+.jp-setup__title { font-size: 24px; font-weight: 700; color: #fff; margin: 20px 0 10px; letter-spacing: -0.01em; }
+.jp-setup__lede { font-size: 13px; line-height: 1.45; color: var(--app-label-2); margin: 0; }
+.jp-setup__first { font-size: 13px; font-weight: 600; color: var(--app-label); margin: 18px 0 12px; }
+.jp-setup__cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.jp-setup__card { background: var(--app-card); border-radius: 10px; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08); padding: 16px 16px 12px; height: 222px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; }
+.jp-setup__card h4 { margin: 0 0 2px; font-size: 15px; font-weight: 700; color: #fff; }
+.jp-setup__card p { margin: 0; font-size: 12px; line-height: 1.4; color: var(--app-label-2); }
+.jp-setup__card .jp-btn-mac { margin-top: auto; align-self: flex-start; }
+.jp-setup__link { text-align: center; color: var(--app-action); font-size: 12px; margin-top: 12px; }
+.jp-setup__dots { position: absolute; left: 36px; bottom: 26px; display: flex; gap: 6px; }
+.jp-setup__dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.25); }
+.jp-setup__dots i.on { background: rgba(255,255,255,.85); }
+
+/* ---------- app: setup window, later pages (JitPass Onboarding canvas) ---------- */
+.jp-setup__page { display: flex; flex-direction: column; height: 540px; }
+.jp-setup__content { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 26px 36px 0; min-height: 0; line-height: 1.45; }
+.jp-setup__h { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.2px; color: #fff; }
+.jp-setup__muted { margin: 0; font-size: 12px; color: var(--app-label-2); }
+.jp-setup__foot { display: flex; align-items: center; justify-content: space-between; height: 58px; padding: 0 36px; flex: none; }
+.jp-setup__foot .jp-setup__dots { position: static; }
+.jp-setup__foot-actions { display: flex; align-items: center; gap: 10px; }
+.jp-btn-mac--lg { height: 30px; padding: 0 16px; border-radius: 7px; font-weight: 500; }
+.jp-btn-mac--lg.jp-btn-mac--default { padding: 0 18px; font-weight: 600; min-width: 84px; }
+.jp-btn-mac--quiet { background: rgba(255,255,255,0.16); }
+.jp-setup__box { display: flex; flex-direction: column; border-radius: 10px; background: var(--app-card); box-shadow: 0 0 0 .5px rgba(255,255,255,0.14); }
+.jp-setup__rule { height: 1px; background: var(--app-separator); }
+.jp-setup__a { color: var(--app-action); font-size: 12px; text-decoration: none; }
+
+/* big number + bar */
+.jp-count { display: flex; align-items: baseline; gap: 12px; }
+.jp-count__n { font-size: 44px; font-weight: 700; letter-spacing: -1px; line-height: 1; color: #fff; }
+.jp-count__n--ok { color: var(--app-unlocked); }
+.jp-count__label { font-size: 17px; font-weight: 600; color: #fff; }
+.jp-count__side { margin-left: auto; color: var(--app-label-2); }
+.jp-bar { height: 6px; border-radius: 3px; background: var(--app-track); overflow: hidden; }
+.jp-bar > i { display: block; height: 6px; background: var(--app-unlocked); }
+
+/* dotted summary and file list */
+.jp-sum { display: flex; flex-direction: column; gap: 6px; }
+.jp-sum__line, .jp-file { display: flex; gap: 10px; align-items: baseline; }
+.jp-sum__line .jp-panel__dot, .jp-file .jp-panel__dot { width: 7px; height: 7px; transform: translateY(-1px); }
+.jp-sum__line em { font-style: normal; color: var(--app-label-2); }
+.jp-files { display: flex; flex-direction: column; gap: 8px; }
+.jp-file__path { flex: 1; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-file__kind { font-size: 12px; color: var(--app-label-2); }
+.jp-file__val { width: 84px; text-align: right; font-family: var(--font-mono); font-size: 12px; color: var(--app-label-2); }
+.jp-notice { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; background: var(--app-card); font-size: 12px; color: var(--app-label-2); }
+.jp-notice span { flex: 1; }
+
+/* live checklist */
+.jp-steps { gap: 14px; padding: 18px; }
+.jp-step { display: flex; gap: 12px; align-items: flex-start; }
+.jp-step svg { flex: none; margin-top: 1px; }
+.jp-step b { display: block; font-weight: 600; color: #fff; }
+.jp-step span { display: block; font-size: 12px; color: var(--app-label-2); }
+.jp-step--todo b { color: var(--app-label-2); }
+
+/* settings rows with switches */
+.jp-opts { padding: 4px 16px; }
+.jp-opt { display: flex; align-items: center; gap: 14px; padding: 9px 0; }
+.jp-opt > div { flex: 1; }
+.jp-opt > div > b { display: block; font-weight: 600; color: #fff; }
+.jp-opt > div > span { display: block; font-size: 12px; color: var(--app-label-2); }
+.jp-switch { position: relative; width: 36px; height: 22px; border-radius: 11px; background: #484a4e; flex: none; border: 0; padding: 0; }
+.jp-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.jp-switch[aria-checked="true"] { background: var(--app-control-accent); }
+.jp-switch[aria-checked="true"]::after { left: 16px; }
+
+/* ---------- app: window regions (see windows.md) ----------
+   A window is a stack of regions at one inset, holding cards, holding
+   rows. Nothing else nests. Every region is inset --space-app-6 from
+   both sides and divided from the next by one --app-separator rule. */
+.jp-window { background: var(--app-window); border: 1px solid var(--app-window-line); }
+.jp-window--s { width: var(--size-win-s); }
+.jp-window--m { width: var(--size-win-m); }
+.jp-window--l { width: var(--size-win-l); }
+
+.jp-window__banner {
+  display: flex; align-items: center; gap: var(--space-app-3);
+  padding: var(--space-app-4) var(--space-app-6);
+  background: var(--accent-dim); border-bottom: 1px solid var(--app-separator); font-size: 12px;
+}
+.jp-window__banner .jp-dot { margin: 0; }
+.jp-window__banner .jp-abtn { margin-left: auto; }
+
+.jp-window__head {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-5) var(--space-app-6);
+  border-bottom: 1px solid var(--app-separator);
+}
+.jp-window__h { font-size: 15px; font-weight: 600; color: var(--app-label); }
+.jp-window__sub { font-size: 12px; color: var(--app-label-2); margin-top: var(--space-app-1); }
+.jp-window__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+
+.jp-window__toolbar {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-5) var(--space-app-6);
+  border-bottom: 1px solid var(--app-separator);
+}
+.jp-window__body {
+  padding: var(--space-app-6);
+  display: flex; flex-direction: column; gap: var(--space-app-5);
+}
+.jp-window__foot {
+  display: flex; align-items: center; gap: var(--space-app-4);
+  padding: var(--space-app-4) var(--space-app-6);
+  background: var(--app-titlebar); border-top: 1px solid var(--app-separator);
+  font-size: 12px; color: var(--app-label-2);
+}
+.jp-window__count { flex: 1; font-variant-numeric: tabular-nums; }
+.jp-window__count b { color: var(--app-label); font-weight: 600; }
+
+/* ---------- app: card ---------- */
+.jp-card {
+  background: var(--app-card); border-radius: var(--radius-panel);
+  padding: var(--space-app-5); display: flex; flex-direction: column; gap: var(--space-app-4);
+}
+.jp-card__eyebrow {
+  display: flex; align-items: center; gap: var(--space-app-3);
+  font-size: 11px; font-weight: 500; color: var(--app-label-2);
+}
+.jp-card__top { display: flex; align-items: flex-start; gap: var(--space-app-5); }
+.jp-card__title { font-size: 13px; font-weight: 600; color: var(--app-label); }
+.jp-card__note { font-size: 12px; color: var(--app-label-2); max-width: 62ch; margin-top: var(--space-app-1); line-height: 1.4; }
+.jp-card__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+.jp-card__rows { display: flex; flex-direction: column; border-top: 1px solid var(--app-separator); }
+
+/* ---------- app: row ---------- */
+.jp-row {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-4) 0; border-bottom: 1px solid var(--app-row-line);
+  transition: background 140ms ease;
+}
+.jp-row:last-child { border-bottom: 0; }
+.jp-row--top { align-items: flex-start; }
+.jp-row--hover { background: var(--app-hover); }
+.jp-row--on { background: var(--accent-dim); }
+.jp-row__icon { flex: none; opacity: .5; stroke: currentColor; fill: none; stroke-width: 1.2; }
+.jp-row__text { min-width: 0; display: flex; flex-direction: column; gap: var(--space-app-1); }
+.jp-row__name { font-size: 13px; font-weight: 600; color: var(--app-label); }
+.jp-row__name span { font-weight: 400; color: var(--app-label-2); font-family: var(--font-mono); font-size: 11px; }
+.jp-row__fact { font-size: 11px; color: var(--app-label-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-row__fact--wrap { white-space: normal; }
+.jp-row__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+
+/* ---------- app: buttons inside a window ---------- */
+.jp-abtn {
+  font: inherit; font-size: 12px; line-height: 1;
+  height: var(--size-btn); padding: 0 var(--space-app-5);
+  border: 0; border-radius: var(--radius-control); white-space: nowrap;
+  background: var(--app-button-2); color: #fff;
+  display: inline-flex; align-items: center; gap: var(--space-app-3);
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.jp-abtn:active { transform: translateY(1px); }
+.jp-abtn:focus-visible { outline: 2px solid var(--app-control-accent); outline-offset: 1px; }
+.jp-abtn--default { background: var(--app-control-accent); font-weight: 600; }
+.jp-abtn--quiet { background: var(--app-button-quiet); color: var(--app-label); }
+.jp-abtn--destructive { background: var(--app-locked); font-weight: 600; }
+.jp-abtn--plain { background: none; color: var(--app-action); padding: 0 var(--space-app-2); }
+.jp-abtn--more { padding: 0 var(--space-app-4); letter-spacing: 1px; }
+.jp-abtn--lg { height: var(--size-btn-lg); padding: 0 16px; border-radius: 7px; font-size: 13px; }
+.jp-abtn[disabled] { opacity: .45; }
+
+/* ---------- app: segmented filter ---------- */
+.jp-seg {
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--app-segment-track); border-radius: var(--radius-callout); align-self: flex-start;
+}
+.jp-seg__pill {
+  font-size: 12px; padding: var(--space-app-2) var(--space-app-5);
+  border-radius: var(--radius-segment); color: var(--app-label-2); white-space: nowrap;
+  border: 0; background: none; font-family: inherit;
+}
+.jp-seg__pill b { font-weight: 400; color: var(--app-label-3); margin-left: 5px; font-variant-numeric: tabular-nums; }
+.jp-seg__pill--on { background: var(--app-segment-on); color: var(--app-label); }
+.jp-seg__pill--on b { color: var(--app-label-2); }
+
+/* ---------- app: field, checkbox ---------- */
+.jp-search {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-app-3);
+  background: var(--app-field); border: 1px solid var(--app-btn-line);
+  border-radius: var(--radius-control); padding: var(--space-app-2) var(--space-app-4);
+  color: var(--app-label-2); font-size: 12px;
+}
+.jp-search svg { flex: none; }
+.jp-check {
+  width: 15px; height: 15px; flex: none; border-radius: var(--radius-box);
+  border: 1px solid var(--app-btn-line); background: var(--app-card);
+  display: grid; place-items: center;
+}
+.jp-check svg { opacity: 0; }
+.jp-check--on { background: var(--app-control-accent); border-color: var(--app-control-accent); }
+.jp-check--on svg { opacity: 1; }
+.jp-keys { display: flex; flex-wrap: wrap; gap: 5px var(--space-app-4); }
+.jp-keys span {
+  font-family: var(--font-mono); font-size: 11px; color: var(--app-label-2);
+  background: var(--app-field); border: 1px solid var(--app-row-line);
+  border-radius: var(--radius-box); padding: 1px 6px;
+}
+
+/* ---------- app: outcome in the row, never in a terminal ---------- */
+.jp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: block; background: var(--app-label-2); }
+.jp-dot--ok { background: var(--app-unlocked); }
+.jp-dot--warn { background: var(--app-asking); }
+.jp-dot--risk { background: var(--app-locked); }
+.jp-glyph {
+  flex: none; width: 16px; height: 16px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700;
+}
+.jp-glyph--ok { background: var(--app-unlocked); color: var(--accent-ink); }
+.jp-glyph--bad { background: var(--app-locked); color: #fff; }
+.jp-spin {
+  flex: none; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--app-asking-dim); border-top-color: var(--app-asking);
+  animation: jp-spin .9s linear infinite;
+}
+@keyframes jp-spin { to { transform: rotate(360deg); } }
+.jp-verbatim {
+  margin-top: var(--space-app-3); background: var(--app-verbatim);
+  border-radius: var(--radius-control); padding: var(--space-app-4) var(--space-app-5);
+  font-family: var(--font-mono); font-size: 11px; color: var(--app-label-2); line-height: 1.5;
+}
+
+/* ---------- app: empty state ---------- */
+.jp-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: var(--space-app-5); padding: 44px var(--space-app-6);
+}
+.jp-empty .jp-mark { width: 56px; height: 56px; }
+.jp-empty__title { font-size: 14px; font-weight: 600; color: var(--app-label); }
+.jp-empty p { margin: 0; font-size: 12px; color: var(--app-label-2); max-width: 400px; line-height: 1.45; }
+
+/* ---------- app: alert ---------- */
+.jp-alert {
+  width: var(--size-alert); background: var(--app-sheet-material);
+  border: 1px solid var(--app-window-line); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-term); padding: 20px var(--space-app-6) var(--space-app-6);
+  display: flex; gap: var(--space-app-5); color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+.jp-alert__plate { width: 46px; height: 46px; border-radius: var(--radius-card); display: grid; place-items: center; flex: none; background: var(--app-locked-dim); }
+.jp-alert__plate--asking { background: var(--app-asking-dim); }
+.jp-alert__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-app-4); }
+.jp-alert__title { font-size: 13px; font-weight: 600; }
+.jp-alert__msg { font-size: 12px; color: var(--app-label-2); line-height: 1.5; }
+.jp-alert__msg strong { color: var(--app-label); font-weight: 600; }
+.jp-alert__buttons { display: flex; gap: var(--space-app-4); justify-content: flex-end; margin-top: var(--space-app-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-spin { animation: none; }
+  .jp-abtn, .jp-row { transition: none; }
+}
+
+/* page chrome, JitPass web tokens */
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);
+     -webkit-font-smoothing:antialiased;padding:56px 24px 96px;max-width:1120px}
+h1{font-size:34.4px;font-weight:680;letter-spacing:-.025em;margin:0 0 14px}
+h1 .on{color:var(--accent)}
+.lede{color:var(--muted);font-size:18.56px;line-height:1.62;margin:0 0 56px;max-width:34em}
+code{font-family:var(--font-mono);font-size:.9em;background:var(--panel-2);border-radius:var(--radius-code);padding:1px 5px;color:var(--text)}
+.eyebrow{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.02em;color:var(--accent);
+         display:flex;align-items:center;gap:10px;margin:0 0 18px}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--accent);display:block}
+.board{margin:0 0 76px}
+.board h2{font-size:17px;font-weight:680;letter-spacing:-.02em;margin:0 0 8px}
+.board > p{font-size:17px;line-height:1.6;color:var(--muted);margin:0 0 24px;max-width:680px}
+.row{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.unit{display:flex;flex-direction:column}
+.stage{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-card);
+       padding:28px;display:inline-block}
+.cap{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:12px}
+.jp-window{border-radius:10px;overflow:hidden;box-shadow:0 24px 60px -24px rgba(0,0,0,.7)}
+.jp-window__bar{color:var(--app-label)}
+.changes{list-style:none;padding:0;margin:0;max-width:680px}
+.changes li{font-size:17px;line-height:1.6;color:var(--muted);padding:12px 0;border-top:1px solid var(--line)}
+.changes b{color:var(--text);font-weight:600}
+.changes .tag{font-family:var(--font-mono);font-size:12.5px;color:var(--accent);display:block;margin-bottom:2px}
+
+/* ---------- app: popup button (windows.md › Controls, added 2026-09-20) ----------
+   app-field fill, app-btn-line border, radius-control, size-btn tall,
+   app-button 12/400. Its label is the value, never the setting's name. */
+.jp-popup {
+  height: var(--size-btn); padding: 0 var(--space-app-4);
+  display: inline-flex; align-items: center; gap: var(--space-app-4);
+  background: var(--app-field); border: 1px solid var(--app-btn-line);
+  border-radius: var(--radius-control); color: var(--app-label);
+  font: inherit; font-size: 12px; line-height: 1; white-space: nowrap;
+}
+.jp-popup svg { flex: none; opacity: .55; }
+.jp-popup[disabled] { opacity: .45; }
+.jp-set { gap: var(--space-app-4); }
+.jp-set .jp-row { padding: var(--space-app-4) 0; align-items: center; }
+.jp-set .jp-row__fact { white-space: normal; max-width: 44ch; line-height: 1.4; }
+.jp-set .jp-row__acts { align-self: center; }
+.jp-scroll { position: relative; overflow: hidden; }
+.jp-scroll::after {
+  content: ""; position: absolute; right: 4px; top: 96px; width: 4px; height: 92px;
+  border-radius: 2px; background: rgba(255,255,255,0.22);
+}
+.fold { position: relative; }
+.fold::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 56px;
+  background: linear-gradient(to bottom, rgba(50,52,56,0), var(--app-window));
+  pointer-events: none;
+}
+.two { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+/* a pill carries the worst state of the cards behind it (NEW — see "to confirm") */
+.jp-seg__pill .jp-dot { display: inline-block; margin-right: 6px; transform: translateY(-1px); }
+</style></head><body>
+<h1>Settings, rebuilt on the <span class="on">window system</span>.</h1>
+<p class="lede">Today Settings is a 480&times;420 macOS <code>TabView</code> of grouped <code>Form</code> sections, and every explanation in it is a hover tooltip. Below it is a <code>size-win-s</code> window: one inset, three segments, cards holding rows, and every sentence the tooltips were hiding on screen where it is read.</p>
+
+<div class="board">
+  <div class="eyebrow">what opens</div>
+  <h2>520 wide, 400 tall, three segments in the toolbar</h2>
+  <p>The system's table puts Settings at <code>size-win-s</code>: one purpose, one column. The header says the one thing that changes how you read the rest &mdash; there is no Save button, and two of these settings are jit's, not the app's. Under it the toolbar splits seven cards three ways, so the window opens on what protects you rather than on a scroll.</p>
+  <div class="stage">
+    <div class="jp-scroll" style="width:var(--size-win-s)">
+      <div class="jp-window jp-window--s fold" style="height:var(--size-win-h-s)">
+        <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Settings</div>
+        <div class="jp-window__head">
+          <span class="jp-mark"></span>
+          <div>
+            <div class="jp-window__h">Settings</div>
+            <div class="jp-window__sub">Every change applies as you make it. The two jit owns restart the service.</div>
+          </div>
+        </div>
+        <div class="jp-window__toolbar">
+          <div class="jp-seg">
+            <button class="jp-seg__pill jp-seg__pill--on">Protection</button>
+            <button class="jp-seg__pill">Scan</button>
+            <button class="jp-seg__pill">App</button>
+          </div>
+        </div>
+        <div class="jp-window__body">
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Protection</div>
+            <div class="jp-card__top">
+              <div>
+                <div class="jp-card__title">What jit hands out, and when it asks</div>
+                <p class="jp-card__note">Changing the timer or the consent switch restarts the service. Open shells keep what they already loaded.</p>
+              </div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Lock the session after</div>
+                  <div class="jp-row__fact">Idle time before the vault locks. The next use asks Touch&nbsp;ID once.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-popup">15 minutes <svg width="9" height="12" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Ask before each tool's first credential use</div>
+                  <div class="jp-row__fact">aws, git, docker &mdash; you see what asked before it gets a value.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Keep typed credentials out of zsh history</div>
+                  <div class="jp-row__fact">A command carrying one still runs; the history file never gets it.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+            </div>
+          </div>
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Notifications</div>
+            <div class="jp-card__top">
+              <div><div class="jp-card__title">What JitPass tells you about</div></div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">A decoy was served</div>
+                  <div class="jp-row__fact">Something read a protected file with no run or consent behind it, and got fake values.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">A session expires, or a scan finds a new copy</div>
+                  <div class="jp-row__fact">The next aws call fails until you renew; or a secret turned up in an agent's cache.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cap">size-win-s 520 &times; 400 &middot; the Vault card below the fold, Scan and App one click away</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">the three segments</div>
+  <h2>Seven cards, split where the question changes</h2>
+  <p>The three macOS tabs become three segments of one body. <b>Protection</b> is what jit hands out and what it tells you, down to emptying the vault; <b>Scan</b> is the one group that reads your disk; <b>App</b> is how JitPass behaves on this Mac and how it leaves. Each card keeps its identity in an eyebrow: a dot and a word for its state, a title saying what the group decides, a note only where the cost is not obvious. The sentences under each row are the tooltips, on screen.</p>
+  <div class="row">
+    <div class="unit">
+      <div class="stage">
+        <div class="jp-window jp-window--s">
+        <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Settings</div>
+        <div class="jp-window__head">
+          <span class="jp-mark"></span>
+          <div>
+            <div class="jp-window__h">Settings</div>
+            <div class="jp-window__sub">Every change applies as you make it. The two jit owns restart the service.</div>
+          </div>
+        </div>
+        <div class="jp-window__toolbar">
+          <div class="jp-seg">
+            <button class="jp-seg__pill jp-seg__pill--on">Protection</button>
+            <button class="jp-seg__pill">Scan</button>
+            <button class="jp-seg__pill">App</button>
+          </div>
+        </div>
+        <div class="jp-window__body">
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Protection</div>
+            <div class="jp-card__top">
+              <div>
+                <div class="jp-card__title">What jit hands out, and when it asks</div>
+                <p class="jp-card__note">Changing the timer or the consent switch restarts the service. Open shells keep what they already loaded.</p>
+              </div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Lock the session after</div>
+                  <div class="jp-row__fact">Idle time before the vault locks. The next use asks Touch&nbsp;ID once.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-popup">15 minutes <svg width="9" height="12" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Ask before each tool's first credential use</div>
+                  <div class="jp-row__fact">aws, git, docker &mdash; you see what asked before it gets a value.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Keep typed credentials out of zsh history</div>
+                  <div class="jp-row__fact">A command carrying one still runs; the history file never gets it.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+            </div>
+          </div>
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Notifications</div>
+            <div class="jp-card__top">
+              <div><div class="jp-card__title">What JitPass tells you about</div></div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">A decoy was served</div>
+                  <div class="jp-row__fact">Something read a protected file with no run or consent behind it, and got fake values.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">A session expires, or a scan finds a new copy</div>
+                  <div class="jp-row__fact">The next aws call fails until you renew; or a secret turned up in an agent's cache.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+            </div>
+          </div>
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot"></span>Vault</div>
+            <div class="jp-card__top">
+              <div>
+                <div class="jp-card__title">Emptying the vault</div>
+                <p class="jp-card__note">Both hand the last word to jit, which asks again in your terminal.</p>
+              </div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Delete every secret, keep the key</div>
+                  <div class="jp-row__fact">Every secret and every backup, gone for good. The vault stays usable.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Clean in Terminal&hellip;</button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Destroy the vault and its key</div>
+                  <div class="jp-row__fact">The vault directory and its keychain item. Nothing comes back.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-abtn jp-abtn--destructive">Delete in Terminal&hellip;</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="cap">Protection &middot; 3 cards</div>
+    </div>
+    <div class="unit">
+      <div class="stage">
+        <div class="jp-window jp-window--s">
+        <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Settings</div>
+        <div class="jp-window__head">
+          <span class="jp-mark"></span>
+          <div>
+            <div class="jp-window__h">Settings</div>
+            <div class="jp-window__sub">Every change applies as you make it. The two jit owns restart the service.</div>
+          </div>
+        </div>
+        <div class="jp-window__toolbar">
+          <div class="jp-seg">
+            <button class="jp-seg__pill">Protection</button>
+            <button class="jp-seg__pill jp-seg__pill--on">Scan</button>
+            <button class="jp-seg__pill">App</button>
+          </div>
+        </div>
+        <div class="jp-window__body">
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Scan</div>
+            <div class="jp-card__top">
+              <div>
+                <div class="jp-card__title">Looking for secrets this Mac still keeps</div>
+                <p class="jp-card__note">jit reads your home folder, shell configs, credential files and agent caches. Nothing leaves this Mac.</p>
+              </div>
+              <div class="jp-card__acts"><button class="jp-abtn jp-abtn--quiet">Exclude a Folder&hellip;</button></div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Scan the whole Mac</div>
+                  <div class="jp-row__fact">Runs quietly, and again after a Protect.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-popup">Every day <svg width="9" height="12" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">archive <span>&middot; ~/Developer</span></div>
+                  <div class="jp-row__fact">Skipped by every scan</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Remove</button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">vendor <span>&middot; ~/Code/monorepo</span></div>
+                  <div class="jp-row__fact">Skipped by every scan</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Remove</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="cap">Scan &middot; 1 card</div>
+    </div>
+    <div class="unit">
+      <div class="stage">
+        <div class="jp-window jp-window--s">
+        <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Settings</div>
+        <div class="jp-window__head">
+          <span class="jp-mark"></span>
+          <div>
+            <div class="jp-window__h">Settings</div>
+            <div class="jp-window__sub">Every change applies as you make it. The two jit owns restart the service.</div>
+          </div>
+        </div>
+        <div class="jp-window__toolbar">
+          <div class="jp-seg">
+            <button class="jp-seg__pill">Protection</button>
+            <button class="jp-seg__pill">Scan</button>
+            <button class="jp-seg__pill jp-seg__pill--on">App</button>
+          </div>
+        </div>
+        <div class="jp-window__body">
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>This Mac</div>
+            <div class="jp-card__top">
+              <div><div class="jp-card__title">How JitPass behaves here</div></div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Launch at login</div>
+                  <div class="jp-row__fact">The menu bar item comes back after a restart. jit's service runs either way.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Open commands in</div>
+                  <div class="jp-row__fact">Where a command JitPass hands over is run.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-popup">the terminal you are using <svg width="9" height="12" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Open files with</div>
+                  <div class="jp-row__fact">Opening a file from Doctor or Scan uses this app.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-popup">the system default <svg width="9" height="12" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              </div>
+            </div>
+          </div>
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Updates</div>
+            <div class="jp-card__top">
+              <div><div class="jp-card__title">This build, and the jit beside it</div></div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">JitPass 2.2.3</div>
+                  <div class="jp-row__fact">Last checked 20 minutes ago. This is the latest release.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Check Now</button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Check for updates daily</div>
+                  <div class="jp-row__fact">One request a day to github.com asking which release is latest. Nothing about this Mac is sent.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">jit is on your PATH</div>
+                  <div class="jp-row__fact jp-mono">/opt/homebrew/bin/jit</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot"></span>Remove</div>
+            <div class="jp-card__top">
+              <div>
+                <div class="jp-card__title">Put this Mac back the way it was</div>
+                <p class="jp-card__note">Every file returns to what it held before JitPass, and the app leaves. You see the full list first.</p>
+              </div>
+              <div class="jp-card__acts"><button class="jp-abtn">Remove JitPass&hellip;</button></div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="cap">App &middot; 3 cards</div>
+    </div>
+  </div>
+  <div class="cap">Drawn at full height. Each opens at 400 and its body scrolls; nothing else does</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">when something needs you</div>
+  <h2>The card says why, and a pill you are not on carries the dot</h2>
+  <p>The conditions the current window keeps in conditional grey text become a row inside the card they belong to: the dot, the word, the one fact, and the single button that changes it. A banner reports what just happened, so no modal opens over the window to say it worked.</p>
+  <p>This is the one thing the filter costs, and the one thing it must pay back. A card that needs you can now sit in a segment you are not looking at, so <b>a pill carries an 8px dot in the worst state of the cards behind it</b> &mdash; the same dot, the same colours, beside a word, as the system requires. Nothing else on the pill changes.</p>
+  <div class="row">
+    <div class="unit">
+      <div class="stage">
+        <div class="jp-window jp-window--s">
+        <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Settings</div>
+        <div class="jp-window__banner"><span class="jp-dot jp-dot--ok"></span>Lock timer set to 15 minutes. jit restarted.</div>
+        <div class="jp-window__head">
+          <span class="jp-mark"></span>
+          <div>
+            <div class="jp-window__h">Settings</div>
+            <div class="jp-window__sub">Every change applies as you make it. The two jit owns restart the service.</div>
+          </div>
+        </div>
+        <div class="jp-window__toolbar">
+          <div class="jp-seg">
+            <button class="jp-seg__pill jp-seg__pill--on">Protection</button>
+            <button class="jp-seg__pill"><span class="jp-dot jp-dot--warn"></span>Scan</button>
+            <button class="jp-seg__pill"><span class="jp-dot jp-dot--warn"></span>App</button>
+          </div>
+        </div>
+        <div class="jp-window__body">
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--warn"></span>Notifications</div>
+            <div class="jp-card__top">
+              <div><div class="jp-card__title">What JitPass tells you about</div></div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <span class="jp-dot jp-dot--warn"></span>
+                <div class="jp-row__text">
+                  <div class="jp-row__name">macOS has notifications off for JitPass</div>
+                  <div class="jp-row__fact">Both switches below stay set. Nothing is delivered until macOS allows it.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Open System Settings&hellip;</button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">A decoy was served</div>
+                  <div class="jp-row__fact">Something read a protected file with no run or consent behind it, and got fake values.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">A session expires, or a scan finds a new copy</div>
+                  <div class="jp-row__fact">The next aws call fails until you renew; or a secret turned up in an agent's cache.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="true"></button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="cap">The segment you are on says it in the card</div>
+    </div>
+    <div class="unit">
+      <div class="stage">
+        <div class="jp-window jp-window--s">
+        <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Settings</div>
+        <div class="jp-window__head">
+          <span class="jp-mark"></span>
+          <div>
+            <div class="jp-window__h">Settings</div>
+            <div class="jp-window__sub">Every change applies as you make it. The two jit owns restart the service.</div>
+          </div>
+        </div>
+        <div class="jp-window__toolbar">
+          <div class="jp-seg">
+            <button class="jp-seg__pill"><span class="jp-dot jp-dot--warn"></span>Protection</button>
+            <button class="jp-seg__pill jp-seg__pill--on">Scan</button>
+            <button class="jp-seg__pill"><span class="jp-dot jp-dot--warn"></span>App</button>
+          </div>
+        </div>
+        <div class="jp-window__body">
+          <div class="jp-card jp-set">
+            <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--warn"></span>Scan</div>
+            <div class="jp-card__top">
+              <div>
+                <div class="jp-card__title">Looking for secrets this Mac still keeps</div>
+                <p class="jp-card__note">jit reads your home folder, shell configs, credential files and agent caches. Nothing leaves this Mac.</p>
+              </div>
+              <div class="jp-card__acts"><button class="jp-abtn jp-abtn--quiet">Exclude a Folder&hellip;</button></div>
+            </div>
+            <div class="jp-card__rows">
+              <div class="jp-row">
+                <span class="jp-dot jp-dot--warn"></span>
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Waiting for Full Disk Access</div>
+                  <div class="jp-row__fact">Every scan skips Desktop, Documents and Downloads until macOS allows it.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Open System Settings&hellip;</button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Scan the whole Mac</div>
+                  <div class="jp-row__fact">Runs quietly, and again after a Protect.</div>
+                </div>
+                <div class="jp-row__acts"><button class="jp-popup">Every day <svg width="9" height="12" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+              </div>
+              <div class="jp-row">
+                <div class="jp-row__text">
+                  <div class="jp-row__name">Every folder in your home is scanned</div>
+                  <div class="jp-row__fact">Nothing is excluded yet.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="cap">The ones you are not on say it on the pill</div>
+    </div>
+  </div>
+  <div class="cap">Three cards are amber here &mdash; Notifications, Scan and Updates &mdash; and no segment hides that</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">while it applies, and when it refuses</div>
+  <h2>The row spins. The failure keeps jit's own words.</h2>
+  <p>Turning consent off waits on jit's Touch&nbsp;ID prompt and a service restart, so the row says so where the switch is. If jit refuses, the sentence translates it and jit's line sits under it in the window's own type &mdash; never a terminal pane.</p>
+  <div class="two">
+    <div class="unit">
+      <div class="stage">
+        <div class="jp-card jp-set" style="width:484px">
+          <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Protection</div>
+          <div class="jp-card__top">
+            <div>
+              <div class="jp-card__title">What jit hands out, and when it asks</div>
+              <p class="jp-card__note">Changing the timer or the consent switch restarts the service. Open shells keep what they already loaded.</p>
+            </div>
+          </div>
+          <div class="jp-card__rows">
+            <div class="jp-row">
+              <span class="jp-spin"></span>
+              <div class="jp-row__text">
+                <div class="jp-row__name">Ask before each tool's first credential use</div>
+                <div class="jp-row__fact">Waiting for Touch&nbsp;ID, then jit restarts&hellip;</div>
+              </div>
+              <div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="false" disabled></button></div>
+            </div>
+            <div class="jp-row jp-row--top">
+              <span class="jp-glyph jp-glyph--bad">&#10005;</span>
+              <div class="jp-row__text">
+                <div class="jp-row__name">The lock timer did not change</div>
+                <div class="jp-row__fact jp-row__fact--wrap">jit is not running, so it kept the timer it had. Start the service and set it again.</div>
+                <div class="jp-verbatim">jit: service not running (no socket at ~/.jit/agent.sock)</div>
+              </div>
+              <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Start Service</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">Both row states, drawn in one card</div>
+    </div>
+    <div class="unit">
+      <div class="stage">
+        <div class="jp-alert">
+          <div class="jp-alert__plate">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#e5484d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 2.6 20.4 19H1.6z"/><path d="M11 8.6v4.6"/><circle cx="11" cy="16.1" r=".95" fill="#e5484d" stroke="none"/></svg>
+          </div>
+          <div class="jp-alert__body">
+            <div class="jp-alert__title">Open your terminal and run <span class="jp-mono">jit vault delete</span>?</div>
+            <div class="jp-alert__msg">It destroys the vault directory and its key in the keychain. <strong>Every secret goes with it, and nothing comes back.</strong> jit asks once more in the terminal before it does.</div>
+            <div class="jp-alert__buttons">
+              <button class="jp-abtn">Cancel</button>
+              <button class="jp-abtn jp-abtn--default">Open in Terminal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cap">size-alert 440 &middot; the command stays: the app is not running it</div>
+    </div>
+  </div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">what changes</div>
+  <ul class="changes">
+    <li><span class="tag">window</span><b>520 wide, opening at the height of its content.</b> Today it is a fixed 480&times;420, a width that is none of the three in the system's table. Settings is the table's own example of <code>size-win-s</code>: one purpose, nothing to filter.</li>
+    <li><span class="tag">tabs</span><b>Three macOS tabs become three segments of one body.</b> A tab strip is not one of the six regions; the segmented filter is, and it sits in the toolbar the system already has. Seven cards are two and a half screens at 520&times;400, and the split puts the group you came for one click from the top rather than one scroll down. Each group still keeps its identity in a card's eyebrow.</li>
+    <li><span class="tag">filter</span><b>A pill carries the dot of the cards behind it.</b> The one cost of filtering is that a card needing you can sit in a segment you are not looking at. An 8px dot in the worst state of that segment, beside the pill's word, is what buys it back &mdash; and it is the one piece drawn here that the system does not have yet.</li>
+    <li><span class="tag">tooltips</span><b>Eleven <code>.help()</code> tooltips become sentences on screen.</b> Every explanation of what a switch costs currently waits for a hover nobody performs. The row's second line is where the system puts exactly that fact.</li>
+    <li><span class="tag">header</span><b>A header the window never had.</b> The service mark, the name, and the one thing that changes how the rest is read: changes apply as you make them, and two of these settings belong to jit, so they restart the service.</li>
+    <li><span class="tag">groups</span><b>Grouped <code>Form</code> sections become cards with an eyebrow.</b> A dot and one word carry the group's state, so a group waiting on macOS says so at the top of its own card rather than in grey text further down.</li>
+    <li><span class="tag">conditions</span><b>The conditional notes become rows.</b> Notifications off, never asked, Full Disk Access missing, jit not on PATH: a dot, the word, one fact, and the single button that changes it, inside the card it belongs to.</li>
+    <li><span class="tag">outcome</span><b><code>settingsMessage</code> becomes the banner, and a failure keeps jit's words.</b> A bare line under the form becomes the banner region for what just happened; a refusal becomes a row with a sentence that translates it and jit's own line in an <code>app-verbatim</code> block under it.</li>
+    <li><span class="tag">busy</span><b>"Applying&hellip;" moves onto the row being applied.</b> One spinner under the whole form told you something was happening but not to what. The row spins, its control is disabled, and the rest of the window stays live.</li>
+    <li><span class="tag">excluded</span><b>"none" becomes "Every folder in your home is scanned".</b> A list says what is true, not that it is empty. The link-styled Remove becomes a quiet button, and Exclude a Folder&hellip; moves into the card's action group.</li>
+    <li><span class="tag">vault</span><b>The two terminal rows keep their command, and the alert names what goes.</b> This is the system's second exception: the app is about to put that line in your terminal rather than run it, so naming it describes the action.</li>
+    <li><span class="tag">remove</span><b>Remove JitPass is the last card, one note and one button.</b> Secondary, not destructive: the click opens the offboarding window, which lists everything before anything is undone.</li>
+  </ul>
+</div>
+
+<div class="board">
+  <div class="eyebrow">to confirm</div>
+  <ul class="changes">
+    <li><span class="tag">settled</span><b>The segmented filter, not the single scroll.</b> You picked it, and the boards above are drawn as it, not as an alternative at the bottom. Protection holds what jit hands out, what it tells you and emptying the vault; Scan is the one group that reads your disk; App is how JitPass behaves here and how it leaves.</li>
+    <li><span class="tag">settled</span><b>The popup button and the switch are in the system.</b> Both are now in <code>windows.md</code> &rsaquo; Controls and in <code>bundle.css</code>, with the popup drawn from the search field's tokens and its rule stated: its label is the current value, never the setting's name. The switch's rule: it applies as it is flipped and never asks, and what it costs is the row's second line, not a tooltip.</li>
+    <li><span class="tag">new, needs a word</span><b>The dot on a pill.</b> Nothing else in the system puts a state on a filter, because until now no filter could hide a card that needed you. It obeys the two rules that matter &mdash; 8px, and never without a word beside it. If you want it, it goes into <code>windows.md</code> &rsaquo; Controls under the segmented filter before the Swift is written; if not, the amber card has to reach you another way, and the only honest one left is opening the window on the segment that needs you.</li>
+    <li><span class="tag">role</span><b>The eyebrow carries a group name here, not a tier.</b> In Doctor it says which tier a card is in; in Settings it says which group, with the same dot-plus-word shape and the same state colour. If the eyebrow is meant to be a tier and nothing else, the group name moves into the card title and the dot moves beside it.</li>
+    <li><span class="tag">wording</span><b>"Clean in Terminal&hellip;" or "Clean&hellip; opens your terminal".</b> The system's example uses the longer form. The current labels are shorter and name the same surface; I kept them. Yours to pick.</li>
+    <li><span class="tag">repeat</span><b>The header says "Settings" and so does the title bar.</b> The header region is optional, and dropping it would remove the repeat &mdash; but also the service mark, which is the one thing that says whether the two jit settings can apply at all. I kept the header. If you would rather not read the word twice, the headline can carry the service state instead.</li>
+  </ul>
+</div>
+
+</body></html>

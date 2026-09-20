@@ -4,247 +4,146 @@
 import JitAgentClient
 import SwiftUI
 
-/// Settings: the app's own two preferences, and the two service settings
-/// the CLI exposes, applied through the CLI so the terminal and the app can
-/// never disagree about what a setting means.
+/// Settings, built from the window system (`docs/design/mockups/
+/// Settings-redesign.html` and the design system's Windows page): banner,
+/// header, toolbar, body at one inset, holding one card per group, holding
+/// one row per setting. The three macOS tabs are three segments, and every
+/// sentence that used to wait for a hover is on screen.
 struct SettingsView: View {
     @ObservedObject var model: MenuModel
     let actions: SettingsActions
 
-    private static let ttls: [(label: String, value: String)] = [
-        ("5 minutes", "5m"), ("15 minutes", "15m"), ("30 minutes", "30m"), ("1 hour", "1h"),
-        ("2 hours", "2h"), ("4 hours", "4h"), ("8 hours", "8h")
-    ]
+    /// The segment the toolbar is on. A card that needs the reader can sit
+    /// behind another pill, which is why the pills carry dots.
+    @State var segment: SettingsSegment = .protection
 
     var body: some View {
-        TabView {
-            general.tabItem { Text("General") }
-            protection.tabItem { Text("Protection") }
-            scan.tabItem { Text("Scan") }
+        VStack(spacing: 0) {
+            if let outcome = model.settingsOutcome, outcome.ok {
+                WindowBanner(tint: Color(StatusMark.green), text: outcome.title)
+            }
+            header
+            AppSegmented(items: pills, selection: $segment).windowRegion()
+            ScrollView {
+                VStack(alignment: .leading, spacing: Win.s5) {
+                    ForEach(segment.groups) { card($0) }
+                }
+                .padding(Win.s6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
-        .padding(.top, 8)
-        .frame(width: 480, height: 420)
+        .frame(
+            minWidth: Win.widthSmall, maxWidth: .infinity,
+            minHeight: Win.minimum(Win.heightSmall), maxHeight: .infinity,
+            alignment: .top
+        )
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
     }
 
-    // MARK: - General
+    // MARK: - Regions
 
-    private var general: some View {
-        Form {
-            Picker("Open commands in", selection: terminalBinding) {
-                ForEach(Terminal.choices, id: \.self) { Text($0.isEmpty ? "the terminal you are using" : $0).tag($0) }
+    /// The name, and the one thing that changes how the rest is read:
+    /// there is no Save button, and two of these settings are jit's.
+    private var header: some View {
+        HStack(spacing: Win.s5) {
+            WindowMark(tint: Color(facts.serviceRunning ? StatusMark.green : StatusMark.amber))
+            VStack(alignment: .leading, spacing: Win.s1) {
+                Text("Settings").font(Win.head)
+                Text(subline).font(Win.sub).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            Picker("Open files with", selection: editorBinding) {
-                Text("the system default").tag("")
-                ForEach(model.editors) { Text($0.name).tag($0.bundleID) }
-            }
-            Toggle("Launch at login", isOn: launchBinding)
-            Toggle("Notify when a decoy is served", isOn: notifyBinding)
-                .help("Something read a protected file with no run or consent covering it, and got fake values. "
-                    + "The Decoys row and the audit show the same events.")
-            Toggle("Notify when a session expires or a scan finds new cached copies", isOn: notifyChangesBinding)
-                .help("A captured SSO session is about to expire or has, so the next aws call fails until you renew; "
-                    + "or a whole-Mac scan found a copy of a secret in an AI agent's cache it had not seen before.")
-            notificationNote
-            SettingsUpdatesSection(model: model, actions: actions)
-            Section("Remove JitPass") {
-                HStack(alignment: .top) {
-                    Text("Puts every file back the way it was and removes JitPass from this Mac. You see the full list first.")
-                        .font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    Spacer()
-                    Button("Remove JitPass…", action: actions.removeJitPass)
-                }
-            }
+            Spacer(minLength: Win.s5)
         }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
+        .windowRegion()
     }
 
-    // MARK: - Protection
-
-    /// The three settings that decide what jit hands out: how long a
-    /// session stays open, whether a tool is asked about first, and
-    /// whether typed credentials reach the history file.
-    private var protection: some View {
-        Form {
-            Picker("Lock the session after", selection: ttlBinding) {
-                ForEach(Self.ttls, id: \.value) { Text($0.label).tag($0.value) }
-            }
-            .disabled(model.settingsBusy)
-            .help("Idle time before the vault locks; the next use prompts Touch ID once. Changing it restarts the service.")
-            Toggle("Ask before each tool's first credential use", isOn: consentBinding)
-                .disabled(model.settingsBusy || model.consentEnabled == nil)
-                .help("A program reaching for a machine credential (aws, git, docker…) is shown to you first. "
-                    + "Turning it off asks for Touch ID now.")
-            Toggle("Keep typed credentials out of zsh history", isOn: guardBinding)
-                .disabled(model.guardBusy || model.guardInstalled == nil)
-                .help("A command carrying a recognized credential stays usable in that session but is never written "
-                    + "to the history file. Open shells keep what they loaded until they exit.")
-            if model.settingsBusy || model.guardBusy {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text("Applying…").foregroundStyle(.secondary)
-                }
-            }
-            if let message = model.settingsMessage {
-                Text(message).font(.subheadline).foregroundStyle(.secondary)
-            }
-            Section("Vault") {
-                HStack {
-                    Text("Delete every secret, keep the key")
-                    Spacer()
-                    Button("Clean in Terminal…", action: actions.vaultClean)
-                }
-                .help("jit vault clean: every secret and every backup, gone for good; the vault stays usable. jit asks once more.")
-                HStack {
-                    Text("Destroy the vault and its key")
-                    Spacer()
-                    Button("Delete in Terminal…", action: actions.vaultDelete)
-                }
-                .help("jit vault delete: the vault directory and the keychain item. jit asks once more.")
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
+    private var subline: String {
+        facts.serviceRunning
+            ? "Every change applies as you make it. The two jit owns restart the service."
+            : "jit is not running, so the two settings it owns cannot be changed here yet."
     }
 
-    // MARK: - Scan
-
-    private var scan: some View {
-        Form {
-            Picker("Scan the whole Mac", selection: scheduleBinding) {
-                ForEach(ScanSchedule.allCases, id: \.self) { Text($0.label).tag($0) }
-            }
-            scanNote
-            Section("Excluded folders") {
-                if model.scanExcludes.isEmpty {
-                    Text("none").foregroundStyle(.secondary)
-                }
-                ForEach(model.scanExcludes, id: \.self) { path in
-                    HStack {
-                        Text(Format.home(path)).lineLimit(1).truncationMode(.middle)
-                        Spacer()
-                        Button("Remove") { actions.removeExclude(path) }.buttonStyle(.link)
-                    }
-                }
-                Button("Exclude a Folder…", action: actions.addExclude)
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-    }
-
-    /// Said only when a switch is on and macOS would not show it anyway.
-    @ViewBuilder private var notificationNote: some View {
-        if model.notifyDecoys || model.notifyChanges {
-            switch model.notificationPermission {
-            case .denied:
-                SettingsNote("macOS has notifications off for JitPass.", button: "Open System Settings…",
-                             action: actions.openNotificationSettings)
-            case .notAsked:
-                SettingsNote("macOS has not been asked yet.", button: "Allow Notifications…",
-                             action: actions.allowNotifications)
-            case .allowed, .unknown:
-                EmptyView()
-            }
+    private var pills: [AppSegmentItem<SettingsSegment>] {
+        facts.segments.map {
+            AppSegmentItem(
+                value: $0,
+                title: $0.title,
+                dot: facts.needsYou(in: $0) ? Color(StatusMark.amber) : nil
+            )
         }
     }
 
-    @ViewBuilder private var scanNote: some View {
-        if model.scanSchedule == .off {
-            Text("Every scan is a click.").font(.subheadline).foregroundStyle(.secondary)
-        } else if model.fullDiskAccess {
-            Text("Runs quietly, and again after a Protect.").font(.subheadline).foregroundStyle(.secondary)
-        } else {
-            SettingsNote("Waits for Full Disk Access.", button: "Open System Settings…", action: actions.grantFullDiskAccess)
+    @ViewBuilder private func card(_ group: SettingsGroup) -> some View {
+        switch group {
+        case .protection: protectionCard
+        case .notifications: notificationsCard
+        case .vault: vaultCard
+        case .scan: scanCard
+        case .thisMac: thisMacCard
+        case .updates: updatesCard
+        case .remove: removeCard
         }
     }
 
-    private var terminalBinding: Binding<String> {
-        Binding(get: { model.terminalApp }, set: actions.setTerminal)
-    }
+    // MARK: - What the dots depend on
 
-    private var editorBinding: Binding<String> {
-        Binding(get: { model.editorApp }, set: actions.setEditor)
-    }
-
-    private var scheduleBinding: Binding<ScanSchedule> {
-        Binding(get: { model.scanSchedule }, set: actions.setScanSchedule)
-    }
-
-    private var launchBinding: Binding<Bool> {
-        Binding(get: { model.launchAtLogin }, set: actions.setLaunchAtLogin)
-    }
-
-    private var ttlBinding: Binding<String> {
-        Binding(
-            get: { Self.ttls.first { $0.value == Format.duration(seconds: model.ttlSeconds) }?.value ?? "5m" },
-            set: actions.setTTL
+    var facts: SettingsFacts {
+        SettingsFacts(
+            serviceRunning: model.consentEnabled != nil,
+            notificationsWanted: model.notifyDecoys || model.notifyChanges,
+            notificationsBlocked: model.notificationPermission == .denied || model.notificationPermission == .notAsked,
+            scanScheduled: model.scanSchedule != .off,
+            fullDiskAccess: model.fullDiskAccess,
+            updateAvailable: model.updateAvailable != nil,
+            jitOnPath: jitOnPath
         )
     }
 
-    /// jit's verdict, never the app's: the toggle reads `status.guard.installed`
-    /// after each change, so a source line disabled by hand reads as off.
-    private var notifyBinding: Binding<Bool> {
-        Binding(get: { model.notifyDecoys }, set: actions.setNotifyDecoys)
-    }
-
-    private var notifyChangesBinding: Binding<Bool> {
-        Binding(get: { model.notifyChanges }, set: actions.setNotifyChanges)
-    }
-
-    private var guardBinding: Binding<Bool> {
-        Binding(get: { model.guardInstalled ?? false }, set: actions.setGuard)
-    }
-
-    private var consentBinding: Binding<Bool> {
-        Binding(get: { model.consentEnabled ?? true }, set: actions.setConsent)
-    }
-}
-
-/// A condition under a setting and the one button that fixes it. A real
-/// button, on the right like every other action here: a link-styled one
-/// read as plain text.
-private struct SettingsNote: View {
-    let text: String
-    let button: String
-    let action: () -> Void
-
-    init(_ text: String, button: String, action: @escaping () -> Void) {
-        self.text = text
-        self.button = button
-        self.action = action
-    }
-
-    var body: some View {
-        HStack {
-            Text(text).font(.subheadline).foregroundStyle(.secondary)
-            Spacer()
-            Button(button, action: action)
+    private var jitOnPath: Bool {
+        switch model.cliTool {
+        case .linked, nil: true
+        case .other, .missing: false
         }
     }
-}
 
-struct SettingsActions {
-    var addExclude: () -> Void = {}
-    var removeExclude: (String) -> Void = { _ in }
-    var setTerminal: (String) -> Void = { _ in }
-    var setEditor: (String) -> Void = { _ in }
-    var setLaunchAtLogin: (Bool) -> Void = { _ in }
-    var setScanSchedule: (ScanSchedule) -> Void = { _ in }
-    var grantFullDiskAccess: () -> Void = {}
-    var setTTL: (String) -> Void = { _ in }
-    var setConsent: (Bool) -> Void = { _ in }
-    var setGuard: (Bool) -> Void = { _ in }
-    var setNotifyDecoys: (Bool) -> Void = { _ in }
-    var setNotifyChanges: (Bool) -> Void = { _ in }
-    var allowNotifications: () -> Void = {}
-    var openNotificationSettings: () -> Void = {}
-    var vaultClean: () -> Void = {}
-    var vaultDelete: () -> Void = {}
-    var setCheckForUpdates: (Bool) -> Void = { _ in }
-    var checkForUpdates: () -> Void = {}
-    var installUpdate: () -> Void = {}
-    var installCommandLineTool: () -> Void = {}
-    var removeJitPass: () -> Void = {}
+    /// A card's eyebrow: the group's word, and the dot that goes with it.
+    func eyebrowTint(_ group: SettingsGroup) -> Color {
+        switch facts.state(of: group) {
+        case .needsYou: Color(StatusMark.amber)
+        case .healthy: Color(StatusMark.green)
+        case .none: .secondary
+        }
+    }
+
+    /// The failure belonging to one of these rows, if the last change
+    /// failed there. A refusal is reported under the control that asked,
+    /// never under the window.
+    func failure(_ rows: SettingsOutcome.Row...) -> SettingsOutcome? {
+        guard let outcome = model.settingsOutcome, !outcome.ok, rows.contains(outcome.row) else {
+            return nil
+        }
+        return outcome
+    }
+
+    /// The row a change is being applied to, so the spinner sits on it
+    /// rather than under the whole window.
+    func applying(_ row: SettingsOutcome.Row) -> Bool {
+        model.settingsApplying == row
+    }
+
+    /// A failure's own row: the cross, the sentence that translates it,
+    /// jit's words under that, and the one button that unblocks it.
+    func failureRow(_ outcome: SettingsOutcome, last: Bool = true) -> some View {
+        AppNoteRow(
+            mark: .failed,
+            name: outcome.title,
+            fact: outcome.detail,
+            verbatim: outcome.verbatim,
+            last: last
+        ) {
+            if outcome.offersStart {
+                Button("Start Service", action: actions.startService).buttonStyle(AppButton())
+            }
+        }
+    }
 }
