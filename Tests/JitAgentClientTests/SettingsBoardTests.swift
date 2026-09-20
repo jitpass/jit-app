@@ -1,0 +1,114 @@
+// Copyright 2026 Meni Tasa
+// SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
+
+@testable import JitAgentClient
+import XCTest
+
+/// The Settings window's dots: which card is amber, and which pill
+/// therefore carries the dot for a card the filter is hiding.
+final class SettingsBoardTests: XCTestCase {
+    func testEverySegmentHoldsItsOwnGroupsAndTogetherAllSeven() {
+        let grouped = SettingsSegment.allCases.flatMap(\.groups)
+        XCTAssertEqual(grouped.count, SettingsGroup.allCases.count)
+        XCTAssertEqual(Set(grouped), Set(SettingsGroup.allCases))
+        XCTAssertEqual(SettingsSegment.protection.groups, [.protection, .notifications, .vault])
+        XCTAssertEqual(SettingsSegment.scan.groups, [.scan])
+        XCTAssertEqual(SettingsSegment.app.groups, [.thisMac, .updates, .remove])
+    }
+
+    func testAQuietMacHasNoAmberCardAndNoDotOnAnyPill() {
+        let facts = SettingsFacts()
+        for group in SettingsGroup.allCases {
+            XCTAssertNotEqual(facts.state(of: group), .needsYou, group.title)
+        }
+        for segment in SettingsSegment.allCases {
+            XCTAssertFalse(facts.needsYou(in: segment), segment.title)
+        }
+    }
+
+    func testEmptyingTheVaultAndRemovingTheAppAreNeverGreen() {
+        let facts = SettingsFacts()
+        XCTAssertEqual(facts.state(of: .vault), SettingsState.none)
+        XCTAssertEqual(facts.state(of: .remove), SettingsState.none)
+    }
+
+    func testProtectionIsAmberOnlyWhenTheServiceIsDown() {
+        XCTAssertEqual(SettingsFacts(serviceRunning: true).state(of: .protection), .healthy)
+        XCTAssertEqual(SettingsFacts(serviceRunning: false).state(of: .protection), .needsYou)
+    }
+
+    /// Blocked notifications nobody asked for are not a problem the reader
+    /// has to solve, so the card stays quiet until a switch is on.
+    func testNotificationsAreAmberOnlyWhereTheyWereAskedFor() {
+        XCTAssertEqual(
+            SettingsFacts(notificationsWanted: false, notificationsBlocked: true).state(of: .notifications),
+            .healthy
+        )
+        XCTAssertEqual(
+            SettingsFacts(notificationsWanted: true, notificationsBlocked: true).state(of: .notifications),
+            .needsYou
+        )
+        XCTAssertEqual(
+            SettingsFacts(notificationsWanted: true, notificationsBlocked: false).state(of: .notifications),
+            .healthy
+        )
+    }
+
+    /// Full Disk Access matters to a scheduled scan, which runs with
+    /// nobody there to answer the prompts.
+    func testScanIsAmberOnlyWhenAScheduledScanCannotSeeEverything() {
+        XCTAssertEqual(SettingsFacts(scanScheduled: false, fullDiskAccess: false).state(of: .scan), .healthy)
+        XCTAssertEqual(SettingsFacts(scanScheduled: true, fullDiskAccess: false).state(of: .scan), .needsYou)
+        XCTAssertEqual(SettingsFacts(scanScheduled: true, fullDiskAccess: true).state(of: .scan), .healthy)
+    }
+
+    func testUpdatesIsAmberForANewReleaseOrAMissingLink() {
+        XCTAssertEqual(SettingsFacts(updateAvailable: true).state(of: .updates), .needsYou)
+        XCTAssertEqual(SettingsFacts(jitOnPath: false).state(of: .updates), .needsYou)
+        XCTAssertEqual(SettingsFacts().state(of: .updates), .healthy)
+    }
+
+    /// The whole point of the dot: the card is in a segment the reader is
+    /// not looking at, and the pill says so without hiding anything else.
+    func testAPillCarriesTheDotOfTheCardBehindIt() {
+        let facts = SettingsFacts(scanScheduled: true, fullDiskAccess: false)
+        XCTAssertTrue(facts.needsYou(in: .scan))
+        XCTAssertFalse(facts.needsYou(in: .protection))
+        XCTAssertFalse(facts.needsYou(in: .app))
+
+        let blocked = SettingsFacts(notificationsWanted: true, notificationsBlocked: true)
+        XCTAssertTrue(blocked.needsYou(in: .protection))
+        XCTAssertFalse(blocked.needsYou(in: .scan))
+    }
+
+    // MARK: - Outcomes
+
+    func testASuccessNamesTheValueAndCarriesNoOutputAtAll() {
+        let outcome = SettingsOutcome.applied(.lockTimer, value: "15 minutes")
+        XCTAssertTrue(outcome.ok)
+        XCTAssertEqual(outcome.title, "Lock timer set to 15 minutes. jit restarted.")
+        XCTAssertNil(outcome.verbatim)
+        XCTAssertFalse(outcome.offersStart)
+    }
+
+    func testAServiceThatIsNotRunningIsNamedAndOffersToStart() {
+        let line = "jit: service not running (no socket at ~/.jit/agent.sock)"
+        let outcome = SettingsOutcome.failed(.lockTimer, line: line)
+        XCTAssertFalse(outcome.ok)
+        XCTAssertEqual(outcome.title, "The lock timer did not change")
+        XCTAssertEqual(outcome.detail, "jit is not running, so it kept the timer it had. Start the service and set it again.")
+        XCTAssertEqual(outcome.verbatim, line)
+        XCTAssertTrue(outcome.offersStart)
+    }
+
+    /// jit's words stay; a cause the line does not state is not invented
+    /// over them, and no Start Service button appears for a failure the
+    /// service being up would not have prevented.
+    func testAnyOtherRefusalKeepsItsWordsAndClaimsNoCause() {
+        let line = "jit: ttl must be between 1m and 24h"
+        let outcome = SettingsOutcome.failed(.lockTimer, line: line)
+        XCTAssertEqual(outcome.detail, "jit did not make the change. Its own words are below.")
+        XCTAssertEqual(outcome.verbatim, line)
+        XCTAssertFalse(outcome.offersStart)
+    }
+}

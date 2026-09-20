@@ -321,11 +321,11 @@ extension StatusItemController {
     /// service restart. Status is re-read afterwards so the toggle shows
     /// jit's verdict, never the app's assumption.
     func setGuard(_ on: Bool) {
-        guard !model.guardBusy else {
+        guard model.settingsApplying == nil else {
             return
         }
-        model.guardBusy = true
-        model.settingsMessage = nil
+        model.settingsApplying = .history
+        model.settingsOutcome = nil
         let arguments = ["guard", "history"] + (on ? [] : ["--remove"])
         Task.detached {
             let result = JitCLI.execute(arguments)
@@ -333,11 +333,14 @@ extension StatusItemController {
                 guard let self else {
                     return
                 }
-                model.guardBusy = false
-                if case let .failure(JitCLI.CLIError.failed(line)) = result {
-                    model.settingsMessage = line
-                } else if case .failure = result {
-                    model.settingsMessage = "jit is not installed where the app can find it."
+                model.settingsApplying = nil
+                switch result {
+                case .success:
+                    model.settingsOutcome = .applied(.history, value: on ? "is on" : "is off")
+                case let .failure(JitCLI.CLIError.failed(line)):
+                    model.settingsOutcome = .failed(.history, line: line)
+                case .failure:
+                    model.settingsOutcome = .failed(.history, line: "jit is not installed where the app can find it.")
                 }
                 JitCLI.forgetStatus()
                 model.cli = JitCLI.status()
