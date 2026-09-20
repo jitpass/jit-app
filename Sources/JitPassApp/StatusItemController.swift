@@ -271,6 +271,10 @@ final class StatusItemController {
         }
         if !panel.isVisible {
             hideReveal(reason: "panel opened")
+            // Re-probed here, not only at launch: the grant is given in
+            // System Settings while this app runs, and a row that still
+            // asks for it is the same wrong answer as never checking.
+            model.fullDiskAccess = FullDiskAccess.granted()
             resync()
             refreshDecoyReads()
             refreshDoctorIfStale()
