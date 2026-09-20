@@ -59,8 +59,15 @@ public enum SessionState: Equatable, Sendable {
         clockFormatter.string(from: date)
     }
 
+    /// `M:SS` under an hour, `H:MM:SS` at or above it. The minutes field is
+    /// minutes, not "everything that isn't seconds": an 8h TTL rendered the
+    /// first way reads "locks in 463:25", which is not a time anyone can read.
     public static func countdown(_ seconds: TimeInterval) -> String {
         let total = max(0, Int(seconds))
+        let hours = total / 3600
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, (total % 3600) / 60, total % 60)
+        }
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 }
