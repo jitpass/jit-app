@@ -116,6 +116,10 @@ final class MenuModel: ObservableObject {
     /// The AI Agents window's sheet; the same kinds, its own slot, so two
     /// windows never fight over one.
     @Published var agentsSheet: ToolsSheet?
+    /// What the AI Agents window's last action did: its banner, with
+    /// jit's own words one click away. The window has a banner region, so
+    /// a success is said there and never in a modal over it.
+    @Published var agentsOutcome: AgentsOutcome?
     /// The scan window's sheet: what an in-app Protect printed.
     @Published var scanSheet: ToolsSheet?
     /// The file whose flagged lines the scan window is showing. A row
@@ -336,27 +340,6 @@ final class MenuModel: ObservableObject {
             return "needs Full Disk Access"
         }
         return "not scanned yet"
-    }
-}
-
-/// The sheet the Tools window has open, if any.
-enum ToolsSheet: Identifiable, Equatable {
-    /// Wrap (or re-wrap) a catalog tool, with the key typed in when jit
-    /// has nothing to discover.
-    case wrap(tool: String)
-    /// Wrap a tool outside the catalog: name, the variable it reads, the
-    /// key. `jit wrap add`.
-    case handWrap
-    /// What a command printed, verbatim: the CLI is the one that says what
-    /// it found and moved.
-    case result(title: String, text: String)
-
-    var id: String {
-        switch self {
-        case let .wrap(tool): "wrap:" + tool
-        case .handWrap: "handwrap"
-        case let .result(title, _): "result:" + title
-        }
     }
 }
 
