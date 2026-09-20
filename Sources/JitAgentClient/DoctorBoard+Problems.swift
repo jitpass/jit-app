@@ -185,7 +185,7 @@ struct BoardContext {
             let variables = rows.compactMap(\.variable)
             others += actionButtons([DoctorAdvice.removeVariables(profile, variables)])
         }
-        card.menu = menu + [.separator] + others.map(DoctorMenuEntry.button) + [.button(terminalButton(steps))]
+        card.menu = menu + [.separator] + others.map(DoctorMenuEntry.button)
         return card
     }
 
@@ -212,13 +212,6 @@ struct BoardContext {
             let target = action.argv?.first?.last { !$0.hasPrefix("-") } ?? action.command
             return DoctorButton(clash ? "\(title) · \(target)" : title, .run([action]))
         }
-    }
-
-    /// Open in Terminal: the card's commands as jit runs them there, with
-    /// its own prompts; `jit doctor` when none is complete as written.
-    func terminalButton(_ steps: [DoctorAction]) -> DoctorButton {
-        let lines = steps.map(\.command).filter { !$0.isEmpty && DoctorItem.placeholder(in: $0) == nil }
-        return DoctorButton("Open in Terminal", .terminal(lines.isEmpty ? "jit doctor" : lines.joined(separator: "\n")))
     }
 
     // MARK: - Configs naming a profile jit doesn't have
@@ -252,7 +245,7 @@ struct BoardContext {
             card.file = file
             card.primary = DoctorButton("Show in Finder", .reveal(file))
             card.primaryProminent = false
-            card.menu = [.button(DoctorButton("Copy Path", .copyPath(file))), .separator, .button(terminalButton([]))]
+            card.menu = [.button(DoctorButton("Copy Path", .copyPath(file)))]
         }
         return card
     }

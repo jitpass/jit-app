@@ -4,66 +4,6 @@
 import JitAgentClient
 import SwiftUI
 
-/// Tidy up: one card of one-line rows ("No recovery file yet · the vault
-/// only opens on this Mac"), a grey button each.
-struct DoctorTidyList: View {
-    let cards: [DoctorCard]
-    let state: (String) -> DoctorCardState
-    let onButton: DoctorButtonHandler
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(cards.enumerated()), id: \.element.id) { index, card in
-                if index > 0 {
-                    Divider()
-                }
-                row(card, state(card.id))
-                    .padding(.vertical, 8)
-                    .contentShape(Rectangle())
-                    .doctorFileMenu(card.file)
-            }
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
-        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5))
-    }
-
-    @ViewBuilder
-    private func row(_ card: DoctorCard, _ state: DoctorCardState) -> some View {
-        switch state {
-        case let .done(title, line):
-            DoctorEndedLine(done: true, title: title, line: line, compact: true)
-        case let .failed(title, line, retry):
-            DoctorEndedLine(done: false, title: title, line: line, compact: true) {
-                Button("Try Again") { onButton(retry, card, card.id) }
-            }
-        default:
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 12) {
-                    (Text(card.title) + Text(card.reason.map { " · \($0)" } ?? "").font(.system(size: 12)).foregroundColor(.secondary))
-                        .lineLimit(2)
-                    Spacer(minLength: 8)
-                    if case let .working(presence) = state {
-                        DoctorWorkingLine(presence: presence)
-                    } else {
-                        DoctorButtons(card: card, key: card.id, enabled: state.enabled, onButton: onButton)
-                    }
-                }
-                if card.changedSinceIgnored {
-                    Text("Was ignored; it changed since").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                ForEach(card.rows) { row in
-                    Text(row.text).font(.system(size: 11, design: row.mono ? .monospaced : .default)).foregroundStyle(.secondary)
-                        .lineLimit(1).truncationMode(.head).padding(.leading, 8)
-                        .doctorFileMenu(row.file)
-                }
-            }
-        }
-    }
-}
-
 /// Review…: the profiles no known tool uses, each with its own Remove
 /// Profile and the dialog it always had, worded from `jit profile rm
 /// --dry-run`. Read live from the report, so a removed profile leaves the

@@ -5,9 +5,14 @@ import AppKit
 import JitAgentClient
 
 /// The dialogs a doctor action needs before the app can run its command:
-/// a hidden value, a passphrase typed twice, and a window for output the
-/// user asked to see. All modal, all AppKit, so a secret typed here goes
+/// a hidden value, a passphrase typed twice, and the plan behind a
+/// confirmation. All modal, all AppKit, so a secret typed here goes
 /// straight to the CLI's stdin and never through a SwiftUI binding.
+///
+/// Output has no dialog any more. A command's own words land in the row
+/// that asked for them, or in a sheet on the Doctor window when the
+/// output was the whole request; the monospaced pane in a window of its
+/// own is gone.
 enum DoctorDialogs {
     /// One hidden field. Nil when cancelled or left empty.
     @MainActor
@@ -120,25 +125,6 @@ enum DoctorDialogs {
             box.addSubview(link)
         }
         return box
-    }
-
-    /// The command's output, monospaced, in a sheet the user closes.
-    @MainActor
-    static func showOutput(_ text: String, title: String) {
-        let alert = NSAlert()
-        alert.messageText = title
-        alert.addButton(withTitle: "Close")
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 640, height: 320))
-        scroll.hasVerticalScroller = true
-        scroll.borderType = .bezelBorder
-        let view = NSTextView(frame: scroll.bounds)
-        view.isEditable = false
-        view.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-        view.string = text.isEmpty ? "(no output)" : text
-        view.autoresizingMask = [.width]
-        scroll.documentView = view
-        alert.accessoryView = scroll
-        alert.runFrontmost()
     }
 }
 

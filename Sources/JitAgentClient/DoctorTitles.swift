@@ -9,7 +9,39 @@ import Foundation
 /// and because a kind added without an entry here falls through to a bare
 /// capitalized version of jit's own internal noun, which is how a red card
 /// once read "Stale Pointers" with no explanation at all.
+/// What the window's header says when one kind is the whole of Fix now:
+/// the count in the reader's own nouns, the sentence under it, and the
+/// mark that goes with what that sentence claims. A kind with no entry
+/// falls back to counting problems in red, which is right for the kinds
+/// whose findings really do stop a tool.
+public struct DoctorHeading: Equatable, Sendable {
+    public var one: String
+    /// "%d" is the count.
+    public var many: String
+    public var note: String
+    public var mark: DoctorBoard.Mark
+
+    public func headline(_ count: Int) -> String {
+        count == 1 ? one : many.replacingOccurrences(of: "%d", with: "\(count)")
+    }
+}
+
 extension DoctorAdvice {
+    /// Kinds that word the header themselves. Deliberately few: a kind
+    /// belongs here only when the generic "N problems to fix" in red would
+    /// say something untrue about it.
+    public static let headings: [String: DoctorHeading] = [
+        // These break nothing. jit wrote the files, nothing reads them,
+        // and the card's own note says so — under a header that used to
+        // call them a problem and a mark that used to be red.
+        "stale_pointers": DoctorHeading(
+            one: "1 leftover file to clear",
+            many: "%d leftover files to clear",
+            note: "Nothing is failing. jit wrote these notes, and the secrets they name are gone from the vault.",
+            mark: .amber
+        )
+    ]
+
     static let titles: [String: (title: String, note: String?)] = [
         "missing": (
             "Missing secrets",

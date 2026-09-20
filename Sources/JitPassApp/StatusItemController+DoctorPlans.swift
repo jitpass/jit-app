@@ -143,32 +143,12 @@ extension StatusItemController {
         }
     }
 
-    /// One action goes through its own flow (its dialogs, its dry run);
-    /// several are one fix, asked for in turn and run in order.
+    /// One action or several as one fix: each one's question and panels in
+    /// turn, then every command in order, stopping at the first that fails.
     private func runCardAction(_ steps: [DoctorAction], button: DoctorButton, card: DoctorCard, key: String) {
-        let subject = key == card.id ? nil : card.rows.first { $0.id == key }?.text
-        let target = DoctorTarget(key: key, card: card, button: button, subject: subject)
-        if steps.count == 1, let action = steps.first {
-            perform(action, target: target)
-        } else {
-            performSequence(steps, target: target)
-        }
-    }
-
-    /// Several actions as one fix: each one's dialogs in turn, then every
-    /// command in order, stopping at the first that fails.
-    private func performSequence(_ actions: [DoctorAction], target: DoctorTarget) {
-        guard doctorIdle, let first = actions.first, !actions.contains(where: { $0.planned != nil }) else {
-            return
-        }
-        var steps: [DoctorStep] = []
-        for action in actions {
-            guard case let .app(prepared)? = prepare(action) else {
-                return
-            }
-            steps += prepared
-        }
-        applyInApp(steps, action: first, target: target)
+        let row = card.rows.first { $0.id == key }
+        let target = DoctorTarget(key: key, card: card, button: button, subject: key == card.id ? nil : row?.name ?? row?.text)
+        perform(steps, target: target)
     }
 
     // MARK: - Ignore
