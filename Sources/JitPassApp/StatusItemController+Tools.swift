@@ -83,8 +83,7 @@ extension StatusItemController {
     func protectFile(_ path: String) {
         let alert = NSAlert()
         alert.messageText = "Protect \(Format.home(path))?"
-        alert.informativeText = "This runs:\n\njit migrate \(Format.home(path)) --yes\n\n"
-            + "The credentials in the file move into the vault and the file is rewritten so everything that reads it "
+        alert.informativeText = "The credentials in the file move into the vault and the file is rewritten so everything that reads it "
             + "keeps working: a config points at the vault, a credential file becomes a live mount serving decoys "
             + "until a run is granted the real content. Backed up encrypted first; jit migrate undo restores it. "
             + "Touch ID follows."
@@ -245,8 +244,7 @@ extension StatusItemController {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let alert = NSAlert()
         alert.messageText = "Protect \(tool)?"
-        alert.informativeText = "This runs:\n\njit migrate ~ --only \(category) --yes\n\n"
-            + "jit moves \(record.doc ?? "the credential") into the vault and rewrites its file to use jit's own "
+        alert.informativeText = "jit moves \(record.doc ?? "the credential") into the vault and rewrites its file to use jit's own "
             + "credential hook, so \(tool) keeps working. The file is backed up encrypted first; "
             + "jit migrate undo restores it. Touch ID follows."
         alert.addButton(withTitle: "Protect")
@@ -265,8 +263,7 @@ extension StatusItemController {
     private func unwrapTool(_ tool: String) {
         let alert = NSAlert()
         alert.messageText = "Unwrap \(tool)?"
-        alert.informativeText = "This runs:\n\njit wrap undo \(tool)\n\n"
-            + "The shim and the wrap profile are removed; \(tool) runs without jit from its next call. "
+        alert.informativeText = "The shim and the wrap profile are removed; \(tool) runs without jit from its next call. "
             + "The secret stays in the vault; delete it from the Vault window if you no longer need it."
         alert.addButton(withTitle: "Unwrap")
         alert.addButton(withTitle: "Cancel")
@@ -302,8 +299,7 @@ extension StatusItemController {
         let copies = model.macScan?.agentCopies.count ?? 0
         let alert = NSAlert()
         alert.messageText = "Clean AI agent caches?"
-        alert.informativeText = "This runs:\n\njit migrate caches --yes\n\n"
-            + "jit searches every AI agent's cache for copies of any secret in the vault"
+        alert.informativeText = "jit searches every AI agent's cache for copies of any secret in the vault"
             + (copies > 0 ? " (the last scan found \(copies))" : "")
             + " and redacts each copy in place. Every file it rewrites is backed up encrypted first; "
             + "a file an agent is writing right now is left alone and reported. Touch ID follows."

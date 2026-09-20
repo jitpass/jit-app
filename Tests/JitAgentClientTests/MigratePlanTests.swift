@@ -104,11 +104,7 @@ final class MigratePlanTests: XCTestCase {
         jit rewrites what the plan below lists. Every file is backed up, encrypted, before it is touched; \
         jit migrate undo restores it.
 
-        This runs:
-
-        jit migrate --yes ~/Security-Ops/.mcp.json
-
-        Nothing asks again. Touch ID follows if jit needs the vault.
+        Touch ID follows if jit needs the vault.
 
         jit's plan, from a dry run that changed nothing:
         """)
@@ -128,11 +124,7 @@ final class MigratePlanTests: XCTestCase {
         in plaintext. The vault keeps its copies and the profiles stay. Edits made since the migration are replaced; \
         jit keeps a copy of them in the vault first.
 
-        This runs:
-
-        jit migrate undo --yes ~/Security-Ops/.mcp.json
-
-        Nothing asks again. Touch ID follows.
+        Touch ID follows.
 
         jit's plan, from a dry run that changed nothing:
         """)
