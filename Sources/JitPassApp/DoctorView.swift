@@ -5,20 +5,24 @@ import JitAgentClient
 import SwiftUI
 
 /// Doctor: the findings `jit doctor` reports, as cards grouped by impact
-/// (`DoctorBoard`). A header says what is wrong in the user's words, tabs
-/// narrow to one tier, and each card has one primary button and a ⋯ menu.
-/// A button runs the jit command doctor named: in the app when it can run
-/// unattended (every y/N pre-answered, any value typed into a hidden
-/// field), in the terminal otherwise, where jit's own confirmations apply.
+/// (`DoctorBoard`). A header says what is wrong in the user's words, a
+/// filter narrows to one tier, and each card carries its tier in its own
+/// eyebrow, its rows, and a ⋯ menu.
+///
+/// Nothing here opens a terminal, and nothing shows one. A fix runs in the
+/// app, asks its one question in a sheet, and answers in the row that
+/// asked: the black output pane, the footer's Open in Terminal and the
+/// same entry in every ⋯ menu are gone. A command that genuinely cannot
+/// run unattended (a tool log-in) still says so on its own button.
+///
 /// One action at a time: while one runs, or a check, every button is
-/// disabled and the running card says so; after, it shows how it ended
+/// disabled and the running row says so; after, it shows how it ended
 /// until the recheck takes it away.
 struct DoctorView: View {
     @ObservedObject var model: MenuModel
     @ObservedObject var progress: DoctorProgress
     let actions: DoctorActions
     @State private var tab = DoctorTab.all
-    @State private var reviewing = false
 
     var body: some View {
         let board = model.doctor.map { DoctorBoard.make($0) }
@@ -27,27 +31,28 @@ struct DoctorView: View {
             if let board, board.isEmpty, progress.outcome == nil, board.showing(tab) != .ignored {
                 allGood(board)
             } else if let board {
-                tabs(board)
+                filter(board)
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        ForEach(DoctorBoard.Tier.allCases) { tier in
-                            if board.shows(tier, on: tab) {
-                                section(tier, shown(board, tier))
-                            }
+                    VStack(alignment: .leading, spacing: Design.Space.five) {
+                        ForEach(shown(board), id: \.id) { card in
+                            DoctorCardView(card: card, state: state(card.id), rowState: state, onButton: handle)
                         }
                         if board.showing(tab) == .ignored {
                             DoctorIgnoredList(rows: board.ignored, state: state, onShowAgain: actions.showAgain)
                         }
                     }
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 18)
+                    .padding(Design.Space.six)
+                    .measureDoctorHeight()
                 }
             } else {
                 Spacer()
             }
             footer
         }
-        .frame(minWidth: 600, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity)
+        .frame(
+            minWidth: Design.Window.minimum(for: Design.Window.medium).width, maxWidth: .infinity,
+            minHeight: Design.Window.minimum(for: Design.Window.medium).height, maxHeight: .infinity
+        )
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         // The last ignored row shown again: the tab goes, so does its
         // selection. Nothing else ever switches tabs for the user.
@@ -56,34 +61,51 @@ struct DoctorView: View {
                 tab = .all
             }
         }
-        .sheet(isPresented: $reviewing) {
-            DoctorReviewSheet(model: model, actions: actions) { reviewing = false }
+        .onPreferenceChange(DoctorHeightKey.self) { height in
+            actions.fit(height)
+        }
+        .sheet(item: $model.doctorSheet) { sheet in
+            switch sheet {
+            case .review:
+                DoctorReviewSheet(model: model, actions: actions) { model.doctorSheet = nil }
+            case let .confirm(request):
+                DoctorConfirmSheet(request: request, answer: actions.answer)
+            case let .output(output):
+                DoctorOutputSheet(output: output) { model.doctorSheet = nil }
+            }
         }
     }
+
+    /// Header, filter and footer: what the window is, above and below the
+    /// findings it asks to be sized to.
+    static let chrome: CGFloat = 140
 
     // MARK: - Header
 
     private func header(_ board: DoctorBoard?) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            DoctorMark(color: markColor(board), size: 28)
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .center, spacing: Design.Space.five) {
+            DoctorMark(color: markColor(board), size: Design.Size.mark)
+            VStack(alignment: .leading, spacing: Design.Space.one) {
                 Text(board?.headline ?? (model.doctorRunning ? "Checking…" : "Doctor"))
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Design.Text.windowHead).foregroundStyle(Design.Label.primary)
                 if let subline = board?.subline {
-                    Text(subline).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
+                    Text(subline).font(Design.Text.windowSub).foregroundStyle(Design.Label.secondary).lineLimit(2)
                 }
                 ForEach(notices, id: \.self) { notice in
-                    Text(notice).font(.system(size: 12)).foregroundStyle(Color(StatusMark.red))
+                    Text(notice).font(Design.Text.windowSub).foregroundStyle(Color(StatusMark.red))
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            Spacer(minLength: 12)
+            Spacer(minLength: Design.Space.five)
             if model.doctorRunning {
                 ProgressView().controlSize(.small)
             }
-            Button("Check Again", action: actions.recheck).disabled(!idle)
+            Button("Check Again", action: actions.recheck).disabled(!idle).font(Design.Text.button)
             Menu {
-                Button("Open in Terminal", action: actions.openInTerminal)
+                // What Open in Terminal was really asked for: the findings
+                // somewhere else. This hands them over as text instead of
+                // asking the reader to run the check a second time.
+                Button("Copy Report", action: actions.copyReport).disabled(board == nil)
             } label: {
                 Image(systemName: "ellipsis")
             }
@@ -92,9 +114,9 @@ struct DoctorView: View {
             .fixedSize()
             .help("More")
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 18)
-        .padding(.bottom, 14)
+        .padding(.horizontal, Design.Space.six)
+        .padding(.vertical, Design.Space.five)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
     /// What went wrong outside any card: an action from the Review sheet,
@@ -123,85 +145,56 @@ struct DoctorView: View {
         model.doctorBusy == nil && !model.doctorRunning
     }
 
-    // MARK: - Tabs
+    // MARK: - Filter
 
-    private func tabs(_ board: DoctorBoard) -> some View {
+    private func filter(_ board: DoctorBoard) -> some View {
         let selected = board.showing(tab)
-        return HStack(spacing: 2) {
+        return HStack(spacing: Design.Space.one) {
             ForEach(board.tabs) { item in
-                tabButton(item, selected: selected == item.tab)
+                filterButton(item, selected: selected == item.tab)
             }
         }
-        .padding(2)
-        .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color.primary.opacity(0.08)))
-        .padding(.horizontal, 22)
-        .padding(.bottom, 14)
+        .padding(Design.Space.one)
+        .background(RoundedRectangle(cornerRadius: Design.Radius.callout, style: .continuous).fill(Design.Surface.segmentTrack))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Space.six)
+        .padding(.vertical, Design.Space.five)
+        .overlay(alignment: .bottom) { Divider() }
     }
 
-    private func tabButton(_ item: DoctorTabItem, selected: Bool) -> some View {
+    private func filterButton(_ item: DoctorTabItem, selected: Bool) -> some View {
         Button {
             tab = item.tab
         } label: {
-            HStack(spacing: 4) {
-                Text(item.title)
-                Text("\(item.count)").foregroundStyle(.secondary)
+            HStack(spacing: Design.Space.three) {
+                Text(item.title).foregroundStyle(selected ? Design.Label.primary : Design.Label.secondary)
+                Text("\(item.count)").foregroundStyle(Design.Label.tertiary).monospacedDigit()
             }
-            .font(.system(size: 12))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 3)
+            .font(Design.Text.button)
+            .padding(.horizontal, Design.Space.five)
+            .padding(.vertical, Design.Space.two)
             .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(selected ? Color.primary.opacity(0.18) : Color.clear)
-                    .shadow(color: .black.opacity(selected ? 0.25 : 0), radius: 1, y: 1)
+                RoundedRectangle(cornerRadius: Design.Radius.segment, style: .continuous)
+                    .fill(selected ? Design.Surface.segmentOn : Color.clear)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!item.enabled)
-        .opacity(item.enabled ? 1 : 0.45)
     }
 
-    // MARK: - Sections
+    // MARK: - Cards
 
-    /// The tier's cards, and in front of them a card the recheck took away
-    /// while it still shows that it is done.
-    private func shown(_ board: DoctorBoard, _ tier: DoctorBoard.Tier) -> [DoctorCard] {
-        var cards = board.cards(in: tier)
-        guard let outcome = progress.outcome, outcome.state == .done, outcome.card.tier == tier else {
+    /// The cards the filter shows, in tier order, and in front of them a
+    /// card the recheck took away while it still says it is done.
+    private func shown(_ board: DoctorBoard) -> [DoctorCard] {
+        var cards = board.cards.filter { board.shows($0.tier, on: tab) }
+        guard let outcome = progress.outcome, outcome.state == .done,
+              board.shows(outcome.card.tier, on: tab), !cards.contains(where: { $0.id == outcome.card.id })
+        else {
             return cards
         }
-        if !cards.contains(where: { $0.id == outcome.card.id }) {
-            cards.insert(outcome.card, at: 0)
-        }
+        cards.insert(outcome.card, at: 0)
         return cards
-    }
-
-    @ViewBuilder
-    private func section(_ tier: DoctorBoard.Tier, _ cards: [DoctorCard]) -> some View {
-        if !cards.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Circle().fill(tierColor(tier)).frame(width: 8, height: 8)
-                    Text(tier.title).font(.system(size: 13, weight: .semibold))
-                    Text("\(cards.count)").font(.system(size: 13)).foregroundStyle(.secondary)
-                }
-                if tier == .tidy {
-                    DoctorTidyList(cards: cards, state: state, onButton: handle)
-                } else {
-                    ForEach(cards) { card in
-                        DoctorCardView(card: card, state: state(card.id), rowState: state, onButton: handle)
-                    }
-                }
-            }
-        }
-    }
-
-    private func tierColor(_ tier: DoctorBoard.Tier) -> Color {
-        switch tier {
-        case .broken: Color(StatusMark.red)
-        case .recommended: Color(StatusMark.amber)
-        case .tidy: Color.secondary.opacity(0.6)
-        }
     }
 
     /// A card's or a row's state: how its fix ended, else whether it is
@@ -210,7 +203,7 @@ struct DoctorView: View {
         if let outcome = progress.outcome, outcome.key == key {
             return outcome.state == .done
                 ? .done(title: outcome.title, line: outcome.line)
-                : .failed(title: outcome.title, line: outcome.line, retry: outcome.button)
+                : .failed(title: outcome.title, line: outcome.line, said: outcome.said, retry: outcome.button)
         }
         if model.doctorBusy == key {
             return .working(presence: progress.presence)
@@ -220,7 +213,7 @@ struct DoctorView: View {
 
     private func handle(_ button: DoctorButton, _ card: DoctorCard, _ key: String) {
         if button.command == .review {
-            reviewing = true
+            model.doctorSheet = .review
         } else {
             actions.run(button, card, key)
         }
@@ -229,36 +222,37 @@ struct DoctorView: View {
     // MARK: - Nothing to fix, and the footer
 
     private func allGood(_ board: DoctorBoard) -> some View {
-        VStack(spacing: 12) {
-            Spacer()
-            DoctorMark(color: Color(StatusMark.green), size: 56)
-            Text("Nothing needs you").font(.system(size: 20, weight: .bold))
+        VStack(spacing: Design.Space.five) {
+            DoctorMark(color: Color(StatusMark.green), size: Design.Size.markLarge)
+            Text("Nothing needs you").font(Design.Text.emptyTitle).foregroundStyle(Design.Label.primary)
             Text("Every profile's secrets are in the vault, every tool finds its profile, and the service runs this build of jit.")
-                .font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                .frame(maxWidth: 420).fixedSize(horizontal: false, vertical: true)
-            Button("Check Again", action: actions.recheck).disabled(!idle).padding(.top, 6)
+                .font(Design.Text.windowSub).foregroundStyle(Design.Label.secondary).multilineTextAlignment(.center)
+                .frame(maxWidth: 400).fixedSize(horizontal: false, vertical: true)
+            Button("Check Again", action: actions.recheck).disabled(!idle).font(Design.Text.button)
             // The one other way to the Ignored tab: nothing else is on
             // screen to hold it.
             if !board.ignored.isEmpty {
                 Button("\(board.ignored.count) ignored") { tab = .ignored }
-                    .buttonStyle(.link).font(.system(size: 12)).padding(.top, 4)
+                    .buttonStyle(.link).font(Design.Text.button)
             }
-            Spacer()
         }
         .frame(maxWidth: .infinity)
+        .padding(.vertical, 44)
+        .measureDoctorHeight()
     }
 
+    /// What answered and when. The footer states; it never links out. One
+    /// that offers to open a terminal is saying the window did not work.
     private var footer: some View {
-        HStack(spacing: 8) {
-            Circle().fill(footerColor).frame(width: 6, height: 6)
+        HStack(spacing: Design.Space.four) {
+            Circle().fill(footerColor).frame(width: Design.Size.dot, height: Design.Size.dot)
             Text(footerText).lineLimit(1).truncationMode(.middle)
-            Spacer(minLength: 8)
-            Button("Open in Terminal", action: actions.openInTerminal).buttonStyle(.link)
+            Spacer(minLength: Design.Space.four)
         }
-        .font(.system(size: 11))
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 22)
-        .padding(.vertical, 9)
+        .font(Design.Text.rowFact)
+        .foregroundStyle(Design.Label.secondary)
+        .padding(.horizontal, Design.Space.six)
+        .padding(.vertical, Design.Space.four)
         .overlay(alignment: .top) { Divider() }
     }
 
@@ -282,11 +276,30 @@ struct DoctorView: View {
     }
 }
 
+/// How tall the findings are, so the window can open at the height of
+/// what it found instead of a fixed 720 with 330 of nothing below the
+/// last card.
+struct DoctorHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+extension View {
+    func measureDoctorHeight() -> some View {
+        background(GeometryReader { proxy in
+            Color.clear.preference(key: DoctorHeightKey.self, value: proxy.size.height)
+        })
+    }
+}
+
 /// The running fix's Touch ID flag and how the last fix ended, apart from
 /// MenuModel: only the Doctor window reads them.
 @MainActor
 final class DoctorProgress: ObservableObject {
-    /// The running action asks for Touch ID, so the card says it waits.
+    /// The running action asks for Touch ID, so the row says it waits.
     @Published var presence = false
     @Published var outcome: DoctorOutcome?
 }
@@ -307,7 +320,8 @@ struct DoctorMark: View {
 
 struct DoctorActions {
     var recheck: () -> Void = {}
-    var openInTerminal: () -> Void = {}
+    /// The findings as text, for a ticket or a colleague.
+    var copyReport: () -> Void = {}
     /// A Review sheet row's action, and the finding it belongs to, which
     /// shows as busy while it runs.
     var perform: (DoctorAction, String) -> Void = { _, _ in }
@@ -316,4 +330,8 @@ struct DoctorActions {
     var run: (DoctorButton, DoctorCard, String) -> Void = { _, _, _ in }
     /// An ignored row's Show Again, and the row's id.
     var showAgain: (DoctorButton, String) -> Void = { _, _ in }
+    /// The confirm sheet's answer: true runs what it asked about.
+    var answer: (Bool) -> Void = { _ in }
+    /// How tall the window would like to be.
+    var fit: (CGFloat) -> Void = { _ in }
 }

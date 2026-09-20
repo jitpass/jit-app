@@ -108,6 +108,12 @@ extension DoctorAdvice {
         return paths.count > 1 ? [DoctorAction("Unmount All", paths.map(unmountCommand).joined(separator: "\n"))] : []
     }
 
+    // Unmount stays in the terminal, alone among the fixes, and Unmount
+    // All with it. The app would have to pass --yes, and that flag would
+    // also answer the y/N guarding a PLAINTEXT write-back if the mount's
+    // profile came back between the check and the click. jit asking once
+    // more, in front of the user, is the point of that prompt.
+
     /// One Attach per config the rows' fixes attach, in first-seen order:
     /// a profile two configs start is attached to the one doctor names.
     /// The argv is a fallback only: the dialog runs the names its dry run

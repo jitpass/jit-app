@@ -34,15 +34,29 @@ extension StatusItemController {
                 self?.doctorProgress.outcome = nil
                 self?.runDoctor()
             },
-            openInTerminal: { [weak self] in self?.runInTerminal("jit doctor") },
-            perform: { [weak self] action, row in self?.perform(action, target: DoctorTarget(key: row)) },
+            copyReport: { [weak self] in self?.copyDoctorReport() },
+            perform: { [weak self] action, row in self?.perform([action], target: DoctorTarget(key: row)) },
             run: { [weak self] button, card, key in self?.runBoardButton(button, card: card, key: key) },
             showAgain: { [weak self] button, key in
                 if case let .unignore(command) = button.command {
                     self?.runIgnore([command], key: key)
                 }
-            }
+            },
+            answer: { [weak self] yes in self?.answerConfirm(yes) },
+            fit: { [weak self] height in self?.fitDoctorWindow(to: height) }
         )
+    }
+
+    /// The findings as text, for a ticket or a colleague: what Open in
+    /// Terminal was really being asked for.
+    func copyDoctorReport() {
+        guard let report = model.doctor else {
+            return
+        }
+        let board = DoctorBoard.make(report)
+        let footer = Format.doctorSummary(report) + (model.doctorAt.map { " at " + Format.clock($0) } ?? "")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(board.reportText + "\n\n" + footer, forType: .string)
     }
 
     /// Whether an action may start: nothing else is running or rechecking.
@@ -50,44 +64,14 @@ extension StatusItemController {
         model.doctorBusy == nil && !model.doctorRunning
     }
 
-    /// Runs a doctor action for `target`. Refused up front while another
-    /// action or a check is running, so a second click never walks through
-    /// a confirmation and a panel only to do nothing. In the app when it
-    /// carries `argv`: any path it needs is chosen first (a save panel for
-    /// a file to create, an open panel for one that exists), any value or
-    /// passphrase asked for in a hidden field, then the commands run one
-    /// after the other off the main thread and doctor rechecks. In the
-    /// terminal otherwise: an unmount wants its own y/N, `sudo` a password.
-    /// A destructive one is confirmed here first, naming the command.
-    func perform(_ action: DoctorAction, target: DoctorTarget) {
-        guard doctorIdle else {
-            return
-        }
-        if let planned = action.planned {
-            return performPlanned(planned, action: action, target: target)
-        }
-        switch prepare(action) {
-        case nil:
-            return
-        case let .terminal(command):
-            runInTerminal(command)
-        case let .app(steps):
-            applyInApp(steps, action: action, target: target)
-        }
-    }
-
     enum Prepared {
         case app([DoctorStep])
         case terminal(String)
     }
 
-    /// Every dialog an action needs before it can run, in order: the
-    /// destructive confirmation, the file, the hidden value. Nil when the
-    /// user cancelled any of them.
+    /// Every panel an action needs once its question is answered: the
+    /// file, the hidden value. Nil when the user cancelled either.
     func prepare(_ action: DoctorAction) -> Prepared? {
-        if action.destructive, !confirmDestructive(action) {
-            return nil
-        }
         guard let chosen = choosePath(for: action.needs) else {
             return nil
         }
@@ -200,7 +184,10 @@ extension StatusItemController {
         }
         let text = result.output.filter { !$0.isEmpty }.joined(separator: "\n\n")
         if let card = target.card, let button = target.button {
-            let said = result.failure == nil ? text : (result.output.last.flatMap { $0.isEmpty ? nil : $0 } ?? result.failure ?? "")
+            // Everything jit printed across the run, not just its last
+            // line: the row's own box is where it is read now, and the
+            // window that used to hold the rest does not open.
+            let said = result.failure == nil || !text.isEmpty ? text : (result.failure ?? "")
             let outcome = card.outcome(
                 key: target.key, button: button, completed: result.completed, output: said, failed: result.failure != nil,
                 subject: target.subject
@@ -215,18 +202,14 @@ extension StatusItemController {
             model.doctorMessage = result.failure
         }
         runDoctor(afterAction: true)
-        // A failure opens the output window: jit's own words are the
-        // diagnosis and there is nowhere else to read them. So does a
-        // read-only action, whose output is the whole request (Show
-        // History, Show Log) and which would otherwise run and show
-        // nothing at all. A destructive one that worked does not: the card
-        // says how it ended and the window behind it shows the new state,
-        // and a modal re-listing what was just deleted is a dump, not an
-        // answer. That pair was the orphans' Delete All.
-        if let failure = result.failure {
-            DoctorDialogs.showOutput(text.isEmpty ? failure : text, title: "\(action.title) failed")
-        } else if action.showsOutput {
-            DoctorDialogs.showOutput(text, title: action.title)
+        // A failure says so in the row that asked, with jit's own words
+        // under it: there is no output window any more, and a black pane
+        // over a window that already knows was never the answer. What
+        // still opens is an action whose output IS the request (a
+        // comparison, a service log), and it opens as a sheet in the
+        // window's own type.
+        if result.failure == nil, action.showsOutput {
+            model.doctorSheet = .output(DoctorOutput(title: action.title, text: text))
         }
     }
 
@@ -250,14 +233,9 @@ extension StatusItemController {
         return error.localizedDescription
     }
 
-    private func confirmDestructive(_ action: DoctorAction) -> Bool {
-        let alert = NSAlert()
-        alert.messageText = "\(action.title)?"
-        alert.informativeText = DoctorAdvice.confirmation(for: action)
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: action.title)
-        alert.addButton(withTitle: "Cancel")
-        return alert.runFrontmost() == .alertFirstButtonReturn
+    /// The window asks to be the height of its findings.
+    func fitDoctorWindow(to height: CGFloat) {
+        doctorWindow.fit(to: height + DoctorView.chrome)
     }
 
     func openDoctor() {

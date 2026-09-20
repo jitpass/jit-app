@@ -22,10 +22,15 @@ public struct DoctorOutcome: Equatable, Sendable {
     public var state: State
     public var title: String
     public var line: String?
+    /// jit's own last words, when it said something. Shown under the line
+    /// in the app's own type — never in a terminal window, which is where
+    /// they used to go: a black pane over a window that already knew.
+    public var said: String?
     public var at: Date
 
     public init(
-        key: String, card: DoctorCard, button: DoctorButton, state: State, title: String, line: String?, at: Date = Date()
+        key: String, card: DoctorCard, button: DoctorButton, state: State, title: String, line: String?,
+        said: String? = nil, at: Date = Date()
     ) {
         self.key = key
         self.card = card
@@ -33,6 +38,7 @@ public struct DoctorOutcome: Equatable, Sendable {
         self.state = state
         self.title = title
         self.line = line
+        self.said = said
         self.at = at
     }
 
@@ -71,17 +77,23 @@ public extension DoctorCard {
             return DoctorOutcome(key: key, card: self, button: button, state: .done, title: title, line: line, at: at)
         }
         let cancelled = output.lowercased().contains("cancel")
-        let said = last.isEmpty ? "jit stopped without saying why." : "jit says: \(last)"
+        // What the app can say goes on the line; what jit said goes in its
+        // own box under it. Quoting jit inside the sentence ("jit says: …")
+        // made one voice of two, and the only place to read the whole of
+        // what it said was a terminal window that no longer opens.
+        let whole = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        let said = whole.isEmpty || cancelled ? nil : whole
         let title: String
-        let line: String
+        var line: String?
         if completed == 0 {
             title = cancelled ? "\(what): nothing was changed" : "\(what): didn't finish"
-            line = cancelled ? "Touch ID was cancelled. The finding stays until you try again." : said
+            line = cancelled ? "Touch ID was cancelled. The finding stays until you try again."
+                : (said == nil ? "jit stopped without saying why." : nil)
         } else {
             title = "\(what): stopped partway"
             let done = values ? "\(completed) of \(total) values set." : "\(completed) of \(total) steps done."
-            line = done + " " + (cancelled ? "Touch ID was cancelled for the rest." : said)
+            line = done + (cancelled ? " Touch ID was cancelled for the rest." : "")
         }
-        return DoctorOutcome(key: key, card: self, button: button, state: .failed, title: title, line: line, at: at)
+        return DoctorOutcome(key: key, card: self, button: button, state: .failed, title: title, line: line, said: said, at: at)
     }
 }
