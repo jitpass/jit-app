@@ -78,10 +78,10 @@ final class StatusItemController {
         minSize: Design.Window.minimum(for: Design.Window.medium)
     )
     lazy var scanWindow = ReportWindow(
-        title: "JitPass Scan",
+        title: "Scan",
         content: ScanReportView(model: model, actions: scanActions),
-        size: NSSize(width: 640, height: 520),
-        minSize: NSSize(width: 480, height: 320)
+        size: NSSize(width: Win.width, height: Win.height),
+        minSize: NSSize(width: Win.width, height: Win.minHeight)
     )
     let onboarding = OnboardingModel()
     var onboardingScanRun: JitCLI.ScanRun?
