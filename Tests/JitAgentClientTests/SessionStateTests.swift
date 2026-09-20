@@ -40,4 +40,19 @@ final class SessionStateTests: XCTestCase {
         XCTAssertEqual(SessionState.countdown(-5), "0:00")
         XCTAssertEqual(SessionState.countdown(61), "1:01")
     }
+
+    func testCountdownCarriesHoursInTheirOwnField() {
+        XCTAssertEqual(SessionState.countdown(3599), "59:59", "still minutes below the hour")
+        XCTAssertEqual(SessionState.countdown(3600), "1:00:00")
+        XCTAssertEqual(SessionState.countdown(27805), "7:43:25", "an 8h TTL, not \"463:25\"")
+        XCTAssertEqual(SessionState.countdown(8 * 3600), "8:00:00")
+    }
+
+    func testDetailOnALongSessionReadsAsAClock() {
+        var r = response(unlocked: true, expires: 27805)
+        r.ceilingInSeconds = 27805
+        let now = Date(timeIntervalSince1970: 1_789_200_000)
+        let s = SessionState(response: r, now: now)
+        XCTAssertEqual(s.detail, "locks in 7:43:25 · no later than \(SessionState.clock(now.addingTimeInterval(27805)))")
+    }
 }
