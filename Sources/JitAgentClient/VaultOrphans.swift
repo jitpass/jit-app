@@ -68,57 +68,159 @@ public struct VaultStaleMount: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// Orphaned secrets grouped by project: the first path segment, the unit
+/// `jit vault list` groups by, `jit vault rm` expands, and the one a reader
+/// recognises. 59 paths is a table; 10 projects is a decision.
+public struct VaultOrphanGroup: Identifiable, Sendable, Equatable {
+    public var name: String
+    public var orphans: [VaultOrphan]
+
+    public init(name: String, orphans: [VaultOrphan]) {
+        self.name = name
+        self.orphans = orphans
+    }
+
+    public var id: String {
+        name
+    }
+
+    public var paths: [String] {
+        orphans.map(\.path)
+    }
+
+    /// The variable names inside the project, without the project prefix.
+    public var keys: [String] {
+        orphans.map(\.key)
+    }
+
+    /// The distinct files these secrets were migrated from; empty when jit
+    /// recorded none, which is what a pre-provenance vault looks like.
+    public var origins: [String] {
+        var seen: [String] = []
+        for origin in orphans.compactMap(\.originFile) where !seen.contains(origin) {
+            seen.append(origin)
+        }
+        return seen
+    }
+}
+
+public extension VaultOrphan {
+    /// The file this secret was migrated from, when jit recorded one.
+    /// `origin` is not empty when it did not: jit fills the field with a
+    /// sentence ("no recorded origin (pre-provenance, or set directly)"),
+    /// which is what covered every line of the old listing. The app shows
+    /// an origin as a file and opens it in Finder, so only an absolute or
+    /// home-relative path counts as one; anything else is jit explaining
+    /// itself, and the row says "origin not recorded" instead.
+    var originFile: String? {
+        let trimmed = origin.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("/") || trimmed.hasPrefix("~") else {
+            return nil
+        }
+        return trimmed
+    }
+
+    /// The variable name: everything after the project, or the whole path
+    /// when there is no slash in it.
+    var key: String {
+        path.firstIndex(of: "/").map { String(path[path.index(after: $0)...]) } ?? path
+    }
+}
+
 public extension VaultOrphans {
-    /// What the app runs for a prune: the listing's own paths are not
-    /// passed, jit collects them again as it runs.
+    /// What clearing stale mount registrations runs. jit has no command for
+    /// the registrations alone: `--prune` deletes every orphaned secret in
+    /// the same pass, so the app never sends this without saying so first.
+    /// Orphaned secrets themselves are deleted with `jit vault rm`, which
+    /// takes any subset under one gesture and refuses what is still in use.
     static let pruneArguments = ["vault", "orphans", "--prune", "--yes"]
 
-    /// The prune's confirmation, from a listing fetched immediately before
-    /// it: the doctor report can be minutes old, and a secret that was an
-    /// orphan then may be a live profile's now. Names every path (up to
-    /// `limit`), the stale mount registrations it clears too, and whether
-    /// Touch ID follows (clearing registrations alone asks for none).
-    func pruneConfirmation(home: String = NSHomeDirectory(), limit: Int = 15) -> DeleteConfirmation {
-        let secrets = orphans.count
-        let mounts = staleMounts.count
-        guard !isEmpty else {
-            return DeleteConfirmation(
-                title: "Nothing to prune",
-                message: "jit finds no orphaned secret and no stale mount registration now; the earlier report was out of date.",
-                button: nil, breaks: false, arguments: []
-            )
+    /// One group per project, projects in path order, secrets inside them
+    /// in path order.
+    var groups: [VaultOrphanGroup] {
+        var order: [String] = []
+        var byName: [String: [VaultOrphan]] = [:]
+        for orphan in orphans.sorted(by: { $0.path < $1.path }) {
+            let name = orphan.path.firstIndex(of: "/").map { String(orphan.path[..<$0]) } ?? orphan.path
+            if byName[name] == nil {
+                order.append(name)
+            }
+            byName[name, default: []].append(orphan)
         }
-        let command = "This runs:\n\njit vault orphans --prune --yes\n\n"
-        let mountLines = Self.capped(staleMounts.map { VaultRmPlan.short($0.mountPath, home) }, limit)
-        let mountNoun = "stale mount registration" + (mounts == 1 ? "" : "s")
-        guard secrets > 0 else {
-            return DeleteConfirmation(
-                title: "Clear \(mounts) \(mountNoun)?",
-                message: command + "As of just now, it clears:\n" + mountLines
-                    + "\n\nTheir projects are gone. No secret is touched and no Touch ID is asked. Nothing asks again.",
-                button: "Clear", breaks: false, arguments: Self.pruneArguments
-            )
+        return order.map { VaultOrphanGroup(name: $0, orphans: byName[$0] ?? []) }
+    }
+
+    /// The groups whose project, key or origin contains `filter`, matched
+    /// the way the Vault window's own filter matches: case-insensitively,
+    /// keeping only the secrets that match inside a group that does not.
+    func groups(matching filter: String) -> [VaultOrphanGroup] {
+        let needle = filter.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !needle.isEmpty else {
+            return groups
         }
-        let noun = "orphaned secret" + (secrets == 1 ? "" : "s")
-        var message = command + "As of just now, it deletes for good:\n"
-            + Self.capped(orphans.map { $0.path + ($0.origin.isEmpty ? "" : " · from " + $0.origin) }, limit)
-        if mounts > 0 {
-            message += "\n\nIt also clears \(mounts) \(mountNoun), whose project is gone (no secret is touched):\n" + mountLines
+        return groups.compactMap { group in
+            if group.name.lowercased().contains(needle) {
+                return group
+            }
+            let kept = group.orphans.filter { orphan in
+                orphan.path.lowercased().contains(needle)
+                    || orphan.originFile?.lowercased().contains(needle) == true
+            }
+            return kept.isEmpty ? nil : VaultOrphanGroup(name: group.name, orphans: kept)
         }
-        message += "\n\nNo profile or pointer file jit can find uses these, but a project outside your home folder "
-            + "is not searched: check the origins first. Nothing asks again. Touch ID follows."
-        return DeleteConfirmation(
-            title: "Prune \(secrets) \(noun)" + (mounts > 0 ? " and clear \(mounts) stale mount\(mounts == 1 ? "" : "s")?" : "?"),
-            message: message, button: "Prune", breaks: false, arguments: Self.pruneArguments,
-            paths: orphans.map(\.path)
-        )
+    }
+
+    /// The stale mounts jit would clear, shortened to ~.
+    func staleMountPaths(home: String = NSHomeDirectory()) -> [String] {
+        staleMounts.map { VaultRmPlan.short($0.mountPath, home) }
     }
 
     /// One per line, the first `limit` of them and a count of the rest.
+    /// Shared with the duplicates report, which lists paths the same way.
     internal static func capped(_ lines: [String], _ limit: Int) -> String {
         guard lines.count > limit else {
             return lines.joined(separator: "\n")
         }
-        return lines.prefix(limit).joined(separator: "\n") + "\n…and \(lines.count - limit) more"
+        return lines.prefix(limit).joined(separator: "\n") + "\n\u{2026}and \(lines.count - limit) more"
+    }
+
+    /// The question before clearing stale mount registrations, worded from
+    /// a listing taken immediately before it. The registrations alone are a
+    /// registry edit that touches no secret and asks for no gesture; but
+    /// `--prune` is the only command that makes it, and the same run
+    /// deletes every orphaned secret still listed. When any remain, that is
+    /// what the dialog leads with, and its button takes neither Return nor
+    /// the count of mounts.
+    func staleMountConfirmation(home: String = NSHomeDirectory()) -> DeleteConfirmation {
+        let mounts = staleMounts.count
+        guard mounts > 0 else {
+            return DeleteConfirmation(
+                title: "Nothing to clear",
+                message: "jit finds no stale mount registration now; the list was out of date.",
+                button: nil, breaks: false, arguments: []
+            )
+        }
+        let noun = "stale mount registration" + (mounts == 1 ? "" : "s")
+        let listed = staleMountPaths(home: home).joined(separator: "\n")
+        let secrets = orphans.count
+        guard secrets > 0 else {
+            return DeleteConfirmation(
+                title: "Clear \(mounts) \(noun)?",
+                message: "jit still serves \(mounts == 1 ? "this mount" : "these mounts") for \(mounts == 1 ? "a project" : "projects") "
+                    + "whose profile file is gone:\n\(listed)\n\nClearing is a registry edit: no secret is touched, "
+                    + "and no Touch ID is asked.",
+                button: "Clear", breaks: false, arguments: Self.pruneArguments
+            )
+        }
+        let secretNoun = "orphaned secret" + (secrets == 1 ? "" : "s")
+        return DeleteConfirmation(
+            title: "Clearing \(mounts) \(noun) also deletes \(secrets) \(secretNoun)",
+            message: "jit clears \(mounts == 1 ? "a registration" : "registrations") only while pruning orphans, "
+                + "so the \(secrets) \(secretNoun) still in the list \(secrets == 1 ? "goes" : "go") too, for good, "
+                + "with no archive and no undo.\n\nThe registrations:\n\(listed)\n\n"
+                + "To keep any of those secrets, delete the rest from the list first and clear the mounts once it is empty. "
+                + "Touch ID follows.",
+            button: "Clear and Delete \(secrets)", breaks: true, arguments: Self.pruneArguments, paths: orphans.map(\.path)
+        )
     }
 }

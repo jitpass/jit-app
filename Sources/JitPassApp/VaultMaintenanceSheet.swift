@@ -15,7 +15,7 @@ struct MaintenanceSheet: View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Vault Maintenance").font(.headline)
-                Text("Each button says what it runs before it runs. Touch ID follows each.")
+                Text("Each button says what it changes before it changes it. Touch ID follows each.")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
             orphansRow
@@ -64,27 +64,15 @@ struct MaintenanceSheet: View {
         backupsCount == 0 ? "none" : "\(backupsCount), kept for jit migrate undo"
     }
 
+    /// The count and one way in: the list, what each secret came from and
+    /// the choice of which go are the orphans sheet's, not a paragraph of
+    /// paths squeezed under a row.
     @ViewBuilder private var orphansRow: some View {
         if let orphans = model.vaultOrphans {
             row("Orphans", value: orphansValue(orphans)) {
-                Button("Prune…", action: actions.pruneOrphans).disabled(orphans.isEmpty)
+                Button("Review…") { actions.openSheet(.orphans) }.disabled(orphans.isEmpty)
             }
-            if !orphans.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    ForEach(orphans.orphans) { orphan in
-                        Text(orphan.path + (orphan.origin.isEmpty ? "" : " · from " + orphan.origin))
-                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                    }
-                    ForEach(orphans.staleMounts) { mount in
-                        Text("stale mount " + Format.home(mount.mountPath))
-                            .font(.system(size: 11, design: .monospaced)).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                    }
-                }
-                .frame(maxHeight: 120)
-                .help("A secret used only by a project you are not in and have not mounted looks orphaned too.")
-            }
+            .help("A secret used only by a project you are not in and have not mounted looks orphaned too.")
         } else {
             row("Orphans", value: "reading…") { EmptyView() }
         }
