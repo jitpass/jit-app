@@ -105,13 +105,22 @@ final class DoctorIgnoreTests: XCTestCase {
     /// ignored, and the only place that counts the ignored findings.
     func testIgnoredIsItsOwnTab() throws {
         let board = try board()
-        XCTAssertEqual(board.tabs.map(\.title), ["All", "Broken now", "Recommended", "Tidy up", "Ignored"])
-        XCTAssertEqual(board.tabs.map(\.count), [board.cards.count, 2, 2, 1, 1])
+        XCTAssertEqual(board.tabs.map(\.title), ["All", "Fix now", "Recommended", "Tidy up", "Ignored"])
         XCTAssertEqual(board.tabs.last?.tab, .ignored)
-        XCTAssertEqual(board.tabs.last?.enabled, true)
+        XCTAssertEqual(board.tabs.last?.count, 1)
         let none = try DoctorBoard.make(report(#"{"ok":true,"problems":[],"warnings":[]}"#))
-        XCTAssertEqual(none.tabs.map(\.title), ["All", "Broken now", "Recommended", "Tidy up"], "no Ignored tab when none is")
-        XCTAssertEqual(none.tabs.map(\.enabled), [true, false, false, false])
+        XCTAssertEqual(none.tabs.map(\.title), ["All"], "a tier with nothing in it is no tab at all")
+    }
+
+    /// One count, counted once: a tab counts the things a reader acts on,
+    /// not the cards they are grouped into, and All is their sum.
+    func testTabsCountThingsToFixNotCards() throws {
+        let board = try board()
+        let fixNow = try XCTUnwrap(board.tabs.first { $0.title == "Fix now" })
+        XCTAssertEqual(fixNow.count, board.cards(in: .broken).reduce(0) { $0 + $1.toFix })
+        XCTAssertEqual(board.tabs.first?.count, board.cards.reduce(0) { $0 + $1.toFix })
+        let rows = board.cards.first { $0.rows.count > 1 }
+        XCTAssertEqual(rows?.toFix, rows?.rows.count, "a card of four files is four things, not one")
     }
 
     /// All is the three tiers: an ignored finding is on no card and in no
@@ -119,7 +128,7 @@ final class DoctorIgnoreTests: XCTestCase {
     func testAllLeavesTheIgnoredOut() throws {
         let board = try board()
         XCTAssertFalse(board.cards.contains { card in card.items.contains { $0.profile == "aws-admin" } })
-        XCTAssertEqual(board.tabs.first?.count, board.cards.count)
+        XCTAssertEqual(board.tabs.first?.count, board.toFix)
         for tier in DoctorBoard.Tier.allCases {
             XCTAssertTrue(board.shows(tier, on: .all))
             XCTAssertFalse(board.shows(tier, on: .ignored))

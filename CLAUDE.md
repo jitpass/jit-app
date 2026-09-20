@@ -55,6 +55,50 @@ tools alone, but `swift test` and `swiftlint` need Xcode's toolchain: if
 - **Dependencies: none.** Foundation and AppKit. Adding a package needs the
   same justification jit's `TECH_STACK.md` §2 demands.
 
+## Design rules
+
+- **The design system is the source, not this repo.** Every window is
+  built from the JitPass design system, section **Windows**:
+  <https://claude.ai/artifact/AD9fUEBsrojwJMLyeTarY7>. Read that section
+  before you build or redesign any window, sheet or alert. It has the
+  regions, the three-width ladder, the six-step spacing scale, the type
+  scale, every control, the outcome states and the rules for a question.
+- **`DesignSystem.swift` is that section in Swift.** Use `Design.Space`,
+  `Design.Text`, `Design.Radius`, `Design.Window`, `Design.Size`, `Design.Surface` and
+  `Design.Label` instead of a literal. A number that is not in `Design` is missing
+  from the system: add it to the artifact's `tokens.json` and `windows.md`
+  first, then to `Design`, and never pick one in the view.
+- **State colour stays in `StatusMark`.** `Design` deliberately holds none, so
+  the menu bar mark, the panel dots and a window's rows cannot disagree
+  about what green means. Every state dot is 8pt and always sits beside a
+  word: red at that size on the window material is 2.3:1.
+- **No terminal pane reports success.** A command's output is not an
+  answer. While it runs, the row spins; when it works, the row says so in
+  the past tense, or the window's banner does; when it fails, the row
+  carries a sentence saying what to do and jit's own words verbatim under
+  it. `DoctorDialogs.showOutput` keeps only its failure role.
+- **The terminal is not banned, it is not a substitute.** Three cases, and
+  only the first two are ruled out: a terminal pane inside the app for a
+  success (never); the terminal standing in for a window the app has or
+  should have, such as a footer re-running `jit doctor` (remove); and a
+  genuinely interactive session such as a tool log-in, which opens a
+  browser and waits at a prompt (hand it to `Terminal.run`, label it
+  "… opens your terminal", and keep its command line, because the app is
+  not running it). The test: could the app do this itself? One known
+  exception is carried on purpose, `AuditView.capNote`'s "Open in Terminal
+  for the rest", which waits on the engine being able to page an audit
+  log.
+- **A question names the thing, it does not quote the command.** Two
+  exceptions keep their command: when the flag *is* the decision
+  (`--break-profiles`), and when the app is about to put that line in the
+  user's terminal rather than run it. "Touch ID follows" stays; "Nothing
+  asks again" goes, because it is true of all of them. Escape cancels,
+  Return never destroys.
+- **Surfaces are overlays, not fills.** Windows draw a translucent
+  material, so `Design.Surface` is white at an alpha. The hex values in the
+  artifact's `tokens.json` are samples for static mockups; painting them
+  would stop the window tinting with the wallpaper.
+
 ## Release rules
 
 Same as jit's: never ship unsigned (the workflow's preflight refuses rather

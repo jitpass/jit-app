@@ -22,9 +22,13 @@ public struct DoctorBoard: Equatable, Sendable {
             rawValue
         }
 
+        /// "Fix now", not "Broken now": the engine calls every problem a
+        /// problem, and some of them break nothing a tool can feel (a
+        /// leftover record nothing reads). A tier that claimed breakage
+        /// was contradicted two lines below by the card's own note.
         public var title: String {
             switch self {
-            case .broken: "Broken now"
+            case .broken: "Fix now"
             case .recommended: "Recommended"
             case .tidy: "Tidy up"
             }
@@ -34,6 +38,13 @@ public struct DoctorBoard: Equatable, Sendable {
     /// The header mark's colour, as the menu bar mark uses them.
     public enum Mark: Equatable, Sendable {
         case red, amber, green
+    }
+
+    /// What the header says, and the colour it says it in.
+    public struct Verdict: Equatable, Sendable {
+        public var headline: String
+        public var subline: String?
+        public var mark: Mark
     }
 
     public var headline: String
@@ -49,6 +60,29 @@ public struct DoctorBoard: Equatable, Sendable {
 
     public var isEmpty: Bool {
         cards.isEmpty
+    }
+
+    /// What the window says, as text, in the order it says it: the ⋯
+    /// menu's Copy Report, for a ticket or a colleague. It replaces the
+    /// menu's Open in Terminal, which answered the same wish by sending
+    /// the reader to run the check a second time somewhere else.
+    public var reportText: String {
+        var lines = [headline]
+        if let subline {
+            lines.append(subline)
+        }
+        for card in cards {
+            lines.append("")
+            lines.append("[\(card.tier.title)] \(card.title)")
+            for detail in [card.reason, card.detail].compactMap({ $0 }) {
+                lines.append(detail)
+            }
+            for row in card.rows {
+                let named = [row.name, row.folder, row.fact].compactMap { $0 }
+                lines.append("  " + (named.isEmpty ? row.text : named.joined(separator: " · ")))
+            }
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// Warnings worth doing something about soon; every other warning is
@@ -107,6 +141,14 @@ public struct DoctorCard: Equatable, Sendable, Identifiable {
         self.subject = subject ?? title
     }
 
+    /// How many things this card asks you to act on: its rows, or itself
+    /// when it has none. The header, the filter and the card all count
+    /// this, so one screen never carries two totals for the same
+    /// findings — it used to show six numbers for one screenful.
+    public var toFix: Int {
+        rows.isEmpty ? 1 : rows.count
+    }
+
     /// "Show the 7 profiles" / "Hide the 7 profiles".
     public func disclosure(open: Bool) -> String {
         let noun = listed.count == 1 ? String(listNoun.dropLast()) : listNoun
@@ -121,6 +163,16 @@ public struct DoctorCardRow: Equatable, Sendable, Identifiable {
     public var mono: Bool
     public var file: String?
     public var buttons: [DoctorButton]
+    /// A row about a file reads as three things instead of one sentence:
+    /// the file's name, the folders that tell it from its siblings, and
+    /// what is true of it. Four rows of one truncated path each, every
+    /// one repeating the same clause, told the reader nothing. Nil for a
+    /// row that is a sentence rather than a file.
+    public var name: String?
+    public var folder: String?
+    public var fact: String?
+    /// What the row's ⋯ holds: its file in Finder, its path, Ignore.
+    public var menu: [DoctorMenuEntry] = []
 }
 
 /// A disclosure row: a name and what is true of it.
@@ -223,10 +275,27 @@ public extension DoctorBoard {
                 }
                 return card
             }
+        let verdict = verdict(cards)
+        return DoctorBoard(
+            headline: verdict.headline, subline: verdict.subline, mark: verdict.mark, cards: cards,
+            ignored: ignoredRows(report.ignored)
+        )
+    }
+
+    /// What the header says and the colour it says it in. One kind that is
+    /// the whole of Fix now speaks for itself when it has words of its own
+    /// (`DoctorAdvice.headings`), because "1 problem to fix" over a red
+    /// mark was wrong about four files that break nothing. Everything else
+    /// counts problems, which is right for the kinds that do break things.
+    static func verdict(_ cards: [DoctorCard]) -> Verdict {
+        let broken = cards.filter { $0.tier == .broken }
+        let own = broken.count == 1 ? broken[0].items.first.flatMap { DoctorAdvice.headings[DoctorAdvice.currentKind($0.kind)] } : nil
+        if let own {
+            return Verdict(headline: own.headline(broken[0].toFix), subline: own.note, mark: own.mark)
+        }
         let (headline, subline) = heading(cards)
-        let mark: Mark = cards.contains { $0.tier == .broken } ? .red
-            : cards.contains { $0.tier == .recommended } ? .amber : .green
-        return DoctorBoard(headline: headline, subline: subline, mark: mark, cards: cards, ignored: ignoredRows(report.ignored))
+        let mark: Mark = broken.isEmpty ? (cards.contains { $0.tier == .recommended } ? .amber : .green) : .red
+        return Verdict(headline: headline, subline: subline, mark: mark)
     }
 
     /// "2 tools won't start" and the tools, then what else fails; else the

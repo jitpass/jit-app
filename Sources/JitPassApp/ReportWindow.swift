@@ -17,6 +17,10 @@ final class ReportWindow: NSWindow, NSWindowDelegate {
         mayClose?() ?? true
     }
 
+    func windowWillClose(_: Notification) {
+        userSized = false
+    }
+
     init(title: String, content: some View, size: NSSize, minSize: NSSize) {
         super.init(
             contentRect: NSRect(origin: .zero, size: size),
@@ -35,6 +39,41 @@ final class ReportWindow: NSWindow, NSWindowDelegate {
         contentView = NSHostingView(rootView: content)
         setContentSize(size)
         center()
+    }
+
+    /// Set while the window itself is resizing its own frame, so the
+    /// resize it causes is not read as the user's.
+    private var fitting = false
+    /// The user dragged an edge: the window is theirs now, and nothing
+    /// resizes it again while it is open.
+    private var userSized = false
+
+    func windowDidResize(_: Notification) {
+        if !fitting {
+            userSized = true
+        }
+    }
+
+    /// Opens at the height of what it holds, capped to the screen and
+    /// never below its minimum, instead of a fixed height with nothing
+    /// under the last card. Once the user has sized it, it is theirs;
+    /// closing and opening again starts over.
+    func fit(to height: CGFloat) {
+        guard isVisible, !userSized, height > 0, let content = contentView else {
+            return
+        }
+        let limit = (screen ?? NSScreen.main)?.visibleFrame.height ?? 900
+        let wanted = min(max(height.rounded(.up), contentMinSize.height), limit * 0.9)
+        guard abs(wanted - content.frame.height) > 1 else {
+            return
+        }
+        // From the top edge: a window that grows from the bottom walks up
+        // the screen every time a card appears.
+        var wantedFrame = frameRect(forContentRect: NSRect(x: 0, y: 0, width: content.frame.width, height: wanted))
+        wantedFrame.origin = NSPoint(x: frame.origin.x, y: frame.maxY - wantedFrame.height)
+        fitting = true
+        setFrame(wantedFrame, display: true)
+        fitting = false
     }
 
     func present() {

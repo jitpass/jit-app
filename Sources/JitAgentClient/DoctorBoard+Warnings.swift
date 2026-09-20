@@ -75,7 +75,7 @@ extension BoardContext {
         if let attach {
             card.primary = DoctorButton(one ? "Attach…" : "Attach \(count)…", .run([attach]))
         }
-        card.menu = configEntries(config) + [.button(terminalButton(attach.map { [$0] } ?? []))]
+        card.menu = configEntries(config)
         return card
     }
 
@@ -124,7 +124,6 @@ extension BoardContext {
         }
         let others = actions.filter { $0 != migrate }
         card.menu = configEntries(config) + actionButtons(others).map(DoctorMenuEntry.button)
-            + [.button(terminalButton(migrate.map { [$0] } ?? []))]
         return card
     }
 
@@ -185,10 +184,47 @@ extension BoardContext {
     /// to keep it means reading it.
     func rowButtons(_ item: DoctorItem) -> [DoctorButton] {
         var buttons = actionButtons(DoctorAdvice.actions(for: item))
+        // A row that names its own file does not need the word again on
+        // the button beside it: the row says `.env.pointers`, so the
+        // button says Delete…, not Delete File….
+        if DoctorAdvice.rowParts(item) != nil {
+            buttons = buttons.map { button in
+                button.title == "Delete File…" ? DoctorButton("Delete…", button.command) : button
+            }
+        }
         if let edit = editButton(item) {
             buttons.insert(edit, at: 0)
         }
         return buttons
+    }
+
+    /// A row's ⋯: what it can do with the file it names, and Ignore. The
+    /// buttons beside it stay the two verbs the reader came for, so a
+    /// mis-click can only open the file or ask a question.
+    func rowMenu(_ item: DoctorItem) -> [DoctorMenuEntry] {
+        var entries = DoctorAdvice.filePath(item).map { configEntries($0, label: fileMenuLabel(item)) } ?? []
+        if let ignore = item.ignore?.arguments("ignore") {
+            entries.append(.button(DoctorButton("Ignore", .ignore([ignore]))))
+        }
+        if case .separator = entries.last {
+            entries.removeLast()
+        }
+        return entries
+    }
+
+    /// One command for every leftover file a card lists: `jit migrate
+    /// forget` takes them all, so four rows are one question, not four.
+    /// Never prominent — it deletes.
+    func deleteAllButton(_ items: [DoctorItem]) -> DoctorButton? {
+        let files = items.compactMap { DoctorAdvice.filePath($0) }
+        guard items.count > 1, files.count == items.count, items.allSatisfy({ $0.kind == "stale_pointers" }) else {
+            return nil
+        }
+        let action = DoctorAction(
+            "Delete All \(files.count)", "jit migrate forget " + files.map(DoctorAdvice.homePath).joined(separator: " "),
+            destructive: true, argv: [["migrate", "forget", "--yes"] + files]
+        )
+        return DoctorButton(action.buttonTitle, .run([action]))
     }
 
     /// Edit, for a row about a file jit wrote whose contents decide what to
@@ -222,11 +258,18 @@ extension BoardContext {
             } else {
                 card.reason = tier == .tidy ? "\(group.items.count) of them" : group.note
                 card.rows = group.items.map { item in
-                    DoctorCardRow(
+                    let parts = DoctorAdvice.rowParts(item)
+                    return DoctorCardRow(
                         id: item.id, text: DoctorAdvice.rowText(item), mono: DoctorAdvice.rowIsPath(item),
                         file: DoctorAdvice.filePath(item),
-                        buttons: rowButtons(item)
+                        buttons: rowButtons(item),
+                        name: parts?.name, folder: parts?.folder, fact: parts?.fact,
+                        menu: rowMenu(item)
                     )
+                }
+                if let all = deleteAllButton(group.items) {
+                    card.primary = all
+                    card.primaryProminent = false
                 }
             }
             let primary = actions.first { !isUndo($0) }
@@ -238,16 +281,13 @@ extension BoardContext {
             if let edit {
                 card.primary = edit
                 card.primaryProminent = false
-            } else if let primary {
+            } else if let primary, card.primary == nil {
                 card.primary = actionButtons([primary]).first
                 card.primaryProminent = tier != .tidy && primary.argv != nil
             }
             let file = card.file.map { configEntries($0, label: fileMenuLabel(group.items[0])) } ?? []
             let rest = actionButtons(edit == nil ? actions.filter { $0 != primary } : actions)
             card.menu = file + rest.map(DoctorMenuEntry.button)
-            if tier != .tidy {
-                card.menu.append(.button(terminalButton(primary.map { [$0] } ?? [])))
-            }
             return card
         }
     }
@@ -263,7 +303,6 @@ extension BoardContext {
         card.reason = "in the vault, but no profile jit can see uses \(count == 1 ? "it" : "them")"
         card.primary = DoctorButton("Review…", .open(.orphans))
         card.primaryProminent = false
-        card.menu = [.button(DoctorButton("Open in Terminal", .terminal("jit vault orphans")))]
         return card
     }
 }

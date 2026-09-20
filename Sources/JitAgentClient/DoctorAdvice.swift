@@ -76,6 +76,11 @@ public struct DoctorAction: Equatable, Sendable {
     /// whose output would be pasted into a dialog. Nothing runs when it is
     /// set: the window opens on what was asked about.
     public var opens: Surface?
+    /// The question this action asks, when only the card that built it
+    /// knows the true answer: unmounting a stale mount touches no secret,
+    /// and the generic "it deletes for good" would be wrong about it.
+    /// Nil lets `DoctorAdvice.confirm` word the question from the command.
+    public var confirmation: DoctorConfirmation?
 
     public init(
         _ title: String, _ command: String, destructive: Bool = false, needs: Needs = .nothing,
