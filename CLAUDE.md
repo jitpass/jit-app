@@ -63,8 +63,10 @@ keychain holds a second, unrelated team), verify the PUBLISHED zip and not
 `dist/`, publish as a draft and undraft only after that verification. The
 bundle CAN be stapled, unlike jit's bare binary, so the cask needs no online
 ticket fetch. Local credentials live in `~/.apple-signing`; the five Apple
-secrets are set on this repo; `HOMEBREW_TAP_GITHUB_TOKEN` is not, so the
-cask is pushed to the tap by hand until it is.
+secrets are set on this repo, and so is `HOMEBREW_TAP_GITHUB_TOKEN` (since
+2026-09-17), so the cask is pushed to the tap automatically — only after the
+release is verified and visible, never at a draft. The workflow still falls
+back to printing the cask for a manual push if that token ever goes missing.
 
 ## The bundled jit
 
