@@ -145,6 +145,11 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
         case copyPath(String)
         case terminal(String)
         case review
+        /// Open a surface in the Vault window: the orphaned secrets by
+        /// project, a secret's own history. Doctor hands the user the
+        /// list; it never pastes one into a dialog, and never deletes
+        /// behind one button what nobody has read.
+        case open(DoctorAction.Surface)
         /// `jit doctor ignore …` per finding, then a recheck.
         case ignore([[String]])
         /// `jit doctor unignore …`.
@@ -186,6 +191,11 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
         case let .reveal(path), let .edit(path), let .copyPath(path): path
         case let .terminal(command): command
         case .review: ""
+        case let .open(surface):
+            switch surface {
+            case .orphans: "Read them by project, and choose which go"
+            case let .history(path): "The archived versions of " + path
+            }
         case let .ignore(commands): commands.map { "jit " + $0.joined(separator: " ") }.joined(separator: "\n")
         case let .unignore(command): "jit " + command.joined(separator: " ")
         }

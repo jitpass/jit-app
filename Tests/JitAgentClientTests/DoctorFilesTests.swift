@@ -139,15 +139,21 @@ final class DoctorFilesTests: XCTestCase {
         )
     }
 
-    /// Only the text changes: the delete still runs every path.
-    func testVaultRmShowsManyPathsOnePerLineAndRunsThemAll() throws {
+    /// Every path it deletes is named, one per line and however few, and
+    /// the delete still runs all of them. The dialog used to name them
+    /// inside the command it quoted; the command went, the paths did not.
+    func testVaultRmNamesEveryPathItDeletesAndRunsThemAll() throws {
         let paths = ["mcp-okta/OKTA_CLIENT_ID", "mcp-okta/OKTA_KEY_ID", "mcp-okta/OKTA_PRIVATE_KEY", "mcp-okta/OKTA_ORG"]
         let dialog = VaultRmPlan(paths: paths).confirmation(home: "/Users/me")
         XCTAssertEqual(dialog.arguments, ["vault", "rm", "--yes"] + paths)
-        XCTAssertTrue(dialog.message.hasPrefix("This runs:\n\njit vault rm --yes\n+ these 4 secrets:\n"
-                + paths.joined(separator: "\n") + "\n\n"), dialog.message)
+        XCTAssertTrue(dialog.message.hasPrefix("It deletes all 4 secrets and their history for good, "
+                + "with no archive and no undo:\n\n" + paths.joined(separator: "\n") + "\n\n"), dialog.message)
+        XCTAssertFalse(dialog.message.contains("jit vault rm"), "the command is not the question")
         let few = try VaultRmPlan.parse(Data(#"{"paths":["gh/TOKEN","gh/OTHER"]}"#.utf8)).confirmation(home: "/Users/me")
-        XCTAssertTrue(few.message.hasPrefix("This runs:\n\njit vault rm --yes gh/TOKEN gh/OTHER\n\n"), few.message)
+        XCTAssertTrue(few.message.contains("\n\ngh/TOKEN\ngh/OTHER\n\n"), few.message)
+        let one = try VaultRmPlan.parse(Data(#"{"paths":["gh/TOKEN"]}"#.utf8)).confirmation(home: "/Users/me")
+        XCTAssertEqual(one.title, "Delete gh/TOKEN?", "one path is named by the title")
+        XCTAssertTrue(one.message.hasPrefix("It deletes the secret and its history for good, with no archive and no undo. "), one.message)
     }
 
     // MARK: - files

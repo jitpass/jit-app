@@ -39,7 +39,10 @@ extension StatusItemController {
             delete: { [weak self] paths in self?.deleteSecrets(paths) },
             openInTerminal: { [weak self] in self?.runInTerminal("jit vault list -l") },
             loadOrphans: { [weak self] in self?.loadOrphans() },
-            pruneOrphans: { [weak self] in self?.pruneOrphans() },
+            clearStaleMounts: { [weak self] in self?.clearStaleMounts() },
+            revealOrigins: { paths in
+                NSWorkspace.shared.activateFileViewerSelecting(paths.map { URL(fileURLWithPath: $0) })
+            },
             pruneBackups: { [weak self] in self?.pruneBackups() },
             exportVault: { [weak self] in self?.exportVault() },
             importVault: { [weak self] in self?.importVault() },
@@ -47,6 +50,20 @@ extension StatusItemController {
             compareDuplicates: { [weak self] in self?.compareDuplicates() },
             pruneDuplicates: { [weak self] in self?.pruneDuplicates() }
         )
+    }
+
+    /// A doctor button's way into this window: the orphaned secrets, or
+    /// one secret's archived versions. The sheet's own onAppear reads what
+    /// it needs, so opening it is the whole action.
+    func openVaultSurface(_ surface: DoctorAction.Surface) {
+        openVault()
+        model.vaultMessage = nil
+        switch surface {
+        case .orphans:
+            model.vaultSheet = .orphans
+        case let .history(path):
+            model.vaultSheet = .history(path: path)
+        }
     }
 
     func openVault() {
@@ -223,6 +240,11 @@ extension StatusItemController {
         runVault(label, work: { Self.remove(arguments) }, then: { [weak self] _ in
             self?.model.scanStale = true
             self?.notice("\(label) deleted" + (confirmation.breaks ? ", knowing what it breaks" : ""))
+            // The orphans sheet deletes through here, and its list is the
+            // one thing a delete makes stale fastest.
+            if self?.model.vaultOrphans != nil {
+                self?.loadOrphans()
+            }
         })
     }
 

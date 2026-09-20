@@ -42,6 +42,16 @@ public struct DoctorAction: Equatable, Sendable {
         case undoMigration(targets: [String])
     }
 
+    /// Where a doctor button can send the user instead of running
+    /// something: a list jit already renders as rows in the Vault window.
+    /// Both replaced a modal holding CLI text.
+    public enum Surface: Equatable, Sendable {
+        /// The orphaned secrets, by project.
+        case orphans
+        /// One secret's archived versions, each with its Restore.
+        case history(path: String)
+    }
+
     public var title: String
     /// What a hover shows, and what runs when `argv` is nil.
     public var command: String
@@ -62,11 +72,15 @@ public struct DoctorAction: Equatable, Sendable {
     /// `fixes` (false when the report predates them).
     public var presence: Bool
     public var planned: Planned?
+    /// A surface in the app that answers this action, instead of a command
+    /// whose output would be pasted into a dialog. Nothing runs when it is
+    /// set: the window opens on what was asked about.
+    public var opens: Surface?
 
     public init(
         _ title: String, _ command: String, destructive: Bool = false, needs: Needs = .nothing,
         argv: [[String]]? = nil, input: Input? = nil, showsOutput: Bool = false, presence: Bool = false,
-        planned: Planned? = nil
+        planned: Planned? = nil, opens: Surface? = nil
     ) {
         self.title = title
         self.command = command
@@ -77,6 +91,7 @@ public struct DoctorAction: Equatable, Sendable {
         self.showsOutput = showsOutput
         self.presence = presence
         self.planned = planned
+        self.opens = opens
     }
 }
 
@@ -171,10 +186,16 @@ public enum DoctorAdvice {
             removeVariable(item)
         ] },
         "corrupt": { item in [
-            show("Show History", ["vault", "history", item.path ?? ""]),
+            DoctorAction(
+                "Show History", "jit vault history " + (item.path ?? ""),
+                opens: .history(path: item.path ?? "")
+            ),
             setValue("Replace Value", item, destructive: true)
         ] },
-        "orphan": { item in item.path == nil ? orphanActions : [] },
+        // The orphans have no action here: their card carries one Review
+        // button into the Vault window's list (`orphanCard`), where they
+        // are read by project and deleted by choice.
+        "orphan": { _ in [] },
         "duplicates": { _ in [show("Compare", ["vault", "duplicates"])] },
         // Doctor's advice here is two-sided ("nothing, if you still use
         // these; `jit vault rm` if the project is gone") and only the user
@@ -293,11 +314,6 @@ public enum DoctorAdvice {
     private static func show(_ title: String, _ arguments: [String]) -> DoctorAction {
         DoctorAction(title, "jit " + arguments.joined(separator: " "), argv: [arguments], showsOutput: true)
     }
-
-    public static let orphanActions = [
-        show("Inspect", ["vault", "orphans"]),
-        DoctorAction("Delete All", "jit vault orphans --prune", destructive: true, argv: [["vault", "orphans", "--prune", "--yes"]])
-    ]
 
     /// `jit unmount <path>` as the terminal runs it: the home-relative path
     /// when the shell reads it as written, the full path single-quoted
