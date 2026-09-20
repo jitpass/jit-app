@@ -3,9 +3,21 @@
 
 import AppKit
 
-/// Hands a jit command to the user's own terminal. The app never runs jit
-/// with output it would have to render itself; scan and audit stay terminal
-/// surfaces with their own house style.
+/// Hands a jit command to the user's own terminal.
+///
+/// This is for a command that genuinely needs a human at a prompt: a tool
+/// log-in opens a browser, shows a code and waits. The app cannot run that
+/// silently and must not pretend to, so the button says what it does
+/// ("Log In in Terminal") and the question keeps its command line, because
+/// the app is not the one running it.
+///
+/// It is NOT for a job the app could do itself. A footer that re-runs
+/// `jit doctor`, a menu offering `jit vault orphans`, an unmount asking
+/// its own y/N per mount: each of those is a window the app has or should
+/// build. Scan and audit both have their own window now; the one terminal
+/// route left there is `AuditView.capNote`, kept on purpose until the
+/// engine can page an audit log. The rule is the design system's Windows
+/// section, "When the terminal is still right".
 ///
 /// macOS has no "default terminal" setting, so the choice is layered:
 ///
