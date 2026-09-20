@@ -63,9 +63,6 @@ extension StatusItemController {
         guard doctorIdle else {
             return
         }
-        if action.argv == [VaultOrphans.pruneArguments] {
-            return pruneOrphansFromDoctor(action, target: target)
-        }
         if let planned = action.planned {
             return performPlanned(planned, action: action, target: target)
         }
@@ -151,9 +148,10 @@ extension StatusItemController {
     /// then rechecks so the card disappears because doctor says so. The
     /// first failure stops the run. A card shows how it ended (done, or
     /// what jit said); a row without a card shows a failure under the
-    /// header. The output is shown when it is what the user asked for, and
-    /// for a destructive action either way, so what was deleted, or why
-    /// nothing was, is on screen and not only in a log.
+    /// header. A failure shows jit's own output, and so does an action
+    /// whose output is what was asked for; a destructive one that worked
+    /// does not, because the card says how it ended and the window behind
+    /// it already shows the new state.
     func applyInApp(_ steps: [DoctorStep], action: DoctorAction, target: DoctorTarget) {
         // A check that started while the dialogs were up is no reason to
         // drop what the user just confirmed: the recheck after this action
@@ -217,9 +215,17 @@ extension StatusItemController {
             model.doctorMessage = result.failure
         }
         runDoctor(afterAction: true)
-        if let failure = result.failure, action.destructive {
+        // A failure opens the output window: jit's own words are the
+        // diagnosis and there is nowhere else to read them. So does a
+        // read-only action, whose output is the whole request (Show
+        // History, Show Log) and which would otherwise run and show
+        // nothing at all. A destructive one that worked does not: the card
+        // says how it ended and the window behind it shows the new state,
+        // and a modal re-listing what was just deleted is a dump, not an
+        // answer. That pair was the orphans' Delete All.
+        if let failure = result.failure {
             DoctorDialogs.showOutput(text.isEmpty ? failure : text, title: "\(action.title) failed")
-        } else if result.failure == nil, action.destructive || action.showsOutput {
+        } else if action.showsOutput {
             DoctorDialogs.showOutput(text, title: action.title)
         }
     }

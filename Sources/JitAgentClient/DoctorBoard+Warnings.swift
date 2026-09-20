@@ -252,16 +252,18 @@ extension BoardContext {
         }
     }
 
-    /// The orphaned secrets: a count, Inspect, and Delete All in the menu.
+    /// The orphaned secrets: a count and one way in. Reviewing them is
+    /// reading, so the button is not prominent and nothing on this card
+    /// deletes: the list is where a secret is looked at and chosen, and
+    /// deleting without looking is what the old Delete All invited.
     func orphanCard(_ base: DoctorCard) -> DoctorCard {
         var card = base
         let count = card.items.count
         card.title = count == 1 ? "1 orphaned secret" : "\(count) orphaned secrets"
         card.reason = "in the vault, but no profile jit can see uses \(count == 1 ? "it" : "them")"
-        let buttons = actionButtons(DoctorAdvice.orphanActions)
-        card.primary = buttons.first
+        card.primary = DoctorButton("Review…", .open(.orphans))
         card.primaryProminent = false
-        card.menu = buttons.dropFirst().map(DoctorMenuEntry.button)
+        card.menu = [.button(DoctorButton("Open in Terminal", .terminal("jit vault orphans")))]
         return card
     }
 }

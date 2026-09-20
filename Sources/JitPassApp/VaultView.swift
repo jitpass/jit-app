@@ -39,6 +39,8 @@ struct VaultView: View {
                 HistorySheet(model: model, actions: actions, path: path)
             case .maintenance:
                 MaintenanceSheet(model: model, actions: actions)
+            case .orphans:
+                VaultOrphansSheet(model: model, actions: actions)
             case .duplicates:
                 DuplicatesSheet(model: model, actions: actions)
             }
@@ -324,7 +326,11 @@ struct VaultActions {
     var delete: ([String]) -> Void = { _ in }
     var openInTerminal: () -> Void = {}
     var loadOrphans: () -> Void = {}
-    var pruneOrphans: () -> Void = {}
+    /// `jit vault orphans --prune`: the stale mount registrations, and
+    /// every orphaned secret still listed with them.
+    var clearStaleMounts: () -> Void = {}
+    /// Select the files these secrets were migrated from in Finder.
+    var revealOrigins: ([String]) -> Void = { _ in }
     var pruneBackups: () -> Void = {}
     var exportVault: () -> Void = {}
     var importVault: () -> Void = {}
