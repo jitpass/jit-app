@@ -27,13 +27,106 @@ enum Format {
         }
     }
 
-    /// `env_file_present` as `Env file present`.
+    /// `env_file_present` as `Env file present`. The rule lives with the
+    /// finding, where a test can hold it.
     static func findingType(_ type: String) -> String {
-        let words = type.split(separator: "_").map(String.init)
-        guard let first = words.first else {
-            return type
+        ScanFinding.typeLabel(of: type)
+    }
+
+    /// The last path component, which is what tells two rows apart.
+    static func fileName(_ path: String) -> String {
+        (path as NSString).lastPathComponent
+    }
+
+    /// The folder under it, home-relative and without its trailing slash:
+    /// the row prints the name first and this after it, in mono.
+    static func parentFolder(_ path: String) -> String {
+        let parent = home((path as NSString).deletingLastPathComponent)
+        return parent.isEmpty ? "" : parent
+    }
+
+    /// The window's headline: the ledger for a whole-Mac scan, which is
+    /// the number that answers "am I covered", and the findings for a
+    /// folder scan, which has no ledger of its own.
+    static func scanHeadline(_ s: ScanSummary, wholeMac: Bool) -> String {
+        guard wholeMac else {
+            return "\(s.totalFindings) finding" + (s.totalFindings == 1 ? "" : "s")
         }
-        return ([first.capitalized] + words.dropFirst()).joined(separator: " ")
+        return "\(s.secretsProtected) of \(s.secretsTotal) secrets protected"
+    }
+
+    /// The one sentence under it: where jit looked, how much it read, when,
+    /// and the limit that would change the answer.
+    static func scanSubline(
+        scope: String?,
+        summary: ScanSummary?,
+        at: Date?,
+        excludes: Int,
+        fullDiskAccess: Bool
+    ) -> String {
+        var facts: [String] = [scope.map(home) ?? "Whole Mac"]
+        if let files = summary?.filesScanned, files > 0 {
+            facts.append("\(files) files")
+        }
+        if let at {
+            facts.append(ago(at))
+        }
+        if excludes > 0 {
+            facts.append("excluding \(excludes) folder" + (excludes == 1 ? "" : "s"))
+        }
+        let limit = fullDiskAccess
+            ? "jit reads your home folder, shell configs, credential files and agent caches."
+            : "Without Full Disk Access, macOS asks once per protected folder."
+        return facts.joined(separator: " · ") + ". " + limit
+    }
+
+    /// The footer: what the scan found, counted the way the cards count it.
+    static func scanFooter(_ report: ScanReport) -> String {
+        guard !report.tiersPresent.isEmpty else {
+            let files = report.summary.filesScanned
+            return "Nothing to protect, nothing needs you · \(files) files read"
+        }
+        let parts = report.tiersPresent.map { tier in
+            "\(report.count(in: tier)) " + tierLabel(tier).lowercased()
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// A tier's word, for its card's eyebrow and its filter pill.
+    static func tierLabel(_ tier: ScanTier) -> String {
+        switch tier {
+        case .protect: "Protect"
+        case .needsYou: "Needs you"
+        case .agentCaches: "Agent caches"
+        case .testFixtures: "Test fixtures"
+        }
+    }
+
+    /// A tier's card title: what the reader is looking at, counted once.
+    static func tierTitle(_ tier: ScanTier, files: Int) -> String {
+        let n = "\(files) file" + (files == 1 ? "" : "s")
+        switch tier {
+        case .protect: return "jit can move " + (files == 1 ? "this one" : "these") + " into the vault"
+        case .needsYou: return files == 1 ? "Only you can fix this one" : "Only you can fix these"
+        case .agentCaches: return n + " of agent caches hold copies"
+        case .testFixtures: return n + " hold real-looking examples"
+        }
+    }
+
+    /// What the tier is, and what the choice costs.
+    static func tierNote(_ tier: ScanTier) -> String {
+        switch tier {
+        case .protect: "The file stays. The value moves, a decoy takes its place, and every file is backed up first."
+        case .needsYou: "jit can't rewrite these safely. Rotate each value, or move it yourself."
+        case .agentCaches: ScanReportView.agentNote
+        case .testFixtures: "The scanner counts them in the score. Check they are not live."
+        }
+    }
+
+    /// The lines sheet's title: the file, and how many lines it flagged.
+    static func linesTitle(_ group: ScanFileGroup) -> String {
+        let n = group.findings.count
+        return "\(n) flagged line" + (n == 1 ? "" : "s") + " in " + fileName(group.filePath)
     }
 
     /// The protected-secrets tally is machine-wide (it reads the vault), so

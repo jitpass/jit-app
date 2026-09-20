@@ -26,8 +26,12 @@ extension StatusItemController {
                 self?.refreshScanIfDue()
             },
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
-            setTTL: { [weak self] ttl in self?.applyService(["service", "ttl", ttl]) },
-            setConsent: { [weak self] on in self?.applyService(["service", "consent", on ? "on" : "off"]) },
+            setTTL: { [weak self] ttl, label in
+                self?.applyService(["service", "ttl", ttl], row: .lockTimer, value: label)
+            },
+            setConsent: { [weak self] on in
+                self?.applyService(["service", "consent", on ? "on" : "off"], row: .consent, value: on ? "is on" : "is off")
+            },
             setGuard: { [weak self] on in self?.setGuard(on) },
             setNotifyDecoys: { [weak self] on in
                 UserDefaults.standard.set(on, forKey: Notifier.decoyPreferenceKey)
@@ -56,7 +60,8 @@ extension StatusItemController {
             checkForUpdates: { [weak self] in self?.checkForUpdates(manual: true) },
             installUpdate: { [weak self] in self?.installUpdate() },
             installCommandLineTool: { [weak self] in self?.installCommandLineTool() },
-            removeJitPass: { [weak self] in self?.openOffboarding() }
+            removeJitPass: { [weak self] in self?.openOffboarding() },
+            startService: { [weak self] in self?.startService() }
         )
     }
 
@@ -99,7 +104,7 @@ extension StatusItemController {
         model.editorApp = Editor.chosen()?.bundleID ?? ""
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
         model.fullDiskAccess = FullDiskAccess.granted()
-        model.settingsMessage = nil
+        model.settingsOutcome = nil
         refreshNotificationPermission()
         if model.cli == nil {
             model.cli = JitCLI.status()
@@ -125,32 +130,35 @@ extension StatusItemController {
                 try SMAppService.mainApp.unregister()
             }
             model.launchAtLogin = SMAppService.mainApp.status == .enabled
-            model.settingsMessage = nil
+            model.settingsOutcome = .applied(.launchAtLogin, value: on ? "is on" : "is off")
         } catch {
-            model.settingsMessage = "Launch at login: \(error.localizedDescription)"
+            model.settingsOutcome = .failed(.launchAtLogin, line: error.localizedDescription)
         }
     }
 
     /// One `jit service …` invocation, off the main thread: both restart
     /// the service, and consent-off waits on the CLI's own Touch ID prompt.
     /// The stream ends with the restart and reconnects on its own.
-    private func applyService(_ arguments: [String]) {
-        guard !model.settingsBusy else {
+    private func applyService(_ arguments: [String], row: SettingsOutcome.Row, value: String) {
+        guard model.settingsApplying == nil else {
             return
         }
-        model.settingsBusy = true
-        model.settingsMessage = nil
+        model.settingsApplying = row
+        model.settingsOutcome = nil
         Task.detached {
             let result = JitCLI.apply(arguments)
             await MainActor.run { [weak self] in
                 guard let self else {
                     return
                 }
-                model.settingsBusy = false
+                model.settingsApplying = nil
                 switch result {
-                case let .success(line): model.settingsMessage = line
-                case let .failure(JitCLI.CLIError.failed(line)): model.settingsMessage = line
-                case .failure: model.settingsMessage = "jit is not installed where the app can find it."
+                case .success:
+                    model.settingsOutcome = .applied(row, value: value)
+                case let .failure(JitCLI.CLIError.failed(line)):
+                    model.settingsOutcome = .failed(row, line: line)
+                case .failure:
+                    model.settingsOutcome = .failed(row, line: "jit is not installed where the app can find it.")
                 }
                 pollStatus()
                 runDoctor()
