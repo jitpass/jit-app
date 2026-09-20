@@ -156,6 +156,37 @@ final class DoctorFilesTests: XCTestCase {
         XCTAssertTrue(one.message.hasPrefix("It deletes the secret and its history for good, with no archive and no undo. "), one.message)
     }
 
+    /// The in-app dialogs stopped quoting the command they run, and for
+    /// several of them that line was the only place the path appeared. Each
+    /// must name its subject in the sentence instead, and a command that
+    /// acts on several paths must name every one: a dialog saying one path
+    /// while jit deletes two understates a delete, which is worse than the
+    /// command line it replaced.
+    func testInAppConfirmationsNameWhatTheyActOn() {
+        let set = DoctorAction("Set Value", "jit vault set myapp/TOKEN", argv: [["vault", "set", "myapp/TOKEN"]], presence: true)
+        let stored = DoctorAdvice.confirmation(for: set)
+        XCTAssertTrue(stored.contains("myapp/TOKEN"), stored)
+        XCTAssertFalse(stored.contains("This runs"), stored)
+        XCTAssertTrue(stored.hasSuffix("Touch ID follows."), stored)
+
+        let two = DoctorAction("Delete", "jit vault rm a/B c/D", destructive: true, argv: [["vault", "rm", "--yes", "a/B", "c/D"]])
+        let both = DoctorAdvice.confirmation(for: two)
+        XCTAssertTrue(both.contains("a/B and c/D"), "both paths, not the last one: \(both)")
+
+        let forget = DoctorAction(
+            "Forget", "jit migrate forget ~/old/.env", destructive: true, argv: [["migrate", "forget", "/Users/me/old/.env", "--yes"]]
+        )
+        XCTAssertTrue(DoctorAdvice.confirmation(for: forget).contains("old/.env"), "the file it forgets is named")
+    }
+
+    /// The one command a dialog still quotes: the app is not running it,
+    /// it is about to put that line in the user's terminal.
+    func testATerminalHandoffStillNamesItsCommand() {
+        let text = DoctorAdvice.confirmation(for: DoctorAdvice.generic("sudo rm /usr/local/bin/jit"))
+        XCTAssertTrue(text.contains("This opens the terminal and runs:"), text)
+        XCTAssertTrue(text.contains("sudo rm /usr/local/bin/jit"), text)
+    }
+
     // MARK: - files
 
     /// Which field a row's Show in Finder takes, per kind.
