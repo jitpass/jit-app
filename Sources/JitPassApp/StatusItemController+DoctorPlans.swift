@@ -8,27 +8,6 @@ import JitAgentClient
 /// is what jit reported a moment ago, and what runs is exactly the command
 /// the dialog names.
 extension StatusItemController {
-    /// Delete All on the orphans: the dialog names what `jit vault orphans`
-    /// lists now, not what a report up to doctorTTL old said. Prompt-free
-    /// and quick, so it runs here, immediately before the dialog.
-    func pruneOrphansFromDoctor(_ action: DoctorAction, target: DoctorTarget) {
-        let fresh: VaultOrphans
-        do {
-            fresh = try JitCLI.vaultOrphans()
-        } catch {
-            model.doctorMessage = "jit vault orphans: \(Self.describe(error))"
-            return
-        }
-        let confirmation = fresh.pruneConfirmation()
-        guard Self.confirmDeletion(confirmation) else {
-            if confirmation.button == nil {
-                runDoctor(afterAction: true)
-            }
-            return
-        }
-        applyInApp([DoctorStep(argv: VaultOrphans.pruneArguments)], action: action, target: target)
-    }
-
     /// Attach, Remove Profile, Migrate and Undo Migration: jit's dry run
     /// first, then one dialog worded from it, then exactly the command that
     /// dialog names (attach runs the profile names it listed; rm the one
@@ -150,6 +129,8 @@ extension StatusItemController {
             runInTerminal(command)
         case .review:
             break
+        case let .open(surface):
+            openVaultSurface(surface)
         case let .ignore(commands):
             if let line = card.ignoreConfirmation, !confirmIgnore(line) {
                 return
@@ -158,13 +139,19 @@ extension StatusItemController {
         case let .unignore(command):
             runIgnore([command], key: key)
         case let .run(steps):
-            let subject = key == card.id ? nil : card.rows.first { $0.id == key }?.text
-            let target = DoctorTarget(key: key, card: card, button: button, subject: subject)
-            if steps.count == 1, let action = steps.first {
-                perform(action, target: target)
-            } else {
-                performSequence(steps, target: target)
-            }
+            runCardAction(steps, button: button, card: card, key: key)
+        }
+    }
+
+    /// One action goes through its own flow (its dialogs, its dry run);
+    /// several are one fix, asked for in turn and run in order.
+    private func runCardAction(_ steps: [DoctorAction], button: DoctorButton, card: DoctorCard, key: String) {
+        let subject = key == card.id ? nil : card.rows.first { $0.id == key }?.text
+        let target = DoctorTarget(key: key, card: card, button: button, subject: subject)
+        if steps.count == 1, let action = steps.first {
+            perform(action, target: target)
+        } else {
+            performSequence(steps, target: target)
         }
     }
 

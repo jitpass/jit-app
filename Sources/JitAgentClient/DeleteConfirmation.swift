@@ -107,11 +107,21 @@ public extension VaultRmPlan {
         CommandText.shown(fixed, names: paths, noun: ("secret", "secrets"), listedAbove: false)
     }
 
+    /// Nothing uses them, so the question is only whether they should stop
+    /// existing: what goes, that it cannot be undone, and that Touch ID is
+    /// next. The command is not in it. The app passes --yes in place of
+    /// jit's own y/N, and quoting the line it replaced answered a question
+    /// about jit rather than about these secrets; the paths it would have
+    /// carried are listed here instead.
     private var cleanConfirmation: DeleteConfirmation {
         let arguments = ["vault", "rm", "--yes"] + paths
-        let message = "This runs:\n\n\(command(["vault", "rm", "--yes"]))\n\n\(deletes). "
+        // One path is in the title already; past that they go one per
+        // line, however few. The old text carried them inside the command
+        // it quoted, so dropping the command must not drop the paths.
+        let listed = paths.count == 1 ? ". " : ":\n\n" + paths.joined(separator: "\n") + "\n\n"
+        let message = "\(deletes), with no archive and no undo\(listed)"
             + "No profile, mount or pointer file jit can find uses \(pronoun)." + missingNote
-            + " Nothing asks again. Touch ID follows."
+            + " Touch ID follows."
         return DeleteConfirmation(
             title: "Delete \(subject)?", message: message,
             button: paths.count == 1 ? "Delete" : "Delete \(paths.count)", breaks: false, arguments: arguments, paths: paths

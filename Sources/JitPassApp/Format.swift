@@ -15,6 +15,18 @@ enum Format {
         return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
     }
 
+    /// A project's origin for the orphans list: the file its secrets were
+    /// migrated from. jit's own phrase for none is "no recorded origin
+    /// (pre-provenance, or set directly)", which explains jit to itself;
+    /// the row says what is missing and leaves it there.
+    static func orphanOrigin(_ group: VaultOrphanGroup) -> String {
+        switch group.origins.count {
+        case 0: "origin not recorded"
+        case 1: home(group.origins[0])
+        default: "\(group.origins.count) origins"
+        }
+    }
+
     /// `env_file_present` as `Env file present`.
     static func findingType(_ type: String) -> String {
         let words = type.split(separator: "_").map(String.init)

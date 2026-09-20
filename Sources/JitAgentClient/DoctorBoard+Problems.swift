@@ -203,6 +203,11 @@ struct BoardContext {
         }
         return unique.map { action in
             let title = BoardText.dialogTitle(action)
+            // An action with a surface opens it; nothing runs, so none of
+            // the command wording below applies to it.
+            if let surface = action.opens {
+                return DoctorButton(title, .open(surface))
+            }
             let clash = unique.filter { $0.title == action.title }.count > 1
             let target = action.argv?.first?.last { !$0.hasPrefix("-") } ?? action.command
             return DoctorButton(clash ? "\(title) · \(target)" : title, .run([action]))

@@ -5,10 +5,11 @@ import AppKit
 import JitAgentClient
 
 /// The vault as a whole: orphans, backups, export, import, rekey. Each
-/// destructive one runs with `--yes` only after a dialog here that names
-/// the command; the passphrases go to jit through stdin.
+/// destructive one runs with `--yes` only after a dialog here that asks
+/// what jit's own y/N would ask, in the user's words rather than as a
+/// command line; the passphrases go to jit through stdin.
 extension StatusItemController {
-    /// Prompt-free, so it runs when the sheet opens and after a prune.
+    /// Prompt-free, so it runs when the sheet opens and after every delete.
     func loadOrphans() {
         model.vaultOrphans = nil
         Task.detached {
@@ -22,11 +23,13 @@ extension StatusItemController {
         }
     }
 
-    /// `jit vault orphans --prune --yes` after a dialog listing every path
-    /// it deletes and every stale mount it clears, as jit lists them right
-    /// before the dialog: the sheet's list can be as old as the sheet. The
-    /// listing is prompt-free and quick, so it runs here, synchronously.
-    func pruneOrphans() {
+    /// `jit vault orphans --prune --yes`, which is the only command that
+    /// clears a stale mount registration and deletes every orphaned secret
+    /// in the same pass. The dialog is worded from a listing taken right
+    /// here: the sheet's own list can be as old as the sheet, and what the
+    /// user is told goes must be what goes. Orphaned secrets on their own
+    /// are deleted through `jit vault rm` from the sheet's selection.
+    func clearStaleMounts() {
         guard model.vaultBusy == nil else {
             return
         }
@@ -38,11 +41,13 @@ extension StatusItemController {
             return
         }
         model.vaultOrphans = fresh
-        guard Self.confirmDeletion(fresh.pruneConfirmation()) else {
+        let confirmation = fresh.staleMountConfirmation()
+        guard Self.confirmDeletion(confirmation) else {
             return
         }
-        runVault("orphans", work: { JitCLI.execute(VaultOrphans.pruneArguments) }, then: { [weak self] output in
-            self?.notice(Self.lastLine(output, or: "orphans pruned"))
+        runVault("the mount registrations", work: { JitCLI.execute(VaultOrphans.pruneArguments) }, then: { [weak self] output in
+            self?.model.scanStale = true
+            self?.notice(Self.lastLine(output, or: "cleared"))
             self?.loadOrphans()
         })
     }
@@ -65,8 +70,13 @@ extension StatusItemController {
         }
         let delete = alert.addButton(withTitle: button)
         let cancel = alert.addButton(withTitle: "Cancel")
+        // Red on the button that deletes, because colour carries state
+        // here and this is the irreversible one; the system accent would
+        // paint it the same blue as Done. A break-profiles delete goes
+        // further: it takes no Return at all, so Return cannot break a
+        // profile, and Cancel keeps Escape.
+        delete.hasDestructiveAction = confirmation.destructive
         if confirmation.breaks {
-            delete.hasDestructiveAction = true
             delete.keyEquivalent = ""
             cancel.keyEquivalent = "\u{1b}"
         }
@@ -85,9 +95,8 @@ extension StatusItemController {
         let count = model.vaultListing?.backups.count ?? 0
         let alert = NSAlert()
         alert.messageText = "Prune \(count) migrate backup\(count == 1 ? "" : "s")?"
-        alert.informativeText = "This runs:\n\njit vault prune --yes\n\n"
-            + "Every backup but the newest per file is deleted for good; jit migrate undo can then only restore that one. "
-            + "Nothing asks again. Touch ID follows."
+        alert.informativeText = "Every backup but the newest per file is deleted for good; "
+            + "jit migrate undo can then only restore that one. Touch ID follows."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Prune")
         alert.addButton(withTitle: "Cancel")
@@ -141,9 +150,8 @@ extension StatusItemController {
         let path = url.path
         let alert = NSAlert()
         alert.messageText = "Import \(url.lastPathComponent)?"
-        alert.informativeText = "This runs:\n\njit vault import \(Format.home(path)) --yes\n\n"
-            + "Every secret in the file is stored; a secret at the same path is overwritten, its current value archived first. "
-            + "Nothing asks again. Touch ID follows."
+        alert.informativeText = "Every secret in the file is stored. A secret already at the same path is overwritten, "
+            + "its current value archived first, so that much is reversible. Touch ID follows."
         alert.addButton(withTitle: "Import")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -164,9 +172,8 @@ extension StatusItemController {
     func rekeyVault() {
         let alert = NSAlert()
         alert.messageText = "Rekey the vault?"
-        alert.informativeText = "This runs:\n\njit vault rekey --yes\n\n"
-            + "A new master key is generated and every secret is re-wrapped under it. Values are never decrypted to disk. "
-            + "Safe to interrupt: re-running finishes it. Touch ID follows."
+        alert.informativeText = "A new master key is generated and every secret is re-wrapped under it. "
+            + "Values are never decrypted to disk. Safe to interrupt: re-running finishes it. Touch ID follows."
         alert.addButton(withTitle: "Rekey")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -184,8 +191,7 @@ extension StatusItemController {
     func compareDuplicates() {
         let alert = NSAlert()
         alert.messageText = "Compare every secret?"
-        alert.informativeText = "This runs:\n\njit vault duplicates\n\n"
-            + "jit decrypts every stored value in memory to find copies of the same file. "
+        alert.informativeText = "jit decrypts every stored value in memory to find copies of the same file. "
             + "That takes the vault unlock plus one Touch ID per credential class the consent gate covers "
             + "(aws, git, shell history…); Settings › Protection › \"Ask before each tool's first credential use\" "
             + "is the switch for the per-class half. A 1Password link asks 1Password too. Nothing is changed."

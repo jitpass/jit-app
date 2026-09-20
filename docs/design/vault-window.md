@@ -16,6 +16,36 @@ prune and export actions stay where they were. The engine's `used_by`
 shipped in jit 1.6.2: the selection bar shows "used by wrap-gh, dev-api"
 and the Delete dialog warns before the confirmation.
 
+Phase 3a rebuilt the orphans, 2026-09-20 (`VaultOrphansSheet`, the grouping
+and `staleMountConfirmation` in `JitAgentClient/VaultOrphans`). They used to
+be three modals: `DoctorDialogs.showOutput` holding `jit vault orphans`
+stdout in a 640x320 monospaced text view (clipped on both axes), an
+`NSAlert` carrying 15 of 59 paths and three paragraphs of caveat, and the
+same output view again as the receipt. They are now one sheet: a row per
+project, expandable to its keys, with the recorded origin beside it and the
+selection deleted through the same `jit vault rm --dry-run` flow every other
+delete in this window uses, so a secret that stopped being an orphan since
+the listing is refused rather than deleted. Selection is the point: the
+engine has always been able to delete a subset, and only `--prune` was
+all-or-nothing.
+
+Stale mount registrations stay a separate, honest case. `jit vault orphans
+--prune` is the only command that clears one, and the same run deletes every
+orphaned secret (`vault.go` around `clearStaleMounts`), so the sheet says
+which secrets go with them, its dialog says it again, and that button takes
+neither Return nor the default. Doctor's card lost Inspect and Delete All
+for one Review button into this sheet: doctor counts orphans, it does not
+delete a list nobody has read. `DoctorDialogs.showOutput` now opens on
+failure only.
+
+Those dialogs also stopped quoting the command they run. The vault alerts
+(orphans, backups, import, rekey, duplicates) and the plain `vault rm`
+confirmation lead with what changes and end with "Touch ID follows"; the
+paths `CommandText` used to carry inside the quoted command are listed in
+the message instead. The plan dialogs (migrate, profile attach and rm, the
+duplicates prune) still quote theirs, and the `--break-profiles` variant
+keeps its line on purpose: there the flag is the decision.
+
 `design/menu-bar-app.md` (jit repo) says the app is "not a vault browser"
 in v1: names, states and events only, never a value. v0.9.2 honours that so
 strictly that the panel's Vault row is the only vault surface at all: it reads

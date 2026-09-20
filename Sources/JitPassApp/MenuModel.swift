@@ -367,6 +367,8 @@ enum VaultSheet: Identifiable, Equatable {
     /// Orphans, backups, export, import, rekey: the commands that act on
     /// the vault as a whole.
     case maintenance
+    /// The orphaned secrets, chosen from and deleted by project.
+    case orphans
     /// The duplicates comparison, after its Touch IDs.
     case duplicates
 
@@ -376,6 +378,7 @@ enum VaultSheet: Identifiable, Equatable {
         case let .link(group, replacing): "link:\(group ?? ""):\(replacing ?? "")"
         case let .history(path): "history:\(path)"
         case .maintenance: "maintenance"
+        case .orphans: "orphans"
         case .duplicates: "duplicates"
         }
     }

@@ -126,8 +126,47 @@ final class DoctorAdviceTests: XCTestCase {
         XCTAssertNil(DoctorAdvice.groups([rm]).first?.groupActions.first)
     }
 
+    /// Doctor counts the orphans and hands them over; it never deletes a
+    /// list the user has not seen. Guards the old Inspect/Delete All pair
+    /// from coming back.
+    func testOrphanCardOnlyOpensTheList() throws {
+        let finding = DoctorItem(kind: "orphan", scope: nil, profile: nil, variable: nil, path: "g/K1", detail: nil, action: nil)
+        XCTAssertEqual(DoctorAdvice.actions(for: finding), [], "no action on the finding itself")
+        let json = #"""
+        {"ok":false,"warnings":[{"kind":"orphan","path":"g/K1"},{"kind":"orphan","path":"g/K2"},{"kind":"orphan","path":"h/K3"}]}
+        """#
+        let report = try JSONDecoder().decode(DoctorReport.self, from: Data(json.utf8))
+        let card = try XCTUnwrap(DoctorBoard.make(report, home: "/Users/me").cards.first { $0.id == "kind:orphan" })
+        XCTAssertEqual(card.title, "3 orphaned secrets")
+        XCTAssertEqual(card.primary?.title, "Review…")
+        XCTAssertEqual(card.primary?.command, .open(.orphans))
+        XCTAssertFalse(card.primaryProminent, "reading is not the loud button")
+        for entry in card.menu {
+            guard case let .button(button) = entry else {
+                continue
+            }
+            XCTAssertNotEqual(button.title, "Delete All")
+            if case let .run(steps) = button.command {
+                XCTAssertFalse(steps.contains { $0.destructive }, "nothing on this card deletes")
+            }
+        }
+    }
+
+    /// Show History used to run `jit vault history` and paste its output
+    /// into a modal. The Vault window renders the same JSON as rows with a
+    /// Restore on each, so the button goes there and runs nothing.
+    func testShowHistoryOpensTheHistorySheet() throws {
+        let corrupt = DoctorItem(
+            kind: "corrupt", scope: nil, profile: "p", variable: "V", path: "p/V", detail: nil, action: nil
+        )
+        let action = try XCTUnwrap(DoctorAdvice.actions(for: corrupt).first { $0.title == "Show History" })
+        XCTAssertEqual(action.opens, .history(path: "p/V"))
+        XCTAssertNil(action.argv, "it runs nothing")
+        XCTAssertFalse(action.showsOutput, "and shows no command output")
+    }
+
     func testDestructiveCommandsAreMarked() {
-        XCTAssertTrue(DoctorAdvice.orphanActions.contains { $0.command == "jit vault orphans --prune" && $0.destructive })
+        XCTAssertTrue(DoctorAdvice.generic("jit vault rm g").destructive)
         XCTAssertTrue(DoctorAdvice.generic("sudo rm /usr/local/bin/jit").destructive)
         XCTAssertFalse(DoctorAdvice.generic("jit service restart").destructive)
     }
@@ -265,8 +304,11 @@ extension DoctorAdviceTests {
             DoctorItem(kind: "corrupt", scope: nil, profile: "p", variable: "V", path: "p/V", detail: nil, action: nil),
             DoctorItem(kind: "mount_stale", scope: "mount", profile: nil, variable: nil, path: "/x/.env", detail: nil, action: nil)
         ]
-        let all = samples.flatMap(DoctorAdvice.actions(for:)) + DoctorAdvice.orphanActions
-        XCTAssertGreaterThan(all.filter { $0.argv != nil }.count, 8)
+        let all = samples.flatMap(DoctorAdvice.actions(for:))
+        // Not vacuous: the loop below must actually see commands. It
+        // shrinks as actions become surfaces that run nothing (Show
+        // History) rather than commands whose output filled a dialog.
+        XCTAssertGreaterThan(all.filter { $0.argv != nil }.count, 5)
         for action in all {
             for arguments in action.argv ?? [] {
                 let mutating = ["rm", "--prune", "import", "rekey", "set", "unmount"].contains { arguments.contains($0) }
@@ -278,7 +320,6 @@ extension DoctorAdviceTests {
                 }
             }
         }
-        XCTAssertTrue(DoctorAdvice.orphanActions.contains { $0.showsOutput }, "Inspect shows the list in the app")
     }
 }
 
@@ -325,11 +366,8 @@ extension DoctorAdviceTests {
         XCTAssertTrue(DoctorAdvice.confirmation(for: rm).contains("jit asks once more"))
         let forced = DoctorAdvice.generic("jit vault rm k8s --yes")
         XCTAssertFalse(DoctorAdvice.confirmation(for: forced).contains("jit asks"))
-        let prune = DoctorAdvice.orphanActions.first { $0.destructive }
-        XCTAssertNotNil(prune)
-        if let prune {
-            XCTAssertTrue(DoctorAdvice.confirmation(for: prune).contains("nothing asks again"), "in the app, --yes answers it")
-        }
+        let pruned = DoctorAdvice.generic("jit vault orphans --prune --yes")
+        XCTAssertTrue(DoctorAdvice.confirmation(for: pruned).contains("nothing asks again"), "in the app, --yes answers it")
         let other = DoctorAdvice.generic("sudo rm -rf /opt/x")
         XCTAssertFalse(DoctorAdvice.confirmation(for: other).contains("jit asks"))
     }
