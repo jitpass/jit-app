@@ -175,6 +175,34 @@ What the cask did for a Homebrew install, the app does for itself:
 
 `jit upgrade` inside the bundle keeps refusing and pointing at the app.
 
+## Confirmation dialogs
+
+The app passes `--yes` to every jit command it runs, which answers jit's own
+[y/N] before it is asked. Its dialog is therefore the only question the user
+is ever asked, and it is worded for the person, not for whoever wrote jit:
+
+- **Lead with what changes**, and with the irreversible part of it first
+  ("It deletes all 3 secrets and their history for good, with no archive and
+  no undo"). End with what happens next, which is usually "Touch ID follows."
+- **Never quote the command.** `This runs: jit vault orphans --prune --yes`
+  answers a question about jit's flags; the reader is deciding about their
+  secrets. Two exceptions, both cases where the command IS the decision: a
+  `--break-profiles` delete, where that flag is what makes jit delete what it
+  would otherwise refuse, and anything the app hands to the terminal, where
+  the command is literally what the user is about to be given.
+- **Whatever the command carried, the sentence must carry.** A quoted command
+  is often the only place a path, a file or a list of names appears. Removing
+  it without moving those names into the prose loses a fact
+  (`DoctorAdvice.subject(of:)`, `StatusItemController.protectedNames`). When
+  a command names several things, name all of them: a sentence that says one
+  path while the command deletes two understates a delete.
+- **"Nothing asks again" is not a fact about the user's decision.** It
+  describes the `--yes` above, it is true of every one of these dialogs, and
+  it distinguishes nothing.
+- A dialog that only informs takes no destructive button; one that deletes
+  takes the red one (`hasDestructiveAction`), and a delete that breaks a
+  profile takes no Return key at all.
+
 ## Security notes
 
 - The app adds no new privileged path. It is a same-user socket peer, subject

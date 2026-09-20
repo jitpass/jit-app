@@ -93,12 +93,7 @@ final class ProfilePlansTests: XCTestCase {
 
         Attaching records ~/Security-Ops/.mcp.json, so jit migrate remove ~/Security-Ops will then take them too.
 
-        This runs:
-
-        jit profile attach --yes ~/Security-Ops/.mcp.json
-        + the 7 profiles listed above
-
-        It changes which configs the profiles record: no secret is read or changed, and nothing asks again.
+        It changes which configs the profiles record: no secret is read or changed.
         """)
     }
 
@@ -109,8 +104,8 @@ final class ProfilePlansTests: XCTestCase {
         XCTAssertEqual(dialog.button, "Attach")
         XCTAssertTrue(dialog.message.hasPrefix("~/.claude.json uses this profile, which doesn't record it:\n• p · records no config\n\n"
                 + "Attaching records ~/.claude.json.\n\n"), dialog.message)
-        XCTAssertTrue(dialog.message.hasSuffix("It changes which configs the profile records: no secret is read or changed, "
-                + "and nothing asks again."), dialog.message)
+        XCTAssertTrue(dialog.message.hasSuffix("It changes which configs the profile records: no secret is read or changed."),
+                      dialog.message)
     }
 
     /// The migrate remove clause follows the engine's rule: a project
@@ -178,11 +173,7 @@ final class ProfilePlansTests: XCTestCase {
         It deletes the profile and the secret nothing else uses, history and all:
         token/JSON_WEB_TOKEN_JWT
 
-        This runs:
-
-        jit profile rm --yes token
-
-        Nothing asks again. Touch ID follows.
+        Touch ID follows.
         """)
     }
 
@@ -197,11 +188,7 @@ final class ProfilePlansTests: XCTestCase {
         k8s-docker-desktop/CLIENT_CERTIFICATE_DATA
         k8s-docker-desktop/CLIENT_KEY_DATA
 
-        This runs:
-
-        jit profile rm --yes k8s-docker-desktop
-
-        Nothing asks again, and no Touch ID: no secret is deleted.
+        No secret is deleted, so nothing asks for Touch ID.
         """)
     }
 

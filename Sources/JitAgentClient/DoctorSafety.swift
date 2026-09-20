@@ -36,36 +36,40 @@ extension DoctorAdvice {
     private static func confirmationBody(for action: DoctorAction) -> String {
         let command = action.command
         if action.argv != nil {
+            let subject = Self.subject(of: action)
             if command.hasPrefix("jit vault set ") {
-                return "This runs:\n\n\(command)\n\nThe value you type replaces the stored one; "
-                    + "the old one stays in the secret's history. Nothing asks again."
+                return "The value you type is stored at \(subject). The value there now moves into the secret's history."
             }
             if action.argv?.contains(where: { $0.starts(with: ["vault", "import"]) }) == true {
-                return "This runs:\n\n\(command)\n\nEvery secret in the file is stored; a secret at the same path "
-                    + "is overwritten, its current value archived first. Nothing asks again."
+                return "Every secret in \(subject) is stored. A secret already at the same path is overwritten, "
+                    + "its current value archived first."
             }
-            // Not a delete at all — no secret, no file, one line out of one
-            // profile — so the generic "deletes for good" below would be
-            // wrong twice over. It names the variables in prose rather than
-            // only in the command line, which is the line people skim; and
-            // it leads with the risk, because "Doctor stops reporting it"
-            // read as a benefit when it is the whole danger.
+            // Not a delete at all: no secret, no file, one line out of one
+            // profile, so the generic "deletes for good" below would be
+            // wrong twice over. It leads with the risk, because "Doctor
+            // stops reporting it" read as a benefit when it is the whole
+            // danger.
             if let drop = action.argv?.first(where: { $0.starts(with: ["profile", "drop"]) }) {
                 let profile = drop.count > 2 ? drop[2] : ""
                 let variables = drop.dropFirst(3).filter { !$0.hasPrefix("-") }
                 let named = BoardText.list(Array(variables))
                 let them = variables.count == 1 ? "it" : "them"
-                return "This runs:\n\n\(command)\n\nProfile \(profile) stops passing \(named) to the tools it "
+                return "Profile \(profile) stops passing \(named) to the tools it "
                     + "starts. If one of them does need \(them), it will fail with nothing to say why, and Doctor "
                     + "won't flag it again. No stored secret is deleted, and jit refuses to run this if the vault "
-                    + "holds a value for \(them). Nothing asks again."
+                    + "holds a value for \(them)."
             }
             if action.argv?.contains(where: { $0.starts(with: ["migrate", "forget"]) }) == true {
-                return "This runs:\n\n\(command)\n\nIt deletes that file and nothing else: no secret, no profile, "
+                return "It deletes \(subject) and nothing else: no secret, no profile, "
                     + "no mount. jit refuses if a mount is still serving that file, or if the secrets it lists are "
-                    + "still in the vault. Nothing asks again."
+                    + "still in the vault."
             }
-            return "This runs:\n\n\(command)\n\nIt deletes for good, and nothing asks again."
+            // The only in-app case with nothing else to name it by: an
+            // unknown destructive command keeps its line rather than
+            // becoming "It deletes for good" with no object at all.
+            return subject.isEmpty
+                ? "This runs:\n\n\(command)\n\nIt deletes for good."
+                : "It deletes \(subject) for good."
         }
         let opens = "This opens the terminal and runs:\n\n\(command)\n\n"
         if command.hasPrefix("sudo rm ") {
@@ -77,6 +81,19 @@ extension DoctorAdvice {
             && !words.contains("--yes") && !words.contains("-y") && !words.contains("--force")
         let effect = terminalEffect(command)
         return opens + (asks ? "\(effect). jit asks once more before it does." : "\(effect), and nothing asks again.")
+    }
+
+    /// What an in-app command acts on: every argument after the verb that
+    /// is not a flag, shortened to ~. These dialogs no longer quote the
+    /// command, and for `vault set` or `migrate forget` that line was the
+    /// only place the path appeared, so the sentence has to name it.
+    ///
+    /// All of them, not the last one: `jit vault rm a/B c/D` deletes both,
+    /// and a sentence naming only `c/D` would understate a delete, which is
+    /// worse than the command line it replaced.
+    private static func subject(of action: DoctorAction) -> String {
+        let arguments = action.argv?.first ?? []
+        return BoardText.list(arguments.dropFirst(2).filter { !$0.hasPrefix("-") }.map(homePath))
     }
 
     /// What a destructive terminal command does, in a clause: not every

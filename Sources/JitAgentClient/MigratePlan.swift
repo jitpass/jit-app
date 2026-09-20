@@ -107,12 +107,11 @@ public struct MigratePlan: Equatable, Sendable {
         text.replacingOccurrences(of: "\u{1B}\\[[0-9;]*[A-Za-z]", with: "", options: .regularExpression)
     }
 
-    /// The dialog: what it does in plain words, the command it runs, and
-    /// jit's plan under it. An undo writes plaintext back, so its button is
-    /// the red one that Return does not press.
+    /// The dialog: what it does in plain words, with jit's own plan under
+    /// it. An undo writes plaintext back, so its button is the red one that
+    /// Return does not press.
     public func confirmation(home: String = NSHomeDirectory()) -> DeleteConfirmation {
         let shown = targets.map { VaultRmPlan.short($0, home) }
-        let command = "jit " + (arguments.prefix(arguments.count - targets.count) + shown).joined(separator: " ")
         let name = targets.count == 1 && targets[0].hasPrefix("/") ? DoctorAdvice.configShortName(targets[0], home: home)
             : shown.joined(separator: " ")
         guard hasWork else {
@@ -131,16 +130,14 @@ public struct MigratePlan: Equatable, Sendable {
                 title: "Undo the migration of \(name)?",
                 message: "This puts \(what) back on disk, and jit writes real secret values back to disk in plaintext. "
                     + "The vault keeps its copies and the profiles stay. Edits made since the migration are replaced; "
-                    + "jit keeps a copy of them in the vault first.\n\nThis runs:\n\n\(command)\n\n"
-                    + "Nothing asks again. Touch ID follows.\n\n\(planNote)",
+                    + "jit keeps a copy of them in the vault first.\n\nTouch ID follows.\n\n\(planNote)",
                 button: "Undo Migration", breaks: true, arguments: arguments, destructive: true
             )
         }
         return DeleteConfirmation(
             title: "Migrate \(name)?",
             message: "jit rewrites what the plan below lists. Every file is backed up, encrypted, before it is touched; "
-                + "jit migrate undo restores it.\n\nThis runs:\n\n\(command)\n\n"
-                + "Nothing asks again. Touch ID follows if jit needs the vault.\n\n\(planNote)",
+                + "jit migrate undo restores it.\n\nTouch ID follows if jit needs the vault.\n\n\(planNote)",
             button: "Migrate", breaks: false, arguments: arguments, destructive: false
         )
     }
