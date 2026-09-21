@@ -208,12 +208,20 @@ extension StatusItemController {
         for tool in plan.wrap {
             commands.append(["wrap", tool])
         }
+        // migrate sweeps the agent caches for copies of what it just vaulted.
+        // The scan on screen already lists those copies, each with the file
+        // it came from, so the dialog can say what the sweep will reach
+        // before Touch ID — the fix for "Protect cleared my AI-cache
+        // alerts" (design/scan-and-protect.md D7). No scan runs here.
+        let copies = (model.scan ?? model.macScan)?.copies(from: plan.migrate) ?? []
+        let sweep = ScanWording.sweepSentence(copies: copies).map { $0 + "\n\n" } ?? ""
         let alert = NSAlert()
         alert.messageText = plan.count == 1
             ? "Protect \(plan.migrate.first.map(Format.home) ?? plan.wrap.first ?? "")?"
             : "Protect \(plan.count) findings?"
         alert.informativeText = (createsVault ? "This Mac has no vault yet, so this creates one first. " : "")
             + "These move into the vault:\n\n\(Self.protectedNames(plan))\n\n"
+            + sweep
             + "Each file is rewritten so what reads it keeps working, and is backed up encrypted first; "
             + "jit migrate undo restores it. Touch ID follows."
         alert.addButton(withTitle: "Protect")

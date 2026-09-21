@@ -192,3 +192,47 @@ public enum ScanWording {
             : "Without Full Disk Access, macOS asks once per protected folder."
     }
 }
+
+public extension ScanReport {
+    /// The cached copies whose origin is one of these files: what a Protect
+    /// of those files will also remove, and so what its dialog must say.
+    func copies(from origins: [String]) -> [ScanFinding] {
+        let set = Set(origins)
+        return agentCopies.filter { $0.originPath.map(set.contains) ?? false }
+    }
+}
+
+public extension ScanWording {
+    /// The Protect dialog's paragraph about the sweep, or nil when the scan
+    /// found no copies of these files' secrets. Promises the sweep, not
+    /// its outcome: before Touch ID jit knows what it found, not what it
+    /// will manage to rewrite.
+    ///
+    /// "It also removes the 9 copies the scan found in Claude Code's
+    /// transcripts and edit history, and in Cursor's chat database. A copy
+    /// it can't safely rewrite is left in place and named when it's done."
+    static func sweepSentence(copies: [ScanFinding]) -> String? {
+        guard !copies.isEmpty else {
+            return nil
+        }
+        var order: [String] = []
+        var areas: [String: [String]] = [:]
+        for copy in copies {
+            let agent = copy.agent ?? "an AI agent"
+            if areas[agent] == nil {
+                order.append(agent)
+                areas[agent] = []
+            }
+            if let area = copy.cacheArea, areas[agent]?.contains(area) == false {
+                areas[agent]?.append(area)
+            }
+        }
+        let places = order.map { agent -> String in
+            let list = areas[agent] ?? []
+            return list.isEmpty ? "\(agent)'s cache" : "\(agent)'s " + list.joined(separator: " and ")
+        }
+        let what = copies.count == 1 ? "the copy" : "the \(copies.count) copies"
+        return "It also removes \(what) the scan found in " + places.joined(separator: ", and in ") + ". "
+            + "A copy it can't safely rewrite is left in place and named when it's done."
+    }
+}

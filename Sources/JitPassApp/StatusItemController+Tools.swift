@@ -52,11 +52,17 @@ extension StatusItemController {
     /// env-block tokens move into the vault, the file is rewritten to
     /// point at them, and it is backed up encrypted first.
     func protectFile(_ path: String) {
+        // The same sweep sentence the Findings window's Protect carries:
+        // migrate will also remove the cached copies of this file's secrets
+        // the last whole-Mac scan found, and says so before Touch ID.
+        let copies = model.macScan?.copies(from: [path]) ?? []
+        let sweep = ScanWording.sweepSentence(copies: copies).map { " " + $0 } ?? ""
         let alert = NSAlert()
         alert.messageText = "Protect \(Format.home(path))?"
         alert.informativeText = "The credentials in the file move into the vault and the file is rewritten so everything that reads it "
             + "keeps working: a config points at the vault, a credential file becomes a live mount serving decoys "
-            + "until a run is granted the real content. Backed up encrypted first; jit migrate undo restores it. "
+            + "until a run is granted the real content." + sweep
+            + " Backed up encrypted first; jit migrate undo restores it. "
             + "Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
