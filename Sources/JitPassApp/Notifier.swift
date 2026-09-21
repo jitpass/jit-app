@@ -31,6 +31,9 @@ enum Notifier {
     /// name it. Ids only, never a value or a path.
     static let knownFindingsKey = "KnownFindingIDs"
     static let knownFindingsAtKey = "KnownFindingsAt"
+    /// Redact tokens found by format in agent caches after each scheduled
+    /// scan (Settings › Scan). Off by default.
+    static let redactAfterScanKey = "RedactAfterScan"
 
     /// On by default: a decoy serve is the event the whole design exists
     /// for, and a user who never opens the audit would otherwise never

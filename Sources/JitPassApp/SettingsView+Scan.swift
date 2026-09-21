@@ -19,6 +19,7 @@ extension SettingsView {
             AppCardRows {
                 accessRow
                 scheduleRow
+                redactRow
                 excludeRows
             }
         }
@@ -38,12 +39,26 @@ extension SettingsView {
         }
     }
 
+    /// The one automatic Protect: after a scheduled scan, the tokens it
+    /// found by format in agent caches become markers. Off by default. The
+    /// row carries every guard, since a switch never asks.
+    private var redactRow: some View {
+        AppRow(
+            name: "After a scheduled scan, redact tokens in agent caches",
+            fact: "Only AI agent caches, never your files. Each token becomes a marker that says what it was; "
+                + "there is no backup and no undo. No Touch ID: it runs after every scheduled scan and tells you what it changed.",
+            wraps: true,
+            last: model.scanExcludes.isEmpty
+        ) {
+            AppSwitch(isOn: Binding(get: { model.redactAfterScan }, set: actions.setRedactAfterScan))
+        }
+    }
+
     private var scheduleRow: some View {
         AppRow(
             name: "Scan the whole Mac",
             fact: scheduleFact,
-            wraps: true,
-            last: model.scanExcludes.isEmpty
+            wraps: true
         ) {
             AppPopup(
                 options: ScanSchedule.allCases.map { AppSegmentItem(value: $0, title: $0.label) },

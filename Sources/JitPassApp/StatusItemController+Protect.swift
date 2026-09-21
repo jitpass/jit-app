@@ -66,6 +66,63 @@ extension StatusItemController {
         return WindowOutcome(title: titles.joined(separator: " · "), text: text, failed: failed, undo: undo)
     }
 
+    /// Redact… on a row, Redact All… on a sheet or the card: the tokens the
+    /// scan found by format in agent caches become `<jit:redacted:VENDOR>`
+    /// markers. No vault, no backup, no Touch ID (jit's D12), and the dialog
+    /// says the change is one-way. `files` empty is every cache; `lines`
+    /// narrows to one row's line.
+    func redact(files: [String], lines: [Int], what: String) {
+        let alert = NSAlert()
+        alert.messageText = "Redact \(what)?"
+        let place = files.count == 1 ? "In " + Format.home(files[0]) + ", " : "In "
+        alert.informativeText = place + (files.count == 1 ? "an AI agent's cache. " : "AI agent caches, never your own files. ")
+            + "Each token becomes a marker that names its kind, and the rest of the line stays as it is. "
+            + "This cannot be undone: no backup is taken, and the marker is the record of what was there."
+        alert.addButton(withTitle: "Redact")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
+            return
+        }
+        model.findingsOutcome = nil
+        runTools("redact", refresh: false, work: { JitCLI.redact(files: files, lines: lines) }, then: { [weak self] report in
+            guard let self else {
+                return
+            }
+            model.scanStale = true
+            let outcome = ScanWording.redactOutcome(report)
+            showResult(title: outcome.title, text: report.report, failed: outcome.failed)
+            runScan(wholeMac: true, kind: .afterProtect)
+        })
+    }
+
+    /// After a scheduled scan, under the Settings switch: the same command,
+    /// no dialog, its result said once in a notification and in the
+    /// Findings banner. Agent caches only, and nothing here ever prompts —
+    /// the command needs no vault.
+    func autoRedact(after report: ScanReport, at: Date) {
+        guard model.redactAfterScan, !report.cacheShapes.isEmpty, model.toolsBusy == nil else {
+            return
+        }
+        runTools("redact", refresh: false, work: { JitCLI.redact(files: [], lines: []) }, then: { [weak self] result in
+            guard let self else {
+                return
+            }
+            model.scanStale = true
+            let outcome = ScanWording.redactOutcome(result)
+            model.findingsOutcome = WindowOutcome(title: outcome.title, text: result.report, failed: outcome.failed)
+            if model.notifyChanges, let notice = ScanNotices.redacted(result, at: at) {
+                Notifier.post(
+                    title: notice.title,
+                    body: notice.body,
+                    id: "redact-\(Int(at.timeIntervalSince1970))",
+                    thread: "findings",
+                    target: .findings
+                )
+            }
+            runScan(wholeMac: true, kind: .afterProtect)
+        })
+    }
+
     /// `jit migrate undo <file> --yes` from the Findings banner: the file
     /// comes back from its encrypted backup, so its secret is plaintext on
     /// disk again — said before Touch ID. The cache copies the Protect

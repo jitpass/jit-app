@@ -30,9 +30,8 @@ final class MenuModel: ObservableObject {
     /// shows. A folder scan never replaces it.
     @Published var macScan: ScanReport?
     @Published var macScanAt: Date?
-    /// Who started the last whole-Mac scan (the Findings header); the ids
-    /// it has that the run before did not, nil with no run to compare with
-    /// (the header's count, the "new" mark); and when that earlier run was.
+    /// Who started the last whole-Mac scan; the ids it has that the run
+    /// before did not (nil: no run to compare with); when that run was.
     @Published var macScanKind: ScanRunKind?
     @Published var macScanNew: Set<String>?
     @Published var previousMacScanAt: Date?
@@ -43,6 +42,7 @@ final class MenuModel: ObservableObject {
         rawValue: UserDefaults.standard.string(forKey: ScanSchedule.preferenceKey) ?? ""
     ) ?? .default
     @Published var scanExcludes: [String] = ScanExcludes.load()
+    @Published var redactAfterScan = UserDefaults.standard.bool(forKey: Notifier.redactAfterScanKey)
     @Published var audit: AuditReport?
     /// Decoy serves in the last 24 hours (nil until read), and the same by
     /// reading program, for the AI Agents digest's per-agent row.

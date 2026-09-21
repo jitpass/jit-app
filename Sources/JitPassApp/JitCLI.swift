@@ -228,44 +228,6 @@ enum JitCLI {
         var output: String
     }
 
-    /// `jit migrate <paths> --yes --format json`: the run as one document
-    /// the banner reads by its fields (MigrateReport). stderr is kept
-    /// apart so a progress line cannot land inside the document. A run
-    /// that failed but still wrote its document returns it — the partial
-    /// result is real, and its errors are in the report; only a run that
-    /// wrote no document is a failure here.
-    static func migrate(_ paths: [String]) -> Result<MigrateReport, Error> {
-        guard let jit = executable else {
-            return .failure(CLIError.notInstalled)
-        }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: jit)
-        process.arguments = ["migrate"] + paths + ["--yes", "--format", "json"]
-        process.environment = environment
-        process.currentDirectoryURL = workingDirectory
-        let out = Pipe()
-        let err = Pipe()
-        process.standardOutput = out
-        process.standardError = err
-        process.standardInput = FileHandle.nullDevice
-        do {
-            try process.run()
-        } catch {
-            return .failure(error)
-        }
-        spawned.insert(process.processIdentifier)
-        defer { spawned.remove(process.processIdentifier) }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        let errData = err.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        let text = String(data: data, encoding: .utf8) ?? ""
-        if let report = try? MigrateReport.parse(text) {
-            return .success(report)
-        }
-        let stderr = (String(data: errData, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return .failure(CLIError.failed(stderr.split(separator: "\n").last.map(String.init) ?? "jit migrate wrote no report"))
-    }
-
     /// `execute` without the reduction to a last line: everything the
     /// command printed, and its exit status, success or not. For a result
     /// the user reads in full, such as a deletion's.

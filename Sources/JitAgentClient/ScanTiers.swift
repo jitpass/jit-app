@@ -44,7 +44,7 @@ public extension ScanReport {
     /// Findings, not files: the number the filter pill and the footer show.
     func count(in tier: ScanTier) -> Int {
         if tier == .agentCaches {
-            return agentCopies.count
+            return agentCopies.count + cacheShapes.count
         }
         return groups(in: tier).reduce(0) { $0 + $1.findings.count }
     }
