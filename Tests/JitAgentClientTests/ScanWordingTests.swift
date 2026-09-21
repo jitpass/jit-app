@@ -124,3 +124,54 @@ final class ScanWordingTests: XCTestCase {
         XCTAssertEqual(ScanRunKind.setup.label, "Scanned during setup")
     }
 }
+
+/// The Protect dialog names the cache copies it will also remove — the fix
+/// for "Protect cleared my AI-cache alerts".
+extension ScanWordingTests {
+    private func copy(_ id: String, agent: String, area: String, origin: String) throws -> ScanFinding {
+        let json = """
+        {"record_type":"finding","record_id":"\(id)","finding_type":"agent_cached_secret","severity":"high",
+         "file_path":"/h/.claude/\(id)","evidence":"a copy","remedy":"manual","agent":"\(agent)","cache_area":"\(area)",
+         "origin_path":"\(origin)"}
+        """.replacingOccurrences(of: "\n", with: "")
+        return try JSONDecoder().decode(ScanFinding.self, from: Data(json.utf8))
+    }
+
+    func testSweepSentenceIsAbsentWithoutCopies() {
+        XCTAssertNil(ScanWording.sweepSentence(copies: []))
+    }
+
+    func testSweepSentenceCountsAndPlacesTheCopies() throws {
+        let one = try [copy("a", agent: "Claude Code", area: "transcripts", origin: "/h/notion/.env")]
+        XCTAssertEqual(
+            ScanWording.sweepSentence(copies: one),
+            "It also removes the copy the scan found in Claude Code's transcripts. "
+                + "A copy it can't safely rewrite is left in place and named when it's done."
+        )
+        let many = try [
+            copy("a", agent: "Claude Code", area: "transcripts", origin: "/h/notion/.env"),
+            copy("b", agent: "Claude Code", area: "transcripts", origin: "/h/notion/.env"),
+            copy("c", agent: "Claude Code", area: "edit history", origin: "/h/notion/.env"),
+            copy("d", agent: "Cursor", area: "chat database", origin: "/h/notion/.env")
+        ]
+        XCTAssertEqual(
+            ScanWording.sweepSentence(copies: many)?.hasPrefix(
+                "It also removes the 4 copies the scan found in Claude Code's transcripts and edit history, and in Cursor's chat database. "
+            ),
+            true
+        )
+    }
+
+    func testCopiesFromAFileAreTheOnesTheDialogNames() throws {
+        let summary = #"{"record_type":"scan_summary","total_findings":3,"risk_level":"high","exposure_score":50,"#
+            + #""secrets_total":3,"secrets_protected":1,"secrets_migratable":1,"files_scanned":10}"#
+        let copies = try [
+            copy("a", agent: "Claude Code", area: "transcripts", origin: "/h/notion/.env"),
+            copy("b", agent: "Claude Code", area: "transcripts", origin: "/h/other/.env"),
+            copy("c", agent: "Cursor", area: "chat database", origin: "/h/notion/.env")
+        ]
+        let report = try ScanReport(findings: copies, summary: JSONDecoder().decode(ScanSummary.self, from: Data(summary.utf8)))
+        XCTAssertEqual(report.copies(from: ["/h/notion/.env"]).map(\.id), ["a", "c"])
+        XCTAssertEqual(report.copies(from: ["/h/nothing"]), [])
+    }
+}

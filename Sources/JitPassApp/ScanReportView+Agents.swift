@@ -9,7 +9,8 @@ import SwiftUI
 /// hash-named file rows are not something anyone can act on.
 extension ScanReportView {
     static let agentNote = "Verbatim copies of credentials the scan confirmed elsewhere, kept by an AI agent. "
-        + "Clean Caches redacts them in place after its own Touch ID; every file is backed up first."
+        + "Protecting the file they came from removes them too; Clean Caches redacts them on their own, "
+        + "after its own Touch ID. Every file is backed up first."
 
     func agentCard(_ groups: [ScanAgentGroup]) -> some View {
         AppCard(
