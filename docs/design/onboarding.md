@@ -111,7 +111,7 @@ or labelled "recommended".
   `FullDiskAccess.granted()` each second), and the scan starts by itself
   when the switch flips. "Use Quick Scan instead" is always there, so the
   System Settings trip is never a trap.
-- **choose a folder…** is the Scan window's existing picker, for someone who
+- **choose a folder…** is the Findings window's existing picker, for someone who
   wants to try one project first.
 
 No "Skip" here: closing the window is the skip.
@@ -156,7 +156,7 @@ Result:
   does, onboarding must resume on this screen after relaunch (principle 5
   already gives that).
 - "What will change" disclosure lists each file and tool, from the same
-  `ProtectPlan` the Scan window builds.
+  `ProtectPlan` the Findings window builds.
 - "Not now" goes to a one-line screen: "Nothing was changed. Setup is in
   the menu bar whenever you want it", and the panel shows Continue Setup.
 - **Zero findings**: "Nothing exposed in the places we looked." The primary
@@ -210,7 +210,7 @@ notification prompt appears at a moment the user expects it.
 The window closes, and the panel opens by itself under the status item,
 now green, with a one-time callout: "JitPass lives here. Click the ring
 any time." The five secrets that need the user appear as the Protected
-row's amber dot, which opens the Scan window as it does today. That is the
+row's amber dot, which opens the Findings window as it does today. That is the
 hand-off from onboarding to the normal product.
 
 ## 5. The panel before setup
@@ -327,7 +327,7 @@ with a sentence and a retry, never a dead window.
 - **Scan fails or prints no summary**: the error's last line, "Try Again",
   and "Create my vault anyway" so a scanner bug never blocks setup.
 - **Hundreds of findings**: five rows by severity and "… 212 more"; the
-  full list stays in the Scan window.
+  full list stays in the Findings window.
 - **Findings, none of them migratable**: the button is "Create My Vault"
   and the screen explains what needs the user, not a promise of 0.
 - **The Mac changes between scan and Protect**: migrate re-plans by itself,

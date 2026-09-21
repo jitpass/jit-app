@@ -9,6 +9,14 @@ configs, limits); "Tools" lists tools only. Every button runs in-app except
 renewing an SSO session, which is the IdP's MFA prompt. Rows answer "is
 there a key" before "did jit wrap it" (§3, key states).
 
+**Superseded for the AI Agents window, 2026-09-21.** The window described
+below (agents, caches, MCP configs, reads as four acting cards) became a
+digest that reads and never acts: one row per agent, four facts — key ·
+copies · reads · grant — each linking to its home in Tools, Findings,
+Decoys or Grants. The Scan window is Findings now. The reasoning is
+`jit/design/scan-and-protect.md` (D9, D10, "The surfaces"); the Tools
+window and the wrap rules on this page still stand.
+
 jit protects a credential in three modes: it stores it (the vault), it
 delivers it just in time (`run`, grants, mounts, and `wrap`'s shims), and it
 prevents it being recorded at all (`guard`). The app shows the vault, grants,
