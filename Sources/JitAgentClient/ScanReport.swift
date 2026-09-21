@@ -19,8 +19,8 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
     public var fixCommand: String?
     public var archived: Bool
     /// The file is test scaffolding (a *_test.go, a testdata/ path) or the
-    /// value is a documented example. The scanner still counts them, and the
-    /// score includes them, but a reader wants them set apart.
+    /// value is a documented example. Reported, left out of the score
+    /// (audit.CountedAsSecret), and set apart so they never read as a breach.
     public var testFixture: Bool
     public var sourceExample: Bool
     /// For a finding in an AI agent's cache or store: the agent's name
