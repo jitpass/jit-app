@@ -247,6 +247,10 @@ struct AppCardRows<Content: View>: View {
 struct AppRow<Actions: View>: View {
     let name: String
     var detail: String?
+    /// One word after the name, in a quiet chip: "new" on a finding the
+    /// previous scan did not have. Never a colour; the row's dot carries
+    /// severity, the chip carries only that it is news.
+    var badge: String?
     var fact: String?
     /// A settings row explains what its control costs, and that sentence
     /// is allowed the second line a list row is not.
@@ -265,6 +269,13 @@ struct AppRow<Actions: View>: View {
                         if let detail {
                             Text(detail).font(Win.command).foregroundStyle(.secondary)
                                 .lineLimit(1).truncationMode(.head)
+                        }
+                        if let badge {
+                            Text(badge).font(Win.eyebrow).foregroundStyle(.secondary)
+                                .textCase(.uppercase)
+                                .padding(.horizontal, Win.s2).padding(.vertical, Win.s1)
+                                .background(Design.Surface.field)
+                                .clipShape(RoundedRectangle(cornerRadius: Design.Radius.box, style: .continuous))
                         }
                     }
                     if let fact {

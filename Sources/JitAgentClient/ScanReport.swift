@@ -19,8 +19,8 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
     public var fixCommand: String?
     public var archived: Bool
     /// The file is test scaffolding (a *_test.go, a testdata/ path) or the
-    /// value is a documented example. The scanner still counts them, and the
-    /// score includes them, but a reader wants them set apart.
+    /// value is a documented example. Reported, left out of the score
+    /// (audit.CountedAsSecret), and set apart so they never read as a breach.
     public var testFixture: Bool
     public var sourceExample: Bool
     /// For a finding in an AI agent's cache or store: the agent's name
@@ -76,6 +76,18 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         findingType == "agent_cached_secret"
     }
 
+    /// A deep scan's find: an exact copy of a secret already in the vault
+    /// (schema 0.23.0). `keyName` is the vault path.
+    public var isVaultCopy: Bool {
+        findingType == "vault_copy"
+    }
+
+    /// A token the scan recognised by its format inside an AI agent's
+    /// cache (schema 0.22.0): what `jit migrate redact` rewrites.
+    public var isCacheShape: Bool {
+        findingType == "exposed_secret" && agent != nil
+    }
+
     /// True when `jit migrate` can fix it; false means only the user can.
     public var migratable: Bool {
         remedy == "migrate"
@@ -106,6 +118,10 @@ public struct ScanSummary: Codable, Sendable, Equatable {
     public var secretsMigratable: Int
     public var filesScanned: Int
     public var scanTime: String?
+    /// Set on a deep scan (schema 0.23.0): the vault's secrets were
+    /// searched for, and `vaultSecretsChecked` says how many.
+    public var deep: Bool?
+    public var vaultSecretsChecked: Int?
 
     enum CodingKeys: String, CodingKey {
         case totalFindings = "total_findings"
@@ -116,6 +132,8 @@ public struct ScanSummary: Codable, Sendable, Equatable {
         case secretsMigratable = "secrets_migratable"
         case filesScanned = "files_scanned"
         case scanTime = "scan_time"
+        case deep
+        case vaultSecretsChecked = "vault_secrets_checked"
     }
 }
 
@@ -134,10 +152,42 @@ public struct ScanReport: Sendable, Equatable {
         findings.filter { $0.migratable && !$0.scaffolding }
     }
 
-    /// Findings only the user can fix, less the agent-cache copies, which
-    /// have their own section and their own command.
+    /// Findings only the user can fix, less the agent-cache copies and the
+    /// vault copies, which each have their own section.
     public var manual: [ScanFinding] {
-        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy }
+        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy && !$0.isVaultCopy && !$0.isCacheShape }
+    }
+
+    /// Tokens found by format in agent caches, and the same by file: the
+    /// agent-caches card's second half, with Redact as its verb.
+    public var cacheShapes: [ScanFinding] {
+        findings.filter { $0.isCacheShape && !$0.scaffolding }
+    }
+
+    public var cacheShapeGroups: [ScanFileGroup] {
+        ScanFileGroup.group(cacheShapes)
+    }
+
+    /// The report without the cache-shape findings a Redact just rewrote:
+    /// every one in `paths`, or, when `lines` is given, only those on
+    /// those lines. Other findings stay; the summary is left as it was,
+    /// since the next scan recounts.
+    public func removingCacheShapes(in paths: [String], lines: [Int]) -> ScanReport {
+        let files = Set(paths)
+        let only = Set(lines)
+        var copy = self
+        copy.findings = findings.filter { f in
+            guard f.isCacheShape, files.contains(f.filePath) else {
+                return true
+            }
+            return !only.isEmpty && !(f.line.map(only.contains) ?? false)
+        }
+        return copy
+    }
+
+    /// Exact copies of vaulted secrets a deep scan found in the open.
+    public var vaultCopies: [ScanFinding] {
+        findings.filter(\.isVaultCopy)
     }
 
     public var agentCopies: [ScanFinding] {
@@ -343,41 +393,5 @@ public struct ScanAgentGroup: Sendable, Equatable, Identifiable {
             byKey[key]?.findings.append(f)
         }
         return order.compactMap { byKey[$0] }
-    }
-}
-
-/// The CLI's coverage ledger, in distinct secrets, from the summary record.
-/// Same arithmetic as `audit.Coverage` in the engine: protected over total
-/// in whole percent, 100 when jit knows of nothing, and the two gains sum
-/// with the base to exactly 100.
-public extension ScanSummary {
-    var percent: Int {
-        secretsTotal == 0 ? 100 : secretsProtected * 100 / secretsTotal
-    }
-
-    /// The score once every remedy jit can run has run.
-    var percentAfterMigrate: Int {
-        secretsTotal == 0 ? 100 : (secretsProtected + secretsMigratable) * 100 / secretsTotal
-    }
-
-    /// Secrets left once jit has done its part: the "only you" bucket.
-    var secretsManual: Int {
-        max(0, secretsTotal - secretsProtected - secretsMigratable)
-    }
-
-    /// The "to 100%" line the CLI prints under its bar, or nil at 100.
-    var toFullLine: String? {
-        guard percent < 100 else {
-            return nil
-        }
-        var parts: [String] = []
-        if secretsMigratable > 0 {
-            parts.append("one command +\(percentAfterMigrate - percent)%")
-        }
-        if secretsManual > 0 {
-            let n = secretsManual
-            parts.append("\(n) secret\(n == 1 ? "" : "s") only you can fix +\(100 - percentAfterMigrate)%")
-        }
-        return parts.isEmpty ? nil : "to 100%: " + parts.joined(separator: " · ")
     }
 }

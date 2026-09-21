@@ -11,13 +11,14 @@ enum NotificationPermission {
 
 /// Where a clicked notification takes the user.
 enum NotificationTarget: String {
-    case audit, agents, tools
+    case audit, agents, tools, findings
 }
 
 /// macOS notifications: a decoy served to a reader outside any grant, a
-/// captured session expiring, a scan finding new cached copies. Two
-/// switches in Settings; the permission prompt appears the first time one
-/// is turned on. Clicking one opens the window that shows the event.
+/// captured session expiring, a scheduled scan finding something the
+/// previous one did not. Two switches in Settings; the permission prompt
+/// appears the first time one is turned on. Clicking one opens the window
+/// that shows the event.
 @MainActor
 enum Notifier {
     static let decoyPreferenceKey = "NotifyDecoys"
@@ -25,9 +26,14 @@ enum Notifier {
     /// The session notices already posted, so a relaunch does not repeat
     /// them (SessionNotices keys).
     static let sessionsToldKey = "SessionNoticesTold"
-    /// The files holding cached copies at the last whole-Mac scan, for the
-    /// "new cached copies" notice. Paths only, never a value.
-    static let cachedCopiesKey = "CachedCopyFiles"
+    /// The counted finding ids of the last whole-Mac scan, and when it
+    /// ran, so the next scan can say what is new and a notification can
+    /// name it. Ids only, never a value or a path.
+    static let knownFindingsKey = "KnownFindingIDs"
+    static let knownFindingsAtKey = "KnownFindingsAt"
+    /// Redact tokens found by format in agent caches after each scheduled
+    /// scan (Settings › Scan). Off by default.
+    static let redactAfterScanKey = "RedactAfterScan"
 
     /// On by default: a decoy serve is the event the whole design exists
     /// for, and a user who never opens the audit would otherwise never
@@ -36,8 +42,8 @@ enum Notifier {
         UserDefaults.standard.object(forKey: decoyPreferenceKey) as? Bool ?? true
     }
 
-    /// Sessions and caches: the panel already shows a dot for both; this
-    /// says it out loud for a user who does not open the panel.
+    /// Sessions and new findings: the panel already shows a dot for both;
+    /// this says it out loud for a user who does not open the panel.
     static var changesEnabled: Bool {
         UserDefaults.standard.object(forKey: changesPreferenceKey) as? Bool ?? true
     }

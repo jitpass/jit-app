@@ -191,10 +191,8 @@ extension StatusItemController {
     func compareDuplicates() {
         let alert = NSAlert()
         alert.messageText = "Compare every secret?"
-        alert.informativeText = "jit decrypts every stored value in memory to find copies of the same file. "
-            + "That takes the vault unlock plus one Touch ID per credential class the consent gate covers "
-            + "(aws, git, shell history…); Settings › Protection › \"Ask before each tool's first credential use\" "
-            + "is the switch for the per-class half. A 1Password link asks 1Password too. Nothing is changed."
+        alert.informativeText = "Every stored value is decrypted in memory to find copies of the same file. Nothing is changed."
+            + "\n\nTouch ID follows, once per credential class the consent gate covers; a 1Password link asks 1Password too."
         alert.addButton(withTitle: "Compare")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {

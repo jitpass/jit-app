@@ -19,6 +19,7 @@ extension StatusItemController {
         model.agentsOutcome = nil
         model.toolsMessage = nil
         reloadTools()
+        refreshDecoyReads() // the rows' "reads today", per agent
         agentsWindow.present()
     }
 
@@ -30,27 +31,18 @@ extension StatusItemController {
                 self?.model.agentsSheet = sheet
             },
             closeSheet: { [weak self] in self?.model.agentsSheet = nil },
-            wrap: { [weak self] tool, value in self?.wrapTool(tool, value: value) },
-            unwrap: { [weak self] tool in self?.unwrapTool(tool) },
-            cleanCaches: { [weak self] in self?.cleanCaches() },
-            protectFile: { [weak self] path in self?.protectFile(path) },
             scanNow: { [weak self] in
-                self?.model.scanScope = nil
+                // The digest reads Findings' scan, so the scan is started
+                // where every scan is: in Findings, with its depth asked.
                 self?.model.agentsOutcome = nil
-                self?.runScan(wholeMac: true)
+                self?.openScan()
+                self?.askDepth(scope: nil)
             },
-            newGrant: { [weak self] in self?.openGrantSheet() },
             openGrants: { [weak self] in self?.openGrants() },
             openScan: { [weak self] in self?.openScan() },
             openSettings: { [weak self] in self?.openSettings() },
             openTools: { [weak self] in self?.openTools() },
             openAudit: { [weak self] in self?.openAudit() },
-            open: { path in Editor.open(path, line: nil) },
-            reveal: { path in NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) },
-            copyPath: { path in
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(path, forType: .string)
-            },
             fit: { [weak self] height in self?.agentsWindow.fit(to: height) }
         )
     }

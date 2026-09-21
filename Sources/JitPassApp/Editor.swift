@@ -58,7 +58,12 @@ enum Editor {
         return known.first { $0.bundleID == id }
     }
 
-    /// Opens `path` at `line` in the chosen editor, or the system default.
+    /// Opens `path` at `line` in the chosen editor, or — with no editor
+    /// chosen — in the first installed editor that can jump to a line when
+    /// there is one to jump to (VS Code, Cursor, VSCodium, Zed, …, in the
+    /// order above), else the system default. A finding names a line; an
+    /// Open that lands at the top of a 3,000-line transcript and leaves
+    /// the reader to search for it has not opened the finding.
     static func open(_ path: String, line: Int?) {
         let file = URL(fileURLWithPath: path)
         if let choice = chosen(), let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: choice.bundleID) {
@@ -67,6 +72,10 @@ enum Editor {
             } else {
                 NSWorkspace.shared.open([file], withApplicationAt: app, configuration: .init()) { _, _ in }
             }
+            return
+        }
+        if let line, let jumper = installed().first(where: { $0.lineURL != nil }), let url = jumper.lineURL?(path, line) {
+            NSWorkspace.shared.open(url)
             return
         }
         if NSWorkspace.shared.urlForApplication(toOpen: file) != nil {

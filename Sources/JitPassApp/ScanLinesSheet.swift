@@ -26,14 +26,29 @@ struct ScanLinesSheet: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(Array(group.findings.enumerated()), id: \.element.id) { index, finding in
+                        // The name is the token's (or the scanner's sentence),
+                        // the detail the line, the fact where it sits: "in Claude
+                        // Code's transcripts" for a cache file, the finding's
+                        // kind otherwise.
                         AppRow(
                             name: finding.shortEvidence,
                             detail: finding.line.map { "line \($0)" },
-                            fact: finding.vendorName == nil ? nil : finding.typeLabel,
+                            fact: finding.foundIn.map { "in " + $0 } ?? (finding.vendorName == nil ? nil : finding.typeLabel),
                             last: index == group.findings.count - 1
                         ) {
                             Button("Open") { actions.open(group.filePath, finding.line) }
                                 .buttonStyle(AppButton(kind: .plain))
+                            if finding.isCacheShape, let line = finding.line {
+                                Button("Redact…") {
+                                    actions.redact(
+                                        [group.filePath],
+                                        [line],
+                                        "the \(finding.shortEvidence) on line \(line)",
+                                        finding.foundIn
+                                    )
+                                }
+                                .buttonStyle(AppButton())
+                            }
                         }
                     }
                 }
@@ -45,6 +60,18 @@ struct ScanLinesSheet: View {
             HStack(spacing: Win.s4) {
                 Spacer()
                 Button("Reveal in Finder") { actions.reveal(group.filePath) }.buttonStyle(AppButton())
+                if group.findings.contains(where: \.isCacheShape) {
+                    let n = group.findings.filter(\.isCacheShape).count
+                    Button("Redact All \(n)…") {
+                        actions.redact(
+                            [group.filePath],
+                            [],
+                            "\(n) token" + (n == 1 ? "" : "s") + " in this file",
+                            group.findings.first?.foundIn
+                        )
+                    }
+                    .buttonStyle(AppButton(kind: .secondary))
+                }
                 Button("Done", action: close).buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
             }
         }

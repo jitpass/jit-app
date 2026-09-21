@@ -55,46 +55,24 @@ enum Format {
         return "\(s.secretsProtected) of \(s.secretsTotal) secrets protected"
     }
 
-    /// The one sentence under it: where jit looked, how much it read, when,
-    /// and the limit that would change the answer.
-    static func scanSubline(
-        scope: String?,
-        summary: ScanSummary?,
-        at: Date?,
-        excludes: Int,
-        fullDiskAccess: Bool
-    ) -> String {
-        var facts: [String] = [scope.map(home) ?? "Whole Mac"]
-        if let files = summary?.filesScanned, files > 0 {
-            facts.append("\(files) files")
-        }
-        if let at {
-            facts.append(ago(at))
-        }
-        if excludes > 0 {
-            facts.append("excluding \(excludes) folder" + (excludes == 1 ? "" : "s"))
-        }
-        let limit = fullDiskAccess
-            ? "jit reads your home folder, shell configs, credential files and agent caches."
-            : "Without Full Disk Access, macOS asks once per protected folder."
-        return facts.joined(separator: " · ") + ". " + limit
-    }
-
-    /// The footer: what the scan found, counted the way the cards count it.
+    /// The footer: what the scan found, counted the way the cards count
+    /// it, and how much it read. (The header's second line is
+    /// `ScanWording`'s: it carries the schedule, not the file count.)
     static func scanFooter(_ report: ScanReport) -> String {
+        let files = "\(report.summary.filesScanned) files read"
         guard !report.tiersPresent.isEmpty else {
-            let files = report.summary.filesScanned
-            return "Nothing to protect, nothing needs you · \(files) files read"
+            return "Nothing to protect, nothing needs you · " + files
         }
         let parts = report.tiersPresent.map { tier in
-            "\(report.count(in: tier)) " + tierLabel(tier).lowercased()
+            "\(report.count(in: tier)) " + (tier == .vaultCopies ? "vault copies" : tierLabel(tier).lowercased())
         }
-        return parts.joined(separator: " · ")
+        return (parts + [files]).joined(separator: " · ")
     }
 
     /// A tier's word, for its card's eyebrow and its filter pill.
     static func tierLabel(_ tier: ScanTier) -> String {
         switch tier {
+        case .vaultCopies: "In your vault, still in the open"
         case .protect: "Protect"
         case .needsYou: "Needs you"
         case .agentCaches: "Agent caches"
@@ -106,6 +84,11 @@ enum Format {
     static func tierTitle(_ tier: ScanTier, files: Int) -> String {
         let n = "\(files) file" + (files == 1 ? "" : "s")
         switch tier {
+        case .vaultCopies:
+            if files == 1 {
+                return "1 file holds a copy of a vaulted secret"
+            }
+            return n + " hold copies of vaulted secrets"
         case .protect: return "jit can move " + (files == 1 ? "this one" : "these") + " into the vault"
         case .needsYou: return files == 1 ? "Only you can fix this one" : "Only you can fix these"
         case .agentCaches: return n + " of agent caches hold copies"
@@ -116,10 +99,12 @@ enum Format {
     /// What the tier is, and what the choice costs.
     static func tierNote(_ tier: ScanTier) -> String {
         switch tier {
+        case .vaultCopies: "You've protected these, but a plaintext copy still sits in a file or an agent's cache. "
+            + "Rotate, then clear the copy."
         case .protect: "The file stays. The value moves, a decoy takes its place, and every file is backed up first."
         case .needsYou: "jit can't rewrite these safely. Rotate each value, or move it yourself."
         case .agentCaches: ScanReportView.agentNote
-        case .testFixtures: "The scanner counts them in the score. Check they are not live."
+        case .testFixtures: "Real-looking values in test files and examples. They don't count toward the score. Check they are not live."
         }
     }
 

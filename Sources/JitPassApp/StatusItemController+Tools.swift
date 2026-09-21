@@ -33,8 +33,8 @@ extension StatusItemController {
             mintInTerminal: { [weak self] command in self?.runInTerminal(command) },
             cleanCaches: { [weak self] in self?.cleanCaches() },
             scanNow: { [weak self] in
-                self?.model.scanScope = nil
-                self?.runScan(wholeMac: true)
+                self?.openScan()
+                self?.askDepth(scope: nil)
             },
             openVault: { [weak self] in self?.openVault() },
             openSettings: { [weak self] in self?.openSettings() },
@@ -52,36 +52,44 @@ extension StatusItemController {
     /// env-block tokens move into the vault, the file is rewritten to
     /// point at them, and it is backed up encrypted first.
     func protectFile(_ path: String) {
+        // The same sweep sentence the Findings window's Protect carries:
+        // migrate will also remove the cached copies of this file's secrets
+        // the last whole-Mac scan found, and says so before Touch ID.
+        let copies = model.macScan?.copies(from: [path]) ?? []
+        let sweep = ScanWording.sweepSentence(copies: copies).map { " " + $0 } ?? ""
         let alert = NSAlert()
         alert.messageText = "Protect \(Format.home(path))?"
-        alert.informativeText = "The credentials in the file move into the vault and the file is rewritten so everything that reads it "
-            + "keeps working: a config points at the vault, a credential file becomes a live mount serving decoys "
-            + "until a run is granted the real content. Backed up encrypted first; jit migrate undo restores it. "
-            + "Touch ID follows."
+        alert.informativeText = "The credentials move into the vault; the file keeps working through jit." + sweep
+            + "\n\nA backup restores it. Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
-        runTools(path, work: { JitCLI.execute(["migrate", path, "--yes"]) }, then: { [weak self] output in
-            self?.model.scanStale = true
-            self?.showResult(title: "Protected \(Format.home(path))", text: output)
-            self?.runScan(wholeMac: true)
+        model.findingsOutcome = nil
+        runTools(path, work: { JitCLI.migrate([path]).map { [$0] } }, then: { [weak self] reports in
+            guard let self else {
+                return
+            }
+            model.scanStale = true
+            let outcome = Self.protectOutcome(reports, wrapped: [], wraps: [])
+            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo)
+            runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 
-    /// The result goes to whichever window is in front. The AI Agents
-    /// window has a banner region, so there it is a sentence in the
+    /// The result goes to whichever window is in front. Findings and AI
+    /// Agents have a banner region, so there it is a sentence in the
     /// window with jit's own words one click away, and not a modal on top
     /// of the state it just changed.
-    func showResult(title: String, text: String) {
-        let sheet = ToolsSheet.result(title: title, text: text)
+    func showResult(title: String, text: String, failed: Bool = false, undo: [String] = []) {
+        let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo)
         if scanWindow.isKeyWindow {
-            model.scanSheet = sheet
+            model.findingsOutcome = outcome
         } else if agentsWindow.isKeyWindow || (agentsWindow.isVisible && !toolsWindow.isVisible) {
-            model.agentsOutcome = AgentsOutcome(title: title, text: text)
+            model.agentsOutcome = outcome
         } else {
-            model.toolsSheet = sheet
+            model.toolsSheet = ToolsSheet.result(title: title, text: text)
         }
     }
 
@@ -202,7 +210,7 @@ extension StatusItemController {
             self?.model.toolsSheet = nil
             self?.model.agentsSheet = nil
             self?.showResult(title: "Protected \(Format.home(key.file)), wrapped \(tool)", text: output)
-            self?.runScan(wholeMac: true)
+            self?.runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 
@@ -218,9 +226,8 @@ extension StatusItemController {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let alert = NSAlert()
         alert.messageText = "Protect \(tool)?"
-        alert.informativeText = "jit moves \(record.doc ?? "the credential") into the vault and rewrites its file to use jit's own "
-            + "credential hook, so \(tool) keeps working. The file is backed up encrypted first; "
-            + "jit migrate undo restores it. Touch ID follows."
+        alert.informativeText = "\(record.doc ?? "The credential") moves into the vault; \(tool) keeps working through jit's hook."
+            + "\n\nA backup restores the file. Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -237,8 +244,7 @@ extension StatusItemController {
     func unwrapTool(_ tool: String) {
         let alert = NSAlert()
         alert.messageText = "Unwrap \(tool)?"
-        alert.informativeText = "The shim and the wrap profile are removed; \(tool) runs without jit from its next call. "
-            + "The secret stays in the vault; delete it from the Vault window if you no longer need it."
+        alert.informativeText = "The shim comes out; \(tool) runs without jit from its next call. The secret stays in the vault."
         alert.addButton(withTitle: "Unwrap")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -273,19 +279,19 @@ extension StatusItemController {
         let copies = model.macScan?.agentCopies.count ?? 0
         let alert = NSAlert()
         alert.messageText = "Clean AI agent caches?"
-        alert.informativeText = "jit searches every AI agent's cache for copies of any secret in the vault"
-            + (copies > 0 ? " (the last scan found \(copies))" : "")
-            + " and redacts each copy in place. Every file it rewrites is backed up encrypted first; "
-            + "a file an agent is writing right now is left alone and reported. Touch ID follows."
+        alert.informativeText = "Copies of your vaulted secrets in every AI agent's cache"
+            + (copies > 0 ? " (the last scan found \(copies))" : "") + " become markers."
+            + "\n\nFiles are backed up first; one an agent is writing is left alone. Touch ID follows."
         alert.addButton(withTitle: "Clean")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
+        model.findingsOutcome = nil
         runTools("caches", refresh: false, work: { JitCLI.execute(["migrate", "caches", "--yes"]) }, then: { [weak self] output in
             self?.model.scanStale = true
             self?.showResult(title: "Cleaned AI agent caches", text: output)
-            self?.runScan(wholeMac: true)
+            self?.runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 
@@ -327,11 +333,11 @@ extension StatusItemController {
     /// Runs one command off the main thread while the row shows who is
     /// waiting on Touch ID, then reloads the listing and status. One at a
     /// time, like the Vault window.
-    func runTools(
+    func runTools<Output: Sendable>(
         _ label: String,
         refresh: Bool = true,
-        work: @escaping @Sendable () -> Result<String, Error>,
-        then: @escaping @MainActor (String) -> Void
+        work: @escaping @Sendable () -> Result<Output, Error>,
+        then: @escaping @MainActor (Output) -> Void
     ) {
         guard model.toolsBusy == nil else {
             return

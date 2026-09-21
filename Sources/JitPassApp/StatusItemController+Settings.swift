@@ -25,6 +25,10 @@ extension StatusItemController {
                 self?.model.scanSchedule = schedule
                 self?.refreshScanIfDue()
             },
+            setRedactAfterScan: { [weak self] on in
+                UserDefaults.standard.set(on, forKey: Notifier.redactAfterScanKey)
+                self?.model.redactAfterScan = on
+            },
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
             setTTL: { [weak self] ttl, label in
                 self?.applyService(["service", "ttl", ttl], row: .lockTimer, value: label)

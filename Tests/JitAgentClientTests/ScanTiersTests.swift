@@ -47,6 +47,55 @@ final class ScanTiersTests: XCTestCase {
         try ScanReport.parse(Data((lines + [summary.replacingOccurrences(of: "\n", with: "")]).joined(separator: "\n").utf8))
     }
 
+    func testVaultCopiesAreTheirOwnTierAndNeverNeedsYou() throws {
+        let r = try report([
+            finding("v1", type: "vault_copy", path: "/Users/me/.claude/a.jsonl", line: 214,
+                    evidence: "an exact copy of the vaulted secret notion/NOTION_TOKEN, kept by Claude Code"),
+            finding("f2", type: "shell_history_secret", path: "/Users/me/.zsh_history", line: 8812)
+        ])
+        XCTAssertEqual(r.tiersPresent, [.vaultCopies, .needsYou], "vault copies come first, and are not 'needs you'")
+        XCTAssertEqual(r.vaultCopies.map(\.id), ["v1"])
+        XCTAssertEqual(r.manual.map(\.id), ["f2"])
+        XCTAssertEqual(r.count(in: .vaultCopies), 1)
+        XCTAssertEqual(r.groups(in: .vaultCopies).first?.filePath, "/Users/me/.claude/a.jsonl")
+    }
+
+    func testATokenFoundByShapeInACacheIsAnAgentCacheRowNotNeedsYou() throws {
+        let r = try report([
+            finding("s1", path: "/Users/me/.claude/a.jsonl", line: 1046,
+                    evidence: "value matches AWS Access Key ID's known token format (found in Claude Code's transcripts)")
+                .replacingOccurrences(
+                    of: #""remedy":"manual""#,
+                    with: #""remedy":"manual","agent":"Claude Code","cache_area":"transcripts""#
+                ),
+            finding("f2", path: "/Users/me/.zsh_history", line: 8812)
+        ])
+        XCTAssertEqual(r.cacheShapes.map(\.id), ["s1"])
+        XCTAssertEqual(r.manual.map(\.id), ["f2"])
+        XCTAssertEqual(r.tiersPresent, [.needsYou, .agentCaches])
+        XCTAssertEqual(r.count(in: .agentCaches), 1)
+        XCTAssertEqual(r.cacheShapeGroups.first?.filePath, "/Users/me/.claude/a.jsonl")
+    }
+
+    func testARedactRemovesItsRowsWithoutARescan() throws {
+        let cache = { (id: String, line: Int) in
+            self.finding(
+                id,
+                path: "/Users/me/.claude/a.jsonl",
+                line: line,
+                evidence: "value matches AWS Access Key ID's known token format (found in Claude Code's transcripts)"
+            )
+            .replacingOccurrences(
+                of: #""remedy":"manual""#,
+                with: #""remedy":"manual","agent":"Claude Code","cache_area":"transcripts""#
+            )
+        }
+        let r = try report([cache("s1", 10), cache("s2", 20), finding("f3", path: "/Users/me/.zsh_history", line: 1)])
+        XCTAssertEqual(r.removingCacheShapes(in: ["/Users/me/.claude/a.jsonl"], lines: [10]).findings.map(\.id), ["s2", "f3"])
+        XCTAssertEqual(r.removingCacheShapes(in: ["/Users/me/.claude/a.jsonl"], lines: []).findings.map(\.id), ["f3"])
+        XCTAssertEqual(r.removingCacheShapes(in: ["/elsewhere"], lines: []).findings.count, 3)
+    }
+
     func testOnlyTiersWithFindingsArePresent() throws {
         let r = try report([
             finding("f1", type: "env_file_present", path: "/Users/me/app/.env", evidence: "10 plaintext variables", remedy: "migrate"),
@@ -124,5 +173,31 @@ final class ScanTiersTests: XCTestCase {
         let group = try XCTUnwrap(r.groups(in: .testFixtures).first)
         XCTAssertEqual(group.fact, "5 flagged lines · AWS Access Key ID, SendGrid API Key, JSON Web Token (JWT) and 2 more")
         XCTAssertEqual(group.firstLine, 56, "Open jumps to the first line the scanner numbered")
+    }
+}
+
+/// A cache finding's evidence carries "(found in Claude Code's
+/// transcripts)" after the sentence the vendor parser knows. The row names
+/// the token and says where, instead of printing the whole sentence and
+/// cutting it in the middle.
+extension ScanTiersTests {
+    func testCacheEvidenceNamesTheVendorAndThePlace() throws {
+        let r = try report([
+            finding("c1", path: "/Users/me/.claude/a.jsonl", line: 214,
+                    evidence: "value matches Notion Internal Integration Token's known token format (found in Claude Code's transcripts)"),
+            finding("f2", path: "/Users/me/.aws/old", line: 3,
+                    evidence: "value matches AWS Access Key ID's known token format")
+        ])
+        let cache = try XCTUnwrap(r.findings.first { $0.id == "c1" })
+        XCTAssertEqual(cache.vendorName, "Notion Internal Integration Token")
+        XCTAssertEqual(cache.foundIn, "Claude Code's transcripts")
+        XCTAssertEqual(cache.shortEvidence, "Notion Internal Integration Token")
+        XCTAssertEqual(
+            ScanFileGroup(filePath: cache.filePath, findings: [cache]).fact,
+            "line 214 · Notion Internal Integration Token · in Claude Code's transcripts"
+        )
+        let file = try XCTUnwrap(r.findings.first { $0.id == "f2" })
+        XCTAssertNil(file.foundIn)
+        XCTAssertEqual(ScanFileGroup(filePath: file.filePath, findings: [file]).fact, "line 3 · AWS Access Key ID")
     }
 }
