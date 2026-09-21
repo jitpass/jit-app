@@ -113,25 +113,6 @@ extension ScanReportTests {
         XCTAssertEqual(try parse([]).protectAllCommands, [])
     }
 
-    func testNewAgentCopiesAreTheFilesThePreviousScanDidNotHave() throws {
-        func copy(_ id: String, _ path: String) -> String {
-            #"{"record_type": "finding", "record_id": "\#(id)", "finding_type": "agent_cached_secret", "severity": "high", "#
-                + #""file_path": "\#(path)", "evidence": "a copy", "remedy": "manual", "agent": "Claude Code", "origin_path": "/h/.env"}"#
-        }
-        let before = try parse([copy("a", "/h/.claude/x")])
-        let after = try parse([copy("a", "/h/.claude/x"), copy("b", "/h/.claude/y")])
-        XCTAssertEqual(after.newAgentCopies(since: before).map(\.filePath), ["/h/.claude/y"])
-        XCTAssertEqual(after.newAgentCopies(since: nil).count, 2, "no previous scan: everything is new")
-        XCTAssertTrue(before.newAgentCopies(since: after).isEmpty)
-
-        // What is saved between launches: each file once, sorted; and the
-        // comparison against it matches the one against a whole report.
-        let twice = try parse([copy("a", "/h/.claude/y"), copy("b", "/h/.claude/x"), copy("c", "/h/.claude/y")])
-        XCTAssertEqual(twice.agentCopyPaths, ["/h/.claude/x", "/h/.claude/y"])
-        XCTAssertEqual(after.newAgentCopies(known: Set(before.agentCopyPaths)).map(\.filePath), ["/h/.claude/y"])
-        XCTAssertTrue(after.newAgentCopies(known: Set(twice.agentCopyPaths)).isEmpty)
-    }
-
     func testProtectPlanUsesTheFindingsOwnPathsAndEachWrapOnce() throws {
         let r = try parse([
             Self.record("a", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),

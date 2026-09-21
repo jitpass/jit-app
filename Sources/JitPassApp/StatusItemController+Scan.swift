@@ -128,12 +128,15 @@ extension StatusItemController {
                 switch result {
                 case let .success(report):
                     if scope == nil {
-                        noteNewCachedCopies(in: report)
-                        rememberFindings(in: report)
+                        let at = Date()
+                        let fresh = rememberFindings(in: report)
                         model.macScan = report
-                        model.macScanAt = Date()
+                        model.macScanAt = at
                         model.macScanKind = kind
                         model.scanStale = false
+                        if kind == .scheduled {
+                            announceNewFindings(fresh, at: at)
+                        }
                     }
                     if !wholeMac || model.scanScope == nil {
                         model.scan = report
@@ -150,11 +153,15 @@ extension StatusItemController {
     /// What this whole-Mac scan has that the previous one did not, against
     /// the ids saved by the previous one, so a relaunch does not reset it.
     /// The very first scan only saves: there is nothing to compare with,
-    /// and calling everything new would be noise.
-    func rememberFindings(in report: ScanReport) {
+    /// and calling everything new would be noise. Returns the new findings
+    /// for the notification.
+    @discardableResult
+    func rememberFindings(in report: ScanReport) -> [ScanFinding] {
         let defaults = UserDefaults.standard
+        var fresh: [ScanFinding] = []
         if let known = defaults.stringArray(forKey: Notifier.knownFindingsKey) {
-            model.macScanNew = Set(report.newFindings(known: Set(known)).map(\.id))
+            fresh = report.newFindings(known: Set(known))
+            model.macScanNew = Set(fresh.map(\.id))
             model.previousMacScanAt = defaults.object(forKey: Notifier.knownFindingsAtKey) as? Date
         } else {
             model.macScanNew = nil
@@ -162,6 +169,7 @@ extension StatusItemController {
         }
         defaults.set(report.countedIDs, forKey: Notifier.knownFindingsKey)
         defaults.set(Date(), forKey: Notifier.knownFindingsAtKey)
+        return fresh
     }
 
     // MARK: - Protect

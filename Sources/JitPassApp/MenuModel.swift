@@ -336,10 +336,15 @@ final class MenuModel: ObservableObject {
     }
 
     /// The CLI's headline: secrets protected over secrets known, for the
-    /// whole Mac. Never a folder's number.
+    /// whole Mac, and the day the schedule last ran when it was the
+    /// schedule. Never a folder's number.
     var protectedValue: String {
         if let s = macScan?.summary {
-            return "\(s.secretsProtected) of \(s.secretsTotal) · \(s.percent)%"
+            var value = "\(s.secretsProtected) of \(s.secretsTotal) · \(s.percent)%"
+            if macScanKind == .scheduled, let at = macScanAt {
+                value += " · " + ScanWording.dayWord(at)
+            }
+            return value
         }
         if scanning {
             return "scanning…"
