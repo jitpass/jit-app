@@ -34,7 +34,7 @@ extension StatusItemController {
             cleanCaches: { [weak self] in self?.cleanCaches() },
             scanNow: { [weak self] in
                 self?.model.scanScope = nil
-                self?.runScan(wholeMac: true)
+                self?.runScan(wholeMac: true, kind: .afterProtect)
             },
             openVault: { [weak self] in self?.openVault() },
             openSettings: { [weak self] in self?.openSettings() },
@@ -66,7 +66,7 @@ extension StatusItemController {
         runTools(path, work: { JitCLI.execute(["migrate", path, "--yes"]) }, then: { [weak self] output in
             self?.model.scanStale = true
             self?.showResult(title: "Protected \(Format.home(path))", text: output)
-            self?.runScan(wholeMac: true)
+            self?.runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 
@@ -202,7 +202,7 @@ extension StatusItemController {
             self?.model.toolsSheet = nil
             self?.model.agentsSheet = nil
             self?.showResult(title: "Protected \(Format.home(key.file)), wrapped \(tool)", text: output)
-            self?.runScan(wholeMac: true)
+            self?.runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 
@@ -285,7 +285,7 @@ extension StatusItemController {
         runTools("caches", refresh: false, work: { JitCLI.execute(["migrate", "caches", "--yes"]) }, then: { [weak self] output in
             self?.model.scanStale = true
             self?.showResult(title: "Cleaned AI agent caches", text: output)
-            self?.runScan(wholeMac: true)
+            self?.runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 

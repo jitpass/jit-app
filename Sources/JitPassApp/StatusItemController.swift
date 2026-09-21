@@ -82,7 +82,7 @@ final class StatusItemController {
         minSize: Design.Window.minimum(for: Design.Window.medium)
     )
     lazy var scanWindow = ReportWindow(
-        title: "Scan",
+        title: "Findings",
         content: ScanReportView(model: model, actions: scanActions),
         size: NSSize(width: Win.width, height: Win.height),
         minSize: NSSize(width: Win.width, height: Win.minHeight)
@@ -160,7 +160,7 @@ final class StatusItemController {
             openTools: { [weak self] in self?.openTools() },
             openAgents: { [weak self] in self?.openAgents() },
             newGrant: { [weak self] in self?.openGrantSheet() },
-            runScan: { [weak self] in self?.openScan() },
+            runScan: { [weak self] in self?.scanNow() },
             openScan: { [weak self] in self?.openScan() },
             openDoctor: { [weak self] in self?.openDoctor() },
             openAudit: { [weak self] in self?.openAudit() },

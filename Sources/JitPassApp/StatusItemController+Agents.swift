@@ -37,7 +37,7 @@ extension StatusItemController {
             scanNow: { [weak self] in
                 self?.model.scanScope = nil
                 self?.model.agentsOutcome = nil
-                self?.runScan(wholeMac: true)
+                self?.runScan(wholeMac: true, kind: .byHand)
             },
             newGrant: { [weak self] in self?.openGrantSheet() },
             openGrants: { [weak self] in self?.openGrants() },

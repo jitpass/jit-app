@@ -28,6 +28,11 @@ enum Notifier {
     /// The files holding cached copies at the last whole-Mac scan, for the
     /// "new cached copies" notice. Paths only, never a value.
     static let cachedCopiesKey = "CachedCopyFiles"
+    /// The counted finding ids of the last whole-Mac scan, and when it
+    /// ran, so the next scan can say what is new. Ids only, never a value
+    /// or a path.
+    static let knownFindingsKey = "KnownFindingIDs"
+    static let knownFindingsAtKey = "KnownFindingsAt"
 
     /// On by default: a decoy serve is the event the whole design exists
     /// for, and a user who never opens the audit would otherwise never

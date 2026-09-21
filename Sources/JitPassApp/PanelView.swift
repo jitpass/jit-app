@@ -149,7 +149,7 @@ struct PanelView: View {
                 action("Start Service", key: "u", actions.unlock)
             }
             action("New Grant…", key: "g", actions.newGrant)
-            action("Run Scan", key: "r", actions.runScan)
+            action("Scan Now", key: "r", actions.runScan)
             action("Open Audit", key: "a", actions.openAudit)
             divider
             action("Settings…", key: ",", actions.openSettings)
