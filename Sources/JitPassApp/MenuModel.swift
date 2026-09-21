@@ -28,6 +28,14 @@ final class MenuModel: ObservableObject {
     /// shows. A folder scan never replaces it.
     @Published var macScan: ScanReport?
     @Published var macScanAt: Date?
+    /// Who started the last whole-Mac scan: the Findings header says so.
+    @Published var macScanKind: ScanRunKind?
+    /// The ids of the findings the last whole-Mac scan has that the one
+    /// before it did not; nil when there was no run to compare with. What
+    /// the header counts and the "new" mark on a row means.
+    @Published var macScanNew: Set<String>?
+    /// When the run before the last one happened, for "2 new since Sunday".
+    @Published var previousMacScanAt: Date?
     /// Set when jit changed something (a Protect ran) so the next chance
     /// rescans even before the schedule says so.
     @Published var scanStale = false

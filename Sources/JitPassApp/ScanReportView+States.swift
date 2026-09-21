@@ -4,8 +4,8 @@
 import JitAgentClient
 import SwiftUI
 
-/// The scan window when it has no report: before the first scan, while
-/// one runs, and after one failed. Each says what is true and offers the
+/// The Findings window when it has no report: before the first scan,
+/// while one runs, and after one failed. Each says what is true and offers the
 /// one thing there is to do.
 extension ScanReportView {
     /// Nothing is scanned until the user says where: a whole-home read is
@@ -16,9 +16,8 @@ extension ScanReportView {
             WindowEmptyState(
                 tint: Color(StatusMark.amber),
                 hollow: true,
-                title: "Nothing scanned yet",
-                message: "A folder scan looks only there. The whole Mac covers your home folder, shell configs, "
-                    + "credential files and agent caches. It only reads, and nothing leaves this Mac."
+                title: "No findings yet",
+                message: ScanWording.emptyMessage(schedule: model.scanSchedule)
             ) {
                 Button("Choose Folder…", action: actions.chooseFolder).buttonStyle(AppButton())
                 Button("Scan Whole Mac", action: actions.scanWholeMac).buttonStyle(AppButton(kind: .primary))
@@ -64,7 +63,7 @@ extension ScanReportView {
             StateDot(tint: Color(model.fullDiskAccess ? StatusMark.green : StatusMark.amber))
             Text(
                 model.fullDiskAccess
-                    ? "Full Disk Access granted · a whole-Mac scan runs without prompts"
+                    ? "Full Disk Access granted · scheduled scans run without prompts"
                     : "Without Full Disk Access, macOS asks once per protected folder"
             )
             .font(Win.sub).foregroundStyle(.secondary)

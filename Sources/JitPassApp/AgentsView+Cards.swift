@@ -211,7 +211,7 @@ extension AgentsView {
         } rows: {
             AppCardRows {
                 AppRow(name: "Decoys", fact: Format.decoysFact(board), wraps: true) {
-                    Button("Scan", action: actions.openScan).buttonStyle(AppButton())
+                    Button("Findings", action: actions.openScan).buttonStyle(AppButton())
                 }
                 AppRow(name: "Asking", fact: Format.askingFact(board), wraps: true) {
                     Button("Settings…", action: actions.openSettings).buttonStyle(AppButton())

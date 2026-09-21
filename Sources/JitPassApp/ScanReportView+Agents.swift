@@ -25,6 +25,7 @@ extension ScanReportView {
                     AppRow(
                         name: group.agent,
                         detail: group.area,
+                        badge: isNew(group.findings) ? "new" : nil,
                         fact: agentDetail(group),
                         last: index == groups.count - 1
                     ) {

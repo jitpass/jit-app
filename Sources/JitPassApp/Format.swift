@@ -55,41 +55,18 @@ enum Format {
         return "\(s.secretsProtected) of \(s.secretsTotal) secrets protected"
     }
 
-    /// The one sentence under it: where jit looked, how much it read, when,
-    /// and the limit that would change the answer.
-    static func scanSubline(
-        scope: String?,
-        summary: ScanSummary?,
-        at: Date?,
-        excludes: Int,
-        fullDiskAccess: Bool
-    ) -> String {
-        var facts: [String] = [scope.map(home) ?? "Whole Mac"]
-        if let files = summary?.filesScanned, files > 0 {
-            facts.append("\(files) files")
-        }
-        if let at {
-            facts.append(ago(at))
-        }
-        if excludes > 0 {
-            facts.append("excluding \(excludes) folder" + (excludes == 1 ? "" : "s"))
-        }
-        let limit = fullDiskAccess
-            ? "jit reads your home folder, shell configs, credential files and agent caches."
-            : "Without Full Disk Access, macOS asks once per protected folder."
-        return facts.joined(separator: " · ") + ". " + limit
-    }
-
-    /// The footer: what the scan found, counted the way the cards count it.
+    /// The footer: what the scan found, counted the way the cards count
+    /// it, and how much it read. (The header's second line is
+    /// `ScanWording`'s: it carries the schedule, not the file count.)
     static func scanFooter(_ report: ScanReport) -> String {
+        let files = "\(report.summary.filesScanned) files read"
         guard !report.tiersPresent.isEmpty else {
-            let files = report.summary.filesScanned
-            return "Nothing to protect, nothing needs you · \(files) files read"
+            return "Nothing to protect, nothing needs you · " + files
         }
         let parts = report.tiersPresent.map { tier in
             "\(report.count(in: tier)) " + tierLabel(tier).lowercased()
         }
-        return parts.joined(separator: " · ")
+        return (parts + [files]).joined(separator: " · ")
     }
 
     /// A tier's word, for its card's eyebrow and its filter pill.

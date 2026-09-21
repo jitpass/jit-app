@@ -163,3 +163,20 @@ extension ScanReportTests {
         XCTAssertNil(clean.toFullLine)
     }
 }
+
+/// What a scan has that the previous whole-Mac scan did not: the Findings
+/// header's count and the "new" mark on a row.
+extension ScanReportTests {
+    func testNewFindingsAreTheCountedOnesAPreviousRunLacked() throws {
+        let r = try ScanReport.parse(stream([
+            Self.record("finding:1", path: "/Users/me/app/.env"),
+            Self.record("finding:2", path: "/Users/me/.zsh_history"),
+            Self.record("finding:3", path: "/Users/me/app/x_test.go", fixture: true),
+            summary
+        ]))
+        XCTAssertEqual(r.newFindings(known: ["finding:1"]).map(\.id), ["finding:2"])
+        XCTAssertEqual(r.newFindings(known: []).map(\.id), ["finding:1", "finding:2"], "a fixture is never news")
+        XCTAssertEqual(r.newFindings(known: ["finding:1", "finding:2"]), [])
+        XCTAssertEqual(r.countedIDs, ["finding:1", "finding:2"], "ids only, sorted, fixtures left out")
+    }
+}

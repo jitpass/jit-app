@@ -145,7 +145,7 @@ extension Format {
 
     static func decoysFact(_ board: AgentsBoard) -> String {
         guard board.decoys > 0 else {
-            return "None yet · protect a file in the Scan window and it answers with fakes"
+            return "None yet · protect a file in Findings and it answers with fakes"
         }
         return count(board.decoys, "file") + " answers with fakes"
             + (board.decoysServingReal ? " · real values only inside a run you allowed" : "")

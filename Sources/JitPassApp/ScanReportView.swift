@@ -121,6 +121,7 @@ struct ScanReportView: View {
         AppRow(
             name: Format.fileName(group.filePath),
             detail: Format.parentFolder(group.filePath),
+            badge: isNew(group.findings) ? "new" : nil,
             fact: group.fact,
             last: last
         ) {
@@ -137,6 +138,16 @@ struct ScanReportView: View {
             }
             rowMenu(group)
         }
+    }
+
+    /// Whether any of these findings is one the previous whole-Mac scan
+    /// did not have. Only the whole-Mac report keeps that comparison; a
+    /// folder scan marks nothing.
+    func isNew(_ findings: [ScanFinding]) -> Bool {
+        guard model.scanScope == nil, let new = model.macScanNew else {
+            return false
+        }
+        return findings.contains { new.contains($0.id) }
     }
 
     /// Everything cheap and reversible, where a mis-click costs nothing.

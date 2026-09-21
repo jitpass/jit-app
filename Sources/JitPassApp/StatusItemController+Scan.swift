@@ -8,7 +8,7 @@ import JitAgentClient
 extension StatusItemController {
     var scanActions: ScanActions {
         ScanActions(
-            rescan: { [weak self] in self?.runScan() },
+            rescan: { [weak self] in self?.runScan(kind: .byHand) },
             newScan: { [weak self] in
                 // Back to the chooser: the window's report is dropped, the
                 // whole-Mac result the panel shows is not.
@@ -20,7 +20,7 @@ extension StatusItemController {
             chooseFolder: { [weak self] in self?.chooseScanFolder() },
             scanWholeMac: { [weak self] in
                 self?.model.scanScope = nil
-                self?.runScan()
+                self?.runScan(kind: .byHand)
             },
             protect: { [weak self] finding in
                 if let tool = finding.wrapTool {
@@ -73,7 +73,16 @@ extension StatusItemController {
         guard due else {
             return
         }
-        runScan(wholeMac: true)
+        runScan(wholeMac: true, kind: model.scanStale ? .afterProtect : .scheduled)
+    }
+
+    /// The panel's Scan Now: the whole Mac, by hand, with the window open
+    /// to show the result. A click on a verb named "scan" is the one case
+    /// where a whole-home read is not a side effect.
+    func scanNow() {
+        openScan()
+        model.scanScope = nil
+        runScan(wholeMac: true, kind: .byHand)
     }
 
     /// The standard folder picker; a choice limits the next scan to it,
@@ -90,7 +99,7 @@ extension StatusItemController {
             return
         }
         model.scanScope = url.path
-        runScan()
+        runScan(kind: .byHand)
     }
 
     /// Runs `jit scan` off the main thread and publishes the report. The
@@ -99,8 +108,9 @@ extension StatusItemController {
     ///
     /// `wholeMac` ignores the window's folder: a background run feeds the
     /// Protected row, and shows in the window only when the window is not
-    /// looking at a folder of its own.
-    func runScan(wholeMac: Bool = false) {
+    /// looking at a folder of its own. `kind` is who asked, for the
+    /// Findings header.
+    func runScan(wholeMac: Bool = false, kind: ScanRunKind) {
         guard !model.scanning else {
             return
         }
@@ -119,8 +129,10 @@ extension StatusItemController {
                 case let .success(report):
                     if scope == nil {
                         noteNewCachedCopies(in: report)
+                        rememberFindings(in: report)
                         model.macScan = report
                         model.macScanAt = Date()
+                        model.macScanKind = kind
                         model.scanStale = false
                     }
                     if !wholeMac || model.scanScope == nil {
@@ -133,6 +145,23 @@ extension StatusItemController {
                 }
             }
         }
+    }
+
+    /// What this whole-Mac scan has that the previous one did not, against
+    /// the ids saved by the previous one, so a relaunch does not reset it.
+    /// The very first scan only saves: there is nothing to compare with,
+    /// and calling everything new would be noise.
+    func rememberFindings(in report: ScanReport) {
+        let defaults = UserDefaults.standard
+        if let known = defaults.stringArray(forKey: Notifier.knownFindingsKey) {
+            model.macScanNew = Set(report.newFindings(known: Set(known)).map(\.id))
+            model.previousMacScanAt = defaults.object(forKey: Notifier.knownFindingsAtKey) as? Date
+        } else {
+            model.macScanNew = nil
+            model.previousMacScanAt = nil
+        }
+        defaults.set(report.countedIDs, forKey: Notifier.knownFindingsKey)
+        defaults.set(Date(), forKey: Notifier.knownFindingsAtKey)
     }
 
     // MARK: - Protect
@@ -198,7 +227,7 @@ extension StatusItemController {
         runTools("scan", work: work, then: { [weak self] output in
             self?.model.scanStale = true
             self?.showResult(title: title, text: output)
-            self?.runScan(wholeMac: true)
+            self?.runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 }
