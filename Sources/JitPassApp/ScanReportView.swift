@@ -23,7 +23,10 @@ struct ScanReportView: View {
         VStack(spacing: 0) {
             if let error = model.scanError {
                 failed(error)
-            } else if model.scanning {
+            } else if model.scanning, model.scan == nil || (model.scanDeep && !vaultUnlocked) {
+                // A first scan, or a deep scan waiting on the vault, takes the
+                // window. A rescan after a Protect keeps the report on screen
+                // and spins in the header: reading the Mac again is not news.
                 scanning
             } else if let report = model.scan {
                 report_(report)

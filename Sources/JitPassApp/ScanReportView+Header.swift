@@ -32,6 +32,9 @@ extension ScanReportView {
                         .buttonStyle(AppButton())
                         .help("Opens System Settings › Privacy & Security › Full Disk Access. Add JitPass there.")
                 }
+                if model.scanning {
+                    ProgressView().controlSize(.small)
+                }
                 Button("Scan Now…") { actions.askDepth(model.scanScope) }
                     .buttonStyle(AppButton()).disabled(model.scanning || model.scan == nil)
                 moreMenu

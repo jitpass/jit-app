@@ -229,11 +229,10 @@ extension StatusItemController {
         alert.messageText = plan.count == 1
             ? "Protect \(plan.migrate.first.map(Format.home) ?? plan.wrap.first ?? "")?"
             : "Protect \(plan.count) findings?"
-        alert.informativeText = (createsVault ? "This Mac has no vault yet, so this creates one first. " : "")
-            + "These move into the vault:\n\n\(Self.protectedNames(plan))\n\n"
+        alert.informativeText = (createsVault ? "This Mac has no vault yet, so this creates one first.\n\n" : "")
+            + "\(Self.protectedNames(plan))\n\n"
             + sweep
-            + "Each file is rewritten so what reads it keeps working, and is backed up encrypted first; "
-            + "jit migrate undo restores it. Touch ID follows."
+            + "The files keep working; a backup restores them. Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {

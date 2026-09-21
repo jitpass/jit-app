@@ -95,9 +95,8 @@ extension StatusItemController {
             }
             runInTerminal("brew update && brew upgrade jitpass")
         } else {
-            alert.informativeText = "The download opens in your browser. Quit JitPass, replace it in Applications "
-                + "with the new one, and open it again. Your vault and settings are untouched; the command line "
-                + "tool link keeps pointing at Applications."
+            alert.informativeText = "The download opens in your browser. Quit JitPass, replace it in Applications, and open it again."
+                + "\n\nYour vault and settings stay."
             alert.addButton(withTitle: "Download")
             alert.addButton(withTitle: "Later")
             guard alert.runFrontmost() == .alertFirstButtonReturn else {

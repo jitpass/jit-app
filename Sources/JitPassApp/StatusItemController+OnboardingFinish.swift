@@ -116,8 +116,8 @@ extension StatusItemController {
             // that do not fit, so "it lives up here" would point at nothing.
             let alert = NSAlert()
             alert.messageText = "JitPass is hidden in your menu bar"
-            alert.informativeText = "The menu bar is full, so macOS is not showing the JitPass ring. JitPass is running and "
-                + "protecting you. To reach it, open JitPass again from Applications, or quit a menu bar app to make room."
+            alert.informativeText = "The menu bar is full, so macOS is not showing the ring. JitPass is running."
+                + "\n\nOpen it again from Applications, or quit a menu bar app to make room."
             alert.runFrontmost()
             return
         }

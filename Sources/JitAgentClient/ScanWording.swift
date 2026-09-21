@@ -220,9 +220,9 @@ public extension ScanWording {
     /// its outcome: before Touch ID jit knows what it found, not what it
     /// will manage to rewrite.
     ///
-    /// "It also removes the 9 copies the scan found in Claude Code's
-    /// transcripts and edit history, and in Cursor's chat database. A copy
-    /// it can't safely rewrite is left in place and named when it's done."
+    /// "Also removes the 9 copies the scan found in Claude Code's
+    /// transcripts and edit history, and in Cursor's chat database." One
+    /// sentence: what it could not remove, the banner names afterwards.
     static func sweepSentence(copies: [ScanFinding]) -> String? {
         guard !copies.isEmpty else {
             return nil
@@ -244,7 +244,6 @@ public extension ScanWording {
             return list.isEmpty ? "\(agent)'s cache" : "\(agent)'s " + list.joined(separator: " and ")
         }
         let what = copies.count == 1 ? "the copy" : "the \(copies.count) copies"
-        return "It also removes \(what) the scan found in " + places.joined(separator: ", and in ") + ". "
-            + "A copy it can't safely rewrite is left in place and named when it's done."
+        return "Also removes \(what) the scan found in " + places.joined(separator: ", and in ") + "."
     }
 }

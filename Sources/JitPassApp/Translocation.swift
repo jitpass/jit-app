@@ -24,9 +24,8 @@ enum Translocation {
         }
         let alert = NSAlert()
         alert.messageText = "Move JitPass to Applications first"
-        alert.informativeText = "macOS is running this copy from a temporary location because it was opened "
-            + "straight from the download. The jit command it bundles and the service it starts need a fixed path.\n\n"
-            + "Quit, drag JitPass.app into your Applications folder, and open it from there."
+        alert.informativeText = "macOS is running this copy from a temporary folder, and the jit it bundles needs a fixed path."
+            + "\n\nQuit, drag JitPass into Applications, and open it from there."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Quit")
         alert.addButton(withTitle: "Continue Anyway")
