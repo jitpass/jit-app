@@ -89,8 +89,20 @@ extension StatusItemController {
                 guard let self, let report else {
                     return
                 }
-                model.decoyReads24h = report.addingLive(liveServes, filter: filter).authEvents
-                    .filter(\.readDecoy).reduce(0) { $0 + ($1.count ?? 1) }
+                let reads = report.addingLive(liveServes, filter: filter).authEvents.filter(\.readDecoy)
+                model.decoyReads24h = reads.reduce(0) { $0 + ($1.count ?? 1) }
+                // By reading program — the first word of `by`, its last
+                // path segment — so the AI Agents digest can say "2 decoy
+                // reads today" on claude's row and not on codex's.
+                var byProgram: [String: Int] = [:]
+                for event in reads {
+                    guard let first = event.by?.split(separator: " ", maxSplits: 1).first, !first.isEmpty else {
+                        continue
+                    }
+                    let program = String(first.split(separator: "/").last ?? first)
+                    byProgram[program, default: 0] += event.count ?? 1
+                }
+                model.decoyReadsByProgram = byProgram
             }
         }
     }
