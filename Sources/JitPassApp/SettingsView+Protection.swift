@@ -116,8 +116,8 @@ extension SettingsView {
                     AppSwitch(isOn: notifyDecoysBinding)
                 }
                 AppRow(
-                    name: "A session expires, or a scan finds a new copy",
-                    fact: "The next aws call fails until you renew; or a secret turned up in an agent's cache.",
+                    name: "A session expires, or a scheduled scan finds something new",
+                    fact: "The next aws call fails until you renew; or a scan found a secret the last one did not, and Findings has it.",
                     wraps: true,
                     last: true
                 ) {

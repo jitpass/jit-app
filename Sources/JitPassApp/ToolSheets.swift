@@ -15,12 +15,16 @@ enum ToolsSheet: Identifiable, Equatable {
     /// What a command printed, verbatim: the CLI is the one that says what
     /// it found and moved.
     case result(title: String, text: String)
+    /// The Findings window's question before a scan: how far to look, for
+    /// this scope (nil: the whole Mac).
+    case scanDepth(scope: String?)
 
     var id: String {
         switch self {
         case let .wrap(tool): "wrap:" + tool
         case .handWrap: "handwrap"
         case let .result(title, _): "result:" + title
+        case let .scanDepth(scope): "depth:" + (scope ?? "mac")
         }
     }
 }

@@ -9,6 +9,10 @@ import Foundation
 /// "nothing" (docs/design: windows.md, "a card's eyebrow carries its
 /// tier").
 public enum ScanTier: String, Sendable, CaseIterable, Identifiable {
+    /// A deep scan's find: an exact copy of a secret already in the vault,
+    /// still sitting in the open. First, because it is the one card whose
+    /// secret jit already knows by name.
+    case vaultCopies
     /// jit can move the value into the vault itself.
     case protect
     /// Only the person at the keyboard can: rotate it, or move it.
@@ -29,6 +33,7 @@ public extension ScanReport {
     /// are empty here and the window draws that tier from its own list.
     func groups(in tier: ScanTier) -> [ScanFileGroup] {
         switch tier {
+        case .vaultCopies: ScanFileGroup.group(vaultCopies)
         case .protect: ScanFileGroup.group(migratable)
         case .needsYou: manualByFile
         case .agentCaches: []
@@ -39,7 +44,7 @@ public extension ScanReport {
     /// Findings, not files: the number the filter pill and the footer show.
     func count(in tier: ScanTier) -> Int {
         if tier == .agentCaches {
-            return agentCopies.count
+            return agentCopies.count + cacheShapes.count
         }
         return groups(in: tier).reduce(0) { $0 + $1.findings.count }
     }
@@ -81,6 +86,7 @@ public extension ScanFinding {
     /// it whole.
     var vendorName: String? {
         let tail = " known token format"
+        let evidence = evidenceWithoutPlace
         guard evidence.hasSuffix(tail) else {
             return nil
         }
@@ -102,10 +108,30 @@ public extension ScanFinding {
         return name.isEmpty ? nil : name
     }
 
+    /// Where a cache finding sits, out of the scanner's "(found in Claude
+    /// Code's transcripts)" suffix: "Claude Code's transcripts". Nil for a
+    /// finding in an ordinary file.
+    var foundIn: String? {
+        guard evidence.hasSuffix(")"), let open = evidence.range(of: " (found in ", options: .backwards) else {
+            return nil
+        }
+        let inner = evidence[open.upperBound ..< evidence.index(before: evidence.endIndex)]
+        return inner.isEmpty ? nil : String(inner)
+    }
+
+    /// The evidence with the "(found in …)" suffix removed, so the vendor
+    /// parser sees the sentence it knows.
+    var evidenceWithoutPlace: String {
+        guard let open = evidence.range(of: " (found in ", options: .backwards), evidence.hasSuffix(")") else {
+            return evidence
+        }
+        return String(evidence[..<open.lowerBound])
+    }
+
     /// What one finding contributes to a row or a sheet line: the token's
     /// name when the scanner matched a format, its own evidence otherwise.
     var shortEvidence: String {
-        vendorName ?? evidence
+        vendorName ?? evidenceWithoutPlace
     }
 }
 
@@ -127,6 +153,9 @@ public extension ScanFileGroup {
                 parts.append(first.typeLabel)
             }
             parts.append(first.shortEvidence)
+            if let place = first.foundIn {
+                parts.append("in " + place)
+            }
             return parts.joined(separator: " · ")
         }
         let names = findings.prefix(3).map(\.shortEvidence)

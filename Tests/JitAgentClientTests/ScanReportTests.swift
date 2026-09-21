@@ -52,6 +52,14 @@ final class ScanReportTests: XCTestCase {
         XCTAssertFalse(mirror.children.contains { $0.label == "valuePreview" })
     }
 
+    func testSummaryCarriesTheDepth() throws {
+        let deep = #"{"record_type":"scan_summary","total_findings":0,"risk_level":"low","exposure_score":0,"#
+            + #""secrets_total":1,"secrets_protected":1,"secrets_migratable":0,"files_scanned":3,"deep":true,"vault_secrets_checked":14}"#
+        XCTAssertEqual(try ScanReport.parse(stream([deep])).summary.deep, true)
+        XCTAssertEqual(try ScanReport.parse(stream([deep])).summary.vaultSecretsChecked, 14)
+        XCTAssertNil(try ScanReport.parse(stream([summary])).summary.deep, "absent on a regular scan")
+    }
+
     func testMissingSummaryIsAnError() {
         XCTAssertThrowsError(try ScanReport.parse(stream([finding]))) { error in
             XCTAssertEqual(error as? ScanReportError, .noSummary)
@@ -113,25 +121,6 @@ extension ScanReportTests {
         XCTAssertEqual(try parse([]).protectAllCommands, [])
     }
 
-    func testNewAgentCopiesAreTheFilesThePreviousScanDidNotHave() throws {
-        func copy(_ id: String, _ path: String) -> String {
-            #"{"record_type": "finding", "record_id": "\#(id)", "finding_type": "agent_cached_secret", "severity": "high", "#
-                + #""file_path": "\#(path)", "evidence": "a copy", "remedy": "manual", "agent": "Claude Code", "origin_path": "/h/.env"}"#
-        }
-        let before = try parse([copy("a", "/h/.claude/x")])
-        let after = try parse([copy("a", "/h/.claude/x"), copy("b", "/h/.claude/y")])
-        XCTAssertEqual(after.newAgentCopies(since: before).map(\.filePath), ["/h/.claude/y"])
-        XCTAssertEqual(after.newAgentCopies(since: nil).count, 2, "no previous scan: everything is new")
-        XCTAssertTrue(before.newAgentCopies(since: after).isEmpty)
-
-        // What is saved between launches: each file once, sorted; and the
-        // comparison against it matches the one against a whole report.
-        let twice = try parse([copy("a", "/h/.claude/y"), copy("b", "/h/.claude/x"), copy("c", "/h/.claude/y")])
-        XCTAssertEqual(twice.agentCopyPaths, ["/h/.claude/x", "/h/.claude/y"])
-        XCTAssertEqual(after.newAgentCopies(known: Set(before.agentCopyPaths)).map(\.filePath), ["/h/.claude/y"])
-        XCTAssertTrue(after.newAgentCopies(known: Set(twice.agentCopyPaths)).isEmpty)
-    }
-
     func testProtectPlanUsesTheFindingsOwnPathsAndEachWrapOnce() throws {
         let r = try parse([
             Self.record("a", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
@@ -161,5 +150,22 @@ extension ScanReportTests {
                                 secretsProtected: 0, secretsMigratable: 0, filesScanned: 10, scanTime: nil)
         XCTAssertEqual(clean.percent, 100)
         XCTAssertNil(clean.toFullLine)
+    }
+}
+
+/// What a scan has that the previous whole-Mac scan did not: the Findings
+/// header's count and the "new" mark on a row.
+extension ScanReportTests {
+    func testNewFindingsAreTheCountedOnesAPreviousRunLacked() throws {
+        let r = try ScanReport.parse(stream([
+            Self.record("finding:1", path: "/Users/me/app/.env"),
+            Self.record("finding:2", path: "/Users/me/.zsh_history"),
+            Self.record("finding:3", path: "/Users/me/app/x_test.go", fixture: true),
+            summary
+        ]))
+        XCTAssertEqual(r.newFindings(known: ["finding:1"]).map(\.id), ["finding:2"])
+        XCTAssertEqual(r.newFindings(known: []).map(\.id), ["finding:1", "finding:2"], "a fixture is never news")
+        XCTAssertEqual(r.newFindings(known: ["finding:1", "finding:2"]), [])
+        XCTAssertEqual(r.countedIDs, ["finding:1", "finding:2"], "ids only, sorted, fixtures left out")
     }
 }

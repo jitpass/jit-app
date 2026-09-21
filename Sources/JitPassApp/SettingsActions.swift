@@ -12,6 +12,7 @@ struct SettingsActions {
     var setEditor: (String) -> Void = { _ in }
     var setLaunchAtLogin: (Bool) -> Void = { _ in }
     var setScanSchedule: (ScanSchedule) -> Void = { _ in }
+    var setRedactAfterScan: (Bool) -> Void = { _ in }
     var grantFullDiskAccess: () -> Void = {}
     /// The value jit is given, and the words the banner says it in.
     var setTTL: (String, String) -> Void = { _, _ in }

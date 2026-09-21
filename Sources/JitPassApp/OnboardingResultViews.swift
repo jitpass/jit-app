@@ -83,7 +83,7 @@ struct OnboardingResults: View {
         }
     }
 
-    /// The first few files, worst first; the Scan window keeps the full list.
+    /// The first few files, worst first; the Findings window keeps the full list.
     private func files(_ report: ScanReport) -> some View {
         let groups = ScanFileGroup.group(report.migratable + report.manual)
         let shown = Array(groups.prefix(4))

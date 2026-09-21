@@ -57,11 +57,13 @@ enum JitCLI {
         return try? JSONDecoder().decode(AuditReport.self, from: data)
     }
 
-    /// A whole-machine scan. Read-only in every mode and prompt-free, so it
-    /// is safe to run from a GUI; it takes seconds, so callers run it off
-    /// the main thread.
-    static func scan(path: String? = nil, excludes: [String] = []) throws -> ScanReport {
-        let flags = excludes.flatMap { ["--exclude", $0] }
+    /// A whole-machine scan. Read-only in every mode, and prompt-free
+    /// unless `deep`: `jit scan --deep` reads the vault first, which is a
+    /// Touch ID when the service holds no session — so deep runs only from
+    /// a click, never from the schedule. It takes seconds, so callers run it
+    /// off the main thread.
+    static func scan(path: String? = nil, excludes: [String] = [], deep: Bool = false) throws -> ScanReport {
+        let flags = excludes.flatMap { ["--exclude", $0] } + (deep ? ["--deep"] : [])
         guard let data = run(["scan", "--format", "ndjson"] + flags + (path.map { [$0] } ?? [])) else {
             throw ScanReportError.noSummary
         }

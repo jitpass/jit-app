@@ -4,8 +4,8 @@
 import JitAgentClient
 import SwiftUI
 
-/// The scan window when it has no report: before the first scan, while
-/// one runs, and after one failed. Each says what is true and offers the
+/// The Findings window when it has no report: before the first scan,
+/// while one runs, and after one failed. Each says what is true and offers the
 /// one thing there is to do.
 extension ScanReportView {
     /// Nothing is scanned until the user says where: a whole-home read is
@@ -16,12 +16,11 @@ extension ScanReportView {
             WindowEmptyState(
                 tint: Color(StatusMark.amber),
                 hollow: true,
-                title: "Nothing scanned yet",
-                message: "A folder scan looks only there. The whole Mac covers your home folder, shell configs, "
-                    + "credential files and agent caches. It only reads, and nothing leaves this Mac."
+                title: "No findings yet",
+                message: ScanWording.emptyMessage(schedule: model.scanSchedule)
             ) {
                 Button("Choose Folder…", action: actions.chooseFolder).buttonStyle(AppButton())
-                Button("Scan Whole Mac", action: actions.scanWholeMac).buttonStyle(AppButton(kind: .primary))
+                Button("Scan Whole Mac…", action: actions.scanWholeMac).buttonStyle(AppButton(kind: .primary))
             }
             Spacer(minLength: 0)
             accessFooter
@@ -32,14 +31,35 @@ extension ScanReportView {
         VStack(spacing: 0) {
             header(nil)
             Spacer(minLength: 0)
-            VStack(spacing: Win.s5) {
-                ProgressView().controlSize(.small)
-                Text(model.scanScope == nil ? "Reading your Mac…" : "Reading " + Format.home(model.scanScope ?? "") + "…")
-                    .font(Win.sub).foregroundStyle(.secondary)
+            if model.scanDeep, !vaultUnlocked {
+                // A deep scan reads the vault first. Locked, that is a
+                // Touch ID prompt, and the window says what it is for.
+                WindowEmptyState(
+                    tint: Color(StatusMark.amber),
+                    title: "Unlock the vault to search for your secrets",
+                    message: "A deep scan compares your vaulted values against every file it reads. "
+                        + "The values stay on this Mac and never appear in the results — only which secret was found, and where."
+                ) {
+                    EmptyView()
+                }
+            } else {
+                VStack(spacing: Win.s5) {
+                    ProgressView().controlSize(.small)
+                    Text((model.scanDeep ? "Deep scan · " : "") +
+                        (model.scanScope == nil ? "Reading your Mac…" : "Reading " + Format.home(model.scanScope ?? "") + "…"))
+                        .font(Win.sub).foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 0)
             accessFooter
         }
+    }
+
+    var vaultUnlocked: Bool {
+        if case .unlocked = model.state {
+            return true
+        }
+        return false
     }
 
     func failed(_ error: String) -> some View {
@@ -64,7 +84,7 @@ extension ScanReportView {
             StateDot(tint: Color(model.fullDiskAccess ? StatusMark.green : StatusMark.amber))
             Text(
                 model.fullDiskAccess
-                    ? "Full Disk Access granted · a whole-Mac scan runs without prompts"
+                    ? "Full Disk Access granted · scheduled scans run without prompts"
                     : "Without Full Disk Access, macOS asks once per protected folder"
             )
             .font(Win.sub).foregroundStyle(.secondary)

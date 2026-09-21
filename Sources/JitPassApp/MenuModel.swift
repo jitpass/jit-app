@@ -24,10 +24,17 @@ final class MenuModel: ObservableObject {
     @Published var scanError: String?
     /// The folder the last scan was limited to; nil means the whole Mac.
     @Published var scanScope: String?
+    /// The scan now running is deep: the window shows the unlock state.
+    @Published var scanDeep = false
     /// The last whole-Mac scan, whoever started it: what the Protected row
     /// shows. A folder scan never replaces it.
     @Published var macScan: ScanReport?
     @Published var macScanAt: Date?
+    /// Who started the last whole-Mac scan; the ids it has that the run
+    /// before did not (nil: no run to compare with); when that run was.
+    @Published var macScanKind: ScanRunKind?
+    @Published var macScanNew: Set<String>?
+    @Published var previousMacScanAt: Date?
     /// Set when jit changed something (a Protect ran) so the next chance
     /// rescans even before the schedule says so.
     @Published var scanStale = false
@@ -35,10 +42,12 @@ final class MenuModel: ObservableObject {
         rawValue: UserDefaults.standard.string(forKey: ScanSchedule.preferenceKey) ?? ""
     ) ?? .default
     @Published var scanExcludes: [String] = ScanExcludes.load()
+    @Published var redactAfterScan = UserDefaults.standard.bool(forKey: Notifier.redactAfterScanKey)
     @Published var audit: AuditReport?
-    /// Decoy serves in the last 24 hours: reads of a protected file by
-    /// something no run or consent covered. nil until read.
+    /// Decoy serves in the last 24 hours (nil until read), and the same by
+    /// reading program, for the AI Agents digest's per-agent row.
     @Published var decoyReads24h: Int?
+    @Published var decoyReadsByProgram: [String: Int] = [:]
     @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var notifyChanges = Notifier.changesEnabled
     /// What macOS allows, re-read when Settings opens and whenever the app
@@ -119,7 +128,10 @@ final class MenuModel: ObservableObject {
     /// What the AI Agents window's last action did: its banner, with
     /// jit's own words one click away. The window has a banner region, so
     /// a success is said there and never in a modal over it.
-    @Published var agentsOutcome: AgentsOutcome?
+    @Published var agentsOutcome: WindowOutcome?
+    /// The Findings window's banner: what the last Protect, Clean Caches
+    /// or Undo did. The next action clears it; a Protect's rescan keeps it.
+    @Published var findingsOutcome: WindowOutcome?
     /// The scan window's sheet: what an in-app Protect printed.
     @Published var scanSheet: ToolsSheet?
     /// The file whose flagged lines the scan window is showing. A row
@@ -328,10 +340,15 @@ final class MenuModel: ObservableObject {
     }
 
     /// The CLI's headline: secrets protected over secrets known, for the
-    /// whole Mac. Never a folder's number.
+    /// whole Mac, and the day the schedule last ran when it was the
+    /// schedule. Never a folder's number.
     var protectedValue: String {
         if let s = macScan?.summary {
-            return "\(s.secretsProtected) of \(s.secretsTotal) · \(s.percent)%"
+            var value = "\(s.secretsProtected) of \(s.secretsTotal) · \(s.percent)%"
+            if macScanKind == .scheduled, let at = macScanAt {
+                value += " · " + ScanWording.dayWord(at)
+            }
+            return value
         }
         if scanning {
             return "scanning…"

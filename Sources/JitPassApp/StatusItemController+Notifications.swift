@@ -5,9 +5,9 @@ import AppKit
 import JitAgentClient
 
 /// The notifications: a decoy served (the Decoys switch), and the two the
-/// panel's dots already imply, a captured session running out and a scan
-/// finding cached copies it had not seen (the second switch). Each is
-/// said once.
+/// panel's dots already imply, a captured session running out and a
+/// scheduled scan finding something the previous one had not (the second
+/// switch). Each is said once.
 extension StatusItemController {
     /// How often the session notices are re-decided. Free: it reads the
     /// expiry stamps already held, and runs no `jit`.
@@ -32,6 +32,7 @@ extension StatusItemController {
             case .audit: self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "7d"))
             case .agents: self?.openAgents()
             case .tools: self?.openTools()
+            case .findings: self?.openScan()
             }
         }
         // Before setup has asked, the switches read as on by default; the
@@ -88,8 +89,20 @@ extension StatusItemController {
                 guard let self, let report else {
                     return
                 }
-                model.decoyReads24h = report.addingLive(liveServes, filter: filter).authEvents
-                    .filter(\.readDecoy).reduce(0) { $0 + ($1.count ?? 1) }
+                let reads = report.addingLive(liveServes, filter: filter).authEvents.filter(\.readDecoy)
+                model.decoyReads24h = reads.reduce(0) { $0 + ($1.count ?? 1) }
+                // By reading program — the first word of `by`, its last
+                // path segment — so the AI Agents digest can say "2 decoy
+                // reads today" on claude's row and not on codex's.
+                var byProgram: [String: Int] = [:]
+                for event in reads {
+                    guard let first = event.by?.split(separator: " ", maxSplits: 1).first, !first.isEmpty else {
+                        continue
+                    }
+                    let program = String(first.split(separator: "/").last ?? first)
+                    byProgram[program, default: 0] += event.count ?? 1
+                }
+                model.decoyReadsByProgram = byProgram
             }
         }
     }
@@ -179,29 +192,21 @@ extension StatusItemController {
         Notifier.sessionsTold = told
     }
 
-    /// After a whole-Mac scan: the cached copies in files the last
-    /// whole-Mac scan did not have, compared with the paths it saved, so a
-    /// restart does not reset it. The very first scan only saves: the AI
-    /// Agents dot already carries what it found. The paths are saved with
-    /// the switch off too, so turning it on later is not a flood of old
-    /// copies. Setup's scan only saves: its results are on the screen.
-    func noteNewCachedCopies(in report: ScanReport, announce: Bool = true) {
-        let saved = UserDefaults.standard.stringArray(forKey: Notifier.cachedCopiesKey)
-        UserDefaults.standard.set(report.agentCopyPaths, forKey: Notifier.cachedCopiesKey)
-        guard announce, model.notifyChanges, let saved else {
+    /// After a scheduled whole-Mac scan: what it found that the previous
+    /// one did not, said once, naming it, and opening Findings when
+    /// clicked. A run that changes nothing is silent. Only the schedule
+    /// announces: a scan someone clicked is already on their screen, and
+    /// the very first scan has nothing to compare with (`rememberFindings`
+    /// leaves `macScanNew` nil).
+    func announceNewFindings(_ fresh: [ScanFinding], at: Date) {
+        guard model.notifyChanges, !fresh.isEmpty,
+              let notice = ScanNotices.make(new: fresh, at: at, home: FileManager.default.homeDirectoryForCurrentUser.path)
+        else {
             return
         }
-        let fresh = report.newAgentCopies(known: Set(saved))
-        guard !fresh.isEmpty else {
-            return
-        }
-        let agents = Array(Set(fresh.compactMap(\.agent))).sorted()
-        let who = agents.isEmpty ? "an AI agent" : agents.joined(separator: ", ")
-        let count = fresh.count
         Notifier.post(
-            title: "\(count) new cached cop\(count == 1 ? "y" : "ies") of your secrets",
-            body: "\(who) kept \(count == 1 ? "a copy" : "copies") of a protected value in its cache. Clean Caches redacts them.",
-            id: "caches-\(Int(Date().timeIntervalSince1970))", thread: "caches", target: .agents
+            title: notice.title, body: notice.body,
+            id: "findings-\(Int(at.timeIntervalSince1970))", thread: "findings", target: .findings
         )
     }
 }

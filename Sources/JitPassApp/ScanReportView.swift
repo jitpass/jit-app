@@ -23,7 +23,10 @@ struct ScanReportView: View {
         VStack(spacing: 0) {
             if let error = model.scanError {
                 failed(error)
-            } else if model.scanning {
+            } else if model.scanning, model.scan == nil || (model.scanDeep && !vaultUnlocked) {
+                // A first scan, or a deep scan waiting on the vault, takes the
+                // window. A rescan after a Protect keeps the report on screen
+                // and spins in the header: reading the Mac again is not news.
                 scanning
             } else if let report = model.scan {
                 report_(report)
@@ -39,8 +42,13 @@ struct ScanReportView: View {
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onChange(of: model.scan) { _ in tier = nil }
         .sheet(item: $model.scanSheet) { sheet in
-            if case let .result(title, text) = sheet {
+            switch sheet {
+            case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
+            case let .scanDepth(scope):
+                ScanDepthSheet(model: model, scope: scope, start: { actions.startScan(scope, $0) }, close: actions.closeSheet)
+            default:
+                EmptyView()
             }
         }
         .sheet(item: $model.scanLines) { group in
@@ -52,20 +60,62 @@ struct ScanReportView: View {
 
     @ViewBuilder
     private func report_(_ report: ScanReport) -> some View {
+        banner
         header(report)
         if report.showsTierFilter {
             filter(report).windowRegion()
         }
-        ScrollView {
-            VStack(alignment: .leading, spacing: Win.s5) {
-                ForEach(shown(report)) { tier in
-                    card(tier, report)
+        if report.tiersPresent.isEmpty {
+            clean(report)
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Win.s5) {
+                    ForEach(shown(report)) { tier in
+                        card(tier, report)
+                    }
                 }
+                .padding(Win.s6)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(Win.s6)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         footer(report)
+    }
+
+    /// What just happened, above the header: the Protect's sentence in
+    /// the state's colour, jit's own words one click away, and Undo when
+    /// there is a file to restore. Only after something happened.
+    @ViewBuilder
+    private var banner: some View {
+        if let outcome = model.findingsOutcome {
+            WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
+                if !outcome.text.isEmpty {
+                    Button("What jit Did…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
+                }
+                if !outcome.undo.isEmpty {
+                    Button("Undo") { actions.undoProtect(outcome.undo) }.buttonStyle(AppButton())
+                        .disabled(model.toolsBusy != nil)
+                }
+            }
+        }
+    }
+
+    /// A report with nothing in it says the true thing, not that a list
+    /// is empty.
+    private func clean(_ report: ScanReport) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            WindowEmptyState(
+                tint: Color(StatusMark.green),
+                title: model.scanScope == nil ? "No secret is exposed on this Mac" : "No secret is exposed in " + Format
+                    .home(model.scanScope ?? ""),
+                message: ScanWording.cleanMessage(
+                    filesRead: report.summary.filesScanned, schedule: model.scanSchedule, last: model.macScanAt ?? Date()
+                )
+            ) {
+                Button("Scan Now…") { actions.askDepth(model.scanScope) }.buttonStyle(AppButton()).disabled(model.scanning)
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     /// The tiers the body draws: the filter's one, or all of the ones this
@@ -82,7 +132,7 @@ struct ScanReportView: View {
     @ViewBuilder
     private func card(_ tier: ScanTier, _ report: ScanReport) -> some View {
         if tier == .agentCaches {
-            agentCard(report.agentCacheGroups)
+            agentCard(report.agentCacheGroups, shapes: report.cacheShapeGroups)
         } else {
             let groups = report.groups(in: tier)
             AppCard(
@@ -99,7 +149,11 @@ struct ScanReportView: View {
             } rows: {
                 AppCardRows {
                     ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                        fileRow(group, tier: tier, last: index == groups.count - 1)
+                        if tier == .vaultCopies {
+                            vaultCopyRow(group, last: index == groups.count - 1)
+                        } else {
+                            fileRow(group, tier: tier, last: index == groups.count - 1)
+                        }
                     }
                 }
             }
@@ -109,7 +163,7 @@ struct ScanReportView: View {
     static func tierTint(_ tier: ScanTier) -> NSColor {
         switch tier {
         case .protect: StatusMark.amber
-        case .needsYou, .agentCaches: StatusMark.red
+        case .vaultCopies, .needsYou, .agentCaches: StatusMark.red
         case .testFixtures: .tertiaryLabelColor
         }
     }
@@ -121,6 +175,7 @@ struct ScanReportView: View {
         AppRow(
             name: Format.fileName(group.filePath),
             detail: Format.parentFolder(group.filePath),
+            badge: isNew(group.findings) ? "new" : nil,
             fact: group.fact,
             last: last
         ) {
@@ -137,6 +192,39 @@ struct ScanReportView: View {
             }
             rowMenu(group)
         }
+    }
+
+    /// A deep scan's find: the vault path first — the one card whose secret
+    /// jit knows by name — then where the copy sits, then the scanner's own
+    /// sentence. Clean Caches for a copy in an agent's cache; a copy in a
+    /// plain file is the reader's to delete, after rotating.
+    private func vaultCopyRow(_ group: ScanFileGroup, last: Bool) -> some View {
+        let first = group.findings.first
+        let location = Format.home(group.filePath) + (group.firstLine.map { " : \($0)" } ?? "")
+        return AppRow(
+            name: first?.keyName ?? Format.fileName(group.filePath),
+            detail: location,
+            badge: isNew(group.findings) ? "new" : nil,
+            fact: first?.evidence ?? "",
+            last: last
+        ) {
+            Button("Open") { actions.open(group.filePath, group.firstLine) }.buttonStyle(AppButton())
+            if first?.agent != nil {
+                Button("Clean Caches…", action: actions.cleanCaches)
+                    .buttonStyle(AppButton(kind: .secondary)).disabled(model.toolsBusy != nil)
+            }
+            rowMenu(group)
+        }
+    }
+
+    /// Whether any of these findings is one the previous whole-Mac scan
+    /// did not have. Only the whole-Mac report keeps that comparison; a
+    /// folder scan marks nothing.
+    func isNew(_ findings: [ScanFinding]) -> Bool {
+        guard model.scanScope == nil, let new = model.macScanNew else {
+            return false
+        }
+        return findings.contains { new.contains($0.id) }
     }
 
     /// Everything cheap and reversible, where a mis-click costs nothing.
@@ -194,4 +282,14 @@ struct ScanActions {
     var showLines: (ScanFileGroup) -> Void = { _ in }
     var grantFullDiskAccess: () -> Void = {}
     var cleanCaches: () -> Void = {}
+    var undoProtect: ([String]) -> Void = { _ in }
+    var showOutcome: (WindowOutcome) -> Void = { _ in }
+    /// Redact tokens found by format: in these files (empty: every agent
+    /// cache), on these lines (empty: every line); `what` names it for the
+    /// dialog ("the SendGrid API Key on line 1046", "8 tokens in this file").
+    var redact: ([String], [Int], String, String?) -> Void = { _, _, _, _ in }
+    /// Raise the depth sheet for a scope (nil: the whole Mac).
+    var askDepth: (String?) -> Void = { _ in }
+    /// The sheet's answer: scan this scope at this depth.
+    var startScan: (String?, ScanMode) -> Void = { _, _ in }
 }
