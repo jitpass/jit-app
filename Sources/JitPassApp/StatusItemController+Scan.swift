@@ -39,7 +39,9 @@ extension StatusItemController {
             },
             showLines: { [weak self] group in self?.model.scanLines = group },
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
-            cleanCaches: { [weak self] in self?.cleanCaches() }
+            cleanCaches: { [weak self] in self?.cleanCaches() },
+            undoProtect: { [weak self] paths in self?.undoProtect(paths) },
+            showOutcome: { [weak self] outcome in self?.model.scanSheet = .result(title: outcome.title, text: outcome.text) }
         )
     }
 
@@ -116,6 +118,9 @@ extension StatusItemController {
         }
         model.scanning = true
         model.scanError = nil
+        if kind != .afterProtect {
+            model.findingsOutcome = nil // the banner clears on the next action; the rescan a Protect triggers is not one
+        }
         let scope = wholeMac ? nil : model.scanScope
         let excludes = model.scanExcludes
         Task.detached {
@@ -194,20 +199,10 @@ extension StatusItemController {
         guard vaultAllowsProtect() else {
             return
         }
-        var commands: [[String]] = []
         // A Mac that was never set up has no vault for migrate to write to:
         // Protect used to fail there. Creating it is part of the same,
         // named, confirmed plan.
         let createsVault = model.setup == .needsSetup
-        if createsVault {
-            commands.append(["vault", "init"])
-        }
-        if !plan.migrate.isEmpty {
-            commands.append(["migrate"] + plan.migrate + ["--yes"])
-        }
-        for tool in plan.wrap {
-            commands.append(["wrap", tool])
-        }
         // migrate sweeps the agent caches for copies of what it just vaulted.
         // The scan on screen already lists those copies, each with the file
         // it came from, so the dialog can say what the sweep will reach
@@ -229,21 +224,20 @@ extension StatusItemController {
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
-        let work: @Sendable () -> Result<String, Error> = {
-            var log: [String] = []
-            for command in commands {
-                switch JitCLI.execute(command) {
-                case let .success(text): log.append(text)
-                case let .failure(error): return .failure(error)
-                }
+        model.findingsOutcome = nil
+        // One migrate for every file (one plan, one Touch ID), as a report
+        // the banner reads by its fields; then each wrap, whose output is
+        // still text (StatusItemController+Protect).
+        let migrate = plan.migrate
+        let wraps = plan.wrap
+        runTools("scan", work: { Self.protectWork(createsVault: createsVault, migrate: migrate, wraps: wraps) }, then: { [weak self] run in
+            guard let self else {
+                return
             }
-            return .success(log.joined(separator: "\n\n"))
-        }
-        let title = plan.count == 1 ? "Protected" : "Protected \(plan.count) findings"
-        runTools("scan", work: work, then: { [weak self] output in
-            self?.model.scanStale = true
-            self?.showResult(title: title, text: output)
-            self?.runScan(wholeMac: true, kind: .afterProtect)
+            model.scanStale = true
+            let outcome = Self.protectOutcome(run.reports, wrapped: run.wrapped, wraps: wraps)
+            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo)
+            runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 }

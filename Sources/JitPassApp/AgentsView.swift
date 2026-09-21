@@ -33,7 +33,7 @@ struct AgentsView: View {
         let board = AgentsBoard.make(model)
         VStack(spacing: 0) {
             if let outcome = model.agentsOutcome {
-                WindowBanner(tint: Color(StatusMark.green), text: outcome.title) {
+                WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
                     Button("What jit Did…") { actions.openSheet(.result(title: outcome.title, text: outcome.text)) }
                         .buttonStyle(AppButton(kind: .plain))
                 }
@@ -287,7 +287,12 @@ struct AgentsActions {
 /// What the last action in this window did: the banner's sentence, with
 /// jit's own words one click away rather than in a modal that reports
 /// success.
-struct AgentsOutcome: Equatable {
+/// What just happened in a window, for its banner: the sentence, jit's
+/// own words behind "What jit Did…", whether it failed, and the files an
+/// Undo would restore.
+struct WindowOutcome: Equatable {
     var title: String
     var text: String
+    var failed = false
+    var undo: [String] = []
 }
