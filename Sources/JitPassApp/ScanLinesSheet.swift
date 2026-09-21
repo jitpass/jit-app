@@ -38,6 +38,12 @@ struct ScanLinesSheet: View {
                         ) {
                             Button("Open") { actions.open(group.filePath, finding.line) }
                                 .buttonStyle(AppButton(kind: .plain))
+                            if finding.isCacheShape, let line = finding.line {
+                                Button("Redact…") {
+                                    actions.redact([group.filePath], [line], "the \(finding.shortEvidence) on line \(line)")
+                                }
+                                .buttonStyle(AppButton())
+                            }
                         }
                     }
                 }
@@ -49,6 +55,12 @@ struct ScanLinesSheet: View {
             HStack(spacing: Win.s4) {
                 Spacer()
                 Button("Reveal in Finder") { actions.reveal(group.filePath) }.buttonStyle(AppButton())
+                if group.findings.contains(where: \.isCacheShape) {
+                    let n = group.findings.filter(\.isCacheShape).count
+                    Button("Redact All \(n)…") { actions.redact([group.filePath], [], "\(n) token" + (n == 1 ? "" : "s") + " in this file")
+                    }
+                    .buttonStyle(AppButton(kind: .secondary))
+                }
                 Button("Done", action: close).buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
             }
         }

@@ -82,6 +82,12 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         findingType == "vault_copy"
     }
 
+    /// A token the scan recognised by its format inside an AI agent's
+    /// cache (schema 0.22.0): what `jit migrate redact` rewrites.
+    public var isCacheShape: Bool {
+        findingType == "exposed_secret" && agent != nil
+    }
+
     /// True when `jit migrate` can fix it; false means only the user can.
     public var migratable: Bool {
         remedy == "migrate"
@@ -149,7 +155,17 @@ public struct ScanReport: Sendable, Equatable {
     /// Findings only the user can fix, less the agent-cache copies and the
     /// vault copies, which each have their own section.
     public var manual: [ScanFinding] {
-        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy && !$0.isVaultCopy }
+        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy && !$0.isVaultCopy && !$0.isCacheShape }
+    }
+
+    /// Tokens found by format in agent caches, and the same by file: the
+    /// agent-caches card's second half, with Redact as its verb.
+    public var cacheShapes: [ScanFinding] {
+        findings.filter { $0.isCacheShape && !$0.scaffolding }
+    }
+
+    public var cacheShapeGroups: [ScanFileGroup] {
+        ScanFileGroup.group(cacheShapes)
     }
 
     /// Exact copies of vaulted secrets a deep scan found in the open.
@@ -360,41 +376,5 @@ public struct ScanAgentGroup: Sendable, Equatable, Identifiable {
             byKey[key]?.findings.append(f)
         }
         return order.compactMap { byKey[$0] }
-    }
-}
-
-/// The CLI's coverage ledger, in distinct secrets, from the summary record.
-/// Same arithmetic as `audit.Coverage` in the engine: protected over total
-/// in whole percent, 100 when jit knows of nothing, and the two gains sum
-/// with the base to exactly 100.
-public extension ScanSummary {
-    var percent: Int {
-        secretsTotal == 0 ? 100 : secretsProtected * 100 / secretsTotal
-    }
-
-    /// The score once every remedy jit can run has run.
-    var percentAfterMigrate: Int {
-        secretsTotal == 0 ? 100 : (secretsProtected + secretsMigratable) * 100 / secretsTotal
-    }
-
-    /// Secrets left once jit has done its part: the "only you" bucket.
-    var secretsManual: Int {
-        max(0, secretsTotal - secretsProtected - secretsMigratable)
-    }
-
-    /// The "to 100%" line the CLI prints under its bar, or nil at 100.
-    var toFullLine: String? {
-        guard percent < 100 else {
-            return nil
-        }
-        var parts: [String] = []
-        if secretsMigratable > 0 {
-            parts.append("one command +\(percentAfterMigrate - percent)%")
-        }
-        if secretsManual > 0 {
-            let n = secretsManual
-            parts.append("\(n) secret\(n == 1 ? "" : "s") only you can fix +\(100 - percentAfterMigrate)%")
-        }
-        return parts.isEmpty ? nil : "to 100%: " + parts.joined(separator: " · ")
     }
 }

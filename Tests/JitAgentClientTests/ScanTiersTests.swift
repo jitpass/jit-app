@@ -60,6 +60,23 @@ final class ScanTiersTests: XCTestCase {
         XCTAssertEqual(r.groups(in: .vaultCopies).first?.filePath, "/Users/me/.claude/a.jsonl")
     }
 
+    func testATokenFoundByShapeInACacheIsAnAgentCacheRowNotNeedsYou() throws {
+        let r = try report([
+            finding("s1", path: "/Users/me/.claude/a.jsonl", line: 1046,
+                    evidence: "value matches AWS Access Key ID's known token format (found in Claude Code's transcripts)")
+                .replacingOccurrences(
+                    of: #""remedy":"manual""#,
+                    with: #""remedy":"manual","agent":"Claude Code","cache_area":"transcripts""#
+                ),
+            finding("f2", path: "/Users/me/.zsh_history", line: 8812)
+        ])
+        XCTAssertEqual(r.cacheShapes.map(\.id), ["s1"])
+        XCTAssertEqual(r.manual.map(\.id), ["f2"])
+        XCTAssertEqual(r.tiersPresent, [.needsYou, .agentCaches])
+        XCTAssertEqual(r.count(in: .agentCaches), 1)
+        XCTAssertEqual(r.cacheShapeGroups.first?.filePath, "/Users/me/.claude/a.jsonl")
+    }
+
     func testOnlyTiersWithFindingsArePresent() throws {
         let r = try report([
             finding("f1", type: "env_file_present", path: "/Users/me/app/.env", evidence: "10 plaintext variables", remedy: "migrate"),

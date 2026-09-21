@@ -129,7 +129,7 @@ struct ScanReportView: View {
     @ViewBuilder
     private func card(_ tier: ScanTier, _ report: ScanReport) -> some View {
         if tier == .agentCaches {
-            agentCard(report.agentCacheGroups)
+            agentCard(report.agentCacheGroups, shapes: report.cacheShapeGroups)
         } else {
             let groups = report.groups(in: tier)
             AppCard(
@@ -281,6 +281,10 @@ struct ScanActions {
     var cleanCaches: () -> Void = {}
     var undoProtect: ([String]) -> Void = { _ in }
     var showOutcome: (WindowOutcome) -> Void = { _ in }
+    /// Redact tokens found by format: in these files (empty: every agent
+    /// cache), on these lines (empty: every line); `what` names it for the
+    /// dialog ("the SendGrid API Key on line 1046", "8 tokens in this file").
+    var redact: ([String], [Int], String) -> Void = { _, _, _ in }
     /// Raise the depth sheet for a scope (nil: the whole Mac).
     var askDepth: (String?) -> Void = { _ in }
     /// The sheet's answer: scan this scope at this depth.
