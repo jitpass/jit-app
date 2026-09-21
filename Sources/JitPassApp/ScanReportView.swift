@@ -39,8 +39,13 @@ struct ScanReportView: View {
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onChange(of: model.scan) { _ in tier = nil }
         .sheet(item: $model.scanSheet) { sheet in
-            if case let .result(title, text) = sheet {
+            switch sheet {
+            case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
+            case let .scanDepth(scope):
+                ScanDepthSheet(model: model, scope: scope, start: { actions.startScan(scope, $0) }, close: actions.closeSheet)
+            default:
+                EmptyView()
             }
         }
         .sheet(item: $model.scanLines) { group in
@@ -104,7 +109,7 @@ struct ScanReportView: View {
                     filesRead: report.summary.filesScanned, schedule: model.scanSchedule, last: model.macScanAt ?? Date()
                 )
             ) {
-                Button("Scan Now", action: actions.rescan).buttonStyle(AppButton()).disabled(model.scanning)
+                Button("Scan Now…") { actions.askDepth(model.scanScope) }.buttonStyle(AppButton()).disabled(model.scanning)
             }
             Spacer(minLength: 0)
         }
@@ -141,7 +146,11 @@ struct ScanReportView: View {
             } rows: {
                 AppCardRows {
                     ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
-                        fileRow(group, tier: tier, last: index == groups.count - 1)
+                        if tier == .vaultCopies {
+                            vaultCopyRow(group, last: index == groups.count - 1)
+                        } else {
+                            fileRow(group, tier: tier, last: index == groups.count - 1)
+                        }
                     }
                 }
             }
@@ -151,7 +160,7 @@ struct ScanReportView: View {
     static func tierTint(_ tier: ScanTier) -> NSColor {
         switch tier {
         case .protect: StatusMark.amber
-        case .needsYou, .agentCaches: StatusMark.red
+        case .vaultCopies, .needsYou, .agentCaches: StatusMark.red
         case .testFixtures: .tertiaryLabelColor
         }
     }
@@ -177,6 +186,29 @@ struct ScanReportView: View {
                 Button("Protect…") { actions.protect(finding) }
                     .buttonStyle(AppButton(kind: .secondary))
                     .disabled(model.toolsBusy != nil)
+            }
+            rowMenu(group)
+        }
+    }
+
+    /// A deep scan's find: the vault path first — the one card whose secret
+    /// jit knows by name — then where the copy sits, then the scanner's own
+    /// sentence. Clean Caches for a copy in an agent's cache; a copy in a
+    /// plain file is the reader's to delete, after rotating.
+    private func vaultCopyRow(_ group: ScanFileGroup, last: Bool) -> some View {
+        let first = group.findings.first
+        let location = Format.home(group.filePath) + (group.firstLine.map { " : \($0)" } ?? "")
+        return AppRow(
+            name: first?.keyName ?? Format.fileName(group.filePath),
+            detail: location,
+            badge: isNew(group.findings) ? "new" : nil,
+            fact: first?.evidence ?? "",
+            last: last
+        ) {
+            Button("Open") { actions.open(group.filePath, group.firstLine) }.buttonStyle(AppButton())
+            if first?.agent != nil {
+                Button("Clean Caches…", action: actions.cleanCaches)
+                    .buttonStyle(AppButton(kind: .secondary)).disabled(model.toolsBusy != nil)
             }
             rowMenu(group)
         }
@@ -249,4 +281,8 @@ struct ScanActions {
     var cleanCaches: () -> Void = {}
     var undoProtect: ([String]) -> Void = { _ in }
     var showOutcome: (WindowOutcome) -> Void = { _ in }
+    /// Raise the depth sheet for a scope (nil: the whole Mac).
+    var askDepth: (String?) -> Void = { _ in }
+    /// The sheet's answer: scan this scope at this depth.
+    var startScan: (String?, ScanMode) -> Void = { _, _ in }
 }

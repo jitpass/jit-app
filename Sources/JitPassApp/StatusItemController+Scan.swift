@@ -8,7 +8,7 @@ import JitAgentClient
 extension StatusItemController {
     var scanActions: ScanActions {
         ScanActions(
-            rescan: { [weak self] in self?.runScan(kind: .byHand) },
+            rescan: { [weak self] in self?.askDepth(scope: self?.model.scanScope) },
             newScan: { [weak self] in
                 // Back to the chooser: the window's report is dropped, the
                 // whole-Mac result the panel shows is not.
@@ -18,10 +18,7 @@ extension StatusItemController {
             },
             openSettings: { [weak self] in self?.openSettings() },
             chooseFolder: { [weak self] in self?.chooseScanFolder() },
-            scanWholeMac: { [weak self] in
-                self?.model.scanScope = nil
-                self?.runScan(kind: .byHand)
-            },
+            scanWholeMac: { [weak self] in self?.askDepth(scope: nil) },
             protect: { [weak self] finding in
                 if let tool = finding.wrapTool {
                     self?.protectPlan(ProtectPlan(wrap: [tool]))
@@ -41,7 +38,9 @@ extension StatusItemController {
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
             cleanCaches: { [weak self] in self?.cleanCaches() },
             undoProtect: { [weak self] paths in self?.undoProtect(paths) },
-            showOutcome: { [weak self] outcome in self?.model.scanSheet = .result(title: outcome.title, text: outcome.text) }
+            showOutcome: { [weak self] outcome in self?.model.scanSheet = .result(title: outcome.title, text: outcome.text) },
+            askDepth: { [weak self] scope in self?.askDepth(scope: scope) },
+            startScan: { [weak self] scope, mode in self?.startScan(scope: scope, mode: mode) }
         )
     }
 
@@ -78,13 +77,27 @@ extension StatusItemController {
         runScan(wholeMac: true, kind: model.scanStale ? .afterProtect : .scheduled)
     }
 
-    /// The panel's Scan Now: the whole Mac, by hand, with the window open
-    /// to show the result. A click on a verb named "scan" is the one case
-    /// where a whole-home read is not a side effect.
+    /// The panel's Scan Now: the window, with the depth question up for
+    /// the whole Mac. A click on a verb named "scan" is the one case where
+    /// a whole-home read is not a side effect, and the sheet is where the
+    /// depth is chosen every time.
     func scanNow() {
         openScan()
-        model.scanScope = nil
-        runScan(wholeMac: true, kind: .byHand)
+        askDepth(scope: nil)
+    }
+
+    /// Every scan the user starts passes through the depth sheet (design:
+    /// frames 2 and 7). The schedule never does: it runs regular.
+    func askDepth(scope: String?) {
+        model.scanScope = scope
+        model.scanSheet = .scanDepth(scope: scope)
+    }
+
+    /// The sheet's answer.
+    func startScan(scope: String?, mode: ScanMode) {
+        model.scanSheet = nil
+        model.scanScope = scope
+        runScan(wholeMac: scope == nil, kind: mode == .deep ? .deep : .byHand, deep: mode == .deep)
     }
 
     /// The standard folder picker; a choice limits the next scan to it,
@@ -100,8 +113,7 @@ extension StatusItemController {
         guard picker.runFrontmost() == .OK, let url = picker.url else {
             return
         }
-        model.scanScope = url.path
-        runScan(kind: .byHand)
+        askDepth(scope: url.path)
     }
 
     /// Runs `jit scan` off the main thread and publishes the report. The
@@ -112,11 +124,12 @@ extension StatusItemController {
     /// Protected row, and shows in the window only when the window is not
     /// looking at a folder of its own. `kind` is who asked, for the
     /// Findings header.
-    func runScan(wholeMac: Bool = false, kind: ScanRunKind) {
+    func runScan(wholeMac: Bool = false, kind: ScanRunKind, deep: Bool = false) {
         guard !model.scanning else {
             return
         }
         model.scanning = true
+        model.scanDeep = deep
         model.scanError = nil
         if kind != .afterProtect {
             model.findingsOutcome = nil // the banner clears on the next action; the rescan a Protect triggers is not one
@@ -124,7 +137,7 @@ extension StatusItemController {
         let scope = wholeMac ? nil : model.scanScope
         let excludes = model.scanExcludes
         Task.detached {
-            let result = Result { try JitCLI.scan(path: scope, excludes: excludes) }
+            let result = Result { try JitCLI.scan(path: scope, excludes: excludes, deep: deep) }
             await MainActor.run { [weak self] in
                 guard let self else {
                     return

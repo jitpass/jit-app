@@ -64,7 +64,7 @@ enum Format {
             return "Nothing to protect, nothing needs you · " + files
         }
         let parts = report.tiersPresent.map { tier in
-            "\(report.count(in: tier)) " + tierLabel(tier).lowercased()
+            "\(report.count(in: tier)) " + (tier == .vaultCopies ? "vault copies" : tierLabel(tier).lowercased())
         }
         return (parts + [files]).joined(separator: " · ")
     }
@@ -72,6 +72,7 @@ enum Format {
     /// A tier's word, for its card's eyebrow and its filter pill.
     static func tierLabel(_ tier: ScanTier) -> String {
         switch tier {
+        case .vaultCopies: "In your vault, still in the open"
         case .protect: "Protect"
         case .needsYou: "Needs you"
         case .agentCaches: "Agent caches"
@@ -83,6 +84,11 @@ enum Format {
     static func tierTitle(_ tier: ScanTier, files: Int) -> String {
         let n = "\(files) file" + (files == 1 ? "" : "s")
         switch tier {
+        case .vaultCopies:
+            if files == 1 {
+                return "1 file holds a copy of a vaulted secret"
+            }
+            return n + " hold copies of vaulted secrets"
         case .protect: return "jit can move " + (files == 1 ? "this one" : "these") + " into the vault"
         case .needsYou: return files == 1 ? "Only you can fix this one" : "Only you can fix these"
         case .agentCaches: return n + " of agent caches hold copies"
@@ -93,6 +99,8 @@ enum Format {
     /// What the tier is, and what the choice costs.
     static func tierNote(_ tier: ScanTier) -> String {
         switch tier {
+        case .vaultCopies: "You've protected these, but a plaintext copy still sits in a file or an agent's cache. "
+            + "Rotate, then clear the copy."
         case .protect: "The file stays. The value moves, a decoy takes its place, and every file is backed up first."
         case .needsYou: "jit can't rewrite these safely. Rotate each value, or move it yourself."
         case .agentCaches: ScanReportView.agentNote

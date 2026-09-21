@@ -20,7 +20,7 @@ extension ScanReportView {
                 message: ScanWording.emptyMessage(schedule: model.scanSchedule)
             ) {
                 Button("Choose Folder…", action: actions.chooseFolder).buttonStyle(AppButton())
-                Button("Scan Whole Mac", action: actions.scanWholeMac).buttonStyle(AppButton(kind: .primary))
+                Button("Scan Whole Mac…", action: actions.scanWholeMac).buttonStyle(AppButton(kind: .primary))
             }
             Spacer(minLength: 0)
             accessFooter
@@ -31,14 +31,35 @@ extension ScanReportView {
         VStack(spacing: 0) {
             header(nil)
             Spacer(minLength: 0)
-            VStack(spacing: Win.s5) {
-                ProgressView().controlSize(.small)
-                Text(model.scanScope == nil ? "Reading your Mac…" : "Reading " + Format.home(model.scanScope ?? "") + "…")
-                    .font(Win.sub).foregroundStyle(.secondary)
+            if model.scanDeep, !vaultUnlocked {
+                // A deep scan reads the vault first. Locked, that is a
+                // Touch ID prompt, and the window says what it is for.
+                WindowEmptyState(
+                    tint: Color(StatusMark.amber),
+                    title: "Unlock the vault to search for your secrets",
+                    message: "A deep scan compares your vaulted values against every file it reads. "
+                        + "The values stay on this Mac and never appear in the results — only which secret was found, and where."
+                ) {
+                    EmptyView()
+                }
+            } else {
+                VStack(spacing: Win.s5) {
+                    ProgressView().controlSize(.small)
+                    Text((model.scanDeep ? "Deep scan · " : "") +
+                        (model.scanScope == nil ? "Reading your Mac…" : "Reading " + Format.home(model.scanScope ?? "") + "…"))
+                        .font(Win.sub).foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 0)
             accessFooter
         }
+    }
+
+    private var vaultUnlocked: Bool {
+        if case .unlocked = model.state {
+            return true
+        }
+        return false
     }
 
     func failed(_ error: String) -> some View {

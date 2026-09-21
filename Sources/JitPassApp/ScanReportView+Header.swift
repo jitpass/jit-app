@@ -32,7 +32,7 @@ extension ScanReportView {
                         .buttonStyle(AppButton())
                         .help("Opens System Settings › Privacy & Security › Full Disk Access. Add JitPass there.")
                 }
-                Button("Scan Now", action: actions.rescan)
+                Button("Scan Now…") { actions.askDepth(model.scanScope) }
                     .buttonStyle(AppButton()).disabled(model.scanning || model.scan == nil)
                 moreMenu
             }
@@ -47,7 +47,7 @@ extension ScanReportView {
             Button("New Scan", action: actions.newScan)
             Button("Scan Folder…", action: actions.chooseFolder)
             Divider()
-            Button("Scan Whole Mac", action: actions.scanWholeMac)
+            Button("Scan Whole Mac…", action: actions.scanWholeMac)
             Button("Excluded Folders…", action: actions.openSettings)
             if model.fullDiskAccess {
                 Button("Full Disk Access Settings…", action: actions.grantFullDiskAccess)
@@ -67,7 +67,8 @@ extension ScanReportView {
         if let folder = model.scanScope {
             return ScanWording.folderSubline(
                 folder: Format.home(folder), at: nil,
-                excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess
+                excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess,
+                deep: model.scan?.summary.deep == true
             )
         }
         guard let at = model.macScanAt, let kind = model.macScanKind else {
@@ -79,7 +80,8 @@ extension ScanReportView {
         return ScanWording.wholeMacSubline(ScanRun(
             kind: kind, at: at, schedule: model.scanSchedule,
             newCount: model.macScanNew?.count, previousAt: model.previousMacScanAt,
-            excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess
+            excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess,
+            vaultCopies: model.macScan?.vaultCopies.count ?? 0
         ))
     }
 

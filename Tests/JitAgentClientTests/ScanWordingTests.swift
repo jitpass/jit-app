@@ -117,7 +117,43 @@ final class ScanWordingTests: XCTestCase {
         }
     }
 
+    func testDeepSublineCountsTheVaultCopies() {
+        let line = ScanWording.wholeMacSubline(
+            ScanRun(
+                kind: .deep,
+                at: ran,
+                schedule: .weekly,
+                newCount: nil,
+                previousAt: nil,
+                excludes: 0,
+                fullDiskAccess: true,
+                vaultCopies: 2
+            ),
+            now: ran.addingTimeInterval(10), calendar: calendar, locale: locale
+        )
+        XCTAssertTrue(
+            line.hasPrefix("Deep scan, by hand · just now · next Sunday 03:00 · 2 are copies of secrets you've already vaulted. "),
+            line
+        )
+        XCTAssertTrue(
+            ScanWording.folderSubline(folder: "~/proj", at: nil, excludes: 0, fullDiskAccess: true, deep: true)
+                .hasPrefix("Deep scan of ~/proj. ")
+        )
+    }
+
+    func testDepthIsGatedOnTheFirstVaultedSecret() {
+        XCTAssertFalse(ScanMode.deepAvailable(secretsStored: nil))
+        XCTAssertFalse(ScanMode.deepAvailable(secretsStored: 0))
+        XCTAssertTrue(ScanMode.deepAvailable(secretsStored: 1))
+        XCTAssertTrue(ScanMode.fact(.deep, secretsStored: 0)
+            .hasSuffix("Available once your vault holds a secret — protect something first."))
+        XCTAssertTrue(ScanMode.fact(.deep, secretsStored: 1).contains("the 1 secret you've vaulted"))
+        XCTAssertTrue(ScanMode.fact(.deep, secretsStored: 14).contains("the 14 secrets you've vaulted"))
+        XCTAssertTrue(ScanMode.fact(.regular, secretsStored: nil).hasSuffix("No Touch ID."))
+    }
+
     func testRunKindLabels() {
+        XCTAssertEqual(ScanRunKind.deep.label, "Deep scan, by hand")
         XCTAssertEqual(ScanRunKind.scheduled.label, "Scheduled scan")
         XCTAssertEqual(ScanRunKind.byHand.label, "Scanned by hand")
         XCTAssertEqual(ScanRunKind.afterProtect.label, "Scanned after Protect")

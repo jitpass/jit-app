@@ -52,6 +52,14 @@ final class ScanReportTests: XCTestCase {
         XCTAssertFalse(mirror.children.contains { $0.label == "valuePreview" })
     }
 
+    func testSummaryCarriesTheDepth() throws {
+        let deep = #"{"record_type":"scan_summary","total_findings":0,"risk_level":"low","exposure_score":0,"#
+            + #""secrets_total":1,"secrets_protected":1,"secrets_migratable":0,"files_scanned":3,"deep":true,"vault_secrets_checked":14}"#
+        XCTAssertEqual(try ScanReport.parse(stream([deep])).summary.deep, true)
+        XCTAssertEqual(try ScanReport.parse(stream([deep])).summary.vaultSecretsChecked, 14)
+        XCTAssertNil(try ScanReport.parse(stream([summary])).summary.deep, "absent on a regular scan")
+    }
+
     func testMissingSummaryIsAnError() {
         XCTAssertThrowsError(try ScanReport.parse(stream([finding]))) { error in
             XCTAssertEqual(error as? ScanReportError, .noSummary)
