@@ -127,7 +127,11 @@ final class MenuModel: ObservableObject {
     /// What the AI Agents window's last action did: its banner, with
     /// jit's own words one click away. The window has a banner region, so
     /// a success is said there and never in a modal over it.
-    @Published var agentsOutcome: AgentsOutcome?
+    @Published var agentsOutcome: WindowOutcome?
+    /// The Findings window's banner: what the last Protect (or Clean
+    /// Caches, or Undo) did. Cleared by the next action the user takes;
+    /// the rescan a Protect triggers keeps it.
+    @Published var findingsOutcome: WindowOutcome?
     /// The scan window's sheet: what an in-app Protect printed.
     @Published var scanSheet: ToolsSheet?
     /// The file whose flagged lines the scan window is showing. A row

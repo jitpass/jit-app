@@ -69,25 +69,30 @@ extension StatusItemController {
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
-        runTools(path, work: { JitCLI.execute(["migrate", path, "--yes"]) }, then: { [weak self] output in
-            self?.model.scanStale = true
-            self?.showResult(title: "Protected \(Format.home(path))", text: output)
-            self?.runScan(wholeMac: true, kind: .afterProtect)
+        model.findingsOutcome = nil
+        runTools(path, work: { JitCLI.migrate([path]).map { [$0] } }, then: { [weak self] reports in
+            guard let self else {
+                return
+            }
+            model.scanStale = true
+            let outcome = Self.protectOutcome(reports, wrapped: [], wraps: [])
+            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo)
+            runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 
-    /// The result goes to whichever window is in front. The AI Agents
-    /// window has a banner region, so there it is a sentence in the
+    /// The result goes to whichever window is in front. Findings and AI
+    /// Agents have a banner region, so there it is a sentence in the
     /// window with jit's own words one click away, and not a modal on top
     /// of the state it just changed.
-    func showResult(title: String, text: String) {
-        let sheet = ToolsSheet.result(title: title, text: text)
+    func showResult(title: String, text: String, failed: Bool = false, undo: [String] = []) {
+        let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo)
         if scanWindow.isKeyWindow {
-            model.scanSheet = sheet
+            model.findingsOutcome = outcome
         } else if agentsWindow.isKeyWindow || (agentsWindow.isVisible && !toolsWindow.isVisible) {
-            model.agentsOutcome = AgentsOutcome(title: title, text: text)
+            model.agentsOutcome = outcome
         } else {
-            model.toolsSheet = sheet
+            model.toolsSheet = ToolsSheet.result(title: title, text: text)
         }
     }
 
@@ -288,6 +293,7 @@ extension StatusItemController {
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
+        model.findingsOutcome = nil
         runTools("caches", refresh: false, work: { JitCLI.execute(["migrate", "caches", "--yes"]) }, then: { [weak self] output in
             self?.model.scanStale = true
             self?.showResult(title: "Cleaned AI agent caches", text: output)
@@ -333,11 +339,11 @@ extension StatusItemController {
     /// Runs one command off the main thread while the row shows who is
     /// waiting on Touch ID, then reloads the listing and status. One at a
     /// time, like the Vault window.
-    func runTools(
+    func runTools<Output: Sendable>(
         _ label: String,
         refresh: Bool = true,
-        work: @escaping @Sendable () -> Result<String, Error>,
-        then: @escaping @MainActor (String) -> Void
+        work: @escaping @Sendable () -> Result<Output, Error>,
+        then: @escaping @MainActor (Output) -> Void
     ) {
         guard model.toolsBusy == nil else {
             return

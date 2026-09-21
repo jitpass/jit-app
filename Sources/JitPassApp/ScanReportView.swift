@@ -52,20 +52,62 @@ struct ScanReportView: View {
 
     @ViewBuilder
     private func report_(_ report: ScanReport) -> some View {
+        banner
         header(report)
         if report.showsTierFilter {
             filter(report).windowRegion()
         }
-        ScrollView {
-            VStack(alignment: .leading, spacing: Win.s5) {
-                ForEach(shown(report)) { tier in
-                    card(tier, report)
+        if report.tiersPresent.isEmpty {
+            clean(report)
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Win.s5) {
+                    ForEach(shown(report)) { tier in
+                        card(tier, report)
+                    }
                 }
+                .padding(Win.s6)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(Win.s6)
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
         footer(report)
+    }
+
+    /// What just happened, above the header: the Protect's sentence in
+    /// the state's colour, jit's own words one click away, and Undo when
+    /// there is a file to restore. Only after something happened.
+    @ViewBuilder
+    private var banner: some View {
+        if let outcome = model.findingsOutcome {
+            WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
+                if !outcome.text.isEmpty {
+                    Button("What jit Did…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
+                }
+                if !outcome.undo.isEmpty {
+                    Button("Undo") { actions.undoProtect(outcome.undo) }.buttonStyle(AppButton())
+                        .disabled(model.toolsBusy != nil)
+                }
+            }
+        }
+    }
+
+    /// A report with nothing in it says the true thing, not that a list
+    /// is empty.
+    private func clean(_ report: ScanReport) -> some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            WindowEmptyState(
+                tint: Color(StatusMark.green),
+                title: model.scanScope == nil ? "No secret is exposed on this Mac" : "No secret is exposed in " + Format
+                    .home(model.scanScope ?? ""),
+                message: ScanWording.cleanMessage(
+                    filesRead: report.summary.filesScanned, schedule: model.scanSchedule, last: model.macScanAt ?? Date()
+                )
+            ) {
+                Button("Scan Now", action: actions.rescan).buttonStyle(AppButton()).disabled(model.scanning)
+            }
+            Spacer(minLength: 0)
+        }
     }
 
     /// The tiers the body draws: the filter's one, or all of the ones this
@@ -205,4 +247,6 @@ struct ScanActions {
     var showLines: (ScanFileGroup) -> Void = { _ in }
     var grantFullDiskAccess: () -> Void = {}
     var cleanCaches: () -> Void = {}
+    var undoProtect: ([String]) -> Void = { _ in }
+    var showOutcome: (WindowOutcome) -> Void = { _ in }
 }
