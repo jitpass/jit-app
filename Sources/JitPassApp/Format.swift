@@ -104,7 +104,7 @@ enum Format {
         case .protect: "The file stays. The value moves, a decoy takes its place, and every file is backed up first."
         case .needsYou: "jit can't rewrite these safely. Rotate each value, or move it yourself."
         case .agentCaches: ScanReportView.agentNote
-        case .testFixtures: "The scanner counts them in the score. Check they are not live."
+        case .testFixtures: "Real-looking values in test files and examples. They don't count toward the score. Check they are not live."
         }
     }
 
