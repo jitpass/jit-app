@@ -139,3 +139,29 @@ final class ScanTiersTests: XCTestCase {
         XCTAssertEqual(group.firstLine, 56, "Open jumps to the first line the scanner numbered")
     }
 }
+
+/// A cache finding's evidence carries "(found in Claude Code's
+/// transcripts)" after the sentence the vendor parser knows. The row names
+/// the token and says where, instead of printing the whole sentence and
+/// cutting it in the middle.
+extension ScanTiersTests {
+    func testCacheEvidenceNamesTheVendorAndThePlace() throws {
+        let r = try report([
+            finding("c1", path: "/Users/me/.claude/a.jsonl", line: 214,
+                    evidence: "value matches Notion Internal Integration Token's known token format (found in Claude Code's transcripts)"),
+            finding("f2", path: "/Users/me/.aws/old", line: 3,
+                    evidence: "value matches AWS Access Key ID's known token format")
+        ])
+        let cache = try XCTUnwrap(r.findings.first { $0.id == "c1" })
+        XCTAssertEqual(cache.vendorName, "Notion Internal Integration Token")
+        XCTAssertEqual(cache.foundIn, "Claude Code's transcripts")
+        XCTAssertEqual(cache.shortEvidence, "Notion Internal Integration Token")
+        XCTAssertEqual(
+            ScanFileGroup(filePath: cache.filePath, findings: [cache]).fact,
+            "line 214 · Notion Internal Integration Token · in Claude Code's transcripts"
+        )
+        let file = try XCTUnwrap(r.findings.first { $0.id == "f2" })
+        XCTAssertNil(file.foundIn)
+        XCTAssertEqual(ScanFileGroup(filePath: file.filePath, findings: [file]).fact, "line 3 · AWS Access Key ID")
+    }
+}

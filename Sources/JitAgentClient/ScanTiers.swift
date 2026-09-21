@@ -86,6 +86,7 @@ public extension ScanFinding {
     /// it whole.
     var vendorName: String? {
         let tail = " known token format"
+        let evidence = evidenceWithoutPlace
         guard evidence.hasSuffix(tail) else {
             return nil
         }
@@ -107,10 +108,30 @@ public extension ScanFinding {
         return name.isEmpty ? nil : name
     }
 
+    /// Where a cache finding sits, out of the scanner's "(found in Claude
+    /// Code's transcripts)" suffix: "Claude Code's transcripts". Nil for a
+    /// finding in an ordinary file.
+    var foundIn: String? {
+        guard evidence.hasSuffix(")"), let open = evidence.range(of: " (found in ", options: .backwards) else {
+            return nil
+        }
+        let inner = evidence[open.upperBound ..< evidence.index(before: evidence.endIndex)]
+        return inner.isEmpty ? nil : String(inner)
+    }
+
+    /// The evidence with the "(found in …)" suffix removed, so the vendor
+    /// parser sees the sentence it knows.
+    var evidenceWithoutPlace: String {
+        guard let open = evidence.range(of: " (found in ", options: .backwards), evidence.hasSuffix(")") else {
+            return evidence
+        }
+        return String(evidence[..<open.lowerBound])
+    }
+
     /// What one finding contributes to a row or a sheet line: the token's
     /// name when the scanner matched a format, its own evidence otherwise.
     var shortEvidence: String {
-        vendorName ?? evidence
+        vendorName ?? evidenceWithoutPlace
     }
 }
 
@@ -132,6 +153,9 @@ public extension ScanFileGroup {
                 parts.append(first.typeLabel)
             }
             parts.append(first.shortEvidence)
+            if let place = first.foundIn {
+                parts.append("in " + place)
+            }
             return parts.joined(separator: " · ")
         }
         let names = findings.prefix(3).map(\.shortEvidence)

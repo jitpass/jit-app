@@ -26,10 +26,14 @@ struct ScanLinesSheet: View {
             ScrollView {
                 VStack(spacing: 0) {
                     ForEach(Array(group.findings.enumerated()), id: \.element.id) { index, finding in
+                        // The name is the token's (or the scanner's sentence),
+                        // the detail the line, the fact where it sits: "in Claude
+                        // Code's transcripts" for a cache file, the finding's
+                        // kind otherwise.
                         AppRow(
                             name: finding.shortEvidence,
                             detail: finding.line.map { "line \($0)" },
-                            fact: finding.vendorName == nil ? nil : finding.typeLabel,
+                            fact: finding.foundIn.map { "in " + $0 } ?? (finding.vendorName == nil ? nil : finding.typeLabel),
                             last: index == group.findings.count - 1
                         ) {
                             Button("Open") { actions.open(group.filePath, finding.line) }
