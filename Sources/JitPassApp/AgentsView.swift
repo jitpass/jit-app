@@ -71,6 +71,9 @@ struct AgentsView: View {
                 EmptyView()
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
+            case .scanDepth:
+                // The Findings window's question; never opened from here.
+                EmptyView()
             }
         }
         .onAppear(perform: actions.reload)

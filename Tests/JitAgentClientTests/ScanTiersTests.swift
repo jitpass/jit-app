@@ -47,6 +47,19 @@ final class ScanTiersTests: XCTestCase {
         try ScanReport.parse(Data((lines + [summary.replacingOccurrences(of: "\n", with: "")]).joined(separator: "\n").utf8))
     }
 
+    func testVaultCopiesAreTheirOwnTierAndNeverNeedsYou() throws {
+        let r = try report([
+            finding("v1", type: "vault_copy", path: "/Users/me/.claude/a.jsonl", line: 214,
+                    evidence: "an exact copy of the vaulted secret notion/NOTION_TOKEN, kept by Claude Code"),
+            finding("f2", type: "shell_history_secret", path: "/Users/me/.zsh_history", line: 8812)
+        ])
+        XCTAssertEqual(r.tiersPresent, [.vaultCopies, .needsYou], "vault copies come first, and are not 'needs you'")
+        XCTAssertEqual(r.vaultCopies.map(\.id), ["v1"])
+        XCTAssertEqual(r.manual.map(\.id), ["f2"])
+        XCTAssertEqual(r.count(in: .vaultCopies), 1)
+        XCTAssertEqual(r.groups(in: .vaultCopies).first?.filePath, "/Users/me/.claude/a.jsonl")
+    }
+
     func testOnlyTiersWithFindingsArePresent() throws {
         let r = try report([
             finding("f1", type: "env_file_present", path: "/Users/me/app/.env", evidence: "10 plaintext variables", remedy: "migrate"),

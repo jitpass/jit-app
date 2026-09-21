@@ -9,6 +9,10 @@ import Foundation
 /// "nothing" (docs/design: windows.md, "a card's eyebrow carries its
 /// tier").
 public enum ScanTier: String, Sendable, CaseIterable, Identifiable {
+    /// A deep scan's find: an exact copy of a secret already in the vault,
+    /// still sitting in the open. First, because it is the one card whose
+    /// secret jit already knows by name.
+    case vaultCopies
     /// jit can move the value into the vault itself.
     case protect
     /// Only the person at the keyboard can: rotate it, or move it.
@@ -29,6 +33,7 @@ public extension ScanReport {
     /// are empty here and the window draws that tier from its own list.
     func groups(in tier: ScanTier) -> [ScanFileGroup] {
         switch tier {
+        case .vaultCopies: ScanFileGroup.group(vaultCopies)
         case .protect: ScanFileGroup.group(migratable)
         case .needsYou: manualByFile
         case .agentCaches: []

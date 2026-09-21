@@ -11,6 +11,8 @@ public enum ScanRunKind: String, Sendable {
     case byHand
     case afterProtect
     case setup
+    /// A deep scan, always by hand: it reads the vault (ScanMode).
+    case deep
 
     /// The first words of the Findings header's second line.
     public var label: String {
@@ -19,6 +21,7 @@ public enum ScanRunKind: String, Sendable {
         case .byHand: "Scanned by hand"
         case .afterProtect: "Scanned after Protect"
         case .setup: "Scanned during setup"
+        case .deep: "Deep scan, by hand"
         }
     }
 }
@@ -42,10 +45,12 @@ public struct ScanRun: Sendable {
     public var previousAt: Date?
     public var excludes: Int
     public var fullDiskAccess: Bool
+    /// A deep scan's finds: how many findings are copies of vaulted secrets.
+    public var vaultCopies = 0
 
     public init(
         kind: ScanRunKind, at: Date, schedule: ScanSchedule, newCount: Int?, previousAt: Date?,
-        excludes: Int, fullDiskAccess: Bool
+        excludes: Int, fullDiskAccess: Bool, vaultCopies: Int = 0
     ) {
         self.kind = kind
         self.at = at
@@ -54,6 +59,7 @@ public struct ScanRun: Sendable {
         self.previousAt = previousAt
         self.excludes = excludes
         self.fullDiskAccess = fullDiskAccess
+        self.vaultCopies = vaultCopies
     }
 }
 
@@ -81,6 +87,11 @@ public enum ScanWording {
             }
             facts.append(fact)
         }
+        if run.vaultCopies > 0 {
+            facts.append(run.vaultCopies == 1
+                ? "1 is a copy of a secret you've already vaulted"
+                : "\(run.vaultCopies) are copies of secrets you've already vaulted")
+        }
         if run.excludes > 0 {
             facts.append("excluding \(run.excludes) folder" + (run.excludes == 1 ? "" : "s"))
         }
@@ -94,11 +105,12 @@ public enum ScanWording {
         at: Date?,
         excludes: Int,
         fullDiskAccess: Bool,
+        deep: Bool = false,
         now: Date = Date(),
         calendar: Calendar = .current,
         locale: Locale = .current
     ) -> String {
-        var facts = [folder]
+        var facts = [deep ? "Deep scan of " + folder : folder]
         if let at {
             facts.append(when(at, now: now, calendar: calendar, locale: locale))
         }

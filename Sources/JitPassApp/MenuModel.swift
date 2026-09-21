@@ -24,17 +24,17 @@ final class MenuModel: ObservableObject {
     @Published var scanError: String?
     /// The folder the last scan was limited to; nil means the whole Mac.
     @Published var scanScope: String?
+    /// The scan now running is deep: the window shows the unlock state.
+    @Published var scanDeep = false
     /// The last whole-Mac scan, whoever started it: what the Protected row
     /// shows. A folder scan never replaces it.
     @Published var macScan: ScanReport?
     @Published var macScanAt: Date?
-    /// Who started the last whole-Mac scan: the Findings header says so.
+    /// Who started the last whole-Mac scan (the Findings header); the ids
+    /// it has that the run before did not, nil with no run to compare with
+    /// (the header's count, the "new" mark); and when that earlier run was.
     @Published var macScanKind: ScanRunKind?
-    /// The ids of the findings the last whole-Mac scan has that the one
-    /// before it did not; nil when there was no run to compare with. What
-    /// the header counts and the "new" mark on a row means.
     @Published var macScanNew: Set<String>?
-    /// When the run before the last one happened, for "2 new since Sunday".
     @Published var previousMacScanAt: Date?
     /// Set when jit changed something (a Protect ran) so the next chance
     /// rescans even before the schedule says so.

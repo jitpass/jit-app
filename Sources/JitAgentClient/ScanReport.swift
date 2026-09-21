@@ -76,6 +76,12 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         findingType == "agent_cached_secret"
     }
 
+    /// A deep scan's find: an exact copy of a secret already in the vault
+    /// (schema 0.23.0). `keyName` is the vault path.
+    public var isVaultCopy: Bool {
+        findingType == "vault_copy"
+    }
+
     /// True when `jit migrate` can fix it; false means only the user can.
     public var migratable: Bool {
         remedy == "migrate"
@@ -106,6 +112,10 @@ public struct ScanSummary: Codable, Sendable, Equatable {
     public var secretsMigratable: Int
     public var filesScanned: Int
     public var scanTime: String?
+    /// Set on a deep scan (schema 0.23.0): the vault's secrets were
+    /// searched for, and `vaultSecretsChecked` says how many.
+    public var deep: Bool?
+    public var vaultSecretsChecked: Int?
 
     enum CodingKeys: String, CodingKey {
         case totalFindings = "total_findings"
@@ -116,6 +126,8 @@ public struct ScanSummary: Codable, Sendable, Equatable {
         case secretsMigratable = "secrets_migratable"
         case filesScanned = "files_scanned"
         case scanTime = "scan_time"
+        case deep
+        case vaultSecretsChecked = "vault_secrets_checked"
     }
 }
 
@@ -134,10 +146,15 @@ public struct ScanReport: Sendable, Equatable {
         findings.filter { $0.migratable && !$0.scaffolding }
     }
 
-    /// Findings only the user can fix, less the agent-cache copies, which
-    /// have their own section and their own command.
+    /// Findings only the user can fix, less the agent-cache copies and the
+    /// vault copies, which each have their own section.
     public var manual: [ScanFinding] {
-        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy }
+        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy && !$0.isVaultCopy }
+    }
+
+    /// Exact copies of vaulted secrets a deep scan found in the open.
+    public var vaultCopies: [ScanFinding] {
+        findings.filter(\.isVaultCopy)
     }
 
     public var agentCopies: [ScanFinding] {
