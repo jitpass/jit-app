@@ -55,7 +55,7 @@ extension ScanReportView {
         }
     }
 
-    private var vaultUnlocked: Bool {
+    var vaultUnlocked: Bool {
         if case .unlocked = model.state {
             return true
         }

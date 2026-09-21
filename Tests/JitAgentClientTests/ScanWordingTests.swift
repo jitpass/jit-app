@@ -181,8 +181,7 @@ extension ScanWordingTests {
         let one = try [copy("a", agent: "Claude Code", area: "transcripts", origin: "/h/notion/.env")]
         XCTAssertEqual(
             ScanWording.sweepSentence(copies: one),
-            "It also removes the copy the scan found in Claude Code's transcripts. "
-                + "A copy it can't safely rewrite is left in place and named when it's done."
+            "Also removes the copy the scan found in Claude Code's transcripts."
         )
         let many = try [
             copy("a", agent: "Claude Code", area: "transcripts", origin: "/h/notion/.env"),
@@ -192,7 +191,7 @@ extension ScanWordingTests {
         ]
         XCTAssertEqual(
             ScanWording.sweepSentence(copies: many)?.hasPrefix(
-                "It also removes the 4 copies the scan found in Claude Code's transcripts and edit history, and in Cursor's chat database. "
+                "Also removes the 4 copies the scan found in Claude Code's transcripts and edit history, and in Cursor's chat database."
             ),
             true
         )
