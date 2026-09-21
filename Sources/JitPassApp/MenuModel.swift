@@ -44,9 +44,10 @@ final class MenuModel: ObservableObject {
     ) ?? .default
     @Published var scanExcludes: [String] = ScanExcludes.load()
     @Published var audit: AuditReport?
-    /// Decoy serves in the last 24 hours: reads of a protected file by
-    /// something no run or consent covered. nil until read.
+    /// Decoy serves in the last 24 hours (nil until read), and the same by
+    /// reading program, for the AI Agents digest's per-agent row.
     @Published var decoyReads24h: Int?
+    @Published var decoyReadsByProgram: [String: Int] = [:]
     @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var notifyChanges = Notifier.changesEnabled
     /// What macOS allows, re-read when Settings opens and whenever the app
@@ -128,9 +129,8 @@ final class MenuModel: ObservableObject {
     /// jit's own words one click away. The window has a banner region, so
     /// a success is said there and never in a modal over it.
     @Published var agentsOutcome: WindowOutcome?
-    /// The Findings window's banner: what the last Protect (or Clean
-    /// Caches, or Undo) did. Cleared by the next action the user takes;
-    /// the rescan a Protect triggers keeps it.
+    /// The Findings window's banner: what the last Protect, Clean Caches
+    /// or Undo did. The next action clears it; a Protect's rescan keeps it.
     @Published var findingsOutcome: WindowOutcome?
     /// The scan window's sheet: what an in-app Protect printed.
     @Published var scanSheet: ToolsSheet?
