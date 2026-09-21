@@ -77,6 +77,25 @@ final class ScanTiersTests: XCTestCase {
         XCTAssertEqual(r.cacheShapeGroups.first?.filePath, "/Users/me/.claude/a.jsonl")
     }
 
+    func testARedactRemovesItsRowsWithoutARescan() throws {
+        let cache = { (id: String, line: Int) in
+            self.finding(
+                id,
+                path: "/Users/me/.claude/a.jsonl",
+                line: line,
+                evidence: "value matches AWS Access Key ID's known token format (found in Claude Code's transcripts)"
+            )
+            .replacingOccurrences(
+                of: #""remedy":"manual""#,
+                with: #""remedy":"manual","agent":"Claude Code","cache_area":"transcripts""#
+            )
+        }
+        let r = try report([cache("s1", 10), cache("s2", 20), finding("f3", path: "/Users/me/.zsh_history", line: 1)])
+        XCTAssertEqual(r.removingCacheShapes(in: ["/Users/me/.claude/a.jsonl"], lines: [10]).findings.map(\.id), ["s2", "f3"])
+        XCTAssertEqual(r.removingCacheShapes(in: ["/Users/me/.claude/a.jsonl"], lines: []).findings.map(\.id), ["f3"])
+        XCTAssertEqual(r.removingCacheShapes(in: ["/elsewhere"], lines: []).findings.count, 3)
+    }
+
     func testOnlyTiersWithFindingsArePresent() throws {
         let r = try report([
             finding("f1", type: "env_file_present", path: "/Users/me/app/.env", evidence: "10 plaintext variables", remedy: "migrate"),

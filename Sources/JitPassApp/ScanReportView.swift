@@ -284,7 +284,7 @@ struct ScanActions {
     /// Redact tokens found by format: in these files (empty: every agent
     /// cache), on these lines (empty: every line); `what` names it for the
     /// dialog ("the SendGrid API Key on line 1046", "8 tokens in this file").
-    var redact: ([String], [Int], String) -> Void = { _, _, _ in }
+    var redact: ([String], [Int], String, String?) -> Void = { _, _, _, _ in }
     /// Raise the depth sheet for a scope (nil: the whole Mac).
     var askDepth: (String?) -> Void = { _ in }
     /// The sheet's answer: scan this scope at this depth.
