@@ -71,13 +71,20 @@ extension StatusItemController {
     /// markers. No vault, no backup, no Touch ID (jit's D12), and the dialog
     /// says the change is one-way. `files` empty is every cache; `lines`
     /// narrows to one row's line.
-    func redact(files: [String], lines: [Int], what: String) {
+    func redact(files: [String], lines: [Int], what: String, place: String?) {
+        // A question, not a paragraph: the file's name and where it sits on
+        // one line, then what happens and what it costs, one sentence each.
         let alert = NSAlert()
         alert.messageText = "Redact \(what)?"
-        let place = files.count == 1 ? "In " + Format.home(files[0]) + ", " : "In "
-        alert.informativeText = place + (files.count == 1 ? "an AI agent's cache. " : "AI agent caches, never your own files. ")
-            + "Each token becomes a marker that names its kind, and the rest of the line stays as it is. "
-            + "This cannot be undone: no backup is taken, and the marker is the record of what was there."
+        let location = files.count == 1
+            ? Format.fileName(files[0]) + (place.map { " · " + $0 } ?? "")
+            : "AI agent caches only, never your files"
+        let plural = files.count != 1 || lines.isEmpty
+        alert.informativeText = location + "\n\n"
+            +
+            (plural ? "Each token becomes a marker; the lines otherwise stay. " :
+                "The token becomes a marker; the rest of the line stays. ")
+            + "This can't be undone."
         alert.addButton(withTitle: "Redact")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -88,11 +95,24 @@ extension StatusItemController {
             guard let self else {
                 return
             }
-            model.scanStale = true
             let outcome = ScanWording.redactOutcome(report)
             showResult(title: outcome.title, text: report.report, failed: outcome.failed)
-            runScan(wholeMac: true, kind: .afterProtect)
+            settle(after: report, lines: lines)
         })
+    }
+
+    /// A Redact changed exactly the files its report names, so the report on
+    /// screen is updated from it — those rows go — instead of reading the
+    /// whole Mac again for a few lines. The next scheduled scan confirms;
+    /// `scanStale` asks for it sooner.
+    func settle(after report: RedactReport, lines: [Int]) {
+        let paths = report.caches.removed.map(\.path)
+        guard !paths.isEmpty else {
+            return
+        }
+        model.scan = model.scan?.removingCacheShapes(in: paths, lines: lines)
+        model.macScan = model.macScan?.removingCacheShapes(in: paths, lines: lines)
+        model.scanStale = true
     }
 
     /// After a scheduled scan, under the Settings switch: the same command,
@@ -107,7 +127,6 @@ extension StatusItemController {
             guard let self else {
                 return
             }
-            model.scanStale = true
             let outcome = ScanWording.redactOutcome(result)
             model.findingsOutcome = WindowOutcome(title: outcome.title, text: result.report, failed: outcome.failed)
             if model.notifyChanges, let notice = ScanNotices.redacted(result, at: at) {
@@ -119,7 +138,7 @@ extension StatusItemController {
                     target: .findings
                 )
             }
-            runScan(wholeMac: true, kind: .afterProtect)
+            settle(after: result, lines: [])
         })
     }
 

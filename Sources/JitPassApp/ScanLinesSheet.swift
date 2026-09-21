@@ -40,7 +40,12 @@ struct ScanLinesSheet: View {
                                 .buttonStyle(AppButton(kind: .plain))
                             if finding.isCacheShape, let line = finding.line {
                                 Button("Redact…") {
-                                    actions.redact([group.filePath], [line], "the \(finding.shortEvidence) on line \(line)")
+                                    actions.redact(
+                                        [group.filePath],
+                                        [line],
+                                        "the \(finding.shortEvidence) on line \(line)",
+                                        finding.foundIn
+                                    )
                                 }
                                 .buttonStyle(AppButton())
                             }
@@ -57,7 +62,13 @@ struct ScanLinesSheet: View {
                 Button("Reveal in Finder") { actions.reveal(group.filePath) }.buttonStyle(AppButton())
                 if group.findings.contains(where: \.isCacheShape) {
                     let n = group.findings.filter(\.isCacheShape).count
-                    Button("Redact All \(n)…") { actions.redact([group.filePath], [], "\(n) token" + (n == 1 ? "" : "s") + " in this file")
+                    Button("Redact All \(n)…") {
+                        actions.redact(
+                            [group.filePath],
+                            [],
+                            "\(n) token" + (n == 1 ? "" : "s") + " in this file",
+                            group.findings.first?.foundIn
+                        )
                     }
                     .buttonStyle(AppButton(kind: .secondary))
                 }

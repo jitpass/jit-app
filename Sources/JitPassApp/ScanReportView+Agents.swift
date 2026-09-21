@@ -31,7 +31,8 @@ extension ScanReportView {
                     actions.redact(
                         [],
                         [],
-                        "\(shapeCount) token" + (shapeCount == 1 ? "" : "s") + " in \(shapes.count) file" + (shapes.count == 1 ? "" : "s")
+                        "\(shapeCount) token" + (shapeCount == 1 ? "" : "s") + " in \(shapes.count) file" + (shapes.count == 1 ? "" : "s"),
+                        nil
                     )
                 }
                 .buttonStyle(AppButton(kind: .secondary)).disabled(model.toolsBusy != nil)
@@ -77,8 +78,9 @@ extension ScanReportView {
                 let n = group.findings.count
                 actions.redact(
                     [group.filePath],
-                    [],
-                    n == 1 ? "the " + (group.findings[0].shortEvidence) + " on line \(group.firstLine ?? 0)" : "\(n) tokens in this file"
+                    n == 1 ? group.findings[0].line.map { [$0] } ?? [] : [],
+                    n == 1 ? "the " + group.findings[0].shortEvidence + " on line \(group.firstLine ?? 0)" : "\(n) tokens in this file",
+                    group.findings.first?.foundIn
                 )
             }
             .buttonStyle(AppButton(kind: .secondary)).disabled(model.toolsBusy != nil)

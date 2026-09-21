@@ -168,6 +168,23 @@ public struct ScanReport: Sendable, Equatable {
         ScanFileGroup.group(cacheShapes)
     }
 
+    /// The report without the cache-shape findings a Redact just rewrote:
+    /// every one in `paths`, or, when `lines` is given, only those on
+    /// those lines. Other findings stay; the summary is left as it was,
+    /// since the next scan recounts.
+    public func removingCacheShapes(in paths: [String], lines: [Int]) -> ScanReport {
+        let files = Set(paths)
+        let only = Set(lines)
+        var copy = self
+        copy.findings = findings.filter { f in
+            guard f.isCacheShape, files.contains(f.filePath) else {
+                return true
+            }
+            return !only.isEmpty && !(f.line.map(only.contains) ?? false)
+        }
+        return copy
+    }
+
     /// Exact copies of vaulted secrets a deep scan found in the open.
     public var vaultCopies: [ScanFinding] {
         findings.filter(\.isVaultCopy)
