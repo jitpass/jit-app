@@ -28,7 +28,7 @@ struct ScanReportView: View {
                 // window. A rescan after a Protect keeps the report on screen
                 // and spins in the header: reading the Mac again is not news.
                 scanning
-            } else if let report = model.scan {
+            } else if let report = model.scan, !model.scanChoosing {
                 report_(report)
             } else {
                 chooser
@@ -270,6 +270,8 @@ struct ScanReportView: View {
 struct ScanActions {
     var rescan: () -> Void = {}
     var newScan: () -> Void = {}
+    /// Back from the chooser to the report it sits over.
+    var showFindings: () -> Void = {}
     var openSettings: () -> Void = {}
     var chooseFolder: () -> Void = {}
     var scanWholeMac: () -> Void = {}
