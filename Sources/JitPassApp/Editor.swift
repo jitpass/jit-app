@@ -92,10 +92,34 @@ enum Editor {
         NSWorkspace.shared.open([file], withApplicationAt: app, configuration: .init()) { _, _ in }
     }
 
-    /// Selects the file in Finder. Works for dotfiles, which Finder hides
-    /// but will still show when asked to select one.
+    /// Finder with the file selected — for a regular file or a folder,
+    /// dotfiles included. A protected file is a named pipe: Finder cannot
+    /// select it (`open -R` only activates Finder, on whatever window it
+    /// had), so for anything else the folder it sits in opens instead, and
+    /// the click always lands somewhere true. Through `open`, a separate
+    /// process, so a menu bar app needs no permission to control Finder.
     static func reveal(_ path: String) {
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        let type = (try? FileManager.default.attributesOfItem(atPath: path))?[.type] as? FileAttributeType
+        if type == .typeRegular || type == .typeDirectory {
+            _ = run("/usr/bin/open", ["-R", path])
+        } else {
+            _ = run("/usr/bin/open", [(path as NSString).deletingLastPathComponent])
+        }
+    }
+
+    private static func run(_ launchPath: String, _ arguments: [String]) -> Int32 {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: launchPath)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return -1
+        }
+        process.waitUntilExit()
+        return process.terminationStatus
     }
 
     /// `scheme://file/<path>:<line>`, the VS Code family's convention.
