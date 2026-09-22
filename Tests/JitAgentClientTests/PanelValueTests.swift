@@ -53,7 +53,8 @@ final class PanelValueTests: XCTestCase {
             .init("2 wrapped"),
             "good news, still a count: no dot"
         )
-        XCTAssertEqual(PanelValue.service(running: true), .init("running"))
+        XCTAssertEqual(PanelValue.service(running: true), .init("running", .green))
+        XCTAssertEqual(PanelValue.service(running: false), .init("not running", .red))
         XCTAssertEqual(PanelValue.grants(active: 1), .init("1 active"))
         XCTAssertNil(PanelValue.decoys(files: 0, broken: 0, readsToday: 0))
         XCTAssertEqual(PanelValue.decoys(files: 3, broken: 1, readsToday: 3), .init("1 broken", .red))
