@@ -4,49 +4,55 @@
 import JitAgentClient
 import SwiftUI
 
-/// The digest's one card: one row per agent, its four facts in a fixed
-/// order — key · copies · reads · grant — and, in the action group, one
-/// button to the home of the fact that needs the reader. A row with
-/// nothing wrong has no button; a row with a grant has a quiet link to it.
-/// Nothing here acts: Protect is in Findings, Wrap in Tools, Clean Caches
-/// in Findings, and this window says where.
+/// One agent's card: the eyebrow is its state, the title its name, the
+/// note what changed since the last scan, and five rows — in its files,
+/// can reach, this week, its key, and the one setting that is the agent's
+/// own. The first row carries the verbs; the others link to the window
+/// that holds the whole story.
 extension AgentsView {
-    static let digestNote = "Every fact lives in Tools, Findings, Decoys or Grants; this window only reads them. "
-        + "A value an agent already sent upstream needs rotating; jit cannot take that back."
-
-    func digestCard(_ board: AgentsBoard) -> some View {
-        AppCard(
-            eyebrow: board.tier.word,
-            eyebrowTint: Color(board.tier.tint),
-            title: "What each agent can reach, and what it has done",
-            note: Self.digestNote
+    func agentCard(_ row: AgentsBoard.Row, scanned: Bool) -> some View {
+        let tier = AgentsBoard.Tier.of(row.card.state, scanned: scanned)
+        let busy = model.toolsBusy != nil
+        return AppCard(
+            eyebrow: tier.word,
+            eyebrowTint: Color(tier.tint),
+            title: row.agent.tool + (row.agent.agentLabel.map { " · " + $0 } ?? ""),
+            note: row.card.since
         ) {
             EmptyView()
         } rows: {
             AppCardRows {
-                ForEach(Array(board.rows.enumerated()), id: \.element.id) { index, row in
-                    AppNoteRow(
-                        mark: .dot(Color(row.tint)),
-                        name: row.agent.tool + (row.agent.agentLabel.map { " · " + $0 } ?? ""),
-                        fact: row.digest.facts.joined(separator: " · "),
-                        last: index == board.rows.count - 1
-                    ) {
-                        if let home = row.digest.link {
-                            Button(home.title) { open(home) }
-                                .buttonStyle(AppButton(kind: row.digest.state == .green ? .plain : .secondary))
-                        }
+                AppRow(name: "In its files", fact: row.card.inFiles) {
+                    if row.card.offersClean {
+                        Button("Clean Caches…", action: actions.cleanCaches).buttonStyle(AppButton()).disabled(busy)
+                    }
+                    if row.card.redactCount > 0 {
+                        Button("Redact All \(row.card.redactCount)…") { actions.redact(row.agent) }
+                            .buttonStyle(AppButton(kind: .secondary)).disabled(busy)
+                    }
+                    if row.card.state == .red {
+                        Button("Findings…", action: actions.openScan).buttonStyle(AppButton(kind: .plain))
                     }
                 }
+                AppRow(name: "Can reach", fact: row.card.canReach) {
+                    Button("Grants…", action: actions.openGrants).buttonStyle(AppButton(kind: .plain))
+                }
+                AppRow(name: "This week", fact: row.card.thisWeek) {
+                    Button("Audit…") { actions.openAudit(row.agent) }.buttonStyle(AppButton(kind: .plain))
+                }
+                AppRow(name: "Its key", fact: row.card.key) {
+                    if row.card.state != .green, row.agent.keyState(scan: model.macScan) != .none {
+                        Button("Tools…", action: actions.openTools).buttonStyle(AppButton(kind: .plain))
+                    }
+                }
+                AppRow(name: "Redact its caches after every scheduled scan", fact: row.card.redactFact, last: true) {
+                    AppSwitch(isOn: Binding(
+                        get: { model.redactAfterScan || model.redactAgents.contains(row.agent.tool) },
+                        set: { actions.setRedactAfterScan(row.agent, $0) }
+                    ))
+                    .disabled(model.redactAfterScan)
+                }
             }
-        }
-    }
-
-    private func open(_ home: AgentDigest.Home) {
-        switch home {
-        case .tools: actions.openTools()
-        case .findings: actions.openScan()
-        case .decoys: actions.openAudit()
-        case .grants: actions.openGrants()
         }
     }
 }

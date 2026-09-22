@@ -120,10 +120,21 @@ extension StatusItemController {
     /// Findings banner. Agent caches only, and nothing here ever prompts —
     /// the command needs no vault.
     func autoRedact(after report: ScanReport, at: Date) {
-        guard model.redactAfterScan, !report.cacheShapes.isEmpty, model.toolsBusy == nil else {
+        guard !report.cacheShapes.isEmpty, model.toolsBusy == nil else {
             return
         }
-        runTools("redact", refresh: false, work: { JitCLI.redact(files: [], lines: []) }, then: { [weak self] result in
+        // Every cache under the global switch; otherwise only the files of
+        // the agents whose own switch is on (AI Agents), and nothing when
+        // none is.
+        var files: [String] = []
+        if !model.redactAfterScan {
+            let labels = (model.toolListing?.agents ?? []).filter { model.redactAgents.contains($0.tool) }.compactMap(\.agentLabel)
+            files = labels.flatMap { report.agentExposure($0).tokenPaths }
+            guard !files.isEmpty else {
+                return
+            }
+        }
+        runTools("redact", refresh: false, work: { JitCLI.redact(files: files, lines: []) }, then: { [weak self] result in
             guard let self else {
                 return
             }

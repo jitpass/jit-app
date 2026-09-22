@@ -65,47 +65,11 @@ extension ScanReportView {
     }
 
     /// One line per tier with something in it: the card's numbers, then
-    /// the card's verb as a link that narrows the window to that card. One
-    /// Text per line, the link inside it, so a narrow window wraps the
-    /// sentence and never strands the verb. A dot in the tier's colour,
-    /// always beside a word.
+    /// the card's verb as a link that narrows the window to that card.
     func todoLines(_ report: ScanReport) -> some View {
-        let todos = report.todos(deepAvailable: deepAvailable)
-        return VStack(alignment: .leading, spacing: Win.s2) {
-            ForEach(todos) { todo in
-                HStack(alignment: .firstTextBaseline, spacing: Win.s4) {
-                    Circle().fill(Self.todoTint(todo)).frame(width: 8, height: 8)
-                    Text(Self.todoSentence(todo)).fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-        .environment(\.openURL, OpenURLAction { url in
-            if let todo = todos.first(where: { Self.todoURL($0) == url }) {
-                act(on: todo)
-            }
-            return .handled
+        HeaderTodoLines(todos: report.todos(deepAvailable: deepAvailable).map { todo in
+            HeaderTodo(id: todo.id, text: todo.text, verb: todo.verb, tint: Self.todoTint(todo)) { act(on: todo) }
         })
-    }
-
-    /// The sentence with its verb as a link, in the colour the app's plain
-    /// buttons use.
-    static func todoSentence(_ todo: ScanTodo) -> AttributedString {
-        var sentence = AttributedString(todo.sentence)
-        if let verb = todo.verb, let range = sentence.range(of: verb, options: .backwards), let url = todoURL(todo) {
-            sentence[range].link = url
-            sentence[range].foregroundColor = Color(StatusMark.accent)
-        }
-        return sentence
-    }
-
-    /// An address for the line's action, matched back in `openURL`; never
-    /// opened anywhere else.
-    static func todoURL(_ todo: ScanTodo) -> URL? {
-        switch todo.action {
-        case let .show(shown): URL(string: "jitpass-findings://show/\(shown.rawValue)")
-        case .deepScan: URL(string: "jitpass-findings://deep")
-        case .none: nil
-        }
     }
 
     private var deepAvailable: Bool {
