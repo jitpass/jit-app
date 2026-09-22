@@ -5,21 +5,16 @@ import AppKit
 import JitAgentClient
 
 /// What the AI Agents window is looking at, worked out once so the
-/// header's mark, every row's dot and the footer cannot disagree about
-/// the same fact.
-///
-/// The window is a digest (design/scan-and-protect.md D10): one row per
-/// agent, four facts each, every fact read from its home — `jit wrap
-/// list` for the key, the last whole-Mac scan for the cached copies, the
-/// audit for the decoy reads, the service for the grants and for consent.
-/// The board adds no check of its own and offers no verb of its own.
+/// header's mark, every card's eyebrow and the footer cannot disagree
+/// about the same fact. One card per agent (MenuModel.agentCards); the
+/// board only sums them.
 struct AgentsBoard {
     /// The window's state word and colour. Four states, the app's and the
     /// CLI's, and no fifth.
     enum Tier {
-        /// A copy of a live secret is sitting somewhere it should not be.
+        /// A copy of a secret is sitting in an agent's files.
         case fixNow
-        /// Only the user can close this one: a key to move, a shim to fix.
+        /// Only the user can close this one: a key to move, Asking to turn on.
         case needsYou
         /// Nothing is wrong, but jit has not looked yet.
         case notYet
@@ -42,49 +37,38 @@ struct AgentsBoard {
             case .working: StatusMark.green
             }
         }
-    }
 
-    struct Row: Identifiable {
-        let agent: ToolRecord
-        let digest: AgentDigest
-
-        var id: String {
-            agent.id
-        }
-
-        var tint: NSColor {
-            switch digest.state {
-            case .red: StatusMark.red
-            case .amber: StatusMark.amber
-            case .green: StatusMark.green
+        static func of(_ state: AgentCard.State, scanned: Bool) -> Tier {
+            switch state {
+            case .red: .fixNow
+            case .amber: .needsYou
+            case .green: scanned ? .working : .notYet
             }
         }
     }
 
+    struct Row: Identifiable {
+        let agent: ToolRecord
+        let card: AgentCard
+        var id: String {
+            agent.id
+        }
+    }
+
     var rows: [Row] = []
-    /// Whether a whole-Mac scan has run: without one the caches are
-    /// unknown, not clean.
     var scanned = false
-    var checkedAt: Date?
-    /// nil when the service is not running, so the window says that and
-    /// not "consent is off".
-    var consent: Bool?
+    var scanAt: Date?
+    var scanDeep = false
 
     var hasAgents: Bool {
         !rows.isEmpty
     }
 
-    /// Rows whose dot is not green: what the headline counts.
-    var needingYou: Int {
-        rows.filter { $0.digest.state != .green }.count
-    }
-
-    /// The window's one state: the worst row it is drawing.
     var tier: Tier {
-        if rows.contains(where: { $0.digest.state == .red }) {
+        if rows.contains(where: { $0.card.state == .red }) {
             return .fixNow
         }
-        if rows.contains(where: { $0.digest.state == .amber }) {
+        if rows.contains(where: { $0.card.state == .amber }) {
             return .needsYou
         }
         return scanned ? .working : .notYet
@@ -93,32 +77,10 @@ struct AgentsBoard {
     @MainActor
     static func make(_ model: MenuModel) -> AgentsBoard {
         var board = AgentsBoard()
-        let scan = model.macScan
-        board.scanned = scan != nil
-        board.checkedAt = model.macScanAt
-        board.consent = model.consentEnabled
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let agents = model.toolListing?.agents ?? []
-        board.rows = agents.map { agent in
-            let label = agent.agentLabel
-            let copies = label.map { scan?.agentCopies(in: $0) ?? 0 } ?? 0
-            let areas = label.map { name in (scan?.agentCacheGroups ?? []).filter { $0.agent == name }.map(\.area) } ?? []
-            let grant = model.grants.first { $0.name == agent.tool || $0.anchor?.contains(agent.tool) == true }
-            let digest = AgentDigest.make(AgentDigest.Input(
-                tool: agent.tool,
-                key: agent.keyState(scan: scan),
-                wrapped: agent.wrapped,
-                healthy: agent.isHealthy,
-                stateLabel: agent.stateLabel,
-                scanned: scan != nil,
-                copies: copies,
-                areas: areas,
-                readsToday: model.decoyReads24h == nil ? nil : model.decoyReadsByProgram[agent.tool] ?? 0,
-                grantUntil: grant.map { Date(timeIntervalSince1970: TimeInterval($0.expiresUnix)) },
-                home: home
-            ))
-            return Row(agent: agent, digest: digest)
-        }
+        board.scanned = model.macScan != nil
+        board.scanAt = model.macScanAt
+        board.scanDeep = model.macScanKind?.isDeep == true
+        board.rows = model.agentCards.map { Row(agent: $0.tool, card: $0.card) }
         return board
     }
 }

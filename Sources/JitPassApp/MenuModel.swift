@@ -43,6 +43,10 @@ final class MenuModel: ObservableObject {
     ) ?? .default
     @Published var scanExcludes: [String] = ScanExcludes.load()
     @Published var redactAfterScan = UserDefaults.standard.bool(forKey: Notifier.redactAfterScanKey)
+    /// Agents whose caches are redacted after every scheduled scan, by tool; the global switch covers them all.
+    @Published var redactAgents = Set(UserDefaults.standard.stringArray(forKey: Notifier.redactAgentsKey) ?? [])
+    /// What each agent did through jit in the last week, by tool, from the audit; empty until read (AI Agents).
+    @Published var agentActivity: [String: AgentActivity] = [:]
     @Published var audit: AuditReport?
     /// Decoy serves in the last 24 hours (nil until read), and the same by
     /// reading program, for the AI Agents digest's per-agent row.
@@ -245,54 +249,6 @@ final class MenuModel: ObservableObject {
             return "\(open) to protect"
         }
         return "\(listing.wrapped.count) wrapped"
-    }
-
-    /// The AI Agents row: protected over installed, or the count of cached
-    /// copies when a scan found any, since that number is what makes
-    /// someone click.
-    var agentsValue: String? {
-        guard let listing = toolListing else {
-            return nil
-        }
-        let agents = listing.agents
-        guard !agents.isEmpty else {
-            return nil
-        }
-        if let copies = macScan?.agentCopies.count, copies > 0 {
-            return "\(copies) cached cop\(copies == 1 ? "y" : "ies")"
-        }
-        let protected = agents.filter { agentProtected($0) }.count
-        return "\(protected) of \(agents.count)"
-    }
-
-    /// Red when a scan found copies of the user's secrets in an agent's
-    /// cache; amber when an installed agent is unwrapped or consent is
-    /// off; green when every installed agent has all three; nil with no
-    /// agent installed.
-    var agentsState: AgentsState? {
-        guard let listing = toolListing, !listing.agents.isEmpty else {
-            return nil
-        }
-        if let scan = macScan, !scan.agentCopies.isEmpty {
-            return .red
-        }
-        if listing.agents.allSatisfy({ agentProtected($0) }) {
-            return .green
-        }
-        return .amber
-    }
-
-    /// The three facts for one agent: its key is wrapped, or there is no
-    /// key on this Mac to wrap; no cached copies in the last whole-Mac
-    /// scan; consent on.
-    func agentProtected(_ tool: ToolRecord) -> Bool {
-        guard consentEnabled != false, let scan = macScan else {
-            return false
-        }
-        switch tool.keyState(scan: scan) {
-        case .protected, .none: return tool.agentLabel.map { scan.agentCopies(in: $0) == 0 } ?? true
-        case .found, .unknown: return false
-        }
     }
 
     /// Installed tools whose key sits in the open: a plaintext file, the
