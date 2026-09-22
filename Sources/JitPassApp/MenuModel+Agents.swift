@@ -30,36 +30,4 @@ extension MenuModel {
             return (agent, card)
         }
     }
-
-    /// The row's value: the worst fact, in the reader's words, so "1 of 1"
-    /// never sits green over copies in an agent's files.
-    var agentsValue: String? {
-        let cards = agentCards
-        guard !cards.isEmpty else {
-            return nil
-        }
-        let red = cards.filter { $0.card.state == .red }
-        if red.count == 1, let label = red.first?.tool.agentLabel {
-            return "copies in " + label
-        }
-        if red.count > 1 {
-            return "copies in \(red.count) agents' files"
-        }
-        let amber = cards.filter { $0.card.state == .amber }.count
-        if amber > 0 {
-            return "\(amber) need" + (amber == 1 ? "s" : "") + " you"
-        }
-        return macScan == nil ? "not searched yet" : "all set"
-    }
-
-    var agentsState: AgentsState? {
-        let cards = agentCards
-        guard !cards.isEmpty else {
-            return nil
-        }
-        if cards.contains(where: { $0.card.state == .red }) {
-            return .red
-        }
-        return cards.contains(where: { $0.card.state == .amber }) || macScan == nil ? .amber : .green
-    }
 }
