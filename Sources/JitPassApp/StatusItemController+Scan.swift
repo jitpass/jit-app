@@ -72,6 +72,7 @@ extension StatusItemController {
     /// raises a folder prompt per protected folder, and a prompt with no
     /// click behind it is exactly what the app must never cause.
     func refreshScanIfDue() {
+        restoreLastScan()
         guard !model.scanning, model.fullDiskAccess || FullDiskAccess.granted() else {
             return
         }
@@ -171,6 +172,24 @@ extension StatusItemController {
         }
     }
 
+    /// The last whole-Mac scan, back on screen at launch: the Findings
+    /// window, the panel and the agent, tool and decoy windows read it
+    /// until the schedule's next run replaces it. Its "new" marks are not
+    /// restored — they compare two runs, and this is the same run. A
+    /// no-op once anything is on screen.
+    func restoreLastScan() {
+        guard model.macScan == nil, let last = LastScanStore.load() else {
+            return
+        }
+        model.macScan = last.report
+        model.macScanAt = last.at
+        model.macScanKind = last.kind
+        model.macDeepScanAt = last.deepAt
+        if model.scanScope == nil {
+            model.scan = last.report
+        }
+    }
+
     /// A whole-Mac report lands: it becomes what the Findings row and the
     /// Findings window show, remembers what it found for the next
     /// comparison, and speaks up on the schedule's behalf. A regular run
@@ -189,6 +208,7 @@ extension StatusItemController {
         model.macScanAt = at
         model.macScanKind = kind
         model.scanStale = false
+        LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
         if kind == .scheduled {
             announceNewFindings(fresh, at: at)
             autoRedact(after: report, at: at)
