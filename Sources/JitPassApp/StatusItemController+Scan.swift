@@ -122,17 +122,24 @@ extension StatusItemController {
     /// start from a click.
     ///
     /// `wholeMac` ignores the window's folder: a background run feeds the
-    /// Protected row, and shows in the window only when the window is not
+    /// Findings row, and shows in the window only when the window is not
     /// looking at a folder of its own. `kind` is who asked, for the
     /// Findings header.
-    func runScan(wholeMac: Bool = false, kind: ScanRunKind, deep: Bool = false) {
+    func runScan(wholeMac: Bool = false, kind requested: ScanRunKind, deep requestedDeep: Bool = false) {
         guard !model.scanning else {
             return
         }
+        // A Protect's rescan of the whole Mac keeps a deep report's depth
+        // while the vault is open; otherwise regular, and the deep scan's
+        // copies are carried (ScanRunKind.afterProtect). Never a Touch ID.
+        let kind = requested == .afterProtect && wholeMac
+            ? ScanRunKind.afterProtect(replacing: model.macScanKind, unlockedFor: model.state.unlockedFor)
+            : requested
+        let deep = requestedDeep || kind.isDeep
         model.scanning = true
         model.scanDeep = deep
         model.scanError = nil
-        if kind != .afterProtect {
+        if !kind.isAfterProtect {
             model.findingsOutcome = nil // the banner clears on the next action; the rescan a Protect triggers is not one
         }
         let scope = wholeMac ? nil : model.scanScope
@@ -146,18 +153,7 @@ extension StatusItemController {
                 model.scanning = false
                 switch result {
                 case let .success(report):
-                    if scope == nil {
-                        let at = Date()
-                        let fresh = rememberFindings(in: report)
-                        model.macScan = report
-                        model.macScanAt = at
-                        model.macScanKind = kind
-                        model.scanStale = false
-                        if kind == .scheduled {
-                            announceNewFindings(fresh, at: at)
-                            autoRedact(after: report, at: at)
-                        }
-                    }
+                    let report = scope == nil ? landWholeMac(report, kind: kind) : report
                     if !wholeMac || model.scanScope == nil {
                         model.scan = report
                     }
@@ -168,6 +164,41 @@ extension StatusItemController {
                 }
             }
         }
+    }
+
+    /// A whole-Mac report lands: it becomes what the Findings row and the
+    /// Findings window show, remembers what it found for the next
+    /// comparison, and speaks up on the schedule's behalf. A regular run
+    /// takes the last deep scan's vault copies with it, each while its file
+    /// is unchanged since that scan; a deep run's are its own.
+    private func landWholeMac(_ scanned: ScanReport, kind: ScanRunKind) -> ScanReport {
+        let at = Date()
+        var report = scanned
+        if kind.isDeep {
+            model.macDeepScanAt = at
+        } else if let deepAt = model.macDeepScanAt, let previous = model.macScan {
+            report = scanned.carryingVaultCopies(from: previous) { Self.unchanged($0, since: deepAt) }
+        }
+        let fresh = rememberFindings(in: report)
+        model.macScan = report
+        model.macScanAt = at
+        model.macScanKind = kind
+        model.scanStale = false
+        if kind == .scheduled {
+            announceNewFindings(fresh, at: at)
+            autoRedact(after: report, at: at)
+        }
+        return report
+    }
+
+    /// The file is as the deep scan saw it: still there, and not written
+    /// since. The one check the app can make on a vault-copy row without
+    /// the vault, and what lets the row outlive the run that found it.
+    nonisolated static func unchanged(_ path: String, since: Date) -> Bool {
+        guard let modified = (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date else {
+            return false
+        }
+        return modified <= since
     }
 
     /// What this whole-Mac scan has that the previous one did not, against
