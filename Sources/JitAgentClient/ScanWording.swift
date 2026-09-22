@@ -13,6 +13,10 @@ public enum ScanRunKind: String, Sendable {
     case setup
     /// A deep scan, always by hand: it reads the vault (ScanMode).
     case deep
+    /// The rescan a Protect triggers while a deep report is on screen: the
+    /// same depth, so the copies the deep scan found do not vanish from the
+    /// window because a Redact ran. Only with the vault open (`afterProtect`).
+    case deepAfterProtect
 
     /// The first words of the Findings header's second line.
     public var label: String {
@@ -22,7 +26,39 @@ public enum ScanRunKind: String, Sendable {
         case .afterProtect: "Scanned after Protect"
         case .setup: "Scanned during setup"
         case .deep: "Deep scan, by hand"
+        case .deepAfterProtect: "Deep scan after Protect"
         }
+    }
+
+    /// The run read the vault, so its report holds the vault copies.
+    public var isDeep: Bool {
+        self == .deep || self == .deepAfterProtect
+    }
+
+    /// A Protect's own rescan: the banner it follows stays up.
+    public var isAfterProtect: Bool {
+        self == .afterProtect || self == .deepAfterProtect
+    }
+
+    /// A deep rescan reads the vault first; the session has to outlast that.
+    public static let deepRescanMargin: TimeInterval = 30
+
+    /// The kind a Protect's rescan runs as, given the report it replaces.
+    ///
+    /// A deep report keeps its depth while the vault is open (`unlockedFor`
+    /// is the session's remaining time, nil when locked), so every vault
+    /// copy is looked for again. Locked, the rescan is regular — a deep
+    /// run would need Touch ID, and a prompt with no click behind it is
+    /// what the app must never raise — and the deep scan's vault copies
+    /// are carried onto its report instead (ScanReport.carryingVaultCopies),
+    /// so the window never reads as if the Protect had removed them: 78
+    /// findings became 25 after a Redact of 2, when the rescan simply had
+    /// not searched for the 53.
+    public static func afterProtect(replacing previous: ScanRunKind?, unlockedFor: TimeInterval?) -> ScanRunKind {
+        guard previous?.isDeep == true, let unlockedFor, unlockedFor > deepRescanMargin else {
+            return .afterProtect
+        }
+        return .deepAfterProtect
     }
 }
 
@@ -47,10 +83,13 @@ public struct ScanRun: Sendable {
     public var fullDiskAccess: Bool
     /// A deep scan's finds: how many findings are copies of vaulted secrets.
     public var vaultCopies = 0
+    /// When those copies were found, for a regular run that carries them
+    /// from an earlier deep scan; nil when this run found them itself.
+    public var vaultCopiesFrom: Date?
 
     public init(
         kind: ScanRunKind, at: Date, schedule: ScanSchedule, newCount: Int?, previousAt: Date?,
-        excludes: Int, fullDiskAccess: Bool, vaultCopies: Int = 0
+        excludes: Int, fullDiskAccess: Bool, vaultCopies: Int = 0, vaultCopiesFrom: Date? = nil
     ) {
         self.kind = kind
         self.at = at
@@ -60,6 +99,7 @@ public struct ScanRun: Sendable {
         self.excludes = excludes
         self.fullDiskAccess = fullDiskAccess
         self.vaultCopies = vaultCopies
+        self.vaultCopiesFrom = vaultCopiesFrom
     }
 }
 
@@ -88,9 +128,13 @@ public enum ScanWording {
             facts.append(fact)
         }
         if run.vaultCopies > 0 {
-            facts.append(run.vaultCopies == 1
+            var fact = run.vaultCopies == 1
                 ? "1 is a copy of a secret you've already vaulted"
-                : "\(run.vaultCopies) are copies of secrets you've already vaulted")
+                : "\(run.vaultCopies) are copies of secrets you've already vaulted"
+            if let from = run.vaultCopiesFrom {
+                fact += ", from the deep scan " + when(from, now: now, calendar: calendar, locale: locale)
+            }
+            facts.append(fact)
         }
         if run.excludes > 0 {
             facts.append("excluding \(run.excludes) folder" + (run.excludes == 1 ? "" : "s"))
