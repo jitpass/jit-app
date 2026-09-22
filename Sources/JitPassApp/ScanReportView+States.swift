@@ -10,15 +10,22 @@ import SwiftUI
 extension ScanReportView {
     /// Nothing is scanned until the user says where: a whole-home read is
     /// never a side effect of opening a window.
+    /// The first state, and New Scan…'s: the same two buttons, but over
+    /// a report the title is "New scan", the sentence says the findings
+    /// stay, and there is a way back to them.
     var chooser: some View {
-        VStack(spacing: 0) {
+        let over = model.scan != nil
+        return VStack(spacing: 0) {
             Spacer(minLength: 0)
             WindowEmptyState(
                 tint: Color(StatusMark.amber),
                 hollow: true,
-                title: "No findings yet",
-                message: ScanWording.emptyMessage(schedule: model.scanSchedule)
+                title: over ? "New scan" : "No findings yet",
+                message: over ? ScanWording.newScanMessage() : ScanWording.emptyMessage(schedule: model.scanSchedule)
             ) {
+                if over {
+                    Button("Back to Findings", action: actions.showFindings).buttonStyle(AppButton(kind: .plain))
+                }
                 Button("Choose Folder…", action: actions.chooseFolder).buttonStyle(AppButton())
                 Button("Scan Whole Mac…", action: actions.scanWholeMac).buttonStyle(AppButton(kind: .primary))
             }

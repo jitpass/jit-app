@@ -17,13 +17,13 @@ extension ScanReportView {
             WindowMark(tint: headTint(report))
             VStack(alignment: .leading, spacing: Win.s1) {
                 Text(headline(report)).font(Win.head)
-                Text(subline())
+                if let report {
+                    todoLines(report).padding(.top, Win.s2)
+                }
+                Text(subline(report))
                     .font(Win.sub).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                if let fraction = coverage(report), fraction < 1 {
-                    CoverageBar(fraction: fraction, tint: Color(StatusMark.amber))
-                        .frame(width: 320).padding(.top, Win.s3)
-                }
+                    .padding(.top, Win.s3)
             }
             Spacer(minLength: Win.s5)
             HStack(spacing: Win.s3) {
@@ -64,20 +64,85 @@ extension ScanReportView {
         .fixedSize()
     }
 
+    /// One line per tier with something in it: the card's numbers, then
+    /// the card's verb as a link that narrows the window to that card. One
+    /// Text per line, the link inside it, so a narrow window wraps the
+    /// sentence and never strands the verb. A dot in the tier's colour,
+    /// always beside a word.
+    func todoLines(_ report: ScanReport) -> some View {
+        let todos = report.todos(deepAvailable: deepAvailable)
+        return VStack(alignment: .leading, spacing: Win.s2) {
+            ForEach(todos) { todo in
+                HStack(alignment: .firstTextBaseline, spacing: Win.s4) {
+                    Circle().fill(Self.todoTint(todo)).frame(width: 8, height: 8)
+                    Text(Self.todoSentence(todo)).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .environment(\.openURL, OpenURLAction { url in
+            if let todo = todos.first(where: { Self.todoURL($0) == url }) {
+                act(on: todo)
+            }
+            return .handled
+        })
+    }
+
+    /// The sentence with its verb as a link, in the colour the app's plain
+    /// buttons use.
+    static func todoSentence(_ todo: ScanTodo) -> AttributedString {
+        var sentence = AttributedString(todo.sentence)
+        if let verb = todo.verb, let range = sentence.range(of: verb, options: .backwards), let url = todoURL(todo) {
+            sentence[range].link = url
+            sentence[range].foregroundColor = Color(StatusMark.accent)
+        }
+        return sentence
+    }
+
+    /// An address for the line's action, matched back in `openURL`; never
+    /// opened anywhere else.
+    static func todoURL(_ todo: ScanTodo) -> URL? {
+        switch todo.action {
+        case let .show(shown): URL(string: "jitpass-findings://show/\(shown.rawValue)")
+        case .deepScan: URL(string: "jitpass-findings://deep")
+        case .none: nil
+        }
+    }
+
+    private var deepAvailable: Bool {
+        ScanMode.deepAvailable(secretsStored: model.cli?.vault?.secretsStored)
+    }
+
+    private func act(on todo: ScanTodo) {
+        switch todo.action {
+        case let .show(shown): tier = shown
+        case .deepScan: actions.askDepth(model.scanScope)
+        case .none: break
+        }
+    }
+
+    static func todoTint(_ todo: ScanTodo) -> Color {
+        switch todo.action {
+        case let .show(shown): Color(tierTint(shown))
+        case .deepScan: Color(.tertiaryLabelColor)
+        case .none: Color(StatusMark.green)
+        }
+    }
+
     /// The schedule's line for the whole Mac; a folder scan has no
     /// schedule and no previous run, so it says only where and when.
-    func subline() -> String {
+    func subline(_ report: ScanReport?) -> String {
+        let fixtures = report?.count(in: .testFixtures) ?? 0
         if let folder = model.scanScope {
             return ScanWording.folderSubline(
                 folder: Format.home(folder), at: nil,
                 excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess,
-                deep: model.scan?.summary.deep == true
+                deep: model.scan?.summary.deep == true, fixtures: fixtures
             )
         }
         guard let at = model.macScanAt, let kind = model.macScanKind else {
             return ScanWording.folderSubline(
                 folder: "Whole Mac", at: model.macScanAt,
-                excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess
+                excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess, fixtures: fixtures
             )
         }
         return ScanWording.wholeMacSubline(ScanRun(
@@ -85,7 +150,8 @@ extension ScanReportView {
             newCount: model.macScanNew?.count, previousAt: model.previousMacScanAt,
             excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess,
             vaultCopies: model.macScan?.vaultCopies.count ?? 0,
-            vaultCopiesFrom: kind.isDeep ? nil : model.macDeepScanAt
+            vaultCopiesFrom: kind.isDeep ? nil : model.macDeepScanAt,
+            fixtures: fixtures
         ))
     }
 
@@ -93,27 +159,24 @@ extension ScanReportView {
         guard let summary = report?.summary else {
             return model.scanning ? "Scanning…" : "No findings yet"
         }
-        return Format.scanHeadline(summary, wholeMac: model.scanScope == nil)
+        return Format.scanHeadline(summary, wholeMac: model.scanScope == nil, secretsStored: model.cli?.vault?.secretsStored)
     }
 
-    /// Green when the vault holds everything jit knows of, amber while
-    /// anything is still in the open. The mark is the window's one state,
-    /// and it always has the headline beside it.
+    /// Green when no line asks anything of the reader, amber while one
+    /// does. The mark is the window's one state, and it always has the
+    /// headline beside it.
     func headTint(_ report: ScanReport?) -> Color {
-        guard let summary = report?.summary else {
+        guard let report else {
             return Color(StatusMark.amber)
         }
-        let clean = summary.percent >= 100 && report?.tiersPresent.contains(.needsYou) != true
-        return Color(clean ? StatusMark.green : StatusMark.amber)
-    }
-
-    /// The share of known secrets already in the vault. A folder scan has
-    /// no ledger of its own, so it has no bar.
-    func coverage(_ report: ScanReport?) -> Double? {
-        guard model.scanScope == nil, let s = report?.summary, s.secretsTotal > 0 else {
-            return nil
+        let asks = report.todos(deepAvailable: false).contains {
+            if case .show = $0.action {
+                true
+            } else {
+                false
+            }
         }
-        return Double(s.secretsProtected) / Double(s.secretsTotal)
+        return Color(asks ? StatusMark.amber : StatusMark.green)
     }
 
     /// One pill per tier this scan has, with its count. A tier with

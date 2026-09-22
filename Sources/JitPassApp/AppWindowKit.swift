@@ -177,23 +177,6 @@ struct StateDot: View {
     }
 }
 
-/// The filled part of a count: 6px, the track behind it, the state's
-/// colour in front.
-struct CoverageBar: View {
-    let fraction: Double
-    var tint: Color
-
-    var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(WindowSurface.quiet)
-                Capsule().fill(tint).frame(width: max(0, min(1, fraction)) * geo.size.width)
-            }
-        }
-        .frame(height: 6)
-    }
-}
-
 /// A card: the eyebrow that carries its tier, a title and a note, the
 /// actions on the title's line, and the rows it lists under a rule.
 struct AppCard<Rows: View, Actions: View>: View {
