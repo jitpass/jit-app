@@ -32,20 +32,38 @@ extension StatusItemController {
             verify: { [weak self] tool in self?.verifyTool(tool) },
             mintInTerminal: { [weak self] command in self?.runInTerminal(command) },
             cleanCaches: { [weak self] in self?.cleanCaches() },
-            scanNow: { [weak self] in
-                self?.openScan()
-                self?.askDepth(scope: nil)
-            },
             openVault: { [weak self] in self?.openVault() },
             openSettings: { [weak self] in self?.openSettings() },
-            openInTerminal: { [weak self] in self?.runInTerminal("jit wrap list") }
+            openScan: { [weak self] in self?.openScan() },
+            openDoctor: { [weak self] in self?.openDoctor() }
         )
     }
 
     func openTools() {
         panel.dismiss()
         reloadTools()
+        refreshToolActivity()
         toolsWindow.present()
+    }
+
+    /// `jit audit --since 7d`, prompt-free, off the main thread: each
+    /// wrapped tool's reads, for its row's fact. The listing may still be
+    /// loading; the tools are read again when the audit lands.
+    func refreshToolActivity() {
+        let filter = AuditFilter(since: "7d", limit: 0)
+        Task.detached {
+            let report = JitCLI.audit(filter)
+            await MainActor.run { [weak self] in
+                guard let self, let report else {
+                    return
+                }
+                var activity: [String: ToolActivity] = [:]
+                for tool in model.toolListing?.others ?? [] where tool.wrapped || tool.isProtected {
+                    activity[tool.tool] = report.toolActivity(vaultPaths: tool.injects.compactMap(\.vaultPath))
+                }
+                model.toolActivity = activity
+            }
+        }
     }
 
     /// `jit migrate <file> --yes` for one MCP config, after a dialog: the

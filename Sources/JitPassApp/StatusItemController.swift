@@ -57,10 +57,10 @@ final class StatusItemController {
         minSize: Design.Window.minimum(for: Design.Window.medium)
     )
     lazy var toolsWindow = ReportWindow(
-        title: "JitPass Tools",
+        title: "Tools",
         content: ToolsView(model: model, actions: toolsActions),
-        size: NSSize(width: 760, height: 480),
-        minSize: NSSize(width: 640, height: 360)
+        size: Design.Window.medium,
+        minSize: Design.Window.minimum(for: Design.Window.medium)
     )
     /// The one revealed value's bytes; wiped by `hideReveal()`.
     var revealBuffer: SecretBuffer?
