@@ -107,7 +107,7 @@ struct PanelView: View {
                     }
                     .buttonStyle(HoverRowStyle())
                 }
-                row("play.circle", "Service", model.serviceRow.text)
+                row("play.circle", "Service", model.serviceRow.text, dot: dot(model.serviceRow.tone))
                 Button(action: actions.openGrants) {
                     row("key", "Grants", model.grantsRow.text, dot: dot(model.grantsRow.tone))
                         .contentShape(Rectangle())

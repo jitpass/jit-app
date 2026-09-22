@@ -58,10 +58,11 @@ public enum PanelValue {
         return wrapped == 0 ? Row("none wrapped") : Row("\(wrapped) wrapped")
     }
 
-    /// The lock state lives in the panel's head; the row only says whether
-    /// the service is there.
+    /// The lock state lives in the panel's head; the row says whether the
+    /// service is there at all — a state word, so it carries the mark:
+    /// green up, red down, since only the user can start it.
     public static func service(running: Bool) -> Row {
-        Row(running ? "running" : "not running")
+        running ? Row("running", .green) : Row("not running", .red)
     }
 
     public static func grants(active: Int) -> Row {
