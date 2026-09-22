@@ -139,7 +139,7 @@ public struct ScanSummary: Codable, Sendable, Equatable {
 
 /// A whole scan: the findings in the order the CLI emitted them, and the
 /// summary record that closes the stream.
-public struct ScanReport: Sendable, Equatable {
+public struct ScanReport: Codable, Sendable, Equatable {
     public var findings: [ScanFinding]
     public var summary: ScanSummary
 

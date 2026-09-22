@@ -194,14 +194,6 @@ final class MenuModel: ObservableObject {
         needsSetup || needsRestore
     }
 
-    var serviceValue: String {
-        switch state {
-        case .notRunning: "Not running"
-        case .locked: "Running · locked"
-        case .unlocked: "Running · unlocked"
-        }
-    }
-
     var grantsValue: String {
         switch grants.count {
         case 0: "none"
@@ -218,21 +210,9 @@ final class MenuModel: ObservableObject {
         return cli?.vault.map { "\($0.secretsStored) secrets" }
     }
 
-    /// The Decoys row: the files, and today's reads when there were any,
-    /// since that is the event the files exist for. "Mount" is jit's word
-    /// for the mechanism and stays in the CLI.
-    var mountsValue: String? {
-        guard let mounts = cli?.mounts else {
-            return nil
-        }
-        var value = "\(mounts.registered) file\(mounts.registered == 1 ? "" : "s")"
-        if let reads = decoyReads24h, reads > 0 {
-            value += " · \(reads) read\(reads == 1 ? "" : "s") today"
-        } else if mounts.servingReal {
-            value += " · a run sees real values"
-        }
-        return value
-    }
+    // The Decoys row: the files, and today's reads when there were any,
+    // since that is the event the files exist for. "Mount" is jit's word
+    // for the mechanism and stays in the CLI.
 
     var consentValue: String? {
         consentEnabled.map { $0 ? "On" : "Off" }
@@ -244,54 +224,17 @@ final class MenuModel: ObservableObject {
         cli?.guardStatus?.installed
     }
 
-    /// One fact, the most urgent: an expired session (the next `aws` call
-    /// fails), then keys in the open, then the wrapped count. The dot says
-    /// which it is.
-    var toolsValue: String? {
-        guard let listing = toolListing else {
-            return nil
-        }
-        let expired = (cli?.sessions ?? []).filter { !$0.live }.count
-        if expired > 0 {
-            return "\(expired) expired"
-        }
-        let open = toolsWithKeyInTheOpen.count
-        if open > 0 {
-            return "\(open) to protect"
-        }
-        let through = listing.others.filter { $0.wrapped || $0.isProtected }.count
-        return through == 0 ? "none through jit" : "\(through) through jit"
-    }
-
     /// Installed tools whose key sits in the open: a plaintext file, the
     /// tool's own login, or a shell export. What "to protect" counts.
     var toolsWithKeyInTheOpen: [ToolRecord] {
         (toolListing?.installed ?? []).filter { $0.keyState(scan: macScan).needsAction }
     }
 
-    /// The Tools row's dot: red for a broken shim, amber for an expired
-    /// session or a key in the open, green when wrapped tools are healthy.
-    var toolsState: AgentsState? {
-        guard let listing = toolListing else {
-            return nil
-        }
-        if !listing.broken.isEmpty {
-            return .red
-        }
-        if (cli?.sessions ?? []).contains(where: { !$0.live }) || !toolsWithKeyInTheOpen.isEmpty {
-            return .amber
-        }
-        return listing.wrapped.isEmpty ? nil : .green
-    }
+    // The Tools row's dot: red for a broken shim, amber for an expired
+    // session or a key in the open, green when wrapped tools are healthy.
 
-    /// The last verdict stays on screen while a recheck runs; "checking…"
-    /// appears only before the first result exists.
-    var doctorValue: String {
-        if let doctor {
-            return doctor.verdict
-        }
-        return doctorRunning ? "checking…" : "not checked"
-    }
+    // The last verdict stays on screen while a recheck runs; "checking…"
+    // appears only before the first result exists.
 
     var vaultSummary: String {
         guard let listing = vaultListing else {
@@ -307,29 +250,8 @@ final class MenuModel: ObservableObject {
         return parts.joined(separator: " · ")
     }
 
-    /// The Findings row, named for the window it opens (a list of what needs you, not a report of what is
-    /// protected): the count, and the day the schedule last ran. Never a folder's number, never the ledger.
-    var findingsValue: String {
-        if let s = macScan?.summary {
-            var value = "\(s.totalFindings) finding" + (s.totalFindings == 1 ? "" : "s")
-            if macScanKind == .scheduled, let at = macScanAt {
-                value += " · " + ScanWording.dayWord(at)
-            }
-            return value
-        }
-        if scanning {
-            return "scanning…"
-        }
-        if scanSchedule != .off, !fullDiskAccess {
-            return "needs Full Disk Access"
-        }
-        return "not scanned yet"
-    }
-}
-
-/// A panel row's dot.
-enum AgentsState {
-    case green, amber, red
+    // The Findings row, named for the window it opens (a list of what needs you, not a report of what is
+    // protected): the count, and the day the schedule last ran. Never a folder's number, never the ledger.
 }
 
 /// The sheet the Vault window has open, if any.
