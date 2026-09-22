@@ -5,42 +5,43 @@ import Foundation
 import JitAgentClient
 
 /// Every sentence the AI Agents window says, so one change reaches the
-/// header, the footer and the empty state together. The rows' own facts
-/// are AgentDigest's, in JitAgentClient, under test.
+/// header, the footer and the empty state together. The cards' own facts
+/// are AgentCard's, in JitAgentClient, under test.
 extension Format {
-    /// The headline: how many agents, and how many need the reader.
+    /// The headline: how many agents. The lines under it say what they ask.
     static func agentsHeadline(_ board: AgentsBoard) -> String {
         guard board.hasAgents else {
             return "No AI agent CLI on this Mac"
         }
-        let agents = count(board.rows.count, "agent") + " on this Mac"
-        if !board.scanned {
-            return agents + " · not searched yet"
-        }
-        return agents + (board.needingYou == 0 ? " · all set" : " · \(board.needingYou) need" + (board.needingYou == 1 ? "s" : "") + " you")
+        return count(board.rows.count, "agent") + " on this Mac"
     }
 
-    /// The sentence under it: what the rows are, and where each fact lives.
-    static func agentsSubline(_ board: AgentsBoard) -> String {
+    /// The sentence under it: where the facts come from, and the one
+    /// thing jit cannot do about an agent.
+    static func agentsSubline(_ board: AgentsBoard, now: Date = Date()) -> String {
         guard board.hasAgents else {
             return "jit wraps " + ToolRecord.agentTools.sorted().prefix(4).joined(separator: ", ")
                 + " and others. Install one and it shows up here."
         }
-        guard board.scanned else {
-            return "What each agent can reach and what it has done. A scan fills in the caches; "
-                + "the key, the reads and the grant are read now."
+        guard let at = board.scanAt else {
+            return "Its files are not searched yet; a whole-Mac scan fills them in. Reads and runs come from the audit, live."
         }
-        return "What each agent can reach and what it has done. Every fact lives in Tools, Findings, "
-            + "Decoys or Grants; this window only reads them."
+        let scan = (board.scanDeep ? "the deep scan " : "the scan ") + ScanWording.when(at, now: now)
+        return "From " + scan + " and the audit, live. A value an agent already sent upstream needs rotating."
     }
 
-    /// The footer's runtime fact: whether an agent's tool has to ask.
-    static func askingFact(_ board: AgentsBoard) -> String {
-        switch board.consent {
-        case true: "Asking is on · an agent's tool gets a machine credential only after you say so"
-        case false: "Asking is off · an agent's tool gets machine credentials without asking you"
-        default: "The service is not running, so nothing is asking and nothing is served"
+    /// The footer states: agents, copies in their files, runs this week.
+    static func agentsFooter(_ board: AgentsBoard, activity: [String: AgentActivity]) -> String {
+        var parts = [count(board.rows.count, "agent")]
+        if board.scanned {
+            let exposed = board.rows.filter { $0.card.redactCount > 0 || $0.card.offersClean }.count
+            parts.append(exposed == 0 ? "nothing in their files" : "copies in " + count(exposed, "agent's files", plural: "agents' files"))
         }
+        let runs = activity.values.reduce(0) { $0 + $1.runs }
+        if !activity.isEmpty {
+            parts.append(count(runs, "run") + " through jit this week")
+        }
+        return parts.joined(separator: " · ")
     }
 
     /// "9 copies in 4 files, from ~/proj/.env and ~/.aws/credentials".

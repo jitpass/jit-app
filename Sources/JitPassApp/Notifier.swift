@@ -34,6 +34,7 @@ enum Notifier {
     /// Redact tokens found by format in agent caches after each scheduled
     /// scan (Settings › Scan). Off by default.
     static let redactAfterScanKey = "RedactAfterScan"
+    static let redactAgentsKey = "RedactAfterScanAgents"
 
     /// On by default: a decoy serve is the event the whole design exists
     /// for, and a user who never opens the audit would otherwise never

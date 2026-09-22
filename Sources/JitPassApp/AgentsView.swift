@@ -4,15 +4,15 @@
 import JitAgentClient
 import SwiftUI
 
-/// The AI Agents window, built from the window system (the design
-/// system's Windows page): banner, header, body at one inset, footer. It
-/// is a digest (design/scan-and-protect.md D10): one row per agent, four
-/// facts in a fixed order, each read from its home — Tools, Findings,
-/// Decoys, Grants — and one link to the home of the fact that needs the
-/// reader. It answers the one question no other window puts in a
-/// sentence, "what is this agent doing on my Mac", and owns no fact and
-/// no verb of its own: two windows acting on one fact is where "Protect
-/// cleared my AI-cache alerts" came from.
+/// The AI Agents window, built from the window system: banner, header,
+/// body at one inset, footer. One card per agent, rows for its facts —
+/// what is in its files, what it can reach, what it did, its key — each
+/// in the numbers Findings, the service and the audit hold. An agent is
+/// not a tool: it records. So the first row is what it has seen, and the
+/// row's verbs are the same Clean Caches and Redact Findings runs
+/// (design/scan-and-protect.md D10, revised 2026-09-22: a digest nobody
+/// acts from is a digest nobody reads, which is how one stayed green over
+/// 34 copies).
 struct AgentsView: View {
     @ObservedObject var model: MenuModel
     let actions: AgentsActions
@@ -26,8 +26,11 @@ struct AgentsView: View {
                         .buttonStyle(AppButton(kind: .plain))
                 }
             }
-            header(board)
-            body(board)
+            VStack(spacing: 0) {
+                header(board)
+                body(board)
+            }
+            .measureWindowHeight()
             footer(board)
         }
         .frame(
@@ -44,39 +47,41 @@ struct AgentsView: View {
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
             case .wrap, .handWrap, .scanDepth:
-                // The Tools and Findings windows' questions; never opened
-                // from a digest.
+                // The Tools and Findings windows' questions; never opened here.
                 EmptyView()
             }
         }
         .onAppear(perform: actions.reload)
     }
 
-    /// The regions above and below the body, which the window adds to the
-    /// height the body asks for.
+    /// The regions outside the measured header and body: the footer, and
+    /// the banner when one is up.
     static func chrome(banner: Bool) -> CGFloat {
-        112 + (banner ? 39 : 0)
+        37 + (banner ? 39 : 0)
     }
 
     // MARK: - Header
 
-    /// What you are looking at, counted once, and the one sentence that
-    /// changes how the rows are read: every fact has a home elsewhere.
+    /// What you are looking at, then one line per agent that asks
+    /// something, then where the facts come from. One menu on the right:
+    /// scanning is Findings' verb, and the sentence links there.
     private func header(_ board: AgentsBoard) -> some View {
         HStack(alignment: .top, spacing: Win.s5) {
             WindowMark(tint: Color(board.tier.tint), hollow: !board.scanned && board.hasAgents)
             VStack(alignment: .leading, spacing: Win.s1) {
                 Text(Format.agentsHeadline(board)).font(Win.head)
+                if board.hasAgents {
+                    HeaderTodoLines(todos: todos(board)).padding(.top, Win.s2)
+                }
                 Text(Format.agentsSubline(board)).font(Win.sub).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, board.hasAgents ? Win.s3 : 0)
             }
             Spacer(minLength: Win.s5)
             HStack(spacing: Win.s3) {
                 if model.scanning || model.toolsRefreshing {
                     ProgressView().controlSize(.small)
                 }
-                Button("Scan Now…", action: actions.scanNow)
-                    .buttonStyle(AppButton()).disabled(model.scanning)
                 moreMenu
             }
             .padding(.top, Win.s1)
@@ -84,14 +89,31 @@ struct AgentsView: View {
         .windowRegion()
     }
 
-    /// The homes this window reads from, in one menu.
+    /// One line per agent with copies in its files; the verbs are the
+    /// card's own, so the line scrolls to nothing and just acts.
+    private func todos(_ board: AgentsBoard) -> [HeaderTodo] {
+        board.rows.compactMap { row in
+            guard let text = row.card.todo else {
+                return nil
+            }
+            let verb = row.card.offersClean ? "clear the copies" : "redact the tokens"
+            return HeaderTodo(id: row.id, text: text, verb: verb, tint: Color(StatusMark.red)) {
+                if row.card.offersClean {
+                    actions.cleanCaches()
+                } else {
+                    actions.redact(row.agent)
+                }
+            }
+        }
+    }
+
     private var moreMenu: some View {
         Menu {
-            Button("Refresh Listing", action: actions.reload).disabled(model.toolsRefreshing)
+            Button("Refresh", action: actions.reload).disabled(model.toolsRefreshing)
             Divider()
-            Button("Tools…", action: actions.openTools)
             Button("Findings…", action: actions.openScan)
-            Button("Audit…", action: actions.openAudit)
+            Button("Tools…", action: actions.openTools)
+            Button("Audit…") { actions.openAudit(nil) }
             Button("Grants…", action: actions.openGrants)
             Button("Settings…", action: actions.openSettings)
         } label: {
@@ -108,21 +130,19 @@ struct AgentsView: View {
     @ViewBuilder
     private func body(_ board: AgentsBoard) -> some View {
         if !board.hasAgents, model.toolListing != nil, model.toolsMessage == nil {
-            noAgents.measureWindowHeight()
-            Spacer(minLength: 0)
+            noAgents
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: Win.s5) {
                     if let message = model.toolsMessage {
                         failed(message)
                     }
-                    if board.hasAgents {
-                        digestCard(board)
+                    ForEach(board.rows) { row in
+                        agentCard(row, scanned: board.scanned)
                     }
                 }
                 .padding(Win.s6)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .measureWindowHeight()
             }
         }
     }
@@ -151,7 +171,7 @@ struct AgentsView: View {
             hollow: true,
             title: "No AI agent CLI on this Mac",
             message: "jit wraps " + ToolRecord.agentTools.sorted().prefix(4).joined(separator: ", ")
-                + " and others. Install one and it shows up here, with its key, its caches, its reads and its grant."
+                + " and others. Install one and it shows up here, with what is in its files, what it can reach and what it did."
         ) {
             Button("Tools…", action: actions.openTools).buttonStyle(AppButton())
         }
@@ -159,14 +179,12 @@ struct AgentsView: View {
 
     // MARK: - Footer
 
-    /// The one runtime fact that is about every agent at once: whether
-    /// they have to ask. Settings is where it changes.
+    /// The footer states; it configures nothing.
     private func footer(_ board: AgentsBoard) -> some View {
         HStack(spacing: Win.s4) {
-            StateDot(tint: Color(board.consent == false ? StatusMark.amber : board.tier.tint))
-            Text(Format.askingFact(board)).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+            StateDot(tint: Color(board.tier.tint))
+            Text(Format.agentsFooter(board, activity: model.agentActivity)).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: Win.s5)
-            Button("Settings…", action: actions.openSettings).buttonStyle(AppButton())
         }
         .padding(.horizontal, Win.s6)
         .padding(.vertical, Win.s4)
@@ -180,12 +198,17 @@ struct AgentsActions {
     var reload: () -> Void = {}
     var openSheet: (ToolsSheet) -> Void = { _ in }
     var closeSheet: () -> Void = {}
-    var scanNow: () -> Void = {}
+    /// Clean every agent's caches: the same command and dialog Findings runs.
+    var cleanCaches: () -> Void = {}
+    /// Redact the tokens in this agent's files: Findings' Redact, narrowed.
+    var redact: (ToolRecord) -> Void = { _ in }
+    var setRedactAfterScan: (ToolRecord, Bool) -> Void = { _, _ in }
     var openGrants: () -> Void = {}
     var openScan: () -> Void = {}
     var openSettings: () -> Void = {}
     var openTools: () -> Void = {}
-    var openAudit: () -> Void = {}
+    /// The audit, narrowed to what this agent launched when a tool is given.
+    var openAudit: (ToolRecord?) -> Void = { _ in }
     /// The window asks to be the height of what it holds.
     var fit: (CGFloat) -> Void = { _ in }
 }
