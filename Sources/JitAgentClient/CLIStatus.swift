@@ -85,14 +85,69 @@ public struct CLISession: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// One protected file the service serves: the path where the file was,
+/// now a pipe that answers the real values only through jit.
+public struct CLIMount: Codable, Sendable, Equatable, Identifiable {
+    public var path: String
+    /// The last time anything opened the file, as the service saw it —
+    /// authoritative where the audit's record of the same read can land up
+    /// to an hour later. nil from a jit that does not report it.
+    public var lastServe: CLIMountServe?
+
+    enum CodingKeys: String, CodingKey {
+        case path
+        case lastServe = "last_serve"
+    }
+
+    public init(path: String, lastServe: CLIMountServe? = nil) {
+        self.path = path
+        self.lastServe = lastServe
+    }
+
+    public var id: String {
+        path
+    }
+}
+
+public struct CLIMountServe: Codable, Sendable, Equatable {
+    public var unixTime: Int64
+    public var decoy: Bool?
+    public var undelivered: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case unixTime = "unix_time"
+        case decoy, undelivered
+    }
+
+    public init(unixTime: Int64, decoy: Bool? = nil, undelivered: Bool? = nil) {
+        self.unixTime = unixTime
+        self.decoy = decoy
+        self.undelivered = undelivered
+    }
+
+    public var date: Date {
+        Date(timeIntervalSince1970: TimeInterval(unixTime))
+    }
+}
+
+/// The service's own slice of `jit status`: only its mount list is read.
+public struct CLIAgentStatus: Codable, Sendable, Equatable {
+    public var mounts: [CLIMount]?
+
+    public init(mounts: [CLIMount]?) {
+        self.mounts = mounts
+    }
+}
+
 public struct CLIStatus: Codable, Sendable, Equatable {
     public var vault: CLIVaultStatus?
     public var mounts: CLIMountsStatus?
     public var guardStatus: CLIGuardStatus?
     public var sessions: [CLISession]?
+    public var agent: CLIAgentStatus?
 
     enum CodingKeys: String, CodingKey {
-        case vault, mounts, sessions
+        case vault, mounts, sessions, agent
         case guardStatus = "guard"
     }
 
@@ -100,12 +155,20 @@ public struct CLIStatus: Codable, Sendable, Equatable {
         vault: CLIVaultStatus?,
         mounts: CLIMountsStatus?,
         guardStatus: CLIGuardStatus? = nil,
-        sessions: [CLISession]? = nil
+        sessions: [CLISession]? = nil,
+        agent: CLIAgentStatus? = nil
     ) {
         self.vault = vault
         self.mounts = mounts
         self.guardStatus = guardStatus
         self.sessions = sessions
+        self.agent = agent
+    }
+
+    /// The protected files, in the registry's order; empty from a jit
+    /// that does not list them.
+    public var protectedFiles: [CLIMount] {
+        agent?.mounts ?? []
     }
 
     /// The sessions a tool minted, by the mint command's first word.

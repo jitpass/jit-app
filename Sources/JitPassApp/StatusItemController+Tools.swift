@@ -86,6 +86,8 @@ extension StatusItemController {
         let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo)
         if scanWindow.isKeyWindow {
             model.findingsOutcome = outcome
+        } else if decoysWindow.isKeyWindow {
+            model.decoysOutcome = outcome
         } else if agentsWindow.isKeyWindow || (agentsWindow.isVisible && !toolsWindow.isVisible) {
             model.agentsOutcome = outcome
         } else {

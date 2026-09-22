@@ -50,6 +50,12 @@ final class StatusItemController {
         size: Design.Window.medium,
         minSize: Design.Window.minimum(for: Design.Window.medium)
     )
+    lazy var decoysWindow = ReportWindow(
+        title: "Decoys",
+        content: DecoysView(model: model, actions: decoysActions),
+        size: Design.Window.medium,
+        minSize: Design.Window.minimum(for: Design.Window.medium)
+    )
     lazy var toolsWindow = ReportWindow(
         title: "JitPass Tools",
         content: ToolsView(model: model, actions: toolsActions),
@@ -164,7 +170,7 @@ final class StatusItemController {
             openScan: { [weak self] in self?.openScan() },
             openDoctor: { [weak self] in self?.openDoctor() },
             openAudit: { [weak self] in self?.openAudit() },
-            openDecoys: { [weak self] in self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "7d")) },
+            openDecoys: { [weak self] in self?.openDecoys() },
             openSettings: { [weak self] in self?.openSettings() },
             openConsent: { [weak self] in self?.openConsent() },
             about: { [weak self] in self?.showAbout() },

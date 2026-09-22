@@ -211,3 +211,63 @@ struct AppNoteRow<Actions: View>: View {
         }
     }
 }
+
+/// One line of a window's header, under the headline: a thing to do, in
+/// the numbers a card below shows, ending in the card's verb as a link.
+/// The header addition Findings introduced (jit-app #44), shared so every
+/// window says its to-do the same way.
+struct HeaderTodo: Identifiable {
+    var id: String
+    var text: String
+    /// The verb, as a link at the end of the line; nil when the line asks
+    /// nothing.
+    var verb: String?
+    var tint: Color
+    var action: () -> Void = {}
+
+    /// The line as one sentence: text, the app's separator, the verb.
+    var sentence: String {
+        verb.map { text + " · " + $0 } ?? text
+    }
+}
+
+/// One Text per line with the verb linked inside it, so a narrow window
+/// wraps the sentence as prose and never strands the verb. A dot in the
+/// line's colour, always beside a word.
+struct HeaderTodoLines: View {
+    let todos: [HeaderTodo]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Win.s2) {
+            ForEach(todos) { todo in
+                HStack(alignment: .firstTextBaseline, spacing: Win.s4) {
+                    Circle().fill(todo.tint).frame(width: 8, height: 8)
+                    Text(Self.sentence(todo)).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .environment(\.openURL, OpenURLAction { url in
+            if let todo = todos.first(where: { Self.url($0) == url }) {
+                todo.action()
+            }
+            return .handled
+        })
+    }
+
+    /// The sentence with its verb as a link, in the colour the app's plain
+    /// buttons use.
+    static func sentence(_ todo: HeaderTodo) -> AttributedString {
+        var sentence = AttributedString(todo.sentence)
+        if let verb = todo.verb, let range = sentence.range(of: verb, options: .backwards), let url = url(todo) {
+            sentence[range].link = url
+            sentence[range].foregroundColor = Color(StatusMark.accent)
+        }
+        return sentence
+    }
+
+    /// An address for the line's action, matched back in `openURL`; never
+    /// opened anywhere else.
+    static func url(_ todo: HeaderTodo) -> URL? {
+        URL(string: "jitpass-todo://" + (todo.id.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""))
+    }
+}
