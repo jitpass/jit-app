@@ -1,0 +1,564 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Agents, Tools, Decoys</title>
+<style>:root{--bg:#090c0a;--bg-2:#0b0f0c;--panel:#0f1411;--panel-2:#121813;--line:rgba(150,230,190,0.10);--line-strong:rgba(150,230,190,0.18);--text:#e8efe9;--muted:#8c968e;--faint:#5c665e;--accent:#3ecf8e;--accent-ink:#061a11;--accent-dim:rgba(62,207,142,0.13);--amber:#f0a94a;--amber-dim:rgba(240,169,74,0.15);--orange:#ff8a4c;--red:#ff6b6b;--glow:rgba(62,207,142,0.16);--term-bg:#0c100e;--term-head:#0f1411;--term-line:rgba(255,255,255,0.065);--term-text:#d6ddd7;--term-dim:#6f7a72;--term-light:#2c332e;--app-unlocked:#3ecf8e;--app-locked:#e5484d;--app-asking:#f0b545;--app-action:#7fd4ff;--app-plate:#1c1f2b;--app-panel-material:#262d32;--app-sheet-material:#323438;--app-label:rgba(255,255,255,0.85);--app-label-2:rgba(255,255,255,0.55);--app-label-3:rgba(255,255,255,0.25);--app-separator:rgba(255,255,255,0.10);--app-control-accent:#0068dc;--app-button-2:#7e8081;--app-window:#323438;--app-card:#414347;--app-titlebar:#343536;--app-track:#414346;--app-window-line:rgba(255,255,255,0.09);--app-row-line:rgba(255,255,255,0.07);--app-hover:rgba(255,255,255,0.05);--app-field:rgba(255,255,255,0.07);--app-btn-line:rgba(255,255,255,0.16);--app-button-quiet:rgba(255,255,255,0.13);--app-segment-track:rgba(255,255,255,0.08);--app-segment-on:rgba(255,255,255,0.16);--app-verbatim:rgba(0,0,0,0.20);--app-unlocked-dim:rgba(62,207,142,0.22);--app-asking-dim:rgba(240,181,69,0.22);--app-locked-dim:rgba(229,72,77,0.18);--space-pill-gap:8px;--space-cta-gap:12px;--space-eyebrow:18px;--space-gutter:24px;--space-hero-gap:56px;--space-section:76px;--space-app-divider:5px;--space-app-row-gap:12px;--space-app-inset:14px;--space-app-sheet:18px;--space-app-1:2px;--space-app-2:4px;--space-app-3:6px;--space-app-4:8px;--space-app-5:12px;--space-app-6:18px;--radius-code:5px;--radius-row:5px;--radius-callout:6px;--radius-btn:8px;--radius-panel:10px;--radius-card:12px;--radius-pill:999px;--radius-control:6px;--radius-segment:5px;--radius-box:4px;--size-mark-menubar:16px;--size-action-row:24px;--size-status-row:26px;--size-mark-panel:34px;--size-panel:300px;--size-sheet:500px;--size-prose:680px;--size-max:1120px;--size-titlebar:28px;--size-btn:22px;--size-btn-lg:30px;--size-win-s:520px;--size-win-m:720px;--size-win-l:900px;--size-win-flow:620px;--size-win-h-s:400px;--size-win-h-m:480px;--size-win-h-l:560px;--size-win-h-flow:540px;--size-sheet-wide:520px;--size-alert:440px;--shadow-term:0 24px 60px -24px rgba(0,0,0,0.7), inset 0 2px 0 rgba(255,255,255,0.03);--font-sans:system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;--font-mono:ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Code", "JetBrains Mono", "Roboto Mono", monospace}
+/* JitPass components: plain CSS over tokens.css. Web pieces (jp-btn, jp-pill,
+   jp-term) copy jitpass-landing/src/app/globals.css; app pieces (jp-mark,
+   jp-panel, jp-sheet, jp-window) recreate jit-app/Sources/JitPassApp in HTML
+   for static mockups, slides and the site. */
+
+.jp-sans { font-family: var(--font-sans); }
+.jp-mono { font-family: var(--font-mono); }
+
+/* ---------- web: button ---------- */
+.jp-btn {
+  font-family: var(--font-mono); font-size: 13.5px; font-weight: 600;
+  padding: 8px 15px; border-radius: var(--radius-btn); cursor: pointer;
+  border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px;
+  text-decoration: none; line-height: 1.6;
+  transition: transform .12s, background .15s, border-color .15s, color .15s;
+}
+.jp-btn:active { transform: translateY(1px); }
+.jp-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.jp-btn--primary { background: var(--accent); color: var(--accent-ink); }
+.jp-btn--primary:hover { background: color-mix(in srgb, var(--accent) 86%, #fff); }
+.jp-btn--ghost { border-color: var(--line-strong); color: var(--text); background: transparent; }
+.jp-btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
+.jp-btn--lg { padding: 12px 20px; font-size: 14px; }
+
+/* ---------- web: pill ---------- */
+.jp-pill {
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted); line-height: 1.6;
+  border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 5px 11px;
+  display: inline-flex; align-items: center; gap: 7px; background: var(--panel);
+}
+.jp-pill__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.jp-pills { display: flex; flex-wrap: wrap; gap: var(--space-pill-gap); }
+
+/* ---------- web: wordmark ---------- */
+.jp-wordmark { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 600; letter-spacing: -0.02em; font-size: 16px; color: var(--text); }
+.jp-wordmark__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-dim); }
+
+/* ---------- web: terminal ---------- */
+.jp-term {
+  background: var(--term-bg); border: 1px solid var(--term-line); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-term); overflow: hidden; font-family: var(--font-mono);
+  color: var(--term-text); font-size: 13.5px; line-height: 1.75;
+}
+.jp-term__head { display: flex; align-items: center; gap: 7px; padding: 11px 14px; border-bottom: 1px solid var(--term-line); background: var(--term-head); }
+.jp-term__light { width: 11px; height: 11px; border-radius: 50%; background: var(--term-light); }
+.jp-term__title { margin-left: 10px; color: var(--term-dim); font-size: 12px; letter-spacing: .01em; }
+.jp-term__body { padding: 16px 18px; overflow-x: auto; }
+.jp-term__body pre { margin: 0; white-space: pre; font: inherit; }
+.jp-term .cmt { color: var(--term-dim); }
+.jp-term .prompt, .jp-term .ok { color: var(--app-unlocked); }
+.jp-term .warn { color: var(--app-asking); }
+.jp-term .crit { color: var(--red); }
+.jp-term .act { color: var(--app-action); }
+.jp-term .b { font-weight: 700; color: #fff; }
+
+/* ---------- app: status mark ---------- */
+.jp-mark { --mark: var(--app-unlocked); position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none; }
+.jp-mark::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--mark); opacity: .22; }
+.jp-mark::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; background: var(--mark); }
+.jp-mark > svg { position: relative; z-index: 1; width: 30%; height: 30%; }
+.jp-mark--locked { --mark: var(--app-locked); }
+.jp-mark--asking { --mark: var(--app-asking); }
+.jp-mark--setup { --mark: var(--app-asking); }
+.jp-mark--setup::before { opacity: .16; }
+.jp-mark--setup::after { inset: 25%; background: transparent; border: 2.9px solid var(--mark); }
+.jp-mark--16 { width: 16px; height: 16px; }
+.jp-mark--setup.jp-mark--16::after { border-width: 1.4px; }
+
+/* ---------- app: menu bar panel ---------- */
+.jp-panel {
+  width: var(--size-panel); border-radius: var(--radius-panel); overflow: hidden;
+  background: var(--app-panel-material); color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 13px;
+  padding-bottom: 5px; box-shadow: 0 0 0 .5px rgba(255,255,255,.18), 0 12px 32px rgba(0,0,0,.45);
+  -webkit-font-smoothing: antialiased;
+}
+.jp-panel__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+.jp-panel__state { font-size: 15px; font-weight: 700; color: #fff; }
+.jp-panel__detail { font-size: 12px; color: var(--app-label-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-panel__intro { font-size: 12px; color: var(--app-label-2); padding: 0 14px 8px; line-height: 1.35; }
+.jp-panel__row { display: flex; align-items: center; gap: 12px; height: var(--size-status-row); padding: 0 14px; }
+.jp-panel__row svg { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.jp-panel__label { flex: 1; }
+.jp-panel__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.jp-panel__dot--ok { background: var(--app-unlocked); }
+.jp-panel__dot--warn { background: var(--app-asking); }
+.jp-panel__dot--risk { background: var(--app-locked); }
+.jp-panel__sep { height: 1px; background: var(--app-separator); margin: 5px 14px; }
+.jp-panel__action { position: relative; display: flex; align-items: center; height: var(--size-action-row); padding: 0 14px; }
+.jp-panel__action span { flex: 1; }
+.jp-panel__action kbd { font: inherit; font-size: 12px; color: var(--app-label-3); }
+.jp-panel__action--hover::before { content: ""; position: absolute; inset: 0 5px; border-radius: var(--radius-row); background: var(--app-control-accent); }
+.jp-panel__action--hover > * { position: relative; color: #fff; }
+.jp-panel__cta { margin: 2px 14px 8px; height: 28px; border-radius: 6px; background: var(--app-control-accent); color: #fff; display: grid; place-items: center; font-size: 13px; }
+
+/* ---------- app: window chrome ---------- */
+.jp-window {
+  border-radius: 10px; overflow: hidden; color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 13px;
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.2), 0 20px 50px rgba(0,0,0,.5);
+  -webkit-font-smoothing: antialiased;
+}
+.jp-window__bar { position: relative; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--app-titlebar); font-size: 13px; font-weight: 600; color: var(--app-label-2); }
+.jp-window__lights { position: absolute; left: 10px; top: 8px; display: flex; gap: 8px; }
+.jp-window__lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.jp-window__lights i:nth-child(2) { background: #febc2e; }
+.jp-window__lights i:nth-child(3) { background: #28c840; }
+.jp-window__lights--off i { background: #6a6c6e !important; }
+.jp-btn-mac { display: inline-grid; place-items: center; height: 22px; padding: 0 10px; border-radius: 5px; font-size: 13px; color: #fff; background: var(--app-button-2); }
+.jp-btn-mac--default { background: var(--app-control-accent); }
+
+/* ---------- app: consent sheet ---------- */
+.jp-sheet { width: var(--size-sheet); background: var(--app-sheet-material); }
+.jp-sheet__body { padding: var(--space-app-sheet); }
+.jp-sheet__head { display: flex; gap: 10px; }
+.jp-sheet__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--app-asking); margin-top: 5px; flex: none; }
+.jp-sheet__title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.35; }
+.jp-sheet__sub { font-size: 11px; color: var(--app-label-2); margin-top: 2px; }
+.jp-sheet__grid { display: grid; grid-template-columns: 90px 1fr; column-gap: 12px; row-gap: 7px; margin: 16px 0 14px; align-items: baseline; }
+.jp-sheet__k { text-align: right; color: var(--app-label-2); }
+.jp-sheet__v { color: var(--app-label); }
+.jp-sheet__v--cmd { font-family: var(--font-mono); font-size: 12px; line-height: 1.45; }
+.jp-sheet__notes { border-top: 1px solid var(--app-separator); padding-top: 10px; font-size: 11px; line-height: 1.6; color: var(--app-label-2); }
+.jp-sheet__buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* ---------- app: setup window ---------- */
+.jp-setup { width: 620px; background: var(--app-window); }
+.jp-setup__body { position: relative; height: 540px; padding: 26px 36px 0; box-sizing: border-box; }
+.jp-setup__hello { display: flex; align-items: center; gap: 16px; }
+.jp-setup__hello b { font-size: 13px; font-weight: 600; color: var(--app-label-2); }
+.jp-setup__title { font-size: 24px; font-weight: 700; color: #fff; margin: 20px 0 10px; letter-spacing: -0.01em; }
+.jp-setup__lede { font-size: 13px; line-height: 1.45; color: var(--app-label-2); margin: 0; }
+.jp-setup__first { font-size: 13px; font-weight: 600; color: var(--app-label); margin: 18px 0 12px; }
+.jp-setup__cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.jp-setup__card { background: var(--app-card); border-radius: 10px; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08); padding: 16px 16px 12px; height: 222px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; }
+.jp-setup__card h4 { margin: 0 0 2px; font-size: 15px; font-weight: 700; color: #fff; }
+.jp-setup__card p { margin: 0; font-size: 12px; line-height: 1.4; color: var(--app-label-2); }
+.jp-setup__card .jp-btn-mac { margin-top: auto; align-self: flex-start; }
+.jp-setup__link { text-align: center; color: var(--app-action); font-size: 12px; margin-top: 12px; }
+.jp-setup__dots { position: absolute; left: 36px; bottom: 26px; display: flex; gap: 6px; }
+.jp-setup__dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.25); }
+.jp-setup__dots i.on { background: rgba(255,255,255,.85); }
+
+/* ---------- app: setup window, later pages (JitPass Onboarding canvas) ---------- */
+.jp-setup__page { display: flex; flex-direction: column; height: 540px; }
+.jp-setup__content { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 26px 36px 0; min-height: 0; line-height: 1.45; }
+.jp-setup__h { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.2px; color: #fff; }
+.jp-setup__muted { margin: 0; font-size: 12px; color: var(--app-label-2); }
+.jp-setup__foot { display: flex; align-items: center; justify-content: space-between; height: 58px; padding: 0 36px; flex: none; }
+.jp-setup__foot .jp-setup__dots { position: static; }
+.jp-setup__foot-actions { display: flex; align-items: center; gap: 10px; }
+.jp-btn-mac--lg { height: 30px; padding: 0 16px; border-radius: 7px; font-weight: 500; }
+.jp-btn-mac--lg.jp-btn-mac--default { padding: 0 18px; font-weight: 600; min-width: 84px; }
+.jp-btn-mac--quiet { background: rgba(255,255,255,0.16); }
+.jp-setup__box { display: flex; flex-direction: column; border-radius: 10px; background: var(--app-card); box-shadow: 0 0 0 .5px rgba(255,255,255,0.14); }
+.jp-setup__rule { height: 1px; background: var(--app-separator); }
+.jp-setup__a { color: var(--app-action); font-size: 12px; text-decoration: none; }
+
+/* big number + bar */
+.jp-count { display: flex; align-items: baseline; gap: 12px; }
+.jp-count__n { font-size: 44px; font-weight: 700; letter-spacing: -1px; line-height: 1; color: #fff; }
+.jp-count__n--ok { color: var(--app-unlocked); }
+.jp-count__label { font-size: 17px; font-weight: 600; color: #fff; }
+.jp-count__side { margin-left: auto; color: var(--app-label-2); }
+.jp-bar { height: 6px; border-radius: 3px; background: var(--app-track); overflow: hidden; }
+.jp-bar > i { display: block; height: 6px; background: var(--app-unlocked); }
+
+/* dotted summary and file list */
+.jp-sum { display: flex; flex-direction: column; gap: 6px; }
+.jp-sum__line, .jp-file { display: flex; gap: 10px; align-items: baseline; }
+.jp-sum__line .jp-panel__dot, .jp-file .jp-panel__dot { width: 7px; height: 7px; transform: translateY(-1px); }
+.jp-sum__line em { font-style: normal; color: var(--app-label-2); }
+.jp-files { display: flex; flex-direction: column; gap: 8px; }
+.jp-file__path { flex: 1; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-file__kind { font-size: 12px; color: var(--app-label-2); }
+.jp-file__val { width: 84px; text-align: right; font-family: var(--font-mono); font-size: 12px; color: var(--app-label-2); }
+.jp-notice { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; background: var(--app-card); font-size: 12px; color: var(--app-label-2); }
+.jp-notice span { flex: 1; }
+
+/* live checklist */
+.jp-steps { gap: 14px; padding: 18px; }
+.jp-step { display: flex; gap: 12px; align-items: flex-start; }
+.jp-step svg { flex: none; margin-top: 1px; }
+.jp-step b { display: block; font-weight: 600; color: #fff; }
+.jp-step span { display: block; font-size: 12px; color: var(--app-label-2); }
+.jp-step--todo b { color: var(--app-label-2); }
+
+/* settings rows with switches */
+.jp-opts { padding: 4px 16px; }
+.jp-opt { display: flex; align-items: center; gap: 14px; padding: 9px 0; }
+.jp-opt > div { flex: 1; }
+.jp-opt > div > b { display: block; font-weight: 600; color: #fff; }
+.jp-opt > div > span { display: block; font-size: 12px; color: var(--app-label-2); }
+.jp-switch { position: relative; width: 36px; height: 22px; border-radius: 11px; background: #484a4e; flex: none; border: 0; padding: 0; }
+.jp-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.jp-switch[aria-checked="true"] { background: var(--app-control-accent); }
+.jp-switch[aria-checked="true"]::after { left: 16px; }
+
+/* ---------- app: window regions (see windows.md) ----------
+   A window is a stack of regions at one inset, holding cards, holding
+   rows. Nothing else nests. Every region is inset --space-app-6 from
+   both sides and divided from the next by one --app-separator rule. */
+.jp-window { background: var(--app-window); border: 1px solid var(--app-window-line); }
+.jp-window--s { width: var(--size-win-s); }
+.jp-window--m { width: var(--size-win-m); }
+.jp-window--l { width: var(--size-win-l); }
+
+.jp-window__banner {
+  display: flex; align-items: center; gap: var(--space-app-3);
+  padding: var(--space-app-4) var(--space-app-6);
+  background: var(--accent-dim); border-bottom: 1px solid var(--app-separator); font-size: 12px;
+}
+.jp-window__banner .jp-dot { margin: 0; }
+.jp-window__banner .jp-abtn { margin-left: auto; }
+
+.jp-window__head {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-5) var(--space-app-6);
+  border-bottom: 1px solid var(--app-separator);
+}
+.jp-window__h { font-size: 15px; font-weight: 600; color: var(--app-label); }
+.jp-window__sub { font-size: 12px; color: var(--app-label-2); margin-top: var(--space-app-1); }
+.jp-window__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+
+.jp-window__toolbar {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-5) var(--space-app-6);
+  border-bottom: 1px solid var(--app-separator);
+}
+.jp-window__body {
+  padding: var(--space-app-6);
+  display: flex; flex-direction: column; gap: var(--space-app-5);
+}
+.jp-window__foot {
+  display: flex; align-items: center; gap: var(--space-app-4);
+  padding: var(--space-app-4) var(--space-app-6);
+  background: var(--app-titlebar); border-top: 1px solid var(--app-separator);
+  font-size: 12px; color: var(--app-label-2);
+}
+.jp-window__count { flex: 1; font-variant-numeric: tabular-nums; }
+.jp-window__count b { color: var(--app-label); font-weight: 600; }
+
+/* ---------- app: card ---------- */
+.jp-card {
+  background: var(--app-card); border-radius: var(--radius-panel);
+  padding: var(--space-app-5); display: flex; flex-direction: column; gap: var(--space-app-4);
+}
+.jp-card__eyebrow {
+  display: flex; align-items: center; gap: var(--space-app-3);
+  font-size: 11px; font-weight: 500; color: var(--app-label-2);
+}
+.jp-card__top { display: flex; align-items: flex-start; gap: var(--space-app-5); }
+.jp-card__title { font-size: 13px; font-weight: 600; color: var(--app-label); }
+.jp-card__note { font-size: 12px; color: var(--app-label-2); max-width: 62ch; margin-top: var(--space-app-1); line-height: 1.4; }
+.jp-card__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+.jp-card__rows { display: flex; flex-direction: column; border-top: 1px solid var(--app-separator); }
+
+/* ---------- app: row ---------- */
+.jp-row {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-4) 0; border-bottom: 1px solid var(--app-row-line);
+  transition: background 140ms ease;
+}
+.jp-row:last-child { border-bottom: 0; }
+.jp-row--top { align-items: flex-start; }
+.jp-row--hover { background: var(--app-hover); }
+.jp-row--on { background: var(--accent-dim); }
+.jp-row__icon { flex: none; opacity: .5; stroke: currentColor; fill: none; stroke-width: 1.2; }
+.jp-row__text { min-width: 0; display: flex; flex-direction: column; gap: var(--space-app-1); }
+.jp-row__name { font-size: 13px; font-weight: 600; color: var(--app-label); }
+.jp-row__name span { font-weight: 400; color: var(--app-label-2); font-family: var(--font-mono); font-size: 11px; }
+.jp-row__fact { font-size: 11px; color: var(--app-label-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-row__fact--wrap { white-space: normal; }
+.jp-row__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+
+/* ---------- app: buttons inside a window ---------- */
+.jp-abtn {
+  font: inherit; font-size: 12px; line-height: 1;
+  height: var(--size-btn); padding: 0 var(--space-app-5);
+  border: 0; border-radius: var(--radius-control); white-space: nowrap;
+  background: var(--app-button-2); color: #fff;
+  display: inline-flex; align-items: center; gap: var(--space-app-3);
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.jp-abtn:active { transform: translateY(1px); }
+.jp-abtn:focus-visible { outline: 2px solid var(--app-control-accent); outline-offset: 1px; }
+.jp-abtn--default { background: var(--app-control-accent); font-weight: 600; }
+.jp-abtn--quiet { background: var(--app-button-quiet); color: var(--app-label); }
+.jp-abtn--destructive { background: var(--app-locked); font-weight: 600; }
+.jp-abtn--plain { background: none; color: var(--app-action); padding: 0 var(--space-app-2); }
+.jp-abtn--more { padding: 0 var(--space-app-4); letter-spacing: 1px; }
+.jp-abtn--lg { height: var(--size-btn-lg); padding: 0 16px; border-radius: 7px; font-size: 13px; }
+.jp-abtn[disabled] { opacity: .45; }
+
+/* ---------- app: segmented filter ---------- */
+.jp-seg {
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--app-segment-track); border-radius: var(--radius-callout); align-self: flex-start;
+}
+.jp-seg__pill {
+  font-size: 12px; padding: var(--space-app-2) var(--space-app-5);
+  border-radius: var(--radius-segment); color: var(--app-label-2); white-space: nowrap;
+  border: 0; background: none; font-family: inherit;
+}
+.jp-seg__pill b { font-weight: 400; color: var(--app-label-3); margin-left: 5px; font-variant-numeric: tabular-nums; }
+.jp-seg__pill .jp-dot { display: inline-block; margin-right: 6px; transform: translateY(-1px); }
+.jp-seg__pill--on { background: var(--app-segment-on); color: var(--app-label); }
+.jp-seg__pill--on b { color: var(--app-label-2); }
+
+/* ---------- app: field, popup, checkbox ---------- */
+.jp-search {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-app-3);
+  background: var(--app-field); border: 1px solid var(--app-btn-line);
+  border-radius: var(--radius-control); padding: var(--space-app-2) var(--space-app-4);
+  color: var(--app-label-2); font-size: 12px;
+}
+.jp-search svg { flex: none; }
+/* The value a row's setting is currently on, never the setting's name:
+   drawn from the search field's tokens. */
+.jp-popup {
+  height: var(--size-btn); padding: 0 var(--space-app-4);
+  display: inline-flex; align-items: center; gap: var(--space-app-4);
+  background: var(--app-field); border: 1px solid var(--app-btn-line);
+  border-radius: var(--radius-control); color: var(--app-label);
+  font: inherit; font-size: 12px; line-height: 1; white-space: nowrap;
+}
+.jp-popup svg { flex: none; opacity: .55; }
+.jp-popup[disabled] { opacity: .45; }
+.jp-check {
+  width: 15px; height: 15px; flex: none; border-radius: var(--radius-box);
+  border: 1px solid var(--app-btn-line); background: var(--app-card);
+  display: grid; place-items: center;
+}
+.jp-check svg { opacity: 0; }
+.jp-check--on { background: var(--app-control-accent); border-color: var(--app-control-accent); }
+.jp-check--on svg { opacity: 1; }
+.jp-keys { display: flex; flex-wrap: wrap; gap: 5px var(--space-app-4); }
+.jp-keys span {
+  font-family: var(--font-mono); font-size: 11px; color: var(--app-label-2);
+  background: var(--app-field); border: 1px solid var(--app-row-line);
+  border-radius: var(--radius-box); padding: 1px 6px;
+}
+
+/* ---------- app: outcome in the row, never in a terminal ---------- */
+.jp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: block; background: var(--app-label-2); }
+.jp-dot--ok { background: var(--app-unlocked); }
+.jp-dot--warn { background: var(--app-asking); }
+.jp-dot--risk { background: var(--app-locked); }
+.jp-glyph {
+  flex: none; width: 16px; height: 16px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700;
+}
+.jp-glyph--ok { background: var(--app-unlocked); color: var(--accent-ink); }
+.jp-glyph--bad { background: var(--app-locked); color: #fff; }
+.jp-spin {
+  flex: none; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--app-asking-dim); border-top-color: var(--app-asking);
+  animation: jp-spin .9s linear infinite;
+}
+@keyframes jp-spin { to { transform: rotate(360deg); } }
+.jp-verbatim {
+  margin-top: var(--space-app-3); background: var(--app-verbatim);
+  border-radius: var(--radius-control); padding: var(--space-app-4) var(--space-app-5);
+  font-family: var(--font-mono); font-size: 11px; color: var(--app-label-2); line-height: 1.5;
+}
+
+/* ---------- app: empty state ---------- */
+.jp-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: var(--space-app-5); padding: 44px var(--space-app-6);
+}
+.jp-empty .jp-mark { width: 56px; height: 56px; }
+.jp-empty__title { font-size: 14px; font-weight: 600; color: var(--app-label); }
+.jp-empty p { margin: 0; font-size: 12px; color: var(--app-label-2); max-width: 400px; line-height: 1.45; }
+
+/* ---------- app: alert ---------- */
+.jp-alert {
+  width: var(--size-alert); background: var(--app-sheet-material);
+  border: 1px solid var(--app-window-line); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-term); padding: 20px var(--space-app-6) var(--space-app-6);
+  display: flex; gap: var(--space-app-5); color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+.jp-alert__plate { width: 46px; height: 46px; border-radius: var(--radius-card); display: grid; place-items: center; flex: none; background: var(--app-locked-dim); }
+.jp-alert__plate--asking { background: var(--app-asking-dim); }
+.jp-alert__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-app-4); }
+.jp-alert__title { font-size: 13px; font-weight: 600; }
+.jp-alert__msg { font-size: 12px; color: var(--app-label-2); line-height: 1.5; }
+.jp-alert__msg strong { color: var(--app-label); font-weight: 600; }
+.jp-alert__buttons { display: flex; gap: var(--space-app-4); justify-content: flex-end; margin-top: var(--space-app-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-spin { animation: none; }
+  .jp-abtn, .jp-row { transition: none; }
+}
+
+
+/* mockup page chrome only; nothing inside a window comes from here */
+body{background:var(--bg);color:var(--text);font-family:var(--font-sans);margin:0;padding:48px 24px 96px;-webkit-font-smoothing:antialiased}
+h1{font-size:34px;font-weight:680;letter-spacing:-.02em;margin:0 0 12px;max-width:820px;text-wrap:balance}
+h1 .on{color:var(--accent)}
+.lede{font-size:17px;line-height:1.6;color:var(--muted);max-width:680px;margin:0 0 56px}
+code{font-family:var(--font-mono);font-size:.92em;color:var(--text)}
+.eyebrow{font-family:var(--font-mono);font-size:12.5px;color:var(--accent);letter-spacing:.02em;display:flex;align-items:center;gap:10px;margin:0 0 18px}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--accent);display:block}
+.board{margin:0 0 76px}
+.board h2{font-size:17px;font-weight:680;letter-spacing:-.02em;margin:0 0 8px}
+.board > p{font-size:17px;line-height:1.6;color:var(--muted);margin:0 0 24px;max-width:680px}
+.stage{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-card);padding:28px;display:inline-block;max-width:100%;overflow-x:auto}
+.cap{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:12px}
+.cross{color:var(--red)}
+.changes{list-style:none;padding:0;margin:0;max-width:680px}
+.changes li{font-size:17px;line-height:1.6;color:var(--muted);padding:12px 0;border-top:1px solid var(--line)}
+.changes b{color:var(--text);font-weight:600}
+.changes .tag{font-family:var(--font-mono);font-size:12.5px;color:var(--accent);display:block;margin-bottom:2px}
+.rule{font-family:var(--font-mono);font-size:12.5px;color:var(--accent)}
+.pair{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+/* the one addition to the header region, as shipped in Findings (jit-app #44):
+   one line per thing to do, app-row 13, a dot with its word, the verb an app-action link */
+.jp-window__todo{display:flex;flex-direction:column;gap:var(--space-app-2);margin-top:var(--space-app-2);margin-bottom:var(--space-app-3)}
+.jp-window__todo div{display:flex;align-items:baseline;gap:var(--space-app-4);font-size:13px;color:var(--app-label)}
+.jp-window__todo .jp-dot{transform:translateY(-1px)}
+.jp-window__todo a{color:var(--app-action);text-decoration:none}
+.jp-window__todo b{font-weight:600;color:#fff}
+.jp-window{font-family:var(--font-sans)}
+</style></head><body>
+<h1>Three windows, <span class="on">one question each</span>.</h1>
+<p class="lede">Built from the design system&rsquo;s <code>bundle.css</code> and tokens, at <code>size-win-m</code> 720px like Findings. Findings is indexed on files and the Vault on secrets; these three are indexed on programs and the files they read, and each earns its place by saying something no other window says. Every number is this Mac&rsquo;s, from <code>jit status</code>, <code>jit audit</code> and the last deep scan; nothing is a value.</p>
+
+<div class="board">
+  <div class="eyebrow">the rule</div>
+  <ul class="changes">
+    <li><span class="tag">one question</span><b>A window answers one question and owns the facts nobody else has.</b> AI Agents: what has this agent seen, what can it reach, what did it do. Tools: what runs through jit, and is it working. Decoys: which files serve them, who read them, and which are still in the open.</li>
+    <li><span class="tag">the header</span><b>The Findings shape: the good news, then one line per thing to do, in the cards&rsquo; own numbers.</b> <span class="rule">a number in the header is a number on a card</span>.</li>
+    <li><span class="tag">before, after</span><b>A key in the open is a Finding wherever it is seen; a wrapped tool, a captured session, a served decoy have no other home.</b> So the before-verbs are Findings&rsquo; and the after-verbs live here.</li>
+    <li><span class="tag">test</span><b>Would the reader change what they do after reading it?</b> Last use, who else read it, what an agent has seen, a missing vault entry: yes. Version strings, catalogue counts, percentages: no.</li>
+  </ul>
+</div>
+
+<div class="board">
+  <div class="eyebrow">AI Agents · now</div>
+  <h2>Green, and wrong</h2>
+  <p>The row counts one finding type. Findings on the same Mac shows copies of 4 vaulted secrets in 31 of Claude Code&rsquo;s files and 17 tokens in its transcripts.</p>
+  <div class="stage"><div class="jp-window jp-window--m">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>AI Agents</div><div class="jp-window__head"><span class="jp-mark"></span><div style="flex:1;min-width:0"><div class="jp-window__h">1 agent on this Mac · all set</div><div class="jp-window__sub">What each agent can reach and what it has done. Every fact lives in Tools, Findings, Decoys or Grants; this window only reads them.</div></div><div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Scan Now…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div>
+  <div class="jp-window__body"><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Working</div><div class="jp-card__top"><div><div class="jp-card__title">What each agent can reach, and what it has done</div><p class="jp-card__note">Every fact lives in Tools, Findings, Decoys or Grants; this window only reads them.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">claude <span>· Claude Code</span></div><div class="jp-row__fact">No key on this Mac · no cached copies · no decoy reads today · no grant</div></div><div class="jp-row__acts"></div></div></div></div></div><div class="jp-window__foot"><span class="jp-window__count">Asking is on · an agent's tool gets a machine credential only after you say so</span><button class="jp-abtn jp-abtn--quiet">Settings…</button></div>
+</div></div>
+  <div class="cap"><span class="cross">✕</span> &ldquo;no cached copies&rdquo; · the digest contradicts the window it digests</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">AI Agents · proposed</div>
+  <h2>What it has seen, what it can reach, what it did</h2>
+  <p>One card per agent, rows for its facts. An agent is not a tool: it <em>records</em>. The first row is what it has seen and whether that is still in its files; then its reach right now; then what it did this week, from the audit. The card&rsquo;s note is &ldquo;since your last visit&rdquo;, which is the whole visit for most people. Clean Caches and Redact are the same commands Findings runs; the switch is the one setting that belongs to the agent.</p>
+  <div class="stage"><div class="jp-window jp-window--m">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>AI Agents</div><div class="jp-window__head"><span class="jp-mark jp-mark--locked"></span><div style="flex:1;min-width:0"><div class="jp-window__h">1 agent on this Mac</div><div class="jp-window__todo"><div><span class="jp-dot jp-dot--risk"></span><span>Claude Code&rsquo;s files hold copies of <b>4</b> vaulted secrets and <b>17</b> other tokens · <a href="#">clear the copies</a> · <a href="#">redact the tokens</a></span></div></div><div class="jp-window__sub">From the deep scan 2 hours ago (<a href="#" style="color:var(--app-action);text-decoration:none">Findings</a>) and the audit, live. A value it already sent upstream needs rotating.</div></div><div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div>
+  <div class="jp-window__body"><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--risk"></span>Fix now</div><div class="jp-card__top"><div><div class="jp-card__title">claude · Claude Code</div><p class="jp-card__note">Since Sunday: 2 new copies in its file-history, 44 runs through jit, nothing asked of you.</p></div><div class="jp-card__acts"><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">In its files</div><div class="jp-row__fact">copies of 4 vaulted secrets in 31 files · 17 tokens by format in 3 transcripts</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Clean Caches…</button><button class="jp-abtn">Redact All 17…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">Can reach</div><div class="jp-row__fact">3 protected files through jit · a real value goes to it only after your Touch ID · no MCP key in the open · no grant</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--plain">Grants…</button></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">This week</div><div class="jp-row__fact">44 runs through jit · 0 real values disclosed · 0 decoy reads · 0 prompts</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--plain">Audit…</button></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">Its own login</div><div class="jp-row__fact">kept in its keychain, not a file · nothing for jit to move</div></div><div class="jp-row__acts"></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">Redact its caches after every scheduled scan</div><div class="jp-row__fact">off · tokens it records stay until you redact them by hand</div></div><div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="false"></button></div></div></div></div></div><div class="jp-window__foot"><span class="jp-window__count">1 agent · 34 copies in its files · 44 runs this week</span></div>
+</div></div>
+  <div class="cap">every number is on the card · the card&rsquo;s numbers are Findings&rsquo; and the audit&rsquo;s</div>
+  <p style="margin-top:24px">The same row when Asking is off. The setting jit calls &ldquo;consent&rdquo; is the one runtime guard between an agent and a real value, so it lives on the row that answers what the agent can reach, in the reader&rsquo;s words, with its switch and its cost beside it; the footer no longer names it.</p>
+  <div class="stage" style="width:720px;max-width:100%;box-sizing:border-box"><div style="max-width:684px"><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--warn"></span>Asking</div><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">Can reach</div><div class="jp-row__fact">3 protected files through jit · a real value goes to it <b style="color:var(--app-label)">without asking you</b> · no MCP key in the open</div></div><div class="jp-row__acts"><button class="jp-switch" role="switch" aria-checked="false"></button></div></div></div></div></div></div>
+  <div class="cap">amber, the cost on the second line, the switch that applies as it flips</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">Tools · now</div>
+  <h2>A catalogue with a state column</h2>
+  <p>&ldquo;2 of jit&rsquo;s 29&rdquo; is an inventory of what jit knows, not of this Mac. The gh row&rsquo;s fact and verb are Findings&rsquo; (once the scan learns to ask the keychain, which it does not yet). Nothing here says whether a wrap is <em>working</em>.</p>
+  <div class="stage"><div class="jp-window jp-window--m">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>JitPass Tools</div><div class="jp-window__head"><span class="jp-mark jp-mark--setup"></span><div style="flex:1;min-width:0"><div class="jp-window__h">2 of jit's 29 tools installed here · 0 wrapped</div><div class="jp-window__sub">looking for keys…</div></div><div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Refresh</button><button class="jp-abtn jp-abtn--quiet">Wrap Another…</button><button class="jp-abtn jp-abtn--quiet">Open in Terminal</button></div></div>
+  <div class="jp-window__body"><div class="jp-card"><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">gh <span>· GitHub CLI OAuth token</span></div><div class="jp-row__fact">token in gh's keychain</div></div><div class="jp-row__acts"><button class="jp-abtn">Wrap…</button></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">git <span>· git HTTPS credentials</span></div><div class="jp-row__fact">nothing found</div></div><div class="jp-row__acts"></div></div></div></div></div><div class="jp-window__foot"><span class="jp-window__count">gh · token in gh's keychain, encrypted · Wrap copies it to wrap-gh/GH_TOKEN for gh's process only</span></div>
+</div></div>
+  <div class="cap"><span class="cross">✕</span> the before-list, duplicated · the after-facts, absent</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">Tools · proposed, this Mac</div>
+  <h2>What runs through jit</h2>
+  <p>Nothing does, so the window is its empty state: the mark, one sentence that names the one thing Findings will offer, and a way to wrap by hand. No header, no catalogue.</p>
+  <div class="stage"><div class="jp-window jp-window--m">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Tools</div>
+  <div class="jp-window__body"><div class="jp-empty"><span class="jp-mark jp-mark--setup"></span><div class="jp-empty__title">Nothing runs through jit yet</div><p>gh keeps a token in its keychain; Findings offers to protect it. git has nothing to protect. A tool appears here once it reads its key through jit.</p><div style="display:flex;gap:var(--space-app-4)"><button class="jp-abtn jp-abtn--quiet">Findings…</button><button class="jp-abtn jp-abtn--quiet">Wrap Another…</button></div></div></div><div class="jp-window__foot"><span class="jp-window__count">2 tools installed · 0 through jit</span></div>
+</div></div>
+  <div class="cap">an empty register is a fact, not a bug</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">Tools · proposed, a Mac with wraps</div>
+  <h2>Health, last use, other readers, sessions</h2>
+  <p>Illustrative rows; this Mac has none. Three cards by state, and the filter carries the worst state behind each pill. <em>Last read</em> proves the shim is on the path the tool takes; <em>0 reads since</em> is the silent failure Doctor catches by accident today; <em>no other program</em> is the decoy question per tool. A captured tool carries its sessions and their clock.</p>
+  <div class="stage"><div class="jp-window jp-window--m">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Tools</div><div class="jp-window__head"><span class="jp-mark jp-mark--asking"></span><div style="flex:1;min-width:0"><div class="jp-window__h">4 tools run through jit · 1 needs you</div><div class="jp-window__todo"><div><span class="jp-dot jp-dot--risk"></span><span><b>aws-stage</b>&rsquo;s session ran out 2 hours ago · <a href="#">log in again</a></span></div><div><span class="jp-dot jp-dot--warn"></span><span><b>terraform</b> is wrapped but has never read its key · <a href="#">check with Doctor</a></span></div></div><div class="jp-window__sub">Each tool reads its key from the vault, for its own process only. Last use and other readers come from the audit.</div></div><div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Wrap Another…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div><div class="jp-window__toolbar"><span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on"><span class="jp-dot jp-dot--risk"></span>All <b>4</b></button><button class="jp-seg__pill"><span class="jp-dot jp-dot--risk"></span>Fix now <b>1</b></button><button class="jp-seg__pill"><span class="jp-dot jp-dot--warn"></span>Silent <b>1</b></button><button class="jp-seg__pill">Working <b>2</b></button></span></div>
+  <div class="jp-window__body"><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--risk"></span>Fix now</div><div class="jp-card__top"><div><div class="jp-card__title">1 session has run out</div><p class="jp-card__note">A captured login jit keeps for a tool. The next aws call fails until you log in again; Log In… opens your terminal.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">clisso <span>· captures aws-stage · aws-prod</span></div><div class="jp-row__fact">aws-stage expired 2 hours ago · aws-prod live, 5h left · 3 sessions today</div></div><div class="jp-row__acts"><button class="jp-abtn">Log In…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div></div></div><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--warn"></span>Silent</div><div class="jp-card__top"><div><div class="jp-card__title">1 tool wrapped, never used</div><p class="jp-card__note">Wrapped on 1 Sep and its key has never been read: another copy on PATH may be answering first.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">terraform <span>· wrap-terraform/TF_TOKEN</span></div><div class="jp-row__fact">0 reads since 1 Sep · Doctor: a second terraform on PATH</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Doctor…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div></div></div><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Working</div><div class="jp-card__top"><div><div class="jp-card__title">2 tools, healthy</div><p class="jp-card__note">The shim is on PATH, the key resolves, and only the tool itself has read it.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">gh <span>· wrap-gh/GH_TOKEN</span></div><div class="jp-row__fact">last read 2 hours ago by gh · 41 reads this week · no other program</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Verify</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">docker <span>· native · ~/.docker/config.json</span></div><div class="jp-row__fact">protected in place · last read yesterday by docker · no other program</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Verify</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div></div></div></div><div class="jp-window__foot"><span class="jp-window__count">4 through jit · 41 reads this week · 0 by another program</span></div>
+</div></div>
+  <div class="cap">every fact from wrap list, the audit, and status · the verbs are Tools&rsquo; own</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">Decoys · now</div>
+  <h2>A panel row with no window behind it</h2>
+  <p>&ldquo;Decoys · 3 reads today&rdquo; opens the audit filtered to <code>serve</code>. There is no window: nowhere lists which files serve decoys, which are still in the open, what each holds, or why a read got the decoy.</p>
+  <div class="stage"><div class="jp-panel" style="padding-top:6px"><div class="jp-panel__row"><svg viewBox="0 0 16 16"><path d="M7 2.5l1.2 3.3 3.3 1.2-3.3 1.2L7 11.5 5.8 8.2 2.5 7l3.3-1.2z"/><path d="M12 10.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z"/></svg><span class="jp-panel__label">AI Agents</span><span class="jp-panel__dot jp-panel__dot--ok"></span><span>1 of 1</span></div><div class="jp-panel__row"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 7l2 1.5L5 10"/><path d="M8.5 10.5h2.5"/></svg><span class="jp-panel__label">Tools</span><span>0 wrapped</span></div><div class="jp-panel__row"><svg viewBox="0 0 16 16"><path d="M2 8s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z"/><circle cx="8" cy="8" r="1.8"/><path d="M3 13L13 3"/></svg><span class="jp-panel__label">Decoys</span><span class="jp-panel__dot jp-panel__dot--warn"></span><span>3 reads today</span></div></div></div>
+  <div class="cap"><span class="cross">✕</span> three reads of what, by whom, and was that fine?</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">Decoys · proposed, this Mac</div>
+  <h2>Which files, who read them, what they got</h2>
+  <p>The register of protected files with their secret counts and reads, and a Reads card that says <em>why</em> a decoy was served. Two real things this Mac&rsquo;s audit shows and no window does: all 8 decoy reads this week happened because the vault was locked (fine, and worth knowing), and on 19 Sep a run asked hibob/.env for a variable the vault does not hold and got nothing. That file is its own card, since a row carries no state of its own. The reader program is not recorded for these reads; the row says so instead of guessing.</p>
+  <div class="stage"><div class="jp-window jp-window--m">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Decoys</div><div class="jp-window__head"><span class="jp-mark jp-mark--asking"></span><div style="flex:1;min-width:0"><div class="jp-window__h">3 files protected · 0 in the open</div><div class="jp-window__todo"><div><span class="jp-dot jp-dot--risk"></span><span><b>hibob/.env</b> names a secret the vault does not have · <a href="#">fix it</a></span></div><div><span class="jp-dot jp-dot--warn"></span><span><b>8</b> decoy reads this week, all while the vault was locked · <a href="#">see them</a></span></div></div><div class="jp-window__sub">A protected file keeps its names, not its values: a program gets the real values only through jit, and a decoy otherwise. Deep scan 2 hours ago.</div></div><div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Protect Another…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div>
+  <div class="jp-window__body"><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--risk"></span>Fix now</div><div class="jp-card__top"><div><div class="jp-card__title">1 file names a secret the vault does not have</div><p class="jp-card__note">A run asked for it and got nothing. Put the value in the vault, or take the name out of the file.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><svg class="jp-row__icon" width="15" height="17" viewBox="0 0 15 17"><path d="M1.5 1h7l5 5v10h-12z"/><path d="M8.5 1v5h5"/></svg><div class="jp-row__text"><div class="jp-row__name">hibob/.env <span>· ~/Security-Ops/custom_scripts</span></div><div class="jp-row__fact">6 secrets · HIBOB_BASE_URL is not in the vault · 3 decoy reads this week</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Vault…</button><button class="jp-abtn jp-abtn--quiet">Open</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div></div></div><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Protected</div><div class="jp-card__top"><div><div class="jp-card__title">2 files serve decoys</div><p class="jp-card__note">Each keeps the names, not the values. A program reading it outside a run or a grant gets the decoy, and the read is logged.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><svg class="jp-row__icon" width="15" height="17" viewBox="0 0 15 17"><path d="M1.5 1h7l5 5v10h-12z"/><path d="M8.5 1v5h5"/></svg><div class="jp-row__text"><div class="jp-row__name">wiz/.env <span>· ~/Security-Ops/custom_scripts</span></div><div class="jp-row__fact">7 secrets · 4 decoy reads this week · last real read 21 Sep by python3</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Open</button><button class="jp-abtn jp-abtn--quiet">Vault…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div><div class="jp-row"><svg class="jp-row__icon" width="15" height="17" viewBox="0 0 15 17"><path d="M1.5 1h7l5 5v10h-12z"/><path d="M8.5 1v5h5"/></svg><div class="jp-row__text"><div class="jp-row__name">notion/.env <span>· ~/Security-Ops/custom_scripts</span></div><div class="jp-row__fact">3 secrets · 1 decoy read this week · never read for real</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Open</button><button class="jp-abtn jp-abtn--quiet">Vault…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div></div></div><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--warn"></span>Reads</div><div class="jp-card__top"><div><div class="jp-card__title">8 decoy reads in 7 days · 0 real</div><p class="jp-card__note">Who opened a protected file and what they got. A decoy read is jit working; the reason says whether it was the lock, a missing grant, or a stranger.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">Today 13:23 <span>· 3 files at once</span></div><div class="jp-row__fact">reader not recorded · the vault was locked · the decoy was served</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--plain">Audit…</button></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">Sun 13:07 <span>· wiz/.env · hibob/.env</span></div><div class="jp-row__fact">reader not recorded · the vault was locked · 2 reads each</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--plain">Audit…</button></div></div><div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">19 Sep 21:36 <span>· hibob/.env</span></div><div class="jp-row__fact">a run asked for HIBOB_BASE_URL · not in the vault · nothing was served</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--plain">Vault…</button></div></div></div></div></div><div class="jp-window__foot"><span class="jp-window__count">3 files · 16 secrets · 8 decoy reads this week</span></div>
+</div></div>
+  <div class="cap">a decoy read is jit working · the reason is the fact</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">Decoys · with files still in the open</div>
+  <h2>&ldquo;Which .env files are not protected yet?&rdquo;</h2>
+  <p>The one before-fact this window repeats from Findings, because the question is asked here: a card of plaintext credential files with Findings&rsquo; own Protect verb, and Protect All as the footer&rsquo;s default button. Illustrative; this Mac has none.</p>
+  <div class="stage"><div class="jp-window jp-window--m">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Decoys</div><div class="jp-window__head"><span class="jp-mark jp-mark--locked"></span><div style="flex:1;min-width:0"><div class="jp-window__h">3 files protected · 2 in the open</div><div class="jp-window__todo"><div><span class="jp-dot jp-dot--risk"></span><span><b>2</b> .env files still hold plaintext secrets · <a href="#">protect them</a></span></div></div><div class="jp-window__sub">A protected file keeps its names, not its values: a program gets the real values only through jit, and a decoy otherwise. Whole Mac · 10 minutes ago.</div></div><div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Protect Another…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div><div class="jp-window__toolbar"><span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on"><span class="jp-dot jp-dot--risk"></span>All <b>5</b></button><button class="jp-seg__pill"><span class="jp-dot jp-dot--risk"></span>In the open <b>2</b></button><button class="jp-seg__pill">Protected <b>3</b></button></span></div>
+  <div class="jp-window__body"><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--risk"></span>In the open</div><div class="jp-card__top"><div><div class="jp-card__title">2 files hold plaintext secrets</div><p class="jp-card__note">The same rows Findings shows, with the same verb, so this window can answer which .env is not protected yet.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><svg class="jp-row__icon" width="15" height="17" viewBox="0 0 15 17"><path d="M1.5 1h7l5 5v10h-12z"/><path d="M8.5 1v5h5"/></svg><div class="jp-row__text"><div class="jp-row__name">.env <span>· ~/code/webapp</span></div><div class="jp-row__fact">4 secrets · STRIPE_API_KEY, DB_PASSWORD and 2 more</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Open</button><button class="jp-abtn">Protect…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div><div class="jp-row"><svg class="jp-row__icon" width="15" height="17" viewBox="0 0 15 17"><path d="M1.5 1h7l5 5v10h-12z"/><path d="M8.5 1v5h5"/></svg><div class="jp-row__text"><div class="jp-row__name">.env.local <span>· ~/code/dashboard</span></div><div class="jp-row__fact">2 secrets · NEXT_SECRET, SESSION_KEY</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Open</button><button class="jp-abtn">Protect…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div></div></div><div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Protected</div><div class="jp-card__top"><div><div class="jp-card__title">3 files serve decoys</div><p class="jp-card__note">Each keeps the names, not the values. A program reading it outside a run or a grant gets the decoy, and the read is logged.</p></div><div class="jp-card__acts"></div></div><div class="jp-card__rows"><div class="jp-row"><svg class="jp-row__icon" width="15" height="17" viewBox="0 0 15 17"><path d="M1.5 1h7l5 5v10h-12z"/><path d="M8.5 1v5h5"/></svg><div class="jp-row__text"><div class="jp-row__name">wiz/.env <span>· ~/Security-Ops/custom_scripts</span></div><div class="jp-row__fact">7 secrets · 4 decoy reads this week · last real read 21 Sep by python3</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Open</button><button class="jp-abtn jp-abtn--quiet">Vault…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div></div></div></div></div><div class="jp-window__foot"><span class="jp-window__count">3 files · 2 in the open · 8 decoy reads this week</span><button class="jp-abtn jp-abtn--default">Protect All 2…</button></div>
+</div></div>
+  <div class="cap">same fact, same verb, same count as Findings&rsquo; Protect card</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">the panel</div>
+  <h2>Three rows, three honest values</h2>
+  <div class="pair"><div class="stage"><div class="jp-panel" style="padding-top:6px"><div class="jp-panel__row"><svg viewBox="0 0 16 16"><path d="M7 2.5l1.2 3.3 3.3 1.2-3.3 1.2L7 11.5 5.8 8.2 2.5 7l3.3-1.2z"/><path d="M12 10.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z"/></svg><span class="jp-panel__label">AI Agents</span><span class="jp-panel__dot jp-panel__dot--ok"></span><span>1 of 1</span></div><div class="jp-panel__row"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 7l2 1.5L5 10"/><path d="M8.5 10.5h2.5"/></svg><span class="jp-panel__label">Tools</span><span>0 wrapped</span></div><div class="jp-panel__row"><svg viewBox="0 0 16 16"><path d="M2 8s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z"/><circle cx="8" cy="8" r="1.8"/><path d="M3 13L13 3"/></svg><span class="jp-panel__label">Decoys</span><span class="jp-panel__dot jp-panel__dot--warn"></span><span>3 reads today</span></div></div></div><div class="stage"><div class="jp-panel" style="padding-top:6px"><div class="jp-panel__row"><svg viewBox="0 0 16 16"><path d="M7 2.5l1.2 3.3 3.3 1.2-3.3 1.2L7 11.5 5.8 8.2 2.5 7l3.3-1.2z"/><path d="M12 10.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z"/></svg><span class="jp-panel__label">AI Agents</span><span class="jp-panel__dot jp-panel__dot--risk"></span><span>copies in Claude Code</span></div><div class="jp-panel__row"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M5 7l2 1.5L5 10"/><path d="M8.5 10.5h2.5"/></svg><span class="jp-panel__label">Tools</span><span>none through jit</span></div><div class="jp-panel__row"><svg viewBox="0 0 16 16"><path d="M2 8s2.2-4 6-4 6 4 6 4-2.2 4-6 4-6-4-6-4z"/><circle cx="8" cy="8" r="1.8"/><path d="M3 13L13 3"/></svg><span class="jp-panel__label">Decoys</span><span class="jp-panel__dot jp-panel__dot--warn"></span><span>3 files · 3 reads today</span></div></div></div></div>
+  <div class="cap">left: today · right: proposed. &ldquo;1 of 1&rdquo; counted agents; the value is now the worst fact.</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">what changes</div>
+  <ul class="changes">
+    <li><span class="tag">bug, now</span><b>AI Agents counts every finding in the agent&rsquo;s files.</b> Vault copies, cached copies and shape-found tokens, not one type. Ships on its own before any redesign; on this Mac the row goes red.</li>
+    <li><span class="tag">engine</span><b><code>jit scan</code> asks the keychain.</b> <code>wrap list --discover</code>&rsquo;s probe joins the scan so a keychain-held token is a Finding with <code>jit wrap gh</code> as its fix. Then Tools lists no unwrapped tools, and &ldquo;why doesn&rsquo;t scan find the tools to wrap&rdquo; closes at its root.</li>
+    <li><span class="tag">engine</span><b>Serve events name the reader.</b> The audit already tries; on this Mac every read this week says nothing. The row prints &ldquo;reader not recorded&rdquo; until it does.</li>
+    <li><span class="tag">engine</span><b>Consent events per program.</b> Asked, allowed, denied, with the program and the secret names; the card needs them by program.</li>
+    <li><span class="tag">engine</span><b>A per-agent redact switch.</b> The Settings switch is global; the card offers it per agent, as a switch, with its cost on the row&rsquo;s second line.</li>
+    <li><span class="tag">D10</span><b>AI Agents acts on its own rows.</b> Clean Caches and Redact sit on the &ldquo;In its files&rdquo; row: the same commands, the same dialogs, as Findings runs. D10 said &ldquo;a digest, not a place to act&rdquo;; the digest was wrong because nobody looked at it, and a window nobody acts from is not looked at.</li>
+    <li><span class="tag">removed</span><b>Scan Now… and the Asking footer on AI Agents.</b> Scanning is Findings&rsquo; verb; the header sentence says when the last scan ran and links there. &ldquo;Asking is on&rdquo; was a setting&rsquo;s name in a footer whose only verb sent you to Settings; it is now a fact on the Can reach row (&ldquo;a real value goes to it only after your Touch ID&rdquo;) with its switch when off, and the footer states: &ldquo;1 agent · 34 copies in its files · 44 runs this week&rdquo;. Findings… on the card title duplicated the row&rsquo;s verbs and moved into ···.</li>
+    <li><span class="tag">removed</span><b>The catalogue, Open in Terminal, Refresh as a button.</b> Refresh is the ··· menu&rsquo;s; the window reloads when it opens.</li>
+    <li><span class="tag">name</span><b>Decoys keeps its name.</b> It is the one word in the panel that says what the protection <em>does</em> rather than what it is, and it is the thing a reader gets. &ldquo;Mount&rdquo; stays the CLI&rsquo;s word. The window&rsquo;s headline carries the file count, so the name does not have to.</li>
+    <li><span class="tag">windows.md</span><b>The header&rsquo;s to-do lines are the one region addition.</b> Findings ships them (jit-app #44); this page uses them the same way. windows.md should gain the lines: app-row 13, a dot with its word, the verb an app-action link, <code>space-app-2</code> apart.</li>
+  </ul>
+</div>
+
+<div class="board">
+  <div class="eyebrow">to confirm</div>
+  <ul class="changes">
+    <li><span class="tag">scope</span><b>Decoys repeats one Findings fact.</b> The &ldquo;In the open&rdquo; card duplicates Findings&rsquo; Protect card on purpose. Keep it, or link to Findings instead?</li>
+    <li><span class="tag">wording</span><b>&ldquo;In its files / Can reach / This week&rdquo; as row names.</b> Or the shorter &ldquo;Seen / Reaches / Did&rdquo;?</li>
+    <li><span class="tag">illustrative</span><b>The Tools-with-wraps window is invented.</b> Nothing on this Mac is wrapped; the rows show the shape.</li>
+    <li><span class="tag">not drawn</span><b>Transcript sync.</b> The card cannot yet say whether an agent&rsquo;s transcripts leave this Mac; until jit reads each agent&rsquo;s setting, the header sentence carries the rotate warning.</li>
+  </ul>
+</div>
+
+</body></html>
