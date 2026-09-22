@@ -22,6 +22,14 @@ public enum SessionState: Equatable, Sendable {
         }
     }
 
+    /// The session's remaining time; nil when there is no session to spend.
+    public var unlockedFor: TimeInterval? {
+        if case let .unlocked(expiresIn, _) = self {
+            return expiresIn
+        }
+        return nil
+    }
+
     /// The one-word headline of the dropdown.
     public var headline: String {
         switch self {

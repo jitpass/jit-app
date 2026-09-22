@@ -301,7 +301,7 @@ deliberate, bounded exposure, not a leak.
   `runVault(_ argv:, stdin:, then:)` that sets `vaultBusy`, runs off the
   main thread, clears it, refreshes the listing and `status`, and surfaces a
   failure under the header. One operation at a time, like doctor.
-- After any write the panel's Vault row and the Protected row both refresh:
+- After any write the panel's Vault row and the Findings row both refresh:
   a replace does not change coverage, but a delete of a migrated secret
   does, so the scan is marked stale the way Protect already does.
 

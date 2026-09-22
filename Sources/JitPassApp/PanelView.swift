@@ -126,7 +126,7 @@ struct PanelView: View {
                 }
                 .buttonStyle(HoverRowStyle())
                 Button(action: actions.openScan) {
-                    row("scope", "Protected", model.protectedValue, dot: protectedDot)
+                    row("scope", "Findings", model.findingsValue, dot: findingsDot)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
@@ -205,7 +205,7 @@ struct PanelView: View {
 
     /// Green at 100%, amber when one command closes the gap, red when
     /// something is left that only the user can fix; none until known.
-    private var protectedDot: Color? {
+    private var findingsDot: Color? {
         guard let s = model.macScan?.summary else {
             return nil
         }

@@ -84,7 +84,8 @@ extension ScanReportView {
             kind: kind, at: at, schedule: model.scanSchedule,
             newCount: model.macScanNew?.count, previousAt: model.previousMacScanAt,
             excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess,
-            vaultCopies: model.macScan?.vaultCopies.count ?? 0
+            vaultCopies: model.macScan?.vaultCopies.count ?? 0,
+            vaultCopiesFrom: kind.isDeep ? nil : model.macDeepScanAt
         ))
     }
 
