@@ -26,13 +26,13 @@ final class MenuModel: ObservableObject {
     @Published var scanScope: String?
     /// The scan now running is deep: the window shows the unlock state.
     @Published var scanDeep = false
-    /// The last whole-Mac scan, whoever started it: what the Protected row
-    /// shows. A folder scan never replaces it.
+    /// The last whole-Mac scan, whoever started it: what the Findings row shows. A folder scan never replaces it.
     @Published var macScan: ScanReport?
     @Published var macScanAt: Date?
-    /// Who started the last whole-Mac scan; the ids it has that the run
-    /// before did not (nil: no run to compare with); when that run was.
+    /// Who started the last whole-Mac scan; when the last deep one finished (its vault copies carry: landWholeMac);
+    /// the ids this run has that the one before did not (nil: no run to compare with); when that run was.
     @Published var macScanKind: ScanRunKind?
+    @Published var macDeepScanAt: Date?
     @Published var macScanNew: Set<String>?
     @Published var previousMacScanAt: Date?
     /// Set when jit changed something (a Protect ran) so the next chance
@@ -339,12 +339,11 @@ final class MenuModel: ObservableObject {
         return parts.joined(separator: " · ")
     }
 
-    /// The CLI's headline: secrets protected over secrets known, for the
-    /// whole Mac, and the day the schedule last ran when it was the
-    /// schedule. Never a folder's number.
-    var protectedValue: String {
+    /// The Findings row, named for the window it opens (a list of what needs you, not a report of what is
+    /// protected): the count, the CLI's headline, and the day the schedule last ran. Never a folder's number.
+    var findingsValue: String {
         if let s = macScan?.summary {
-            var value = "\(s.secretsProtected) of \(s.secretsTotal) · \(s.percent)%"
+            var value = "\(s.totalFindings) · \(s.secretsProtected) of \(s.secretsTotal) protected"
             if macScanKind == .scheduled, let at = macScanAt {
                 value += " · " + ScanWording.dayWord(at)
             }

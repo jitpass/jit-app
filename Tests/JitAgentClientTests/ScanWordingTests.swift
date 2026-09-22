@@ -158,6 +158,75 @@ final class ScanWordingTests: XCTestCase {
         XCTAssertEqual(ScanRunKind.byHand.label, "Scanned by hand")
         XCTAssertEqual(ScanRunKind.afterProtect.label, "Scanned after Protect")
         XCTAssertEqual(ScanRunKind.setup.label, "Scanned during setup")
+        XCTAssertEqual(ScanRunKind.deepAfterProtect.label, "Deep scan after Protect")
+    }
+
+    /// 78 findings became 25 after a Redact of 2: the rescan ran regular
+    /// and searched for none of the 53 vault copies the deep scan on
+    /// screen had found. A Protect's rescan keeps a deep report's depth
+    /// while the vault is open; locked, it runs regular and never prompts.
+    func testAProtectsRescanKeepsADeepReportsDepthWhileTheVaultIsOpen() {
+        for previous in [nil, .scheduled, .byHand, .afterProtect, .setup] as [ScanRunKind?] {
+            XCTAssertEqual(ScanRunKind.afterProtect(replacing: previous, unlockedFor: nil), .afterProtect)
+            XCTAssertEqual(ScanRunKind.afterProtect(replacing: previous, unlockedFor: 600), .afterProtect)
+        }
+        for deep in [ScanRunKind.deep, .deepAfterProtect] {
+            XCTAssertEqual(ScanRunKind.afterProtect(replacing: deep, unlockedFor: 600), .deepAfterProtect)
+            XCTAssertEqual(ScanRunKind.afterProtect(replacing: deep, unlockedFor: nil), .afterProtect, "locked: regular, no Touch ID")
+            XCTAssertEqual(
+                ScanRunKind.afterProtect(replacing: deep, unlockedFor: 5),
+                .afterProtect,
+                "a session about to end cannot carry a vault read"
+            )
+        }
+        XCTAssertTrue(ScanRunKind.deepAfterProtect.isDeep)
+        XCTAssertTrue(ScanRunKind.deepAfterProtect.isAfterProtect)
+        XCTAssertTrue(ScanRunKind.afterProtect.isAfterProtect)
+        XCTAssertFalse(ScanRunKind.afterProtect.isDeep)
+        XCTAssertFalse(ScanRunKind.deep.isAfterProtect)
+
+        XCTAssertNil(SessionState.locked(reason: nil).unlockedFor)
+        XCTAssertNil(SessionState.notRunning.unlockedFor)
+        XCTAssertEqual(SessionState.unlocked(expiresIn: 90, ceilingAt: nil).unlockedFor, 90)
+    }
+
+    /// The header names the run that found the copies: the deep rescan
+    /// itself, or, on a regular run that carries them, the deep scan they
+    /// came from.
+    func testTheHeaderSaysWhichRunFoundTheVaultCopies() {
+        let ran = Date(timeIntervalSince1970: 1_700_000_000)
+        let line = ScanWording.wholeMacSubline(
+            ScanRun(
+                kind: .deepAfterProtect,
+                at: ran,
+                schedule: .off,
+                newCount: nil,
+                previousAt: nil,
+                excludes: 0,
+                fullDiskAccess: true,
+                vaultCopies: 53
+            ),
+            now: ran.addingTimeInterval(10), calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US")
+        )
+        XCTAssertTrue(
+            line.hasPrefix("Deep scan after Protect · just now · no schedule · 53 are copies of secrets you've already vaulted. "),
+            line
+        )
+
+        let carried = ScanWording.wholeMacSubline(
+            ScanRun(
+                kind: .afterProtect, at: ran, schedule: .off, newCount: nil, previousAt: nil, excludes: 0, fullDiskAccess: true,
+                vaultCopies: 53, vaultCopiesFrom: ran.addingTimeInterval(-4 * 3600)
+            ),
+            now: ran.addingTimeInterval(10), calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US")
+        )
+        XCTAssertTrue(
+            carried.hasPrefix(
+                "Scanned after Protect · just now · no schedule · "
+                    + "53 are copies of secrets you've already vaulted, from the deep scan 4 hours ago. "
+            ),
+            carried
+        )
     }
 }
 

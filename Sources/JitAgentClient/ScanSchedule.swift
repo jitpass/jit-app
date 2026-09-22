@@ -3,7 +3,7 @@
 
 import Foundation
 
-/// How often the app scans the whole Mac on its own, so the Protected row
+/// How often the app scans the whole Mac on its own, so the Findings row
 /// is a standing state rather than the result of whichever scan was last
 /// clicked. The user picks it in Settings; `off` means every scan is a
 /// click. Kept as plain Foundation so the due rule is unit-tested.

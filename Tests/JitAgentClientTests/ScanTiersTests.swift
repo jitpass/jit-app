@@ -96,6 +96,44 @@ final class ScanTiersTests: XCTestCase {
         XCTAssertEqual(r.removingCacheShapes(in: ["/elsewhere"], lines: []).findings.count, 3)
     }
 
+    /// A regular scan finds no vault copies — it does not read the vault —
+    /// so the deep scan's stay on the report until the user handles them:
+    /// a row goes when its file changed or went, or when a deep scan
+    /// replaces them all.
+    func testARegularRescanCarriesTheDeepScansVaultCopies() throws {
+        let copy = { (id: String, path: String) in
+            self.finding(id, type: "vault_copy", path: path, line: 7, evidence: "exact copy of wiz/WIZ_CLIENT_SECRET")
+        }
+        let deep = try report([
+            copy("v1", "/Users/me/.claude/a.jsonl"), copy("v2", "/Users/me/.claude/b.jsonl"), copy("v3", "/Users/me/.codex/gone.jsonl"),
+            finding("s1", path: "/Users/me/.claude/a.jsonl", line: 10, agent: "Claude Code")
+        ])
+        let regular = try report([finding("s1", path: "/Users/me/.claude/a.jsonl", line: 10, agent: "Claude Code"), finding("f9", line: 1)])
+        XCTAssertEqual(regular.vaultCopies.count, 0, "a regular run finds none")
+
+        let unchanged = { (path: String) in path != "/Users/me/.codex/gone.jsonl" }
+        let carried = regular.carryingVaultCopies(from: deep, unchanged: unchanged)
+        XCTAssertEqual(carried.findings.map(\.id), ["s1", "f9", "v1", "v2"], "the two whose files are as the deep scan saw them")
+        XCTAssertEqual(carried.summary.totalFindings, regular.summary.totalFindings + 2, "the All pill counts them")
+        XCTAssertEqual(carried.vaultCopies.count, 2)
+
+        let again = try report([finding("f9", line: 1)]).carryingVaultCopies(from: carried, unchanged: unchanged)
+        XCTAssertEqual(again.vaultCopies.map(\.id), ["v1", "v2"], "carried rows carry on through the next regular run")
+        XCTAssertEqual(
+            regular.carryingVaultCopies(from: deep) { _ in false }.findings.map(\.id),
+            ["s1", "f9"],
+            "every file changed: nothing to carry"
+        )
+
+        var fresh = try report([copy("v1", "/Users/me/.claude/a.jsonl")])
+        fresh.summary.deep = true
+        XCTAssertEqual(
+            fresh.carryingVaultCopies(from: deep, unchanged: unchanged).findings.map(\.id),
+            ["v1"],
+            "a deep run searched: its own copies, nothing carried"
+        )
+    }
+
     func testOnlyTiersWithFindingsArePresent() throws {
         let r = try report([
             finding("f1", type: "env_file_present", path: "/Users/me/app/.env", evidence: "10 plaintext variables", remedy: "migrate"),
