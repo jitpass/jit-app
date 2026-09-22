@@ -86,10 +86,12 @@ public struct ScanRun: Sendable {
     /// When those copies were found, for a regular run that carries them
     /// from an earlier deep scan; nil when this run found them itself.
     public var vaultCopiesFrom: Date?
+    /// Real-looking values in test files and examples: reported, not counted.
+    public var fixtures = 0
 
     public init(
         kind: ScanRunKind, at: Date, schedule: ScanSchedule, newCount: Int?, previousAt: Date?,
-        excludes: Int, fullDiskAccess: Bool, vaultCopies: Int = 0, vaultCopiesFrom: Date? = nil
+        excludes: Int, fullDiskAccess: Bool, vaultCopies: Int = 0, vaultCopiesFrom: Date? = nil, fixtures: Int = 0
     ) {
         self.kind = kind
         self.at = at
@@ -100,6 +102,7 @@ public struct ScanRun: Sendable {
         self.fullDiskAccess = fullDiskAccess
         self.vaultCopies = vaultCopies
         self.vaultCopiesFrom = vaultCopiesFrom
+        self.fixtures = fixtures
     }
 }
 
@@ -127,19 +130,24 @@ public enum ScanWording {
             }
             facts.append(fact)
         }
-        if run.vaultCopies > 0 {
-            var fact = run.vaultCopies == 1
-                ? "1 is a copy of a secret you've already vaulted"
-                : "\(run.vaultCopies) are copies of secrets you've already vaulted"
-            if let from = run.vaultCopiesFrom {
-                fact += ", from the deep scan " + when(from, now: now, calendar: calendar, locale: locale)
-            }
-            facts.append(fact)
+        // The copies themselves are the header's to-do line (ScanTodo); the
+        // sentence keeps only where a regular run got them from.
+        if run.vaultCopies > 0, let from = run.vaultCopiesFrom {
+            facts.append("copies of vaulted secrets from the deep scan " + when(from, now: now, calendar: calendar, locale: locale))
+        }
+        if run.fixtures > 0 {
+            facts.append(fixturesFact(run.fixtures))
         }
         if run.excludes > 0 {
             facts.append("excluding \(run.excludes) folder" + (run.excludes == 1 ? "" : "s"))
         }
         return facts.joined(separator: " · ") + ". " + limit(fullDiskAccess: run.fullDiskAccess)
+    }
+
+    /// "8 test fixtures, not counted": a tab and a footer count that was
+    /// never a to-do, said once where the run is described.
+    static func fixturesFact(_ n: Int) -> String {
+        "\(n) test fixture" + (n == 1 ? "" : "s") + ", not counted"
     }
 
     /// The same line for a folder scan, which has no schedule and no
@@ -150,6 +158,7 @@ public enum ScanWording {
         excludes: Int,
         fullDiskAccess: Bool,
         deep: Bool = false,
+        fixtures: Int = 0,
         now: Date = Date(),
         calendar: Calendar = .current,
         locale: Locale = .current
@@ -157,6 +166,9 @@ public enum ScanWording {
         var facts = [deep ? "Deep scan of " + folder : folder]
         if let at {
             facts.append(when(at, now: now, calendar: calendar, locale: locale))
+        }
+        if fixtures > 0 {
+            facts.append(fixturesFact(fixtures))
         }
         if excludes > 0 {
             facts.append("excluding \(excludes) folder" + (excludes == 1 ? "" : "s"))
@@ -191,6 +203,13 @@ public enum ScanWording {
 
     /// What the empty Findings window says before the first scan: that the
     /// schedule will report here on its own, and what a scan now covers.
+    /// The chooser over an existing report (New Scan…): the report is
+    /// not gone, and the sentence says so before it says what a scan reads.
+    public static func newScanMessage() -> String {
+        "Your last findings stay until this scan replaces them. Choose a folder, or the whole Mac: "
+            + "it covers your home folder, shell configs, credential files and agent caches. It only reads, and nothing leaves this Mac."
+    }
+
     public static func emptyMessage(schedule: ScanSchedule) -> String {
         let covers = "the whole Mac covers your home folder, shell configs, credential files and agent caches. "
             + "It only reads, and nothing leaves this Mac."

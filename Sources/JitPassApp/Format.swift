@@ -45,14 +45,19 @@ enum Format {
         return parent.isEmpty ? "" : parent
     }
 
-    /// The window's headline: the ledger for a whole-Mac scan, which is
-    /// the number that answers "am I covered", and the findings for a
-    /// folder scan, which has no ledger of its own.
-    static func scanHeadline(_ s: ScanSummary, wholeMac: Bool) -> String {
-        guard wholeMac else {
+    /// The window's headline: for the whole Mac, what is safe — the
+    /// vault's own count, the one number that needs no explanation — with
+    /// the to-do lines under it saying what is not (ScanTodo). A folder
+    /// scan, or a Mac whose vault jit cannot see, leads with its findings.
+    static func scanHeadline(_ s: ScanSummary, wholeMac: Bool, secretsStored: Int?) -> String {
+        guard wholeMac, let stored = secretsStored else {
             return "\(s.totalFindings) finding" + (s.totalFindings == 1 ? "" : "s")
         }
-        return "\(s.secretsProtected) of \(s.secretsTotal) secrets protected"
+        switch stored {
+        case 0: return "Nothing in your vault yet"
+        case 1: return "1 secret in your vault"
+        default: return "\(stored) secrets in your vault"
+        }
     }
 
     /// The footer: what the scan found, counted the way the cards count

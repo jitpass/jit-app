@@ -1,0 +1,697 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Findings header</title>
+<style>
+:root{
+  --bg: #090c0a;
+  --bg-2: #0b0f0c;
+  --panel: #0f1411;
+  --panel-2: #121813;
+  --line: rgba(150,230,190,0.10);
+  --line-strong: rgba(150,230,190,0.18);
+  --text: #e8efe9;
+  --muted: #8c968e;
+  --faint: #5c665e;
+  --accent: #3ecf8e;
+  --accent-ink: #061a11;
+  --accent-dim: rgba(62,207,142,0.13);
+  --amber: #f0a94a;
+  --amber-dim: rgba(240,169,74,0.15);
+  --orange: #ff8a4c;
+  --red: #ff6b6b;
+  --glow: rgba(62,207,142,0.16);
+  --term-bg: #0c100e;
+  --term-head: #0f1411;
+  --term-line: rgba(255,255,255,0.065);
+  --term-text: #d6ddd7;
+  --term-dim: #6f7a72;
+  --term-light: #2c332e;
+  --app-unlocked: #3ecf8e;
+  --app-locked: #e5484d;
+  --app-asking: #f0b545;
+  --app-action: #7fd4ff;
+  --app-plate: #1c1f2b;
+  --app-panel-material: #262d32;
+  --app-sheet-material: #323438;
+  --app-label: rgba(255,255,255,0.85);
+  --app-label-2: rgba(255,255,255,0.55);
+  --app-label-3: rgba(255,255,255,0.25);
+  --app-separator: rgba(255,255,255,0.10);
+  --app-control-accent: #0068dc;
+  --app-button-2: #7e8081;
+  --app-window: #323438;
+  --app-card: #414347;
+  --app-titlebar: #343536;
+  --app-track: #414346;
+  --app-window-line: rgba(255,255,255,0.09);
+  --app-row-line: rgba(255,255,255,0.07);
+  --app-hover: rgba(255,255,255,0.05);
+  --app-field: rgba(255,255,255,0.07);
+  --app-btn-line: rgba(255,255,255,0.16);
+  --app-button-quiet: rgba(255,255,255,0.13);
+  --app-segment-track: rgba(255,255,255,0.08);
+  --app-segment-on: rgba(255,255,255,0.16);
+  --app-verbatim: rgba(0,0,0,0.20);
+  --app-unlocked-dim: rgba(62,207,142,0.22);
+  --app-asking-dim: rgba(240,181,69,0.22);
+  --app-locked-dim: rgba(229,72,77,0.18);
+  --space-pill-gap: 8px;
+  --space-cta-gap: 12px;
+  --space-eyebrow: 18px;
+  --space-gutter: 24px;
+  --space-hero-gap: 56px;
+  --space-section: 76px;
+  --space-app-divider: 5px;
+  --space-app-row-gap: 12px;
+  --space-app-inset: 14px;
+  --space-app-sheet: 18px;
+  --space-app-1: 2px;
+  --space-app-2: 4px;
+  --space-app-3: 6px;
+  --space-app-4: 8px;
+  --space-app-5: 12px;
+  --space-app-6: 18px;
+  --radius-code: 5px;
+  --radius-row: 5px;
+  --radius-callout: 6px;
+  --radius-btn: 8px;
+  --radius-panel: 10px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --radius-control: 6px;
+  --radius-segment: 5px;
+  --radius-box: 4px;
+  --size-mark-menubar: 16px;
+  --size-action-row: 24px;
+  --size-status-row: 26px;
+  --size-mark-panel: 34px;
+  --size-panel: 300px;
+  --size-sheet: 500px;
+  --size-prose: 680px;
+  --size-max: 1120px;
+  --size-titlebar: 28px;
+  --size-btn: 22px;
+  --size-btn-lg: 30px;
+  --size-win-s: 520px;
+  --size-win-m: 720px;
+  --size-win-l: 900px;
+  --size-win-flow: 620px;
+  --size-win-h-s: 400px;
+  --size-win-h-m: 480px;
+  --size-win-h-l: 560px;
+  --size-win-h-flow: 540px;
+  --size-sheet-wide: 520px;
+  --size-alert: 440px;
+  --shadow-term: 0 24px 60px -24px rgba(0,0,0,0.7), inset 0 2px 0 rgba(255,255,255,0.03);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, "Cascadia Code", "JetBrains Mono", "Roboto Mono", monospace;
+}
+/* JitPass components: plain CSS over tokens.css. Web pieces (jp-btn, jp-pill,
+   jp-term) copy jitpass-landing/src/app/globals.css; app pieces (jp-mark,
+   jp-panel, jp-sheet, jp-window) recreate jit-app/Sources/JitPassApp in HTML
+   for static mockups, slides and the site. */
+
+.jp-sans { font-family: var(--font-sans); }
+.jp-mono { font-family: var(--font-mono); }
+
+/* ---------- web: button ---------- */
+.jp-btn {
+  font-family: var(--font-mono); font-size: 13.5px; font-weight: 600;
+  padding: 8px 15px; border-radius: var(--radius-btn); cursor: pointer;
+  border: 1px solid transparent; display: inline-flex; align-items: center; gap: 8px;
+  text-decoration: none; line-height: 1.6;
+  transition: transform .12s, background .15s, border-color .15s, color .15s;
+}
+.jp-btn:active { transform: translateY(1px); }
+.jp-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 1px var(--accent); }
+.jp-btn--primary { background: var(--accent); color: var(--accent-ink); }
+.jp-btn--primary:hover { background: color-mix(in srgb, var(--accent) 86%, #fff); }
+.jp-btn--ghost { border-color: var(--line-strong); color: var(--text); background: transparent; }
+.jp-btn--ghost:hover { border-color: var(--accent); color: var(--accent); }
+.jp-btn--lg { padding: 12px 20px; font-size: 14px; }
+
+/* ---------- web: pill ---------- */
+.jp-pill {
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted); line-height: 1.6;
+  border: 1px solid var(--line); border-radius: var(--radius-pill); padding: 5px 11px;
+  display: inline-flex; align-items: center; gap: 7px; background: var(--panel);
+}
+.jp-pill__dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.jp-pills { display: flex; flex-wrap: wrap; gap: var(--space-pill-gap); }
+
+/* ---------- web: wordmark ---------- */
+.jp-wordmark { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-weight: 600; letter-spacing: -0.02em; font-size: 16px; color: var(--text); }
+.jp-wordmark__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-dim); }
+
+/* ---------- web: terminal ---------- */
+.jp-term {
+  background: var(--term-bg); border: 1px solid var(--term-line); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-term); overflow: hidden; font-family: var(--font-mono);
+  color: var(--term-text); font-size: 13.5px; line-height: 1.75;
+}
+.jp-term__head { display: flex; align-items: center; gap: 7px; padding: 11px 14px; border-bottom: 1px solid var(--term-line); background: var(--term-head); }
+.jp-term__light { width: 11px; height: 11px; border-radius: 50%; background: var(--term-light); }
+.jp-term__title { margin-left: 10px; color: var(--term-dim); font-size: 12px; letter-spacing: .01em; }
+.jp-term__body { padding: 16px 18px; overflow-x: auto; }
+.jp-term__body pre { margin: 0; white-space: pre; font: inherit; }
+.jp-term .cmt { color: var(--term-dim); }
+.jp-term .prompt, .jp-term .ok { color: var(--app-unlocked); }
+.jp-term .warn { color: var(--app-asking); }
+.jp-term .crit { color: var(--red); }
+.jp-term .act { color: var(--app-action); }
+.jp-term .b { font-weight: 700; color: #fff; }
+
+/* ---------- app: status mark ---------- */
+.jp-mark { --mark: var(--app-unlocked); position: relative; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; flex: none; }
+.jp-mark::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: var(--mark); opacity: .22; }
+.jp-mark::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; background: var(--mark); }
+.jp-mark > svg { position: relative; z-index: 1; width: 30%; height: 30%; }
+.jp-mark--locked { --mark: var(--app-locked); }
+.jp-mark--asking { --mark: var(--app-asking); }
+.jp-mark--setup { --mark: var(--app-asking); }
+.jp-mark--setup::before { opacity: .16; }
+.jp-mark--setup::after { inset: 25%; background: transparent; border: 2.9px solid var(--mark); }
+.jp-mark--16 { width: 16px; height: 16px; }
+.jp-mark--setup.jp-mark--16::after { border-width: 1.4px; }
+
+/* ---------- app: menu bar panel ---------- */
+.jp-panel {
+  width: var(--size-panel); border-radius: var(--radius-panel); overflow: hidden;
+  background: var(--app-panel-material); color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 13px;
+  padding-bottom: 5px; box-shadow: 0 0 0 .5px rgba(255,255,255,.18), 0 12px 32px rgba(0,0,0,.45);
+  -webkit-font-smoothing: antialiased;
+}
+.jp-panel__head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+.jp-panel__state { font-size: 15px; font-weight: 700; color: #fff; }
+.jp-panel__detail { font-size: 12px; color: var(--app-label-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-panel__intro { font-size: 12px; color: var(--app-label-2); padding: 0 14px 8px; line-height: 1.35; }
+.jp-panel__row { display: flex; align-items: center; gap: 12px; height: var(--size-status-row); padding: 0 14px; }
+.jp-panel__row svg { width: 16px; height: 16px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.jp-panel__label { flex: 1; }
+.jp-panel__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.jp-panel__dot--ok { background: var(--app-unlocked); }
+.jp-panel__dot--warn { background: var(--app-asking); }
+.jp-panel__dot--risk { background: var(--app-locked); }
+.jp-panel__sep { height: 1px; background: var(--app-separator); margin: 5px 14px; }
+.jp-panel__action { position: relative; display: flex; align-items: center; height: var(--size-action-row); padding: 0 14px; }
+.jp-panel__action span { flex: 1; }
+.jp-panel__action kbd { font: inherit; font-size: 12px; color: var(--app-label-3); }
+.jp-panel__action--hover::before { content: ""; position: absolute; inset: 0 5px; border-radius: var(--radius-row); background: var(--app-control-accent); }
+.jp-panel__action--hover > * { position: relative; color: #fff; }
+.jp-panel__cta { margin: 2px 14px 8px; height: 28px; border-radius: 6px; background: var(--app-control-accent); color: #fff; display: grid; place-items: center; font-size: 13px; }
+
+/* ---------- app: window chrome ---------- */
+.jp-window {
+  border-radius: 10px; overflow: hidden; color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; font-size: 13px;
+  box-shadow: 0 0 0 .5px rgba(255,255,255,.2), 0 20px 50px rgba(0,0,0,.5);
+  -webkit-font-smoothing: antialiased;
+}
+.jp-window__bar { position: relative; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--app-titlebar); font-size: 13px; font-weight: 600; color: var(--app-label-2); }
+.jp-window__lights { position: absolute; left: 10px; top: 8px; display: flex; gap: 8px; }
+.jp-window__lights i { width: 12px; height: 12px; border-radius: 50%; background: #ff5f57; }
+.jp-window__lights i:nth-child(2) { background: #febc2e; }
+.jp-window__lights i:nth-child(3) { background: #28c840; }
+.jp-window__lights--off i { background: #6a6c6e !important; }
+.jp-btn-mac { display: inline-grid; place-items: center; height: 22px; padding: 0 10px; border-radius: 5px; font-size: 13px; color: #fff; background: var(--app-button-2); }
+.jp-btn-mac--default { background: var(--app-control-accent); }
+
+/* ---------- app: consent sheet ---------- */
+.jp-sheet { width: var(--size-sheet); background: var(--app-sheet-material); }
+.jp-sheet__body { padding: var(--space-app-sheet); }
+.jp-sheet__head { display: flex; gap: 10px; }
+.jp-sheet__dot { width: 10px; height: 10px; border-radius: 50%; background: var(--app-asking); margin-top: 5px; flex: none; }
+.jp-sheet__title { font-size: 13px; font-weight: 600; color: #fff; line-height: 1.35; }
+.jp-sheet__sub { font-size: 11px; color: var(--app-label-2); margin-top: 2px; }
+.jp-sheet__grid { display: grid; grid-template-columns: 90px 1fr; column-gap: 12px; row-gap: 7px; margin: 16px 0 14px; align-items: baseline; }
+.jp-sheet__k { text-align: right; color: var(--app-label-2); }
+.jp-sheet__v { color: var(--app-label); }
+.jp-sheet__v--cmd { font-family: var(--font-mono); font-size: 12px; line-height: 1.45; }
+.jp-sheet__notes { border-top: 1px solid var(--app-separator); padding-top: 10px; font-size: 11px; line-height: 1.6; color: var(--app-label-2); }
+.jp-sheet__buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+
+/* ---------- app: setup window ---------- */
+.jp-setup { width: 620px; background: var(--app-window); }
+.jp-setup__body { position: relative; height: 540px; padding: 26px 36px 0; box-sizing: border-box; }
+.jp-setup__hello { display: flex; align-items: center; gap: 16px; }
+.jp-setup__hello b { font-size: 13px; font-weight: 600; color: var(--app-label-2); }
+.jp-setup__title { font-size: 24px; font-weight: 700; color: #fff; margin: 20px 0 10px; letter-spacing: -0.01em; }
+.jp-setup__lede { font-size: 13px; line-height: 1.45; color: var(--app-label-2); margin: 0; }
+.jp-setup__first { font-size: 13px; font-weight: 600; color: var(--app-label); margin: 18px 0 12px; }
+.jp-setup__cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.jp-setup__card { background: var(--app-card); border-radius: 10px; box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08); padding: 16px 16px 12px; height: 222px; box-sizing: border-box; display: flex; flex-direction: column; gap: 6px; }
+.jp-setup__card h4 { margin: 0 0 2px; font-size: 15px; font-weight: 700; color: #fff; }
+.jp-setup__card p { margin: 0; font-size: 12px; line-height: 1.4; color: var(--app-label-2); }
+.jp-setup__card .jp-btn-mac { margin-top: auto; align-self: flex-start; }
+.jp-setup__link { text-align: center; color: var(--app-action); font-size: 12px; margin-top: 12px; }
+.jp-setup__dots { position: absolute; left: 36px; bottom: 26px; display: flex; gap: 6px; }
+.jp-setup__dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.25); }
+.jp-setup__dots i.on { background: rgba(255,255,255,.85); }
+
+/* ---------- app: setup window, later pages (JitPass Onboarding canvas) ---------- */
+.jp-setup__page { display: flex; flex-direction: column; height: 540px; }
+.jp-setup__content { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 26px 36px 0; min-height: 0; line-height: 1.45; }
+.jp-setup__h { margin: 0; font-size: 22px; line-height: 1.2; font-weight: 700; letter-spacing: -0.2px; color: #fff; }
+.jp-setup__muted { margin: 0; font-size: 12px; color: var(--app-label-2); }
+.jp-setup__foot { display: flex; align-items: center; justify-content: space-between; height: 58px; padding: 0 36px; flex: none; }
+.jp-setup__foot .jp-setup__dots { position: static; }
+.jp-setup__foot-actions { display: flex; align-items: center; gap: 10px; }
+.jp-btn-mac--lg { height: 30px; padding: 0 16px; border-radius: 7px; font-weight: 500; }
+.jp-btn-mac--lg.jp-btn-mac--default { padding: 0 18px; font-weight: 600; min-width: 84px; }
+.jp-btn-mac--quiet { background: rgba(255,255,255,0.16); }
+.jp-setup__box { display: flex; flex-direction: column; border-radius: 10px; background: var(--app-card); box-shadow: 0 0 0 .5px rgba(255,255,255,0.14); }
+.jp-setup__rule { height: 1px; background: var(--app-separator); }
+.jp-setup__a { color: var(--app-action); font-size: 12px; text-decoration: none; }
+
+/* big number + bar */
+.jp-count { display: flex; align-items: baseline; gap: 12px; }
+.jp-count__n { font-size: 44px; font-weight: 700; letter-spacing: -1px; line-height: 1; color: #fff; }
+.jp-count__n--ok { color: var(--app-unlocked); }
+.jp-count__label { font-size: 17px; font-weight: 600; color: #fff; }
+.jp-count__side { margin-left: auto; color: var(--app-label-2); }
+.jp-bar { height: 6px; border-radius: 3px; background: var(--app-track); overflow: hidden; }
+.jp-bar > i { display: block; height: 6px; background: var(--app-unlocked); }
+
+/* dotted summary and file list */
+.jp-sum { display: flex; flex-direction: column; gap: 6px; }
+.jp-sum__line, .jp-file { display: flex; gap: 10px; align-items: baseline; }
+.jp-sum__line .jp-panel__dot, .jp-file .jp-panel__dot { width: 7px; height: 7px; transform: translateY(-1px); }
+.jp-sum__line em { font-style: normal; color: var(--app-label-2); }
+.jp-files { display: flex; flex-direction: column; gap: 8px; }
+.jp-file__path { flex: 1; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-file__kind { font-size: 12px; color: var(--app-label-2); }
+.jp-file__val { width: 84px; text-align: right; font-family: var(--font-mono); font-size: 12px; color: var(--app-label-2); }
+.jp-notice { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 8px; background: var(--app-card); font-size: 12px; color: var(--app-label-2); }
+.jp-notice span { flex: 1; }
+
+/* live checklist */
+.jp-steps { gap: 14px; padding: 18px; }
+.jp-step { display: flex; gap: 12px; align-items: flex-start; }
+.jp-step svg { flex: none; margin-top: 1px; }
+.jp-step b { display: block; font-weight: 600; color: #fff; }
+.jp-step span { display: block; font-size: 12px; color: var(--app-label-2); }
+.jp-step--todo b { color: var(--app-label-2); }
+
+/* settings rows with switches */
+.jp-opts { padding: 4px 16px; }
+.jp-opt { display: flex; align-items: center; gap: 14px; padding: 9px 0; }
+.jp-opt > div { flex: 1; }
+.jp-opt > div > b { display: block; font-weight: 600; color: #fff; }
+.jp-opt > div > span { display: block; font-size: 12px; color: var(--app-label-2); }
+.jp-switch { position: relative; width: 36px; height: 22px; border-radius: 11px; background: #484a4e; flex: none; border: 0; padding: 0; }
+.jp-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.3); }
+.jp-switch[aria-checked="true"] { background: var(--app-control-accent); }
+.jp-switch[aria-checked="true"]::after { left: 16px; }
+
+/* ---------- app: window regions (see windows.md) ----------
+   A window is a stack of regions at one inset, holding cards, holding
+   rows. Nothing else nests. Every region is inset --space-app-6 from
+   both sides and divided from the next by one --app-separator rule. */
+.jp-window { background: var(--app-window); border: 1px solid var(--app-window-line); }
+.jp-window--s { width: var(--size-win-s); }
+.jp-window--m { width: var(--size-win-m); }
+.jp-window--l { width: var(--size-win-l); }
+
+.jp-window__banner {
+  display: flex; align-items: center; gap: var(--space-app-3);
+  padding: var(--space-app-4) var(--space-app-6);
+  background: var(--accent-dim); border-bottom: 1px solid var(--app-separator); font-size: 12px;
+}
+.jp-window__banner .jp-dot { margin: 0; }
+.jp-window__banner .jp-abtn { margin-left: auto; }
+
+.jp-window__head {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-5) var(--space-app-6);
+  border-bottom: 1px solid var(--app-separator);
+}
+.jp-window__h { font-size: 15px; font-weight: 600; color: var(--app-label); }
+.jp-window__sub { font-size: 12px; color: var(--app-label-2); margin-top: var(--space-app-1); }
+.jp-window__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+
+.jp-window__toolbar {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-5) var(--space-app-6);
+  border-bottom: 1px solid var(--app-separator);
+}
+.jp-window__body {
+  padding: var(--space-app-6);
+  display: flex; flex-direction: column; gap: var(--space-app-5);
+}
+.jp-window__foot {
+  display: flex; align-items: center; gap: var(--space-app-4);
+  padding: var(--space-app-4) var(--space-app-6);
+  background: var(--app-titlebar); border-top: 1px solid var(--app-separator);
+  font-size: 12px; color: var(--app-label-2);
+}
+.jp-window__count { flex: 1; font-variant-numeric: tabular-nums; }
+.jp-window__count b { color: var(--app-label); font-weight: 600; }
+
+/* ---------- app: card ---------- */
+.jp-card {
+  background: var(--app-card); border-radius: var(--radius-panel);
+  padding: var(--space-app-5); display: flex; flex-direction: column; gap: var(--space-app-4);
+}
+.jp-card__eyebrow {
+  display: flex; align-items: center; gap: var(--space-app-3);
+  font-size: 11px; font-weight: 500; color: var(--app-label-2);
+}
+.jp-card__top { display: flex; align-items: flex-start; gap: var(--space-app-5); }
+.jp-card__title { font-size: 13px; font-weight: 600; color: var(--app-label); }
+.jp-card__note { font-size: 12px; color: var(--app-label-2); max-width: 62ch; margin-top: var(--space-app-1); line-height: 1.4; }
+.jp-card__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+.jp-card__rows { display: flex; flex-direction: column; border-top: 1px solid var(--app-separator); }
+
+/* ---------- app: row ---------- */
+.jp-row {
+  display: flex; align-items: center; gap: var(--space-app-5);
+  padding: var(--space-app-4) 0; border-bottom: 1px solid var(--app-row-line);
+  transition: background 140ms ease;
+}
+.jp-row:last-child { border-bottom: 0; }
+.jp-row--top { align-items: flex-start; }
+.jp-row--hover { background: var(--app-hover); }
+.jp-row--on { background: var(--accent-dim); }
+.jp-row__icon { flex: none; opacity: .5; stroke: currentColor; fill: none; stroke-width: 1.2; }
+.jp-row__text { min-width: 0; display: flex; flex-direction: column; gap: var(--space-app-1); }
+.jp-row__name { font-size: 13px; font-weight: 600; color: var(--app-label); }
+.jp-row__name span { font-weight: 400; color: var(--app-label-2); font-family: var(--font-mono); font-size: 11px; }
+.jp-row__fact { font-size: 11px; color: var(--app-label-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jp-row__fact--wrap { white-space: normal; }
+.jp-row__acts { display: flex; gap: var(--space-app-3); margin-left: auto; flex: none; }
+
+/* ---------- app: buttons inside a window ---------- */
+.jp-abtn {
+  font: inherit; font-size: 12px; line-height: 1;
+  height: var(--size-btn); padding: 0 var(--space-app-5);
+  border: 0; border-radius: var(--radius-control); white-space: nowrap;
+  background: var(--app-button-2); color: #fff;
+  display: inline-flex; align-items: center; gap: var(--space-app-3);
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.jp-abtn:active { transform: translateY(1px); }
+.jp-abtn:focus-visible { outline: 2px solid var(--app-control-accent); outline-offset: 1px; }
+.jp-abtn--default { background: var(--app-control-accent); font-weight: 600; }
+.jp-abtn--quiet { background: var(--app-button-quiet); color: var(--app-label); }
+.jp-abtn--destructive { background: var(--app-locked); font-weight: 600; }
+.jp-abtn--plain { background: none; color: var(--app-action); padding: 0 var(--space-app-2); }
+.jp-abtn--more { padding: 0 var(--space-app-4); letter-spacing: 1px; }
+.jp-abtn--lg { height: var(--size-btn-lg); padding: 0 16px; border-radius: 7px; font-size: 13px; }
+.jp-abtn[disabled] { opacity: .45; }
+
+/* ---------- app: segmented filter ---------- */
+.jp-seg {
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--app-segment-track); border-radius: var(--radius-callout); align-self: flex-start;
+}
+.jp-seg__pill {
+  font-size: 12px; padding: var(--space-app-2) var(--space-app-5);
+  border-radius: var(--radius-segment); color: var(--app-label-2); white-space: nowrap;
+  border: 0; background: none; font-family: inherit;
+}
+.jp-seg__pill b { font-weight: 400; color: var(--app-label-3); margin-left: 5px; font-variant-numeric: tabular-nums; }
+.jp-seg__pill--on { background: var(--app-segment-on); color: var(--app-label); }
+.jp-seg__pill--on b { color: var(--app-label-2); }
+
+/* ---------- app: field, checkbox ---------- */
+.jp-search {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-app-3);
+  background: var(--app-field); border: 1px solid var(--app-btn-line);
+  border-radius: var(--radius-control); padding: var(--space-app-2) var(--space-app-4);
+  color: var(--app-label-2); font-size: 12px;
+}
+.jp-search svg { flex: none; }
+.jp-check {
+  width: 15px; height: 15px; flex: none; border-radius: var(--radius-box);
+  border: 1px solid var(--app-btn-line); background: var(--app-card);
+  display: grid; place-items: center;
+}
+.jp-check svg { opacity: 0; }
+.jp-check--on { background: var(--app-control-accent); border-color: var(--app-control-accent); }
+.jp-check--on svg { opacity: 1; }
+.jp-keys { display: flex; flex-wrap: wrap; gap: 5px var(--space-app-4); }
+.jp-keys span {
+  font-family: var(--font-mono); font-size: 11px; color: var(--app-label-2);
+  background: var(--app-field); border: 1px solid var(--app-row-line);
+  border-radius: var(--radius-box); padding: 1px 6px;
+}
+
+/* ---------- app: outcome in the row, never in a terminal ---------- */
+.jp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: block; background: var(--app-label-2); }
+.jp-dot--ok { background: var(--app-unlocked); }
+.jp-dot--warn { background: var(--app-asking); }
+.jp-dot--risk { background: var(--app-locked); }
+.jp-glyph {
+  flex: none; width: 16px; height: 16px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700;
+}
+.jp-glyph--ok { background: var(--app-unlocked); color: var(--accent-ink); }
+.jp-glyph--bad { background: var(--app-locked); color: #fff; }
+.jp-spin {
+  flex: none; width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--app-asking-dim); border-top-color: var(--app-asking);
+  animation: jp-spin .9s linear infinite;
+}
+@keyframes jp-spin { to { transform: rotate(360deg); } }
+.jp-verbatim {
+  margin-top: var(--space-app-3); background: var(--app-verbatim);
+  border-radius: var(--radius-control); padding: var(--space-app-4) var(--space-app-5);
+  font-family: var(--font-mono); font-size: 11px; color: var(--app-label-2); line-height: 1.5;
+}
+
+/* ---------- app: empty state ---------- */
+.jp-empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: var(--space-app-5); padding: 44px var(--space-app-6);
+}
+.jp-empty .jp-mark { width: 56px; height: 56px; }
+.jp-empty__title { font-size: 14px; font-weight: 600; color: var(--app-label); }
+.jp-empty p { margin: 0; font-size: 12px; color: var(--app-label-2); max-width: 400px; line-height: 1.45; }
+
+/* ---------- app: alert ---------- */
+.jp-alert {
+  width: var(--size-alert); background: var(--app-sheet-material);
+  border: 1px solid var(--app-window-line); border-radius: var(--radius-card);
+  box-shadow: var(--shadow-term); padding: 20px var(--space-app-6) var(--space-app-6);
+  display: flex; gap: var(--space-app-5); color: var(--app-label);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+.jp-alert__plate { width: 46px; height: 46px; border-radius: var(--radius-card); display: grid; place-items: center; flex: none; background: var(--app-locked-dim); }
+.jp-alert__plate--asking { background: var(--app-asking-dim); }
+.jp-alert__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-app-4); }
+.jp-alert__title { font-size: 13px; font-weight: 600; }
+.jp-alert__msg { font-size: 12px; color: var(--app-label-2); line-height: 1.5; }
+.jp-alert__msg strong { color: var(--app-label); font-weight: 600; }
+.jp-alert__buttons { display: flex; gap: var(--space-app-4); justify-content: flex-end; margin-top: var(--space-app-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  .jp-spin { animation: none; }
+  .jp-abtn, .jp-row { transition: none; }
+}
+
+/* page chrome, JitPass web tokens */
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-sans);
+     -webkit-font-smoothing:antialiased;padding:56px 24px 96px;max-width:1120px}
+h1{font-size:34.4px;font-weight:680;letter-spacing:-.025em;margin:0 0 14px}
+h1 .on{color:var(--accent)}
+.lede{color:var(--muted);font-size:18.56px;line-height:1.62;margin:0 0 56px;max-width:34em}
+code{font-family:var(--font-mono);font-size:.9em;background:var(--panel-2);border-radius:var(--radius-code);padding:1px 5px;color:var(--text)}
+.eyebrow{font-family:var(--font-mono);font-size:12.5px;letter-spacing:.02em;color:var(--accent);
+         display:flex;align-items:center;gap:10px;margin:0 0 18px}
+.eyebrow::before{content:"";width:22px;height:1px;background:var(--accent);display:block}
+.board{margin:0 0 76px}
+.board h2{font-size:17px;font-weight:680;letter-spacing:-.02em;margin:0 0 8px}
+.board > p{font-size:17px;line-height:1.6;color:var(--muted);margin:0 0 24px;max-width:680px}
+.row{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap}
+.unit{display:flex;flex-direction:column}
+.stage{background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius-card);
+       padding:28px;display:inline-block}
+.cap{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-top:12px}
+.jp-window{border-radius:10px;overflow:hidden;box-shadow:0 24px 60px -24px rgba(0,0,0,.7)}
+.jp-window__bar{color:var(--app-label)}
+.changes{list-style:none;padding:0;margin:0;max-width:680px}
+.changes li{font-size:17px;line-height:1.6;color:var(--muted);padding:12px 0;border-top:1px solid var(--line)}
+.changes b{color:var(--text);font-weight:600}
+.changes .tag{font-family:var(--font-mono);font-size:12.5px;color:var(--accent);display:block;margin-bottom:2px}
+.stage{display:block}
+.jp-window__head{align-items:flex-start}
+.jp-mark{margin-top:2px}
+.todo{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.todo__line{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--app-label)}
+.todo__line .jp-dot{transform:translateY(-1px)}
+.todo__line b{font-weight:600;color:#fff}
+.todo__line a{color:var(--app-action);text-decoration:none;font-weight:500}
+.todo__line em{font-style:normal;color:var(--app-label-2)}
+.jp-window__sub--limit{margin-top:8px}
+.jp-window__toolbar{display:flex;align-items:center;gap:var(--space-app-4);padding:var(--space-app-4) var(--space-app-6);border-bottom:1px solid var(--app-separator)}
+.jp-seg{display:inline-flex;gap:2px;padding:2px;border-radius:7px;background:var(--app-segment-track)}
+.jp-seg__pill{display:inline-flex;align-items:center;height:22px;padding:0 10px;border-radius:var(--radius-segment);font-size:12px;color:var(--app-label-2)}
+.jp-window__foot{display:flex;align-items:center;gap:var(--space-app-4);padding:var(--space-app-4) var(--space-app-6);border-top:1px solid var(--app-separator);font-size:12px;color:var(--app-label-2)}
+.old .jp-window__h{color:var(--app-label)}
+.cross{color:var(--red);font-family:var(--font-mono);font-size:12px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:1120px}
+@media (max-width:900px){.compare{grid-template-columns:1fr}}
+.rule{font-family:var(--font-mono);font-size:12.5px;color:var(--accent)}
+</style></head><body>
+<h1>Findings: say <span class="on">what to do</span>, in the tabs' own numbers.</h1>
+<p class="lede">The header today counts <em>secrets</em> (deduplicated, 26), the tabs count <em>rows</em> (60), and the sentence in between explains neither. "10 of 26 protected" reads as sixteen things to protect, and there is no list of sixteen anywhere — nor could there be: zero of them are things <code>jit migrate</code> protects. The proposal: the headline says what is safe, one sentence per group says what is not and what to do about it, and every number in the header is a number you can find on a card below it.</p>
+
+<div class="board">
+  <div class="eyebrow">now · your Mac, 22 Sep</div>
+  <h2>Three numbers, none of them a list</h2>
+  <p>26 is distinct secrets: 10 in the vault plus 16 "exposed", where 16 = 4 vaulted secrets with copies + 12 distinct tokens in transcripts. 60 is rows. 35 in the sentence is rows again. The bar is 10/26.</p>
+  <div class="stage"><div class="jp-window jp-window--l old">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Findings</div>
+  <div class="jp-window__head">
+    <span class="jp-mark jp-mark--asking"></span>
+    <div style="flex:1;min-width:0">
+      <div class="jp-window__h">10 of 26 secrets protected</div>
+      
+      <div class="jp-window__sub">Deep scan, by hand · just now · next Wednesday 13:06 · nothing new since 5 min ago · 35 are copies of secrets you've already vaulted. Without Full Disk Access, macOS asks once per protected folder.</div>
+      <div class="jp-bar" style="width:320px;margin-top:8px"><i style="width:38%"></i></div>
+    </div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Grant Access…</button><button class="jp-abtn jp-abtn--quiet">Scan Now…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div>
+  </div>
+  <div class="jp-window__toolbar"><div class="jp-seg"><span class="jp-seg__pill jp-seg__pill--on">All<b>60</b></span><span class="jp-seg__pill">In your vault, still in the open<b>35</b></span><span class="jp-seg__pill">Agent caches<b>17</b></span><span class="jp-seg__pill">Test fixtures<b>8</b></span></div></div>
+  <div class="jp-window__body" style="padding:var(--space-app-6);color:var(--app-label-3);font-size:12px">… the cards, unchanged …</div>
+  <div class="jp-window__foot"><span class="jp-window__count">35 vault copies · 17 agent caches · 8 test fixtures · 12,305 files read</span></div>
+</div></div>
+  <div class="cap"><span class="cross">✕</span> 26, 16, 60, 35 · four counts, three units, one of them invisible</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">proposed · the same Mac</div>
+  <h2>What is safe, then one sentence per thing to do</h2>
+  <p>The headline is the good news and the only count that needs no explanation. Under it, one line per tier that has something in it, in the tier's colour, ending in the card's own verb as a link that scrolls to that card. "4" and "32 files" are the vault-copies card's title; "17 flagged lines in 2 transcripts" is the agent-caches card's. Fixtures move into the run sentence as "not counted".</p>
+  <div class="stage"><div class="jp-window jp-window--l">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Findings</div>
+  <div class="jp-window__head">
+    <span class="jp-mark jp-mark--asking"></span>
+    <div style="flex:1;min-width:0">
+      <div class="jp-window__h">10 secrets in your vault</div>
+      <div class="todo"><div class="todo__line"><span class="jp-dot jp-dot--risk"></span><span><b>4</b> still have plaintext copies in <b>32 files</b> — <a href="#">clear the copies</a></span></div><div class="todo__line"><span class="jp-dot jp-dot--warn"></span><span><b>17 flagged lines</b> sit in <b>2</b> Claude Code transcripts — <a href="#">redact them</a></span></div></div>
+      <div class="jp-window__sub jp-window__sub--limit">Deep scan, by hand · just now · next Wednesday 13:06 · nothing new since 5 min ago · 8 test fixtures, not counted. Without Full Disk Access, macOS asks once per protected folder.</div>
+      
+    </div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Grant Access…</button><button class="jp-abtn jp-abtn--quiet">Scan Now…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div>
+  </div>
+  <div class="jp-window__toolbar"><div class="jp-seg"><span class="jp-seg__pill jp-seg__pill--on">All<b>60</b></span><span class="jp-seg__pill">In your vault, still in the open<b>35</b></span><span class="jp-seg__pill">Agent caches<b>17</b></span><span class="jp-seg__pill">Test fixtures<b>8</b></span></div></div>
+  <div class="jp-window__body" style="padding:var(--space-app-6);color:var(--app-label-3);font-size:12px">… the cards, unchanged …</div>
+  <div class="jp-window__foot"><span class="jp-window__count">35 vault copies · 17 agent caches · 8 test fixtures · 12,305 files read</span></div>
+</div></div>
+  <div class="cap">every number here is on a card · the verbs are the cards' buttons</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">after Redact All</div>
+  <h2>A group that is empty has no sentence</h2>
+  <p>Redacting the two transcripts removes their line. The remaining line is the whole to-do. The segment control loses its Agent caches pill the way it already does.</p>
+  <div class="stage"><div class="jp-window jp-window--l">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Findings</div>
+  <div class="jp-window__head">
+    <span class="jp-mark jp-mark--asking"></span>
+    <div style="flex:1;min-width:0">
+      <div class="jp-window__h">10 secrets in your vault</div>
+      <div class="todo"><div class="todo__line"><span class="jp-dot jp-dot--risk"></span><span><b>4</b> still have plaintext copies in <b>32 files</b> — <a href="#">clear the copies</a></span></div></div>
+      <div class="jp-window__sub jp-window__sub--limit">Deep scan after Protect · just now · next Wednesday 13:06 · 8 test fixtures, not counted. Without Full Disk Access, macOS asks once per protected folder.</div>
+      
+    </div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Scan Now…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div>
+  </div>
+  <div class="jp-window__toolbar"><div class="jp-seg"><span class="jp-seg__pill jp-seg__pill--on">All<b>43</b></span><span class="jp-seg__pill">In your vault, still in the open<b>35</b></span><span class="jp-seg__pill">Test fixtures<b>8</b></span></div></div>
+  <div class="jp-window__body" style="padding:var(--space-app-6);color:var(--app-label-3);font-size:12px">… the cards, unchanged …</div>
+  <div class="jp-window__foot"><span class="jp-window__count">35 vault copies · 8 test fixtures · 12,305 files read</span></div>
+</div></div>
+  <div class="cap">one thing to do, one sentence</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">clean</div>
+  <h2>The header when there is nothing to do</h2>
+  <p>Green mark, the headline, and one line that says so. No bar, no filter, no percentage: 100% of ten is ten.</p>
+  <div class="stage"><div class="jp-window jp-window--l">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Findings</div>
+  <div class="jp-window__head">
+    <span class="jp-mark "></span>
+    <div style="flex:1;min-width:0">
+      <div class="jp-window__h">10 secrets in your vault</div>
+      <div class="todo"><div class="todo__line"><span class="jp-dot jp-dot--ok"></span><span>Nothing in the open.</span></div></div>
+      <div class="jp-window__sub jp-window__sub--limit">Deep scan, by hand · just now · next Wednesday 13:06 · 8 test fixtures, not counted. Full Disk Access granted · a whole-Mac scan runs without prompts.</div>
+      
+    </div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Scan Now…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div>
+  </div>
+  
+  <div class="jp-window__body" style="padding:var(--space-app-6);color:var(--app-label-3);font-size:12px">… the cards, unchanged …</div>
+  <div class="jp-window__foot"><span class="jp-window__count">8 test fixtures · 12,305 files read</span></div>
+</div></div>
+  <div class="cap">the state the whole window exists to reach</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">regular scan</div>
+  <h2>A scan that did not read the vault says so</h2>
+  <p>The schedule runs regular. Copies of vaulted secrets are carried from the last deep scan while their files are unchanged (PR #43); with none to carry, the header says what a regular scan cannot see, instead of implying there is nothing.</p>
+  <div class="stage"><div class="jp-window jp-window--l">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Findings</div>
+  <div class="jp-window__head">
+    <span class="jp-mark jp-mark--asking"></span>
+    <div style="flex:1;min-width:0">
+      <div class="jp-window__h">10 secrets in your vault</div>
+      <div class="todo"><div class="todo__line"><span class="jp-dot jp-dot--warn"></span><span><b>17 flagged lines</b> sit in <b>2</b> Claude Code transcripts — <a href="#">redact them</a></span></div><div class="todo__line"><span class="jp-dot "></span><span><em>Copies of your vaulted secrets are not looked for by a regular scan — <a href="#">Scan Now → Deep</a> does.</em></span></div></div>
+      <div class="jp-window__sub jp-window__sub--limit">Scheduled scan · ran Wednesday 13:06 · next Thursday 13:06 · nothing new · 8 test fixtures, not counted. Without Full Disk Access, macOS asks once per protected folder.</div>
+      
+    </div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--quiet">Scan Now…</button><button class="jp-abtn jp-abtn--quiet jp-abtn--more">···</button></div>
+  </div>
+  <div class="jp-window__toolbar"><div class="jp-seg"><span class="jp-seg__pill jp-seg__pill--on">All<b>25</b></span><span class="jp-seg__pill">Agent caches<b>17</b></span><span class="jp-seg__pill">Test fixtures<b>8</b></span></div></div>
+  <div class="jp-window__body" style="padding:var(--space-app-6);color:var(--app-label-3);font-size:12px">… the cards, unchanged …</div>
+  <div class="jp-window__foot"><span class="jp-window__count">17 agent caches · 8 test fixtures · 12,305 files read</span></div>
+</div></div>
+  <div class="cap">honest about what was not looked for</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">the CLI</div>
+  <h2>The same sentence in the terminal</h2>
+  <p>The app mirrors <code>jit scan</code>'s ledger, so the ledger moves the same way or the two disagree. The score line stays available under <code>--score</code>.</p>
+  <div class="compare"><div class="jp-term" style="max-width:720px"><div class="jp-term__head"><span class="jp-term__light"></span><span class="jp-term__light"></span><span class="jp-term__light"></span><span class="jp-term__title">jit scan --deep · now</span></div><div class="jp-term__body"><pre><span class="b">jit scan</span>  ~/ · 12,305 files · 7.1s
+
+  deep scan: 9 vault secrets checked for exact copies in the open
+  8 more read as configuration and were not searched for; --unfiltered includes them
+
+  <span class="warn">YOUR SECRETS: 26 — 10 protected by jit (38%)</span></pre></div></div><div class="jp-term" style="max-width:720px"><div class="jp-term__head"><span class="jp-term__light"></span><span class="jp-term__light"></span><span class="jp-term__light"></span><span class="jp-term__title">jit scan --deep · proposed</span></div><div class="jp-term__body"><pre><span class="b">jit scan</span>  ~/ · 12,305 files · 7.1s
+
+  deep scan: 9 vault secrets checked for exact copies in the open
+  8 more read as configuration and were not searched for; --unfiltered includes them
+
+  <span class="ok">10 secrets in your vault</span>
+  <span class="crit">4 still have plaintext copies in 32 files</span>          jit migrate --caches
+  <span class="warn">17 flagged lines in 2 Claude Code transcripts</span>       jit migrate redact
+  <span class="cmt">8 test fixtures, not counted</span></pre></div></div></div>
+  <div class="cap">left: today · right: proposed. Each line names its command.</div>
+</div>
+
+<div class="board">
+  <div class="eyebrow">what changes</div>
+  <ul class="changes">
+    <li><span class="tag">headline</span><b>"10 secrets in your vault", not "10 of 26 secrets protected".</b> The denominator mixed vaulted secrets with deduplicated tokens in transcripts, and read as a to-do that had no list. The vault count is the one number every user understands.</li>
+    <li><span class="tag">to-do lines</span><b>One line per tier with something in it.</b> Dot in the tier's colour, the card's own numbers, the card's own verb as a link. Nothing here is computed for the header alone: <span class="rule">a number in the header must be a number on a card.</span></li>
+    <li><span class="tag">verbs</span><b>The sentence ends in what to do.</b> "clear the copies" is Clean Caches, "redact them" is Redact All. A line never says "protect" when the fix is not <code>jit migrate</code>.</li>
+    <li><span class="tag">fixtures</span><b>"8 test fixtures, not counted" moves into the run sentence.</b> It was a tab and a footer count and never a to-do.</li>
+    <li><span class="tag">bar</span><b>The coverage bar goes.</b> It drew 10/26, a ratio the new headline no longer states. If a picture is wanted, it is the vault window's, not this one's.</li>
+    <li><span class="tag">footer</span><b>Unchanged.</b> Rows and files read, as today. The footer counts rows; the header counts things to do; they no longer pretend to be the same.</li>
+    <li><span class="tag">engine</span><b><code>jit scan</code> prints the same lines.</b> <code>secrets_total</code> / <code>secrets_protected</code> stay in the NDJSON for the score; the human report leads with the vault count and the to-do lines, each naming its command.</li>
+  </ul>
+</div>
+
+<div class="board">
+  <div class="eyebrow">to confirm</div>
+  <ul class="changes">
+    <li><span class="tag">wording</span><b>"clear the copies" vs the button's "Clean Caches…".</b> The link and the button should be the same words. Either the button becomes "Clear Copies…" (it deletes cache files that hold copies), or the line says "clean the caches".</li>
+    <li><span class="tag">All pill</span><b>Keep "All 60"?</b> It is the only place the row total appears besides the footer. I kept it; it could go.</li>
+    <li><span class="tag">the 12</span><b>The two transcripts are jit's own research sessions.</b> The scanner is right to flag them and Redact All is one click. Nothing in the header should special-case them.</li>
+  </ul>
+</div>
+
+</body></html>

@@ -35,9 +35,9 @@ final class MenuModel: ObservableObject {
     @Published var macDeepScanAt: Date?
     @Published var macScanNew: Set<String>?
     @Published var previousMacScanAt: Date?
-    /// Set when jit changed something (a Protect ran) so the next chance
-    /// rescans even before the schedule says so.
+    /// Set when jit changed something (a Protect ran) so the next chance rescans even before the schedule says so.
     @Published var scanStale = false
+    @Published var scanChoosing = false // New Scan…: the window shows the chooser over its report, which stays
     @Published var scanSchedule: ScanSchedule = .init(
         rawValue: UserDefaults.standard.string(forKey: ScanSchedule.preferenceKey) ?? ""
     ) ?? .default
@@ -340,10 +340,10 @@ final class MenuModel: ObservableObject {
     }
 
     /// The Findings row, named for the window it opens (a list of what needs you, not a report of what is
-    /// protected): the count, the CLI's headline, and the day the schedule last ran. Never a folder's number.
+    /// protected): the count, and the day the schedule last ran. Never a folder's number, never the ledger.
     var findingsValue: String {
         if let s = macScan?.summary {
-            var value = "\(s.totalFindings) · \(s.secretsProtected) of \(s.secretsTotal) protected"
+            var value = "\(s.totalFindings) finding" + (s.totalFindings == 1 ? "" : "s")
             if macScanKind == .scheduled, let at = macScanAt {
                 value += " · " + ScanWording.dayWord(at)
             }

@@ -149,7 +149,7 @@ struct PanelView: View {
                 action("Start Service", key: "u", actions.unlock)
             }
             action("New Grant…", key: "g", actions.newGrant)
-            action("Scan Now", key: "r", actions.runScan)
+            action("New Scan…", key: "r", actions.runScan)
             action("Open Audit", key: "a", actions.openAudit)
             divider
             action("Settings…", key: ",", actions.openSettings)
@@ -203,16 +203,22 @@ struct PanelView: View {
         return doctor.warnings.isEmpty ? Color(StatusMark.green) : Color(StatusMark.amber)
     }
 
-    /// Green at 100%, amber when one command closes the gap, red when
-    /// something is left that only the user can fix; none until known.
+    /// The window's own colours: green when no card asks anything, red
+    /// when one is a copy in the open or only the user can fix it, amber
+    /// when one command closes the gap; none until known.
     private var findingsDot: Color? {
-        guard let s = model.macScan?.summary else {
+        guard let report = model.macScan else {
             return nil
         }
-        if s.percent == 100 {
+        let tiers = report.tiersPresent.filter { $0 != .testFixtures }
+        guard let worst = tiers.max(by: { Self.urgency($0) < Self.urgency($1) }) else {
             return Color(StatusMark.green)
         }
-        return s.secretsManual > 0 ? Color(StatusMark.red) : Color(StatusMark.amber)
+        return Color(ScanReportView.tierTint(worst))
+    }
+
+    private static func urgency(_ tier: ScanTier) -> Int {
+        tier == .protect ? 1 : 2
     }
 
     private func row(_ symbol: String, _ label: String, _ value: String, dot: Color? = nil) -> some View {
