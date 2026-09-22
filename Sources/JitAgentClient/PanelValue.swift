@@ -39,7 +39,7 @@ public enum PanelValue {
         if needing > 0 {
             return Row(needsYou(needing), .amber)
         }
-        return scanned ? Row("all set", .green) : Row("not searched", .amber)
+        return scanned ? Row("all set", .green) : Row("not scanned", .amber)
     }
 
     /// Broken first, then a session that ran out, then a key in a file
@@ -98,7 +98,9 @@ public enum PanelValue {
     /// The header's to-do lines, counted; the window names them.
     public static func findings(todos: Int, worst: Tone, scanned: Bool, scanning: Bool) -> Row {
         guard scanned else {
-            return Row(scanning ? "scanning…" : "not scanned")
+            // "Not yet" is amber, here as on every row; a scan in flight is
+            // a moment, not a state.
+            return scanning ? Row("scanning…") : Row("not scanned", .amber)
         }
         if todos == 0 {
             return Row("all clear", .green)

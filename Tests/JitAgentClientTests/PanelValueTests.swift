@@ -64,5 +64,11 @@ final class PanelValueTests: XCTestCase {
         XCTAssertEqual(PanelValue.findings(todos: 2, worst: .amber, scanned: true, scanning: false), .init("2 to do", .amber))
         XCTAssertEqual(PanelValue.findings(todos: 0, worst: .none, scanned: true, scanning: false), .init("all clear", .green))
         XCTAssertEqual(PanelValue.findings(todos: 0, worst: .none, scanned: false, scanning: true), .init("scanning…"))
+        XCTAssertEqual(PanelValue.findings(todos: 0, worst: .none, scanned: false, scanning: false), .init("not scanned", .amber))
+        XCTAssertEqual(
+            PanelValue.agents(copies: 0, needing: 0, scanned: false),
+            .init("not scanned", .amber),
+            "the same word and dot as Findings"
+        )
     }
 }
