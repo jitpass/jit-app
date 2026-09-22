@@ -51,6 +51,10 @@ final class MenuModel: ObservableObject {
     /// Decoy serves in the last 24 hours (nil until read), and the same by
     /// reading program, for the AI Agents digest's per-agent row.
     @Published var decoyReads24h: Int?
+    /// The week's serve events, for the Decoys window; empty until read there.
+    @Published var decoyEvents: [SessionEvent] = []
+    @Published var decoysSheet: ToolsSheet?
+    @Published var decoysOutcome: WindowOutcome?
     @Published var decoyReadsByProgram: [String: Int] = [:]
     @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var notifyChanges = Notifier.changesEnabled
@@ -212,15 +216,20 @@ final class MenuModel: ObservableObject {
         return cli?.vault.map { "\($0.secretsStored) secrets" }
     }
 
-    /// The Decoys row: reads today when there were any, since that is the
-    /// event the files exist for; else how many files serve them. "Mount"
-    /// is jit's word for the mechanism and stays in the CLI.
+    /// The Decoys row: the files, and today's reads when there were any,
+    /// since that is the event the files exist for. "Mount" is jit's word
+    /// for the mechanism and stays in the CLI.
     var mountsValue: String? {
-        if let reads = decoyReads24h, reads > 0 {
-            return "\(reads) read\(reads == 1 ? "" : "s") today"
+        guard let mounts = cli?.mounts else {
+            return nil
         }
-        return cli?.mounts
-            .map { "\($0.registered) file\($0.registered == 1 ? "" : "s")" + ($0.servingReal ? " · a run sees real values" : "") }
+        var value = "\(mounts.registered) file\(mounts.registered == 1 ? "" : "s")"
+        if let reads = decoyReads24h, reads > 0 {
+            value += " · \(reads) read\(reads == 1 ? "" : "s") today"
+        } else if mounts.servingReal {
+            value += " · a run sees real values"
+        }
+        return value
     }
 
     var consentValue: String? {
