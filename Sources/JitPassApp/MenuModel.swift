@@ -47,6 +47,8 @@ final class MenuModel: ObservableObject {
     @Published var redactAgents = Set(UserDefaults.standard.stringArray(forKey: Notifier.redactAgentsKey) ?? [])
     /// What each agent did through jit in the last week, by tool, from the audit; empty until read (AI Agents).
     @Published var agentActivity: [String: AgentActivity] = [:]
+    /// Each wrapped tool's reads this week, by tool, from the audit; empty until read (Tools).
+    @Published var toolActivity: [String: ToolActivity] = [:]
     @Published var audit: AuditReport?
     /// Decoy serves in the last 24 hours (nil until read), and the same by
     /// reading program, for the AI Agents digest's per-agent row.
@@ -257,7 +259,8 @@ final class MenuModel: ObservableObject {
         if open > 0 {
             return "\(open) to protect"
         }
-        return "\(listing.wrapped.count) wrapped"
+        let through = listing.others.filter { $0.wrapped || $0.isProtected }.count
+        return through == 0 ? "none through jit" : "\(through) through jit"
     }
 
     /// Installed tools whose key sits in the open: a plaintext file, the
