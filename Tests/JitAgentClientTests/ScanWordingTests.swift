@@ -112,6 +112,10 @@ final class ScanWordingTests: XCTestCase {
         XCTAssertTrue(ScanWording.emptyMessage(schedule: .weekly).hasPrefix("A scan runs on its own every week"))
         XCTAssertTrue(ScanWording.emptyMessage(schedule: .launch).hasPrefix("A scan runs each time JitPass starts"))
         XCTAssertTrue(ScanWording.emptyMessage(schedule: .off).hasPrefix("Nothing runs on its own. Scan to see where you stand"))
+        XCTAssertTrue(
+            ScanWording.newScanMessage().hasPrefix("Your last findings stay until this scan replaces them."),
+            "New Scan… over a report says first that the report is not gone"
+        )
         for schedule in ScanSchedule.allCases {
             XCTAssertTrue(ScanWording.emptyMessage(schedule: schedule).hasSuffix("nothing leaves this Mac."), "\(schedule)")
         }
@@ -132,7 +136,7 @@ final class ScanWordingTests: XCTestCase {
             now: ran.addingTimeInterval(10), calendar: calendar, locale: locale
         )
         XCTAssertTrue(
-            line.hasPrefix("Deep scan, by hand · just now · next Sunday 03:00 · 2 are copies of secrets you've already vaulted. "),
+            line.hasPrefix("Deep scan, by hand · just now · next Sunday 03:00. "),
             line
         )
         XCTAssertTrue(
@@ -209,7 +213,7 @@ final class ScanWordingTests: XCTestCase {
             now: ran.addingTimeInterval(10), calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US")
         )
         XCTAssertTrue(
-            line.hasPrefix("Deep scan after Protect · just now · no schedule · 53 are copies of secrets you've already vaulted. "),
+            line.hasPrefix("Deep scan after Protect · just now · no schedule. "),
             line
         )
 
@@ -222,8 +226,7 @@ final class ScanWordingTests: XCTestCase {
         )
         XCTAssertTrue(
             carried.hasPrefix(
-                "Scanned after Protect · just now · no schedule · "
-                    + "53 are copies of secrets you've already vaulted, from the deep scan 4 hours ago. "
+                "Scanned after Protect · just now · no schedule · copies of vaulted secrets from the deep scan 4 hours ago. "
             ),
             carried
         )
@@ -277,5 +280,33 @@ extension ScanWordingTests {
         let report = try ScanReport(findings: copies, summary: JSONDecoder().decode(ScanSummary.self, from: Data(summary.utf8)))
         XCTAssertEqual(report.copies(from: ["/h/notion/.env"]).map(\.id), ["a", "c"])
         XCTAssertEqual(report.copies(from: ["/h/nothing"]), [])
+    }
+
+    /// The copies themselves are a to-do line now; the sentence keeps the
+    /// fixtures clause and, on a regular run, where its copies came from.
+    func testTheSentenceCountsFixturesOutAndNamesNoCopies() {
+        let ran = Date(timeIntervalSince1970: 1_700_000_000)
+        let line = ScanWording.wholeMacSubline(
+            ScanRun(
+                kind: .deep,
+                at: ran,
+                schedule: .off,
+                newCount: nil,
+                previousAt: nil,
+                excludes: 1,
+                fullDiskAccess: true,
+                vaultCopies: 35,
+                fixtures: 8
+            ),
+            now: ran.addingTimeInterval(10), calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US")
+        )
+        XCTAssertTrue(
+            line.hasPrefix("Deep scan, by hand · just now · no schedule · 8 test fixtures, not counted · excluding 1 folder. "),
+            line
+        )
+        XCTAssertTrue(
+            ScanWording.folderSubline(folder: "~/proj", at: nil, excludes: 0, fullDiskAccess: true, fixtures: 1)
+                .hasPrefix("~/proj · 1 test fixture, not counted. ")
+        )
     }
 }

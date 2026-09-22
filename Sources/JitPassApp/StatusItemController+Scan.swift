@@ -10,12 +10,12 @@ extension StatusItemController {
         ScanActions(
             rescan: { [weak self] in self?.askDepth(scope: self?.model.scanScope) },
             newScan: { [weak self] in
-                // Back to the chooser: the window's report is dropped, the
-                // whole-Mac result the panel shows is not.
-                self?.model.scan = nil
-                self?.model.scanScope = nil
+                // The chooser, over the report: nothing is dropped until a
+                // scan replaces it.
+                self?.model.scanChoosing = true
                 self?.model.scanError = nil
             },
+            showFindings: { [weak self] in self?.model.scanChoosing = false },
             openSettings: { [weak self] in self?.openSettings() },
             chooseFolder: { [weak self] in self?.chooseScanFolder() },
             scanWholeMac: { [weak self] in self?.askDepth(scope: nil) },
@@ -50,7 +50,12 @@ extension StatusItemController {
     /// Opens the report. Nothing is scanned until the user chooses a scope
     /// in the window; a whole-home read is never a side effect of a click.
     func openScan() {
+        presentScan(choosing: false)
+    }
+
+    private func presentScan(choosing: Bool) {
         panel.dismiss()
+        model.scanChoosing = choosing
         model.fullDiskAccess = FullDiskAccess.granted()
         scanWindow.present()
         refreshScanIfDue()
@@ -78,13 +83,12 @@ extension StatusItemController {
         runScan(wholeMac: true, kind: model.scanStale ? .afterProtect : .scheduled)
     }
 
-    /// The panel's Scan Now: the window, with the depth question up for
-    /// the whole Mac. A click on a verb named "scan" is the one case where
-    /// a whole-home read is not a side effect, and the sheet is where the
-    /// depth is chosen every time.
+    /// The panel's New Scan…: the window on its chooser — folder or whole
+    /// Mac, then the depth question — over the last findings, which stay
+    /// until the scan that replaces them lands. The panel's Findings row
+    /// opens the same window on the report.
     func scanNow() {
-        openScan()
-        askDepth(scope: nil)
+        presentScan(choosing: true)
     }
 
     /// Every scan the user starts passes through the depth sheet (design:
@@ -136,6 +140,7 @@ extension StatusItemController {
             ? ScanRunKind.afterProtect(replacing: model.macScanKind, unlockedFor: model.state.unlockedFor)
             : requested
         let deep = requestedDeep || kind.isDeep
+        model.scanChoosing = false
         model.scanning = true
         model.scanDeep = deep
         model.scanError = nil
