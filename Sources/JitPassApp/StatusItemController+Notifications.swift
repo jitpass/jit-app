@@ -82,14 +82,19 @@ extension StatusItemController {
     /// thread: the Mounts row's count, with the live notices whose record
     /// has not landed yet. The stream keeps it current between reads.
     func refreshDecoyReads() {
-        let filter = AuditFilter(kinds: ["serve"], since: "24h", limit: 0)
+        // The week, not the day: the Decoys row and window read the same
+        // events, and a file naming a missing secret is a week-old fact.
+        let filter = AuditFilter(kinds: ["serve"], since: "7d", limit: 0)
+        let dayAgo = Int64(Date().timeIntervalSince1970) - 86400
         Task.detached {
             let report = JitCLI.audit(filter)
             await MainActor.run { [weak self] in
                 guard let self, let report else {
                     return
                 }
-                let reads = report.addingLive(liveServes, filter: filter).authEvents.filter(\.readDecoy)
+                let week = report.addingLive(liveServes, filter: filter).authEvents.filter { $0.kind == "serve" }
+                model.decoyEvents = week
+                let reads = week.filter { $0.readDecoy && $0.unixTime >= dayAgo }
                 model.decoyReads24h = reads.reduce(0) { $0 + ($1.count ?? 1) }
                 // By reading program — the first word of `by`, its last
                 // path segment — so the AI Agents digest can say "2 decoy

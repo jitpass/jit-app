@@ -86,47 +86,47 @@ struct PanelView: View {
                     }
                     .buttonStyle(HoverRowStyle())
                 }
-                if let vault = model.vaultValue {
+                if let vault = model.vaultRow {
                     Button(action: actions.openVault) {
-                        row("archivebox", "Vault", vault)
+                        row("archivebox", "Vault", vault.text, dot: dot(vault.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
-                if let agents = model.agentsValue {
+                if let agents = model.agentsRow {
                     Button(action: actions.openAgents) {
-                        row("sparkles", "AI Agents", agents, dot: dot(model.agentsState))
+                        row("sparkles", "AI Agents", agents.text, dot: dot(agents.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
-                if let tools = model.toolsValue {
+                if let tools = model.toolsRow {
                     Button(action: actions.openTools) {
-                        row("terminal", "Tools", tools, dot: dot(model.toolsState))
+                        row("terminal", "Tools", tools.text, dot: dot(tools.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
-                row("play.circle", "Service", model.serviceValue)
+                row("play.circle", "Service", model.serviceRow.text, dot: dot(model.serviceRow.tone))
                 Button(action: actions.openGrants) {
-                    row("key", "Grants", model.grantsValue, dot: model.grants.isEmpty ? nil : Color(StatusMark.green))
+                    row("key", "Grants", model.grantsRow.text, dot: dot(model.grantsRow.tone))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
-                if let mounts = model.mountsValue {
+                if let decoys = model.decoysRow {
                     Button(action: actions.openDecoys) {
-                        row("eye.slash", "Decoys", mounts, dot: (model.decoyReads24h ?? 0) > 0 ? Color(StatusMark.amber) : nil)
+                        row("eye.slash", "Decoys", decoys.text, dot: dot(decoys.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
                 Button(action: actions.openDoctor) {
-                    row("stethoscope", "Doctor", model.doctorValue, dot: doctorDot)
+                    row("stethoscope", "Doctor", model.doctorRow.text, dot: dot(model.doctorRow.tone))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
                 Button(action: actions.openScan) {
-                    row("scope", "Findings", model.findingsValue, dot: findingsDot)
+                    row("scope", "Findings", model.findingsRow.text, dot: dot(model.findingsRow.tone))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
@@ -184,42 +184,19 @@ struct PanelView: View {
         }
     }
 
-    private func dot(_ state: AgentsState?) -> Color? {
-        switch state {
+    /// The window's mark, or none: the one rule every row's dot follows.
+    private func dot(_ tone: PanelValue.Tone) -> Color? {
+        switch tone {
         case .green: Color(StatusMark.green)
         case .amber: Color(StatusMark.amber)
         case .red: Color(StatusMark.red)
-        case nil: nil
+        case .none: nil
         }
     }
 
-    private var doctorDot: Color? {
-        guard !model.doctorRunning, let doctor = model.doctor else {
-            return nil
-        }
-        if !doctor.problems.isEmpty {
-            return Color(StatusMark.red)
-        }
-        return doctor.warnings.isEmpty ? Color(StatusMark.green) : Color(StatusMark.amber)
-    }
-
-    /// The window's own colours: green when no card asks anything, red
-    /// when one is a copy in the open or only the user can fix it, amber
-    /// when one command closes the gap; none until known.
-    private var findingsDot: Color? {
-        guard let report = model.macScan else {
-            return nil
-        }
-        let tiers = report.tiersPresent.filter { $0 != .testFixtures }
-        guard let worst = tiers.max(by: { Self.urgency($0) < Self.urgency($1) }) else {
-            return Color(StatusMark.green)
-        }
-        return Color(ScanReportView.tierTint(worst))
-    }
-
-    private static func urgency(_ tier: ScanTier) -> Int {
-        tier == .protect ? 1 : 2
-    }
+    // The window's own colours: green when no card asks anything, red
+    // when one is a copy in the open or only the user can fix it, amber
+    // when one command closes the gap; none until known.
 
     private func row(_ symbol: String, _ label: String, _ value: String, dot: Color? = nil) -> some View {
         HStack(spacing: 12) {

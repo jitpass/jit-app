@@ -113,6 +113,9 @@ extension StatusItemController {
         model.scan = model.scan?.removingCacheShapes(in: paths, lines: lines)
         model.macScan = model.macScan?.removingCacheShapes(in: paths, lines: lines)
         model.scanStale = true
+        if let report = model.macScan, let at = model.macScanAt, let kind = model.macScanKind {
+            LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
+        }
     }
 
     /// After a scheduled scan, under the Settings switch: the same command,
