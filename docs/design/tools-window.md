@@ -9,6 +9,25 @@ configs, limits); "Tools" lists tools only. Every button runs in-app except
 renewing an SSO session, which is the IdP's MFA prompt. Rows answer "is
 there a key" before "did jit wrap it" (§3, key states).
 
+**Superseded, 2026-09-22, for all three windows.** The Tools window below
+(a row per installed tool, a selection bar, Refresh, Open in Terminal) and
+the AI Agents digest are replaced by the windows in
+`docs/design/mockups/Agents-Tools-Files.html`, approved on screen the same
+day and shipped as jit-app #45 (AI Agents, Decoys), #46 (Tools) and #47
+(the panel's rows). What stands from this page: §1 (what the engine
+offers), the wrap rules, and §3's key states. What changed: AI Agents is
+one card per agent — what is in its files, what it can reach, what it did
+this week, its key — and acts on its own rows (jit D10, revised); Tools is
+cards by state for what runs through jit (Fix now / Silent / Working, with
+last use and other readers from the audit) plus an "On this Mac" card of
+recognised tools, and no catalogue; Decoys is a window of its own, the
+register of protected files with their reads and their reasons; the panel's
+rows follow one rule, written in the design system's `windows.md` ("Panel
+rows"), and its header shape ("The header's to-do lines") is shared by
+Findings, AI Agents, Decoys and Tools. jit's `design/scan-and-protect.md`
+D10, D14, D15 and "Known gaps" record the decisions and what the engine
+still owes.
+
 **Superseded for the AI Agents window, 2026-09-21.** The window described
 below (agents, caches, MCP configs, reads as four acting cards) became a
 digest that reads and never acts: one row per agent, four facts — key ·
