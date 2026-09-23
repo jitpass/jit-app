@@ -58,6 +58,15 @@ public struct AgentRequest: Codable, Sendable {
     /// app's name on the prompt.
     public var grantName: String?
     public var anchorExplicit: Bool?
+    /// `grant_create` (jit 2.3): a folder per profile name instead of one
+    /// `projectRoot` for all of them, which is what a sheet listing every
+    /// profile on the Mac sends, and `standing` for a grant with no
+    /// deadline (design/standing-grants.md): it holds its own key, survives
+    /// restarts and reboots, and ends on revoke. Exclusive with
+    /// `ttlSeconds`. An older agent ignores both and refuses the create
+    /// for naming no profiles, which is the safe answer.
+    public var grantProfileRoots: [GrantProfile]?
+    public var standing: Bool?
     /// `subscribe`: this stream will answer consent requests. Ignored by an
     /// agent that predates brokering, whose stream then never carries one.
     public var broker: Bool?
@@ -69,6 +78,7 @@ public struct AgentRequest: Codable, Sendable {
         op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil,
         targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil,
         grantName: String? = nil, anchorExplicit: Bool? = nil,
+        grantProfileRoots: [GrantProfile]? = nil, standing: Bool? = nil,
         broker: Bool? = nil, consentID: String? = nil, decision: ConsentDecision? = nil
     ) {
         self.op = op
@@ -80,6 +90,8 @@ public struct AgentRequest: Codable, Sendable {
         self.ttlSeconds = ttlSeconds
         self.grantName = grantName
         self.anchorExplicit = anchorExplicit
+        self.grantProfileRoots = grantProfileRoots
+        self.standing = standing
         self.broker = broker
         self.consentID = consentID
         self.decision = decision
@@ -95,6 +107,8 @@ public struct AgentRequest: Codable, Sendable {
         case ttlSeconds = "ttl_seconds"
         case grantName = "grant_name"
         case anchorExplicit = "anchor_explicit"
+        case grantProfileRoots = "grant_profile_roots"
+        case standing
         case broker
         case consentID = "consent_id"
         case decision
@@ -159,6 +173,19 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     }
 }
 
+/// One profile a grant names and the folder it is read from: the project
+/// directory whose `.jit/profiles` holds the manifest, or nil for the global
+/// store. Names and folders only; the agent resolves them to secrets.
+public struct GrantProfile: Codable, Sendable, Equatable, Hashable {
+    public var name: String
+    public var root: String?
+
+    public init(name: String, root: String? = nil) {
+        self.name = name
+        self.root = root
+    }
+}
+
 public struct GrantStatus: Codable, Sendable, Equatable, Identifiable {
     public var id: String
     public var pid: Int32
@@ -169,17 +196,68 @@ public struct GrantStatus: Codable, Sendable, Equatable, Identifiable {
     public var expiresUnix: Int64
     public var serves: Int64?
     public var rootAlive: Bool
+    /// The concrete vault paths the grant covers; nil from an agent that
+    /// predates the field.
+    public var secrets: [String]?
+    public var lastServeUnix: Int64?
+    /// Standing grants (design/standing-grants.md): no deadline, anchored
+    /// to the app at `anchorPath` by executable rather than to a pid, and
+    /// `rotated` lists the covered secrets that changed since the grant was
+    /// made and are therefore no longer served. All nil from an older agent.
+    public var standing: Bool?
+    public var anchorPath: String?
+    public var profileRoots: [GrantProfile]?
+    public var rotated: [String]?
+
+    public init(
+        id: String, pid: Int32 = 0, name: String? = nil, anchor: String? = nil, profiles: [String] = [],
+        createdUnix: Int64 = 0, expiresUnix: Int64 = 0, serves: Int64? = nil, rootAlive: Bool = true,
+        secrets: [String]? = nil, lastServeUnix: Int64? = nil, standing: Bool? = nil, anchorPath: String? = nil,
+        profileRoots: [GrantProfile]? = nil, rotated: [String]? = nil
+    ) {
+        self.id = id
+        self.pid = pid
+        self.name = name
+        self.anchor = anchor
+        self.profiles = profiles
+        self.createdUnix = createdUnix
+        self.expiresUnix = expiresUnix
+        self.serves = serves
+        self.rootAlive = rootAlive
+        self.secrets = secrets
+        self.lastServeUnix = lastServeUnix
+        self.standing = standing
+        self.anchorPath = anchorPath
+        self.profileRoots = profileRoots
+        self.rotated = rotated
+    }
 
     enum CodingKeys: String, CodingKey {
-        case id, pid, name, anchor, profiles
+        case id, pid, name, anchor, profiles, secrets, standing, rotated
         case createdUnix = "created_unix"
         case expiresUnix = "expires_unix"
         case serves
+        case lastServeUnix = "last_serve_unix"
         case rootAlive = "root_alive"
+        case anchorPath = "anchor_path"
+        case profileRoots = "profile_roots"
     }
 
     public var expires: Date {
         Date(timeIntervalSince1970: TimeInterval(expiresUnix))
+    }
+
+    public var isStanding: Bool {
+        standing ?? false
+    }
+
+    public var lastServe: Date? {
+        lastServeUnix.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+    }
+
+    /// The secrets that no longer serve because they were rotated.
+    public var rotatedSecrets: [String] {
+        rotated ?? []
     }
 }
 

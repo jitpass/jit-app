@@ -1,0 +1,548 @@
+<title>Grants Redesign</title>
+<style>
+:root{
+  --app-unlocked:#3ecf8e;--app-locked:#e5484d;--app-asking:#f0b545;--app-action:#7fd4ff;
+  --app-sheet-material:#323438;--app-window:#323438;--app-card:#414347;--app-titlebar:#343536;
+  --app-label:rgba(255,255,255,.85);--app-label-2:rgba(255,255,255,.55);--app-label-3:rgba(255,255,255,.25);
+  --app-separator:rgba(255,255,255,.10);--app-row-line:rgba(255,255,255,.07);--app-hover:rgba(255,255,255,.05);
+  --app-field:rgba(255,255,255,.07);--app-btn-line:rgba(255,255,255,.16);--app-button-quiet:rgba(255,255,255,.13);
+  --app-segment-track:rgba(255,255,255,.08);--app-segment-on:rgba(255,255,255,.16);--app-verbatim:rgba(0,0,0,.20);
+  --app-window-line:rgba(255,255,255,.09);--app-control-accent:#0068dc;--app-button-2:#7e8081;
+  --accent-dim:rgba(62,207,142,.13);--accent-ink:#061a11;--app-asking-dim:rgba(240,181,69,.22);
+  --space-app-1:2px;--space-app-2:4px;--space-app-3:6px;--space-app-4:8px;--space-app-5:12px;--space-app-6:18px;
+  --radius-panel:10px;--radius-control:6px;--radius-callout:6px;--radius-segment:5px;--radius-box:4px;
+  --size-btn:22px;--size-win-s:520px;--size-sheet-wide:520px;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,monospace;
+  --page:#111314;--page-2:#17191b;--page-text:#e8efe9;--page-muted:#8c968e;--page-line:rgba(150,230,190,.10);
+  --page-accent:#3ecf8e;--page-amber:#f0a94a;
+  color-scheme:dark;
+}
+body{margin:0;background:var(--page);color:var(--page-text);font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1040px;margin:0 auto}
+header.page{padding-block:44px 28px;border-bottom:1px solid var(--page-line);margin-bottom:8px}
+header.page h1{font-size:26px;font-weight:700;letter-spacing:-.01em;margin:0 0 12px;text-wrap:balance}
+header.page p{margin:0 0 10px;max-width:66ch;color:var(--page-muted)}
+header.page p:last-child{margin-bottom:0}
+header.page b{color:var(--page-text);font-weight:600}
+.say-big{font-size:17px;line-height:1.55;color:var(--page-muted);max-width:60ch;margin:0 0 18px;text-wrap:balance}
+.say-big b{color:var(--page-text);font-weight:600}
+h2{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--page-accent);margin:52px 0 6px}
+h2+p{margin:0 0 20px;max-width:66ch;color:var(--page-muted)}
+h2+p b{color:var(--page-text);font-weight:600}
+.states{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+figure{margin:0;display:flex;flex-direction:column;gap:10px;max-width:100%}
+figcaption{font-size:12px;color:var(--page-muted);max-width:520px;line-height:1.5}
+figcaption b{color:var(--page-text);font-weight:600}
+ul.pts{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-width:800px}
+ul.pts li{display:grid;grid-template-columns:20px 1fr;gap:12px;background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;padding:12px 14px}
+ul.pts .n{font-family:var(--font-mono);font-size:12px;color:var(--page-accent);padding-top:2px}
+ul.pts b{font-weight:600}
+ul.pts span{display:block;color:var(--page-muted);margin-top:2px}
+ul.pts .warn{color:var(--page-amber)}
+code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border:1px solid var(--page-line);border-radius:5px;padding:1px 5px}
+
+/* ---- JitPass window components, from the design system's bundle ---- */
+.jp-window{width:var(--size-win-s);max-width:100%;box-sizing:border-box;border-radius:10px;overflow:hidden;color:var(--app-label);background:var(--app-window);border:1px solid var(--app-window-line);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:13px;line-height:1.35;box-shadow:0 0 0 .5px rgba(255,255,255,.2),0 20px 50px rgba(0,0,0,.5);-webkit-font-smoothing:antialiased}
+.jp-window__bar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;background:var(--app-titlebar);font-size:13px;font-weight:600;color:var(--app-label-2)}
+.jp-window__lights{position:absolute;left:10px;top:8px;display:flex;gap:8px}
+.jp-window__lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}
+.jp-window__lights i:nth-child(2){background:#febc2e}.jp-window__lights i:nth-child(3){background:#28c840}
+.jp-window__banner{display:flex;align-items:center;gap:var(--space-app-3);padding:var(--space-app-4) var(--space-app-6);background:var(--accent-dim);border-bottom:1px solid var(--app-separator);font-size:12px;color:var(--app-label)}
+.jp-window__head{display:flex;align-items:center;gap:var(--space-app-5);padding:var(--space-app-5) var(--space-app-6);border-bottom:1px solid var(--app-separator)}
+.jp-window__h{font-size:15px;font-weight:600;color:var(--app-label)}
+.jp-window__sub{font-size:12px;color:var(--app-label-2);margin-top:var(--space-app-1)}
+.jp-window__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-window__body{padding:var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-5)}
+.jp-window__foot{display:flex;align-items:center;gap:var(--space-app-4);padding:var(--space-app-4) var(--space-app-6);background:var(--app-titlebar);border-top:1px solid var(--app-separator);font-size:12px;color:var(--app-label-2)}
+.jp-window__count{flex:1;font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-window__count b{color:var(--app-label);font-weight:600}
+.jp-card{background:var(--app-card);border-radius:var(--radius-panel);padding:var(--space-app-5);display:flex;flex-direction:column;gap:var(--space-app-4)}
+.jp-card__eyebrow{display:flex;align-items:center;gap:var(--space-app-3);font-size:11px;font-weight:500;color:var(--app-label-2)}
+.jp-card__top{display:flex;align-items:flex-start;gap:var(--space-app-5)}
+.jp-card__title{font-size:13px;font-weight:600;color:var(--app-label)}
+.jp-card__note{font-size:12px;color:var(--app-label-2);max-width:62ch;margin:var(--space-app-1) 0 0;line-height:1.4}
+.jp-card__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-card__rows{display:flex;flex-direction:column;border-top:1px solid var(--app-separator)}
+.jp-row{display:flex;align-items:center;gap:var(--space-app-5);padding:var(--space-app-4) 0;border-bottom:1px solid var(--app-row-line)}
+.jp-row:last-child{border-bottom:0}
+.jp-row--top{align-items:flex-start}
+.jp-row--on{background:var(--accent-dim);margin:0 calc(-1 * var(--space-app-4));padding-inline:var(--space-app-4);border-radius:var(--radius-control)}
+.jp-row--off{opacity:.55}
+.jp-row__text{min-width:0;flex:1;display:flex;flex-direction:column;gap:var(--space-app-1)}
+.jp-row__name{font-size:13px;font-weight:600;color:var(--app-label);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jp-row__name span{font-weight:400;color:var(--app-label-2);font-family:var(--font-mono);font-size:11px}
+.jp-row__fact{font-size:11px;color:var(--app-label-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-row__fact--mono{font-family:var(--font-mono)}
+.jp-row__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-chip{font-size:11px;font-weight:500;color:var(--app-label-2);background:var(--app-field);border-radius:var(--radius-box);padding:1px 6px;margin-left:var(--space-app-3);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.jp-abtn{font:inherit;font-size:12px;line-height:1;height:var(--size-btn);padding:0 var(--space-app-5);border:0;border-radius:var(--radius-control);white-space:nowrap;background:var(--app-button-2);color:#fff;display:inline-flex;align-items:center;gap:var(--space-app-3);cursor:default}
+.jp-abtn--default{background:var(--app-control-accent);font-weight:600}
+.jp-abtn--quiet{background:var(--app-button-quiet);color:var(--app-label)}
+.jp-abtn[disabled]{opacity:.45}
+.jp-seg{display:inline-flex;gap:2px;padding:2px;background:var(--app-segment-track);border-radius:var(--radius-callout);align-self:flex-start;max-width:100%;flex-wrap:wrap}
+.jp-seg--fill{align-self:stretch;display:flex;flex-wrap:nowrap}
+.jp-seg--fill .jp-seg__pill{flex:1;text-align:center}
+.jp-seg__pill{font-size:12px;padding:var(--space-app-2) var(--space-app-5);border-radius:var(--radius-segment);color:var(--app-label-2);white-space:nowrap;border:0;background:none;font-family:inherit;line-height:1.3}
+.jp-seg__pill b{font-weight:400;color:var(--app-label-3);margin-left:5px;font-variant-numeric:tabular-nums}
+.jp-seg__pill--on{background:var(--app-segment-on);color:var(--app-label)}
+.jp-search{flex:1;min-width:0;display:flex;align-items:center;gap:var(--space-app-3);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);padding:0 var(--space-app-4);color:var(--app-label-2);font-size:12px;height:var(--size-btn);box-sizing:border-box}
+.jp-search svg{flex:none}
+.jp-field{display:inline-flex;align-items:center;height:var(--size-btn);box-sizing:border-box;padding:0 var(--space-app-4);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);color:var(--app-label);font-size:12px;width:132px}
+.jp-popup{height:var(--size-btn);padding:0 var(--space-app-4);display:inline-flex;align-items:center;gap:var(--space-app-4);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);color:var(--app-label);font:inherit;font-size:12px;line-height:1;white-space:nowrap;box-sizing:border-box;max-width:100%;overflow:hidden}
+.jp-popup svg{flex:none;opacity:.55}
+.jp-popup span.jp-mono{font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.jp-check{width:15px;height:15px;flex:none;border-radius:var(--radius-box);border:1px solid var(--app-btn-line);background:var(--app-card);display:grid;place-items:center}
+.jp-check svg{opacity:0}
+.jp-check--on{background:var(--app-control-accent);border-color:var(--app-control-accent)}
+.jp-check--on svg{opacity:1}
+.jp-dot{width:8px;height:8px;border-radius:50%;flex:none;display:block;background:var(--app-label-2)}
+.jp-dot--ok{background:var(--app-unlocked)}.jp-dot--warn{background:var(--app-asking)}
+.jp-glyph{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700}
+.jp-glyph--bad{background:var(--app-locked);color:#fff}
+.jp-spin{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--app-asking-dim);border-top-color:var(--app-asking);animation:jp-spin .9s linear infinite;box-sizing:border-box}
+@keyframes jp-spin{to{transform:rotate(360deg)}}
+.jp-verbatim{margin-top:var(--space-app-3);background:var(--app-verbatim);border-radius:var(--radius-control);padding:var(--space-app-4) var(--space-app-5);font-family:var(--font-mono);font-size:11px;color:var(--app-label-2);line-height:1.5}
+.jp-mono{font-family:var(--font-mono)}
+.jp-mark{--mark:var(--app-unlocked);position:relative;display:inline-grid;place-items:center;width:56px;height:56px;border-radius:50%;flex:none}
+.jp-mark::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--mark);opacity:.22}
+.jp-mark::after{content:"";position:absolute;inset:22%;border-radius:50%;background:var(--mark)}
+.jp-mark>svg{position:relative;z-index:1;width:30%;height:30%}
+.jp-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--space-app-5);padding:44px var(--space-app-6)}
+.jp-empty__title{font-size:14px;font-weight:600;color:var(--app-label)}
+.jp-empty p{margin:0;font-size:12px;color:var(--app-label-2);max-width:400px;line-height:1.45}
+/* ---- sheet ---- */
+.jp-sheet{width:var(--size-sheet-wide);background:var(--app-sheet-material)}
+.jp-sheet__body{padding:var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-5)}
+.jp-sheet__title{font-size:13px;font-weight:600;color:var(--app-label)}
+.jp-say{font-size:13px;line-height:1.5;color:var(--app-label-2);margin-top:var(--space-app-3)}
+.jp-say b{color:#fff;font-weight:600}
+.jp-say i{font-style:normal;color:var(--app-label-3)}
+.jp-sheet__grid{display:grid;grid-template-columns:62px 1fr;column-gap:var(--space-app-5);row-gap:var(--space-app-5);align-items:start}
+.jp-sheet__k{text-align:right;color:var(--app-label-2);font-size:12px;padding-top:4px}
+.jp-sheet__v{min-width:0;display:flex;flex-direction:column;gap:var(--space-app-3)}
+.jp-sheet__hint{font-size:11px;color:var(--app-label-2);line-height:1.45}
+.jp-sheet__inline{display:flex;align-items:center;gap:var(--space-app-4);flex-wrap:wrap}
+.jp-sheet__notes{border-top:1px solid var(--app-separator);padding-top:var(--space-app-5);font-size:11px;line-height:1.6;color:var(--app-label-2)}
+.jp-sheet__foot{display:flex;align-items:center;gap:var(--space-app-4);font-size:12px;color:var(--app-label-2)}
+.jp-sheet .jp-card{padding:var(--space-app-4) var(--space-app-5)}
+.jp-sheet .jp-card__rows{border-top:0}
+.jp-fail{display:flex;gap:var(--space-app-4);align-items:flex-start;font-size:12px;color:var(--app-label);line-height:1.45}
+.jp-fail .jp-glyph{margin-top:1px}
+.jp-fail>div{flex:1;min-width:0}
+/* ---- alert ---- */
+.jp-alert{width:440px;max-width:100%;box-sizing:border-box;background:var(--app-sheet-material);border:1px solid var(--app-window-line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:20px var(--space-app-6) var(--space-app-6);display:flex;gap:var(--space-app-5);color:var(--app-label);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.jp-alert__plate{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--app-asking-dim);font-size:20px}
+.jp-alert__body{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--space-app-4)}
+.jp-alert__title{font-size:13px;font-weight:600}
+.jp-alert__msg{font-size:12px;color:var(--app-label-2);line-height:1.5}
+.jp-alert__msg strong{color:var(--app-label);font-weight:600}
+.jp-alert__buttons{display:flex;gap:var(--space-app-4);justify-content:flex-end;margin-top:var(--space-app-2)}
+.chev{width:9px;height:12px}
+@media (max-width:600px){.jp-sheet__grid{grid-template-columns:1fr}.jp-sheet__k{text-align:left;padding-top:0}}
+@media (prefers-reduced-motion:reduce){.jp-spin{animation:none}}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="chev" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="tick" viewBox="0 0 9 7"><path d="M1 3.6 3.3 6 8 1" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="search" viewBox="0 0 12 12"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M7.7 7.7 10.5 10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+<header class="page">
+  <h1>Grants Redesign</h1>
+  <p class="say-big">Let <b>claude</b> under <b>iTerm2</b> use <b>mcp-caido</b> and <b>mcp-urlscan</b>, <b>until you revoke it</b>.</p>
+  <p>The sheet is that sentence, filling in blank by blank, and it is word for word what the disclosed Touch ID will ask. This version matches <code>jit/design/standing-grants.md</code>: a grant carries its own key, so it never asks again while it exists, and it survives screen lock, a service restart and a reboot. The schedule from the previous draft is gone. It was solving the wrong problem.</p>
+  <p><b>It also fixes the bug you found.</b> New Grant listed profiles from <code>~/.jit/profiles</code> only. That folder does not exist here, every profile on this Mac is kept beside a project, so nothing could be ticked and the button stayed grey with no word about why.</p>
+  <p><b>You never pick a folder.</b> An earlier draft made you choose one first, which was the wrong question: a grant covers the secrets themselves, so the folder reaches nothing after the grant is made. jit finds your profiles instead, from the folders it already has on record in <code>mounts.yaml</code>, the folders your programs are running in, and the global store. You get one list of all ten, you filter it, you tick what you want. The folder is printed under each name only so two similar profiles can be told apart.</p>
+  <p><b>Three things the design forces, visible below.</b> Until revoked is offered for Every copy, never for One process, because a pid cannot survive a reboot. A rotated secret stops being served, so the window has to say so. Revoke deletes the grant's key, so the confirmation says what that means.</p>
+</header>
+
+<h2>New Grant · the sentence, filling in</h2>
+<p>One sheet, not a wizard: you do this rarely and you want to read the whole decision before spending a Touch ID. Unanswered blanks stay visible in grey, so what is missing is legible without hunting for the disabled button.</p>
+<div class="states">
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">New Grant</div>
+      <div class="jp-say">Let <b>claude</b> under <b>iTerm2</b> use <b>mcp-caido</b> and <b>mcp-urlscan</b>, <b>until you revoke it</b>.</div>
+    </div>
+    <div class="jp-sheet__grid">
+      <div class="jp-sheet__k">Cover</div>
+      <div class="jp-sheet__v">
+        <span class="jp-seg jp-seg--fill"><button class="jp-seg__pill">One process</button><button class="jp-seg__pill jp-seg__pill--on">Every copy</button></span>
+        <div class="jp-sheet__hint">Every claude started under iTerm2, now or later.</div>
+      </div>
+      <div class="jp-sheet__k">Program</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline">
+          <span class="jp-field">claude</span>
+          <span style="color:var(--app-label-2);font-size:12px">under</span>
+          <button class="jp-popup">iTerm2 <svg class="chev"><use href="#chev"/></svg></button>
+        </div>
+        <div class="jp-sheet__hint">2 claudes run under iTerm2 now. Any started later are covered too.</div>
+      </div>
+      <div class="jp-sheet__k">Profiles</div>
+      <div class="jp-sheet__v">
+        <span class="jp-search"><svg width="12" height="12"><use href="#search"/></svg><span>Filter profiles</span></span>
+        <div class="jp-card"><div class="jp-card__rows">
+          <div class="jp-row jp-row--on"><span class="jp-check jp-check--on"><svg width="9" height="7"><use href="#tick"/></svg></span>
+            <div class="jp-row__text"><div class="jp-row__name">mcp-caido <span>· 1 secret</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops</span> · CAIDO_URL</div></div></div>
+          <div class="jp-row jp-row--on"><span class="jp-check jp-check--on"><svg width="9" height="7"><use href="#tick"/></svg></span>
+            <div class="jp-row__text"><div class="jp-row__name">mcp-urlscan <span>· 1 secret</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops</span> · URLSCAN_API_KEY</div></div></div>
+          <div class="jp-row"><span class="jp-check"><svg width="9" height="7"><use href="#tick"/></svg></span>
+            <div class="jp-row__text"><div class="jp-row__name">custom_scripts-jamf <span>· 14 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops</span> · EA_BROWSER_LOGIN, EA_DEFAULT_BROWSER, …</div></div></div>
+          <div class="jp-row"><span class="jp-check"><svg width="9" height="7"><use href="#tick"/></svg></span>
+            <div class="jp-row__text"><div class="jp-row__name">jamf <span>· 14 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops/custom_scripts/jamf</span> · EA_BROWSER_LOGIN, EA_DEFAULT_BROWSER, …</div></div></div>
+          <div class="jp-row jp-row--off" style="border-bottom:0"><span class="jp-check"></span>
+            <div class="jp-row__text"><div class="jp-row__name">custom_scripts-wiz <span>· 5 secrets</span></div>
+            <div class="jp-row__fact">2 of its secrets are not in the vault · see Doctor</div></div></div>
+        </div></div>
+        <div class="jp-sheet__hint">10 profiles on this Mac · Add a Folder…</div>
+      </div>
+      <div class="jp-sheet__k">For</div>
+      <div class="jp-sheet__v">
+        <span class="jp-seg"><button class="jp-seg__pill">1h</button><button class="jp-seg__pill">8h</button><button class="jp-seg__pill">24h</button><button class="jp-seg__pill">7d</button><button class="jp-seg__pill jp-seg__pill--on">Until revoked</button></span>
+      </div>
+    </div>
+    <div class="jp-sheet__notes">
+      • No Touch ID for those 2 secrets while this grant exists, including after a restart or reboot.<br>
+      • Covers them as they are now. If one is rotated, jit stops serving it and says so here.<br>
+      • Revoke any time from the Grants window. That never asks, and it deletes this grant's key.
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count">Touch ID follows. The service decides, not this app.</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default">Grant with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>A. The standing grant.</b> Until revoked is the default for Every copy, so the common case needs no thought. Each profile row lists its key names, so what is handed over is read before Touch ID is spent. The wiz row cannot be ticked and says why, instead of being silently dead.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">New Grant</div>
+      <div class="jp-say">Let <b>claude · pid 57394</b> use <b>custom_scripts-jamf</b>, <b>for 8 hours</b>.</div>
+    </div>
+    <div class="jp-sheet__grid">
+      <div class="jp-sheet__k">Cover</div>
+      <div class="jp-sheet__v">
+        <span class="jp-seg jp-seg--fill"><button class="jp-seg__pill jp-seg__pill--on">One process</button><button class="jp-seg__pill">Every copy</button></span>
+        <div class="jp-sheet__hint">Only the process you pick below. Ends when it exits.</div>
+      </div>
+      <div class="jp-sheet__k">Process</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline" style="flex-wrap:nowrap">
+          <span class="jp-search"><svg width="12" height="12"><use href="#search"/></svg><span>Filter by name or folder</span></span>
+          <span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">Usual <b>5</b></button><button class="jp-seg__pill">All <b>61</b></button></span>
+        </div>
+        <div class="jp-card"><div class="jp-card__rows">
+          <div class="jp-row jp-row--on"><div class="jp-row__text"><div class="jp-row__name">claude <span>· ~/Security-Ops</span></div><div class="jp-row__fact">under iTerm2 · running 2h · pid 57394</div></div></div>
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">claude <span>· ~/jitpass</span></div><div class="jp-row__fact">under iTerm2 · running 36m · pid 68490</div></div></div>
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">claude <span>· ~/jitpass</span></div><div class="jp-row__fact">under iTerm2 · running 6m · pid 76001</div></div></div>
+        </div></div>
+      </div>
+      <div class="jp-sheet__k">Profiles</div>
+      <div class="jp-sheet__v">
+        <span class="jp-search"><svg width="12" height="12"><use href="#search"/></svg><span>jamf</span></span>
+        <div class="jp-card"><div class="jp-card__rows">
+          <div class="jp-row jp-row--on"><span class="jp-check jp-check--on"><svg width="9" height="7"><use href="#tick"/></svg></span>
+            <div class="jp-row__text"><div class="jp-row__name">custom_scripts-jamf <span>· 14 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops</span> · EA_BROWSER_LOGIN, EA_DEFAULT_BROWSER, …</div></div></div>
+          <div class="jp-row"><span class="jp-check"><svg width="9" height="7"><use href="#tick"/></svg></span>
+            <div class="jp-row__text"><div class="jp-row__name">jamf <span>· 14 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops/custom_scripts/jamf</span> · EA_BROWSER_LOGIN, EA_DEFAULT_BROWSER, …</div></div></div>
+          <div class="jp-row" style="border-bottom:0"><span class="jp-check"><svg width="9" height="7"><use href="#tick"/></svg></span>
+            <div class="jp-row__text"><div class="jp-row__name">mcp-jamf <span>· 3 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops</span> · JAMF_PRO_URL, JAMF_PRO_CLIENT_ID, …</div></div></div>
+        </div></div>
+        <div class="jp-sheet__hint">3 of 10 match “jamf”. The folder under each name is what tells them apart.</div>
+      </div>
+      <div class="jp-sheet__k">For</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline">
+          <span class="jp-seg"><button class="jp-seg__pill">1h</button><button class="jp-seg__pill jp-seg__pill--on">8h</button><button class="jp-seg__pill">24h</button><button class="jp-seg__pill">7d</button></span>
+          <span class="jp-sheet__hint">ends today, 23:55</span>
+        </div>
+        <div class="jp-sheet__hint">A process dies at a reboot, so this always has a deadline. Every copy can run until you revoke it.</div>
+      </div>
+    </div>
+    <div class="jp-sheet__notes">
+      • That exact process only. Ends when it exits or at the deadline.<br>
+      • Covers those 14 secrets as they are now. Works across screen lock.<br>
+      • Revoke any time from the Grants window. That never asks.
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count">Touch ID follows. The service decides, not this app.</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default">Grant with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>B. One process keeps a deadline.</b> Until revoked is absent here, and the hint says why and what to switch to. That is the design's own rule made visible: a standing grant anchors to the app's executable, which survives a reboot; a pid does not.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">New Grant</div>
+      <div class="jp-say">Let <b>claude</b> under <b>iTerm2</b> use <i>some secrets</i>, <b>until you revoke it</b>.</div>
+    </div>
+    <div class="jp-sheet__grid">
+      <div class="jp-sheet__k">Cover</div>
+      <div class="jp-sheet__v">
+        <span class="jp-seg jp-seg--fill"><button class="jp-seg__pill">One process</button><button class="jp-seg__pill jp-seg__pill--on">Every copy</button></span>
+      </div>
+      <div class="jp-sheet__k">Program</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline">
+          <span class="jp-field">claude</span>
+          <span style="color:var(--app-label-2);font-size:12px">under</span>
+          <button class="jp-popup">iTerm2 <svg class="chev"><use href="#chev"/></svg></button>
+        </div>
+      </div>
+      <div class="jp-sheet__k">Profiles</div>
+      <div class="jp-sheet__v">
+        <div class="jp-card"><div class="jp-card__top">
+          <div>
+            <div class="jp-card__title">No profiles on this Mac yet</div>
+            <p class="jp-card__note">A grant covers a profile's secrets, so there is nothing to grant yet.</p>
+          </div>
+          <div class="jp-card__acts"><button class="jp-abtn jp-abtn--quiet">Open Findings…</button></div>
+        </div></div>
+        <div class="jp-sheet__hint">Protect a project's .env and its profile appears here.</div>
+      </div>
+      <div class="jp-sheet__k">For</div>
+      <div class="jp-sheet__v">
+        <span class="jp-seg"><button class="jp-seg__pill">1h</button><button class="jp-seg__pill">8h</button><button class="jp-seg__pill">24h</button><button class="jp-seg__pill">7d</button><button class="jp-seg__pill jp-seg__pill--on">Until revoked</button></span>
+      </div>
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count">Protect a project first</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default" disabled>Grant with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>C. A Mac with no profiles at all.</b> Once the list is machine-wide, your original bug cannot happen: there are always ten profiles here. What is left is the genuine empty case, a fresh install, and it points at the one thing that fixes it rather than at a folder chooser. The button keeps its label at 45%.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">New Grant</div>
+      <div class="jp-say">Let <b>claude</b> under <b>iTerm2</b> use <b>mcp-caido</b> and <b>mcp-urlscan</b>, <b>until you revoke it</b>.</div>
+    </div>
+    <div class="jp-sheet__grid" style="opacity:.55">
+      <div class="jp-sheet__k">Program</div>
+      <div class="jp-sheet__v"><div class="jp-sheet__hint" style="padding-top:4px">claude under iTerm2 · 2 running now</div></div>
+      <div class="jp-sheet__k">Profiles</div>
+      <div class="jp-sheet__v"><div class="jp-sheet__hint" style="padding-top:4px">mcp-caido, mcp-urlscan · 2 secrets</div></div>
+      <div class="jp-sheet__k">For</div>
+      <div class="jp-sheet__v"><div class="jp-sheet__hint" style="padding-top:4px">Until revoked</div></div>
+    </div>
+    <div class="jp-fail">
+      <span class="jp-glyph jp-glyph--bad">✗</span>
+      <div>Touch ID was cancelled, so nothing was granted. Everything you chose is still here.
+        <div class="jp-verbatim">grant_create: authentication cancelled</div>
+      </div>
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count" style="display:flex;align-items:center;gap:8px"><span class="jp-spin"></span>Waiting for Touch ID. The service is asking, not this app.</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default" disabled>Grant with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>D. Asking, and refused.</b> Both states of one moment, drawn together to save a frame. While asking, the rows collapse to their values and the footer carries the spinner; the button keeps its label rather than becoming the status. On a refusal: the cross, one sentence, and the service's own words verbatim. Nothing is cleared.</figcaption>
+</figure>
+
+</div>
+
+<h2>Grants window · what a standing grant looks like afterwards</h2>
+<p>A standing grant has no deadline to count down, so the eyebrow carries the only state that matters: is it serving right now. Green when it served in the last minute, grey when it is simply standing. Both are healthy, which is why neither is amber.</p>
+<div class="states">
+
+<figure>
+<div class="jp-window">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-window__head">
+    <div><div class="jp-window__h">Grants</div>
+    <div class="jp-window__sub">A grant lets one program use secrets unattended, with no Touch ID, until you revoke it.</div></div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--default">New Grant…</button></div>
+  </div>
+  <div class="jp-empty">
+    <span class="jp-mark"><svg viewBox="0 0 9 7"><use href="#tick"/></svg></span>
+    <div class="jp-empty__title">Nothing runs unattended</div>
+    <p>Every program asks for Touch ID each time it uses a secret. Make a grant when you want one to keep working while you are away.</p>
+  </div>
+</div>
+<figcaption><b>Empty.</b> Says what is true rather than that a list is empty, with a green mark: this is the healthy state, not a missing one.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-window__head">
+    <div><div class="jp-window__h">3 grants</div>
+    <div class="jp-window__sub">Each covers the secrets its profiles held when it was made. Revoking one deletes its key.</div></div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--default">New Grant…</button></div>
+  </div>
+  <div class="jp-window__body">
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Serving</div>
+      <div class="jp-card__rows"><div class="jp-row">
+        <div class="jp-row__text">
+          <div class="jp-row__name">claude <span>· custom_scripts-jamf, mcp-jamf</span></div>
+          <div class="jp-row__fact">Every claude under iTerm2 · 17 secrets · used 12 times · last a moment ago</div>
+        </div>
+        <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Revoke…</button></div>
+      </div></div>
+    </div>
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot"></span>Standing</div>
+      <div class="jp-card__rows"><div class="jp-row">
+        <div class="jp-row__text">
+          <div class="jp-row__name">claude <span>· mcp-caido, mcp-urlscan</span></div>
+          <div class="jp-row__fact">Every claude under iTerm2 · 2 secrets · used 4 times · last Monday</div>
+        </div>
+        <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Revoke…</button></div>
+      </div></div>
+    </div>
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--warn"></span>Ending</div>
+      <div class="jp-card__rows"><div class="jp-row">
+        <div class="jp-row__text">
+          <div class="jp-row__name">claude <span>· mcp-okta-mcp-server</span></div>
+          <div class="jp-row__fact">pid 57394 only · that process exited, so this ends now · used 3 times</div>
+        </div>
+        <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Revoke…</button></div>
+      </div></div>
+    </div>
+  </div>
+</div>
+<figcaption><b>Three grants.</b> Two standing, one on a pid that is ending because its process exited. No expiry column: a standing grant has nothing to count down, so the second line spends that room on what it covers and when it last served. Revoke takes an ellipsis now, because it deletes a key.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-window__head">
+    <div><div class="jp-window__h">1 grant · 1 secret needs you</div>
+    <div class="jp-window__sub">Each covers the secrets its profiles held when it was made. Revoking one deletes its key.</div></div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--default">New Grant…</button></div>
+  </div>
+  <div class="jp-window__body">
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--warn"></span>Needs you</div>
+      <div class="jp-card__top">
+        <div>
+          <div class="jp-card__title">1 of 17 secrets was rotated</div>
+          <p class="jp-card__note">jit stopped serving it the moment its value changed, so claude asks for Touch ID for that one. The other 16 are unaffected.</p>
+        </div>
+        <div class="jp-card__acts"><button class="jp-abtn">Re-approve…</button></div>
+      </div>
+      <div class="jp-card__rows">
+        <div class="jp-row">
+          <div class="jp-row__text">
+            <div class="jp-row__name">claude <span>· custom_scripts-jamf, mcp-jamf</span></div>
+            <div class="jp-row__fact">Every claude under iTerm2 · 16 of 17 secrets · used 12 times</div>
+          </div>
+          <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Revoke…</button></div>
+        </div>
+        <div class="jp-row jp-row--off" style="border-bottom:0">
+          <div class="jp-row__text">
+            <div class="jp-row__name jp-mono" style="font-weight:400">mcp-jamf/JAMF_PRO_CLIENT_SECRET<span class="jp-chip">rotated</span></div>
+            <div class="jp-row__fact">Changed today, 11:04 · not served since</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<figcaption><b>A rotated secret.</b> The design's one silent failure, made loud. The grant keeps working for everything else; the card counts exactly what stopped and names it. Re-approve re-wraps only that secret, under one Touch ID. The chip carries the news, the amber dot the state, and the second line says when.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Grants</div>
+  <div class="jp-window__banner"><span class="jp-dot jp-dot--ok"></span><span>Revoked claude's grant to mcp-caido, mcp-urlscan. Its key is deleted and it asks for Touch ID again from now.</span></div>
+  <div class="jp-window__head">
+    <div><div class="jp-window__h">1 grant</div>
+    <div class="jp-window__sub">Each covers the secrets its profiles held when it was made. Revoking one deletes its key.</div></div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--default">New Grant…</button></div>
+  </div>
+  <div class="jp-window__body">
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Serving</div>
+      <div class="jp-card__rows"><div class="jp-row">
+        <div class="jp-row__text">
+          <div class="jp-row__name">claude <span>· custom_scripts-jamf, mcp-jamf</span></div>
+          <div class="jp-row__fact">Every claude under iTerm2 · 17 secrets · used 12 times · last a moment ago</div>
+        </div>
+        <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Revoke…</button></div>
+      </div></div>
+    </div>
+  </div>
+</div>
+<figcaption><b>After Revoke.</b> The banner reports it in the window: no modal, no terminal. There is no Undo, because the key is gone and putting the grant back is a new Touch ID. The sentence says exactly that instead of offering something it cannot do.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-alert">
+  <span class="jp-alert__plate">🔑</span>
+  <div class="jp-alert__body">
+    <div class="jp-alert__title">Revoke claude's grant?</div>
+    <div class="jp-alert__msg">This deletes the grant's key. <strong>mcp-caido</strong> and <strong>mcp-urlscan</strong> go back to asking for Touch ID each time claude uses them. Making the grant again is a new Touch ID, not an undo.</div>
+    <div class="jp-alert__buttons">
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default">Revoke</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>The one confirmation.</b> Revoking is free and should stay easy, so this is an alert, not a sheet, and it leads with what actually happens rather than a warning. Revoke is the default button here because nothing dangerous follows it. Escape cancels.</figcaption>
+</figure>
+
+</div>
+
+<h2>What changed from the last draft</h2>
+<ul class="pts">
+  <li><span class="n">1</span><div><b>Schedule removed, Until revoked added.</b><span>Days and hours were a way to bound a grant that had to be bounded. A grant with its own key does not, so the schedule answered a question the design no longer asks. It stays drawn in the previous version if it ever returns.</span></div></li>
+  <li><span class="n">2</span><div><b>Until revoked only for Every copy.</b><span>A standing grant anchors to the app's executable path, which survives a reboot. One process anchors to a pid, which does not, so it keeps a deadline and the sheet says why.</span></div></li>
+  <li><span class="n">3</span><div><b>Rotation has a state now.</b><span>The design makes a rotated secret stop serving silently. Silent is fine for the engine and wrong for a window, so it gets an eyebrow, a count, the secret's name and a Re-approve.</span></div></li>
+  <li><span class="n">4</span><div><b>Revoke deletes a key, so it asks once.</b><span>Still free, still no Touch ID, still the easiest thing in the window. The alert exists because "revoke" no longer just forgets something.</span></div></li>
+  <li><span class="n">5</span><div><b>No expiry column.</b><span>Grants list a deadline today. Most grants will not have one, so the row spends that room on what it covers and when it last served.</span></div></li>
+  <li><span class="n">6</span><div><b>The Project row is gone, and so is choosing a folder.</b><span>It read as a scope and was not one: the folder never reaches the serve path. Two drafts tried to relabel it; the right answer was to delete it. jit lists every profile it can find, you filter and tick, and the folder is printed under each name only to tell two apart.</span></div></li>
+  <li><span class="n">7</span><div><b>One wire change this needs.</b><span>Today <code>grant_create</code> carries profile names plus a single folder. A machine-wide list can hand it names from two different folders, so the field becomes a name-and-folder pair per profile. The agent still resolves the names itself, which is the rule that stops anything naming one profile on the prompt and granting another.</span></div></li>
+</ul>
+
+<h2>Two pieces the design system does not have yet</h2>
+<p>Your rule is that a value missing from the system gets added to it, not invented in a view. These two are both additions to <code>windows.md</code> in the same pass, and both are drawn above.</p>
+<ul class="pts">
+  <li><span class="n">1</span><div><b>A wide pill in a segmented control.</b><span>Until revoked sits beside four short durations. The track already allows it; the page should say a pill may carry a phrase when it is a different kind of answer, not a longer one.</span></div></li>
+  <li><span class="n">2</span><div><b>A detail row under a grant row.</b><span>The rotated secret is a row that names a thing inside the row above it. It is not a card and not a nested list: it is a second row in the same card, in mono, at 55%, with no actions of its own.</span></div></li>
+</ul>
+
+<h2>Build order</h2>
+<p>From <code>jit/design/standing-grants.md</code>. Nothing here is built yet.</p>
+<ul class="pts">
+  <li><span class="n">1</span><div><b>Agent.</b><span>Ledger, grant key behind the vault's key-wrapper interface, create, serve, revoke, rotation marking. Each test with its negative control: create, restart the service, serve with no session and no prompt; revoke, then it prompts; rotate, then it prompts and the list marks it; a same-named program under a different app is refused.</span></div></li>
+  <li><span class="n">2</span><div><b>CLI.</b><span><code>--until-revoked</code>, the list rendering above, and <code>extend</code> refused on a standing grant.</span></div></li>
+  <li><span class="n">3</span><div><b>App.</b><span>Machine-wide profile discovery and its filter, the For segment, the three eyebrows, the rotation card, the revoke alert. Exactly what is drawn here.</span></div></li>
+</ul>
+</div>

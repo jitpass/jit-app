@@ -65,13 +65,31 @@ final class MenuModel: ObservableObject {
     @Published var notificationPermission: NotificationPermission = .unknown
     @Published var auditFilter = AuditFilter(since: "24h")
     @Published var auditLoading = false
+    /// The New Grant sheet's inputs: the usual programs and every process,
+    /// the terminal and editor apps to anchor under, and every profile jit
+    /// can find on this Mac (ProfileDiscovery), plus folders the user added.
     @Published var grantProcesses: [RunningProcess] = []
+    @Published var grantAllProcesses: [RunningProcess] = []
     @Published var grantSessionRoots: [RunningProcess] = []
-    @Published var grantProfiles: [String] = []
+    @Published var grantProfiles: [DiscoveredProfile] = []
+    @Published var grantExtraRoots: [String] = []
     /// Profiles doctor reports as broken, with why; never offered.
     @Published var brokenProfiles: [String: String] = [:]
+    /// Profiles naming a secret the vault does not hold, by manifest path,
+    /// with why: the sheet checks every listed profile against the vault
+    /// itself, since the service would refuse the whole grant for one
+    /// missing secret and a Touch ID should not be spent finding that out.
+    @Published var grantMissing: [String: String] = [:]
+    /// The sheet over the Grants window, what it opens filled with (a
+    /// re-approval), and the grant a re-approval replaces once it lands.
+    @Published var grantSheet = false
+    @Published var grantPrefill: GrantDraft?
+    @Published var grantReplacing: String?
     @Published var grantBusy = false
     @Published var grantError: String?
+    /// What just happened in the Grants window; clears on the next action.
+    @Published var grantBanner: String?
+    @Published var grantBannerFailed = false
     @Published var doctor: DoctorReport?
     @Published var doctorAt: Date?
     @Published var doctorRunning = false
