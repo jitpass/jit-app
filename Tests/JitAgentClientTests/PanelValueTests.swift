@@ -72,4 +72,39 @@ final class PanelValueTests: XCTestCase {
             "the same word and dot as Findings"
         )
     }
+
+    /// The panel draws this column in Sentence case (macOS HIG: static
+    /// information and status readouts), while Title Case stays for the menu
+    /// COMMANDS below the rows — these values are not clickable. `text` is
+    /// still the value itself; `display` is the only thing that cases it.
+    func testDisplayIsSentenceCaseAndLeavesADigitAlone() {
+        XCTAssertEqual(PanelValue.tools(broken: 0, expired: 0, toProtect: 0, wrapped: 0).display, "None wrapped")
+        XCTAssertEqual(PanelValue.service(running: true).display, "Running")
+        XCTAssertEqual(PanelValue.service(running: false).display, "Not running")
+        XCTAssertEqual(PanelValue.grants(active: 0).display, "None")
+        XCTAssertEqual(PanelValue.doctor(problems: 0, warnings: 0, checked: true, checking: false).display, "Healthy")
+        XCTAssertEqual(PanelValue.doctor(problems: 0, warnings: 0, checked: false, checking: true).display, "Checking…")
+        XCTAssertEqual(PanelValue.agents(copies: 0, needing: 0, scanned: true).display, "All set")
+
+        // A value that opens with a digit is already correct Sentence case
+        // and must pass through untouched — the mixed column ("4 to do" next
+        // to "None wrapped") is the standard shape, not a reason to avoid it.
+        XCTAssertEqual(PanelValue.findings(todos: 4, worst: .amber, scanned: true, scanning: false).display, "4 to do")
+        XCTAssertEqual(PanelValue.tools(broken: 1, expired: 0, toProtect: 0, wrapped: 0).display, "1 broken")
+        XCTAssertEqual(PanelValue.doctor(problems: 3, warnings: 0, checked: true, checking: false).display, "3 problems")
+        XCTAssertEqual(PanelValue.vault(secrets: 26).display, "26 secrets")
+        XCTAssertEqual(PanelValue.agents(copies: 47, needing: 0, scanned: true).display, "47 copies")
+
+        // Only the FIRST character is touched: a second word keeps its case,
+        // so this can never drift into Title Case.
+        XCTAssertEqual(PanelValue.tools(broken: 0, expired: 0, toProtect: 1, wrapped: 0).display, "1 to protect")
+        XCTAssertEqual(PanelValue.agents(copies: 0, needing: 1, scanned: true).display, "1 needs you")
+        XCTAssertEqual(PanelValue.findings(todos: 0, worst: .none, scanned: true, scanning: false).display, "All clear")
+
+        // display never changes the value's length, so the 14-character row
+        // budget the panel is drawn to still holds.
+        XCTAssertEqual(PanelValue.tools(broken: 0, expired: 0, toProtect: 0, wrapped: 0).display.count,
+                       PanelValue.tools(broken: 0, expired: 0, toProtect: 0, wrapped: 0).text.count)
+        XCTAssertEqual(PanelValue.Row("").display, "", "an empty value must not crash on first")
+    }
 }
