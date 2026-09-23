@@ -197,19 +197,4 @@ enum Format {
     static func event(_ event: SessionEvent) -> String {
         AuditReport.title(for: event) + " · " + clock(event.date)
     }
-
-    /// "under iTerm2 · until 17:42 · 14 serves", or "pid 48211 · …" for an
-    /// exact-process grant; "ending" when the anchor has already exited.
-    static func grantDetail(_ grant: GrantStatus) -> String {
-        var parts: [String] = []
-        parts.append(grant.anchor.map { "under \($0)" } ?? "pid \(grant.pid)")
-        parts.append("until " + clock(grant.expires))
-        if let serves = grant.serves, serves > 0 {
-            parts.append("\(serves) serve" + (serves == 1 ? "" : "s"))
-        }
-        if !grant.rootAlive {
-            parts.append("ending")
-        }
-        return parts.joined(separator: " · ")
-    }
 }

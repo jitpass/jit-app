@@ -230,9 +230,22 @@ struct AppCardRows<Content: View>: View {
 struct AppRow<Actions: View>: View {
     let name: String
     var detail: String?
-    /// One word after the name, in a quiet chip: "new" on a finding the
-    /// previous scan did not have. Never a colour; the row's dot carries
-    /// severity, the chip carries only that it is news.
+    /// One word after the name, in a chip: "new" on a finding the previous
+    /// scan did not have. Its WORD takes the app's action colour, its fill
+    /// stays the neutral `app-field`: the row's dot carries severity, the
+    /// chip says this is the thing to look at, which is what news is, and a
+    /// state colour here would claim a severity the chip cannot know.
+    ///
+    /// The published design system still says this chip is "never a
+    /// colour": that page was not republished, and this is the deliberate
+    /// divergence recorded in CLAUDE.md. Do not revert it by reading the
+    /// artifact.
+    ///
+    /// The fill is neutral for a measured reason, not a taste: the word on
+    /// `app-field` over a card is 4.91:1, and on a tint of the action
+    /// colour it is 4.33:1, under the 4.5:1 floor. The grey word this
+    /// replaced was 3.72:1, so colouring it is what brings the chip above
+    /// the floor at all.
     var badge: String?
     var fact: String?
     /// A settings row explains what its control costs, and that sentence
@@ -254,7 +267,7 @@ struct AppRow<Actions: View>: View {
                                 .lineLimit(1).truncationMode(.head)
                         }
                         if let badge {
-                            Text(badge).font(Win.eyebrow).foregroundStyle(.secondary)
+                            Text(badge).font(Win.eyebrow).foregroundStyle(Color(StatusMark.accent))
                                 .textCase(.uppercase)
                                 .padding(.horizontal, Win.s2).padding(.vertical, Win.s1)
                                 .background(Design.Surface.field)

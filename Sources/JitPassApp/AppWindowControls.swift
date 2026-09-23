@@ -27,6 +27,9 @@ struct AppSegmentItem<Value: Hashable>: Identifiable {
 struct AppSegmented<Value: Hashable>: View {
     let items: [AppSegmentItem<Value>]
     @Binding var selection: Value
+    /// The pills share the row's width equally: a two-way choice that is
+    /// the whole of a sheet row, rather than a filter over a list.
+    var fill = false
 
     var body: some View {
         HStack(spacing: 2) {
@@ -53,6 +56,7 @@ struct AppSegmented<Value: Hashable>: View {
             .foregroundStyle(selected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
             .padding(.horizontal, Win.s5)
             .padding(.vertical, Win.s2)
+            .frame(maxWidth: fill ? .infinity : nil)
             .background(
                 selected ? WindowSurface.segmentOn : .clear,
                 in: RoundedRectangle(cornerRadius: Win.segment, style: .continuous)
@@ -106,6 +110,48 @@ struct AppPopupStyle: ButtonStyle {
             )
             .offset(y: configuration.isPressed ? 1 : 0)
             .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
+    }
+}
+
+/// The search field: the field's fill and line, a glyph, and a placeholder
+/// that names what it filters.
+struct AppSearchField: View {
+    let placeholder: String
+    @Binding var text: String
+
+    var body: some View {
+        HStack(spacing: Win.s3) {
+            Image(systemName: "magnifyingglass").font(.system(size: 11)).foregroundStyle(.secondary)
+            TextField(placeholder, text: $text).textFieldStyle(.plain).font(Win.button12)
+        }
+        .appField()
+    }
+}
+
+/// A one-line text field on the search field's tokens, for the one value a
+/// sheet asks you to type (a program's name).
+struct AppTextField: View {
+    let placeholder: String
+    @Binding var text: String
+    var width: CGFloat = 132
+
+    var body: some View {
+        TextField(placeholder, text: $text).textFieldStyle(.plain).font(Win.button12)
+            .appField()
+            .frame(width: width)
+    }
+}
+
+extension View {
+    /// The field's shape: fill, 1pt line, control radius, button height.
+    func appField() -> some View {
+        padding(.horizontal, Win.s4)
+            .frame(height: Win.button)
+            .background(WindowSurface.field, in: RoundedRectangle(cornerRadius: Win.control, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Win.control, style: .continuous)
+                    .strokeBorder(WindowSurface.controlLine, lineWidth: 1)
+            )
     }
 }
 
