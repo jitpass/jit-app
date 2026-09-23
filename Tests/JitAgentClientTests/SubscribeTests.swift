@@ -17,7 +17,7 @@ final class SubscribeTests: XCTestCase {
 
     private let ack = #"{"ok":true,"protocol":1}"#
     private let unlock = #"{"unix_time":1789200000,"kind":"unlock","op":"unwrap","by":"aws s3 ls"}"#
-    private let lock = #"{"unix_time":1789200300,"kind":"lock","cause":"5m idle timeout"}"#
+    private let lock = #"{"unix_time":1789200300,"kind":"lock","cause":"5 min idle timeout"}"#
 
     func testEventsArriveInOrderThenTheStreamEnds() throws {
         let server = try FakeAgent(path: path, stream: [unlock, lock]) { request in
