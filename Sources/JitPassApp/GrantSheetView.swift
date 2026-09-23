@@ -4,239 +4,193 @@
 import JitAgentClient
 import SwiftUI
 
-/// New Grant: pick a running process, the profiles it may use, and for how
-/// long. The decision itself is the agent's disclosed Touch ID, which names
-/// the process and the profiles from its own facts; this sheet only
-/// collects the request, exactly as `jit grant --pid` does.
+/// New Grant: the sentence the disclosed Touch ID will ask, filled in one
+/// blank at a time (GrantDraft). One sheet, not a wizard: the whole
+/// decision is read before a Touch ID is spent. No folder is ever chosen;
+/// every profile on the Mac is listed, filterable, with its folder under
+/// its name only so two similar ones can be told apart. The service does
+/// the deciding: this sheet collects the request, exactly as `jit grant`
+/// does, and the footer says what is still missing while the button is off.
 struct GrantSheetView: View {
     @ObservedObject var model: MenuModel
     let actions: GrantActions
 
-    @State private var pid: Int32?
-    @State private var profiles: Set<String> = []
-    @State private var hours: Double = 8
-    @State private var showAll = false
-    @State private var search = ""
-    @State private var tree = false
-    @State private var treeName = "claude"
-    @State private var anchorPID: Int32?
+    @State private var draft = GrantDraft()
 
-    private static let durations: [(label: String, hours: Double)] = [("1h", 1), ("8h", 8), ("24h", 24), ("7d", 168)]
+    /// A selected row: the brand green at the tint `accent-dim` samples.
+    static let selection = Color(StatusMark.green).opacity(0.13)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("New Grant").font(.headline)
-                Text("Let a program use secrets unattended, until a deadline.").font(.subheadline).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: Win.s5) {
+            VStack(alignment: .leading, spacing: Win.s3) {
+                Text(Format.grantSheetTitle).font(Win.cardTitle)
+                sentence
             }
-
-            field("Cover") {
-                Picker("Cover", selection: $tree) {
-                    Text("One process").tag(false)
-                    Text("A program under an app").tag(true)
-                }
-                .pickerStyle(.segmented).labelsHidden()
-                Text(tree
-                    ? "Every copy of a program started under a terminal or editor, now or later."
-                    : "The running process you pick below, until it exits or the deadline passes.")
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
-
-            if tree {
-                field("Name") {
-                    TextField("claude", text: $treeName).textFieldStyle(.roundedBorder).frame(width: 200)
-                }
-                field("Under") {
-                    Picker("Under", selection: $anchorPID) {
-                        Text("choose a terminal or editor…").tag(Int32?.none)
-                        ForEach(model.grantSessionRoots) { root in
-                            Text("\(root.name) · running \(RunningProcess.age(root.elapsed))").tag(Int32?.some(root.pid))
-                        }
-                    }
-                    .labelsHidden()
-                }
-            }
-
-            if !tree {
-                field("Process") {
-                    HStack(spacing: 8) {
-                        TextField("filter by name or folder", text: $search).textFieldStyle(.roundedBorder)
-                        Toggle("show all", isOn: $showAll).toggleStyle(.checkbox).font(.subheadline)
-                            .onChange(of: showAll) { _, all in actions.reloadProcesses(all) }
-                        Button {
-                            actions.reloadProcesses(showAll)
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .help("Refresh the list")
-                    }
-                    processList
-                }
-            }
-
-            field("Profiles") {
-                if model.grantProfiles.isEmpty {
-                    Text("no global profiles under ~/.jit/profiles").foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: Win.s5) {
+                coverRow
+                if draft.cover == .oneProcess {
+                    row("Process") { GrantProcessList(model: model, draft: $draft) }
                 } else {
-                    profileList
+                    programRow
                 }
+                row("Profiles") { GrantProfileList(model: model, draft: $draft, actions: actions) }
+                forRow
             }
-
-            field("For") {
-                Picker("For", selection: $hours) {
-                    ForEach(Self.durations, id: \.hours) { Text($0.label).tag($0.hours) }
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 220)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("• covers the chosen profiles' secrets as they are now")
-                Text(tree ? "• every matching process under that app; ends if the app quits or at the deadline"
-                    : "• that exact process only; ends when it exits or at the deadline")
-                Text("• survives screen lock; revoke any time from the menu")
-            }
-            .font(.subheadline).foregroundStyle(.secondary)
-
+            .opacity(model.grantBusy ? 0.55 : 1)
+            .disabled(model.grantBusy)
             if let error = model.grantError {
-                Text(error)
-                    .font(.subheadline)
+                AppNoteRow(mark: .failed, name: Format.grantFailure, verbatim: error, last: true) { EmptyView() }
+            } else {
+                notes
+            }
+            footer
+        }
+        .padding(Win.s6)
+        .frame(width: Win.sheetWide)
+        .onAppear {
+            draft = model.grantPrefill ?? GrantDraft()
+        }
+        .onChange(of: draft.cover) { _, cover in
+            // Until revoked belongs to every copy; one process keeps a
+            // deadline. The default follows the cover.
+            if cover == .oneProcess, draft.term == .untilRevoked {
+                draft.term = .hours(8)
+            } else if cover == .everyCopy, model.grantPrefill == nil {
+                draft.term = .untilRevoked
+            }
+        }
+        .onChange(of: draft.anchorPID) { _, pid in
+            draft.anchorName = model.grantSessionRoots.first { $0.pid == pid }?.name
+        }
+    }
+
+    // MARK: - The sentence
+
+    private var sentence: some View {
+        var text = Text("")
+        for part in draft.sentence {
+            text = text + piece(part) // swiftlint:disable:this shorthand_operator
+        }
+        return text.font(Design.Text.row).fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func piece(_ part: GrantDraft.Part) -> Text {
+        switch part {
+        case let .text(s): Text(s).foregroundStyle(.secondary)
+        case let .value(s): Text(s).fontWeight(.semibold).foregroundStyle(.primary)
+        case let .blank(s): Text(s).foregroundStyle(.tertiary)
+        }
+    }
+
+    // MARK: - Rows
+
+    private func row(_ label: String, @ViewBuilder _ content: () -> some View) -> some View {
+        HStack(alignment: .top, spacing: Win.s5) {
+            Text(label).font(Win.sub).foregroundStyle(.secondary)
+                .frame(width: 62, alignment: .trailing).padding(.top, 4)
+            VStack(alignment: .leading, spacing: Win.s3) { content() }
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func hint(_ text: String) -> some View {
+        Text(text).font(Win.rowFact).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var coverRow: some View {
+        row("Cover") {
+            AppSegmented(
+                items: [
+                    AppSegmentItem(value: GrantDraft.Cover.oneProcess, title: "One process"),
+                    AppSegmentItem(value: GrantDraft.Cover.everyCopy, title: "Every copy")
+                ],
+                selection: $draft.cover, fill: true
+            )
+            hint(Format.grantCoverHint(draft.cover))
+        }
+    }
+
+    // MARK: Every copy
+
+    private var programRow: some View {
+        row("Program") {
+            HStack(spacing: Win.s4) {
+                AppTextField(placeholder: "name it", text: $draft.program)
+                Text("under").font(Win.sub).foregroundStyle(.secondary)
+                AppPopup(options: anchorOptions, selection: $draft.anchorPID)
+            }
+            if let text = Format.grantProgramHint(program: draft.programName, anchor: draft.anchorName ?? "", running: runningCopies) {
+                hint(text)
+            }
+        }
+    }
+
+    private var anchorOptions: [AppSegmentItem<Int32?>] {
+        [AppSegmentItem(value: Int32?.none, title: "choose an app")] +
+            model.grantSessionRoots.map { AppSegmentItem(value: Int32?.some($0.pid), title: $0.name) }
+    }
+
+    /// How many copies of the named program run under the chosen app now.
+    private var runningCopies: Int {
+        guard let anchor = draft.anchorName, !draft.programName.isEmpty else {
+            return 0
+        }
+        return model.grantAllProcesses.filter { $0.name == draft.programName && $0.under == anchor }.count
+    }
+
+    // MARK: For
+
+    private var forRow: some View {
+        row("For") {
+            AppSegmented(
+                items: draft.terms.map { AppSegmentItem(value: $0, title: GrantDraft.termLabel($0)) },
+                selection: $draft.term
+            )
+            if let ends = Format.grantEnds(draft.term) {
+                hint(ends)
+            }
+            if draft.cover == .oneProcess {
+                hint(Format.grantOneProcessDeadline)
+            }
+        }
+    }
+
+    // MARK: - Notes and footer
+
+    private var notes: some View {
+        VStack(alignment: .leading, spacing: Win.s2) {
+            Rectangle().fill(WindowSurface.separator).frame(height: 1).padding(.bottom, Win.s4)
+            ForEach(Format.grantNotes(draft), id: \.self) { line in
+                Text("• " + line).font(Win.rowFact).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(StatusMark.red).opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             }
+        }
+    }
 
-            HStack {
-                Spacer()
-                Button("Cancel", action: actions.cancel).keyboardShortcut(.cancelAction)
-                Button(model.grantBusy ? "Waiting for Touch ID…" : "Grant with Touch ID") {
-                    if tree, let anchorPID {
-                        actions.grantTree(anchorPID, treeName, Array(profiles).sorted(), hours * 3600)
-                    } else if let pid {
-                        actions.grant(pid, Array(profiles).sorted(), hours * 3600)
-                    }
-                }
+    private var footer: some View {
+        let ready = draft.isComplete && !model.grantBusy
+        return HStack(spacing: Win.s4) {
+            if model.grantBusy {
+                ProgressView().controlSize(.small)
+                Text(Format.grantFooterWaiting).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+            } else {
+                Text(draft.missing ?? Format.grantFooterReady).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: Win.s5)
+            Button("Cancel", action: actions.cancel).buttonStyle(AppButton(kind: .secondary))
+                .keyboardShortcut(.cancelAction)
+            Button("Grant with Touch ID") { actions.grant(draft) }.buttonStyle(AppButton(kind: .primary))
                 .keyboardShortcut(.defaultAction)
-                .disabled(!canGrant)
-            }
+                .disabled(!ready)
+                .opacity(ready ? 1 : 0.45)
         }
-        .padding(18)
-        .frame(width: 520)
-        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
-        .onAppear { actions.reloadProcesses(showAll) }
-    }
-
-    private var canGrant: Bool {
-        guard !profiles.isEmpty, !model.grantBusy else {
-            return false
-        }
-        return tree ? (anchorPID != nil && !treeName.isEmpty) : pid != nil
-    }
-
-    private var visibleProcesses: [RunningProcess] {
-        let needle = search.lowercased()
-        guard !needle.isEmpty else {
-            return model.grantProcesses
-        }
-        return model.grantProcesses.filter { $0.name.lowercased().contains(needle) || $0.folder.lowercased().contains(needle) }
-    }
-
-    /// Two-line rows in a real list: what and where on the first line, the
-    /// terminal, age and pid on the second, so two claudes are told apart
-    /// by the folder they work in rather than by number.
-    private var processList: some View {
-        List(visibleProcesses, selection: $pid) { process in
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(process.name).fontWeight(.semibold)
-                    if !process.folder.isEmpty {
-                        Text(process.folder).lineLimit(1).truncationMode(.middle)
-                    }
-                }
-                Text(Self.secondLine(process)).font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 2)
-            .tag(Int32?.some(process.pid))
-        }
-        .frame(height: 170)
-        .scrollContentBackground(.hidden)
-        .background(Color.primary.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
-        .overlay {
-            if visibleProcesses.isEmpty {
-                Text(model.grantProcesses.isEmpty ? "nothing running that jit usually grants to; try show all" : "no match")
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private static func secondLine(_ process: RunningProcess) -> String {
-        var parts: [String] = []
-        if !process.under.isEmpty {
-            parts.append("under \(process.under)")
-        }
-        parts.append("running \(RunningProcess.age(process.elapsed))")
-        parts.append("pid \(process.pid)")
-        return parts.joined(separator: " · ")
-    }
-
-    /// Checkbox rows in a bordered box that scrolls past six. A profile
-    /// doctor reports as broken is shown but not offered: the agent would
-    /// refuse it, and this says why before a Touch ID is spent.
-    private var profileList: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(model.grantProfiles, id: \.self) { name in
-                    profileRow(name)
-                }
-            }
-            .padding(.vertical, 4)
-        }
-        .frame(height: min(CGFloat(model.grantProfiles.count), 6) * 26 + 8)
-        .background(Color.primary.opacity(0.05))
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Color(nsColor: .separatorColor), lineWidth: 0.5))
-    }
-
-    private func profileRow(_ name: String) -> some View {
-        let broken = model.brokenProfiles[name]
-        return HStack(spacing: 8) {
-            Toggle(name, isOn: binding(for: name)).toggleStyle(.checkbox).disabled(broken != nil)
-            Spacer()
-            if let broken {
-                Text("✗ \(broken)").font(.system(size: 11)).foregroundStyle(Color(StatusMark.red))
-            }
-        }
-        .frame(height: 26)
-        .padding(.horizontal, 10)
-    }
-
-    private func field(_ label: String, @ViewBuilder _ content: () -> some View) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(label).foregroundStyle(.secondary).frame(width: 60, alignment: .trailing)
-            VStack(alignment: .leading, spacing: 6) { content() }
-        }
-    }
-
-    private func binding(for name: String) -> Binding<Bool> {
-        Binding(
-            get: { profiles.contains(name) },
-            set: { on in
-                if on {
-                    profiles.insert(name)
-                } else {
-                    profiles.remove(name)
-                }
-            }
-        )
     }
 }
 
 struct GrantActions {
-    var reloadProcesses: (Bool) -> Void = { _ in }
-    var grant: (Int32, [String], TimeInterval) -> Void = { _, _, _ in }
-    var grantTree: (Int32, String, [String], TimeInterval) -> Void = { _, _, _, _ in }
+    var reload: () -> Void = {}
+    var chooseFolder: () -> Void = {}
+    var openFindings: () -> Void = {}
+    var grant: (GrantDraft) -> Void = { _ in }
     var cancel: () -> Void = {}
 }
