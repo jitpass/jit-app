@@ -236,6 +236,11 @@ struct AppRow<Actions: View>: View {
     /// chip says this is the thing to look at, which is what news is, and a
     /// state colour here would claim a severity the chip cannot know.
     ///
+    /// The published design system still says this chip is "never a
+    /// colour": that page was not republished, and this is the deliberate
+    /// divergence recorded in CLAUDE.md. Do not revert it by reading the
+    /// artifact.
+    ///
     /// The fill is neutral for a measured reason, not a taste: the word on
     /// `app-field` over a card is 4.91:1, and on a tint of the action
     /// colour it is 4.33:1, under the 4.5:1 floor. The grey word this

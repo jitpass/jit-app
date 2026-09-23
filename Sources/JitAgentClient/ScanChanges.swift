@@ -12,6 +12,9 @@ public extension ScanReport {
         findings.filter { !$0.scaffolding && !known.contains($0.id) }
     }
 
+    /// The published design system says nothing about row order; this is an
+    /// addition to it, recorded in CLAUDE.md beside the chip's divergence.
+    ///
     /// A row list with the rows holding something new first, in their own
     /// order, then the rest in theirs. News is what a reader opens the
     /// window for, so it is never buried under rows they saw last time.
