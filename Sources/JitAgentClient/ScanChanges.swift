@@ -12,6 +12,32 @@ public extension ScanReport {
         findings.filter { !$0.scaffolding && !known.contains($0.id) }
     }
 
+    /// A row list with the rows holding something new first, in their own
+    /// order, then the rest in theirs. News is what a reader opens the
+    /// window for, so it is never buried under rows they saw last time.
+    /// `new` nil (no earlier scan to compare with) leaves the order alone.
+    static func newFirst<Row>(_ rows: [Row], new: Set<String>?, findings: (Row) -> [ScanFinding]) -> [Row] {
+        guard let new, !new.isEmpty else {
+            return rows
+        }
+        let fresh = rows.filter { findings($0).contains { new.contains($0.id) } }
+        let rest = rows.filter { !findings($0).contains { new.contains($0.id) } }
+        return fresh + rest
+    }
+
+    /// `groups(in:)`, news first.
+    func groups(in tier: ScanTier, new: Set<String>?) -> [ScanFileGroup] {
+        Self.newFirst(groups(in: tier), new: new, findings: \.findings)
+    }
+
+    func agentCacheGroups(new: Set<String>?) -> [ScanAgentGroup] {
+        Self.newFirst(agentCacheGroups, new: new, findings: \.findings)
+    }
+
+    func cacheShapeGroups(new: Set<String>?) -> [ScanFileGroup] {
+        Self.newFirst(cacheShapeGroups, new: new, findings: \.findings)
+    }
+
     /// The ids to remember for the next comparison. Ids only, never a
     /// value or a path.
     var countedIDs: [String] {

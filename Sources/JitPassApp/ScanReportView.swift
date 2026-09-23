@@ -132,9 +132,9 @@ struct ScanReportView: View {
     @ViewBuilder
     private func card(_ tier: ScanTier, _ report: ScanReport) -> some View {
         if tier == .agentCaches {
-            agentCard(report.agentCacheGroups, shapes: report.cacheShapeGroups)
+            agentCard(report.agentCacheGroups(new: newIDs), shapes: report.cacheShapeGroups(new: newIDs))
         } else {
-            let groups = report.groups(in: tier)
+            let groups = report.groups(in: tier, new: newIDs)
             AppCard(
                 eyebrow: Format.tierLabel(tier),
                 eyebrowTint: Color(Self.tierTint(tier)),
@@ -220,8 +220,14 @@ struct ScanReportView: View {
     /// Whether any of these findings is one the previous whole-Mac scan
     /// did not have. Only the whole-Mac report keeps that comparison; a
     /// folder scan marks nothing.
+    /// What counts as news on this window: the whole-Mac scan's new ids,
+    /// and nothing when a folder scan is showing.
+    var newIDs: Set<String>? {
+        model.scanScope == nil ? model.macScanNew : nil
+    }
+
     func isNew(_ findings: [ScanFinding]) -> Bool {
-        guard model.scanScope == nil, let new = model.macScanNew else {
+        guard let new = newIDs else {
             return false
         }
         return findings.contains { new.contains($0.id) }
