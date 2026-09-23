@@ -83,15 +83,15 @@ public struct AuditReport: Codable, Sendable, Equatable {
         case "lock":
             return "locked"
         case "use":
-            let what = secrets.isEmpty ? "a secret" : secrets
-            if who.isEmpty {
-                return event.op == "serve_mounts" ? "served mounts (\(what))" : "used \(what)"
-            }
-            return "\(who) used \(what)"
+            return useTitle(event, who: who, what: secrets.isEmpty ? "a secret" : secrets)
         case "denied":
             return who.isEmpty ? "denied" : "denied \(who)"
         case "approved":
-            return who.isEmpty ? "approved" : "approved \(who)"
+            return approvedTitle(event, who: who)
+        case "grant_end":
+            // The cause is the sentence: "claude's grant revoked". Labels
+            // are the paths it covered, on the detail line.
+            return event.cause ?? "grant ended"
         case "serve":
             // A decoy serve is the one event the whole design exists for:
             // something read a protected file with no run or consent
@@ -107,6 +107,29 @@ public struct AuditReport: Codable, Sendable, Equatable {
             return "service started"
         default:
             return who.isEmpty ? event.kind : "\(event.kind) · \(who)"
+        }
+    }
+
+    /// A read that rode a process grant is a different fact from one that
+    /// rode a session, and `jit audit` says so; this window must not fold
+    /// the two into "used".
+    static func useTitle(_ event: SessionEvent, who: String, what: String) -> String {
+        if event.op == "grant_use" {
+            return who.isEmpty ? "read \(what) via grant" : "\(who) read \(what) via grant"
+        }
+        if who.isEmpty {
+            return event.op == "serve_mounts" ? "served mounts (\(what))" : "used \(what)"
+        }
+        return "\(who) used \(what)"
+    }
+
+    /// A grant's birth is an approval with the grant op; the detail line
+    /// carries the sentence that was approved, word for word.
+    static func approvedTitle(_ event: SessionEvent, who: String) -> String {
+        switch event.op {
+        case "grant_create": who.isEmpty ? "grant approved" : "grant approved, asked by \(who)"
+        case "grant_extend": who.isEmpty ? "grant extended" : "grant extended, asked by \(who)"
+        default: who.isEmpty ? "approved" : "approved \(who)"
         }
     }
 
