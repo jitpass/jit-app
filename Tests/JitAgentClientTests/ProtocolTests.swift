@@ -168,3 +168,53 @@ final class ProtocolTests: XCTestCase {
         XCTAssertFalse(ops.contains("reveal_pid"))
     }
 }
+
+extension ProtocolTests {
+    /// A create must carry BOTH wire shapes. The per-folder field is what a
+    /// current agent reads; the names-plus-one-root pair is all an older one
+    /// understands, and sending only the new field made the bundled 2.2.6
+    /// agent see no profiles and refuse every create — including the timed
+    /// grants that worked before the field existed.
+    func testACreateCarriesBothWireShapesSoAnOlderAgentStillWorks() throws {
+        let client = AgentClient(socketPath: "/nonexistent")
+        let same = [GrantProfile(name: "a", root: "/p"), GrantProfile(name: "b", root: "/p")]
+        let legacy = try XCTUnwrap(AgentClient.legacyProfilesForTests(same))
+        XCTAssertEqual(legacy.names, ["a", "b"])
+        XCTAssertEqual(legacy.root, "/p")
+
+        // Two folders cannot be said in the old shape at all, so it is
+        // omitted rather than guessed: an older agent then refuses in its
+        // own words instead of resolving from the wrong folder.
+        let mixed = [GrantProfile(name: "a", root: "/p"), GrantProfile(name: "b", root: "/q")]
+        XCTAssertNil(AgentClient.legacyProfilesForTests(mixed))
+
+        // A global profile carries no folder, which is a root of nil, not a
+        // disagreement.
+        let global = [GrantProfile(name: "a"), GrantProfile(name: "b")]
+        let g = try XCTUnwrap(AgentClient.legacyProfilesForTests(global))
+        XCTAssertNil(g.root)
+        _ = client
+    }
+}
+
+extension ProtocolTests {
+    /// The bytes on the wire, not the helper: a timed create must be readable
+    /// by a 2.2.6 agent, which looks only at grant_profiles + project_root.
+    func testTheTimedCreateOnTheWireIsReadableByA226Agent() throws {
+        let profiles = [GrantProfile(name: "mcp-caido", root: "/Users/me/Security-Ops")]
+        let legacy = AgentClient.legacyProfilesForTests(profiles)
+        let request = AgentRequest(
+            op: .grantCreate, targetPID: 501,
+            grantProfiles: legacy?.names, projectRoot: legacy?.root,
+            ttlSeconds: 28800, grantProfileRoots: profiles
+        )
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        // What a 2.2.6 agent reads (grant.go: len(req.GrantProfiles) == 0,
+        // then OnResolveGrant(req.GrantProfiles, req.ProjectRoot)).
+        XCTAssertEqual(obj["grant_profiles"] as? [String], ["mcp-caido"], "a 2.2.6 agent refuses a create with no grant_profiles")
+        XCTAssertEqual(obj["project_root"] as? String, "/Users/me/Security-Ops")
+        XCTAssertEqual(obj["ttl_seconds"] as? Int, 28800)
+        // And what a current agent prefers.
+        XCTAssertEqual((obj["grant_profile_roots"] as? [[String: Any]])?.count, 1)
+    }
+}
