@@ -32,6 +32,31 @@ final class AuditReportTests: XCTestCase {
         XCTAssertEqual(AuditReport.title(for: SessionEvent(unixTime: 0, kind: "start")), "service started")
     }
 
+    func testGrantEventsAreNamedAsGrants() {
+        // Mirrors `jit audit`: a grant's approval, its reads and its ending
+        // are grant facts, never folded into "approved" and "used".
+        let born = SessionEvent(
+            unixTime: 0, kind: "approved", op: "grant_create", by: "/Applications/JitPass.app/Contents/MacOS/JitPass",
+            cause: "let claude under iTerm2 use 1 secret (mcp-caido) until you revoke it"
+        )
+        XCTAssertEqual(AuditReport.title(for: born), "grant approved, asked by JitPass")
+        XCTAssertEqual(AuditReport.detail(for: born), "let claude under iTerm2 use 1 secret (mcp-caido) until you revoke it")
+        XCTAssertEqual(
+            AuditReport.title(for: SessionEvent(unixTime: 0, kind: "use", op: "grant_use", by: "jit run", labels: ["caido/url"])),
+            "jit run read caido/url via grant"
+        )
+        XCTAssertEqual(
+            AuditReport.title(for: SessionEvent(unixTime: 0, kind: "grant_end", op: "g-1", cause: "claude's grant revoked")),
+            "claude's grant revoked"
+        )
+        XCTAssertEqual(AuditReport.title(for: SessionEvent(unixTime: 0, kind: "grant_end", op: "g-1")), "grant ended")
+        // An ordinary approval keeps its wording.
+        XCTAssertEqual(
+            AuditReport.title(for: SessionEvent(unixTime: 0, kind: "approved", op: "unwrap", by: "/usr/bin/aws")),
+            "approved aws"
+        )
+    }
+
     func testFilterRendersOnlyWhatIsSet() {
         // No range means everything, so the cap is off; an hour or a day
         // keeps the cap, a week drops it (200 entries fit in one afternoon).

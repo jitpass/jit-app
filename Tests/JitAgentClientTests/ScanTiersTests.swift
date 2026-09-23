@@ -47,6 +47,25 @@ final class ScanTiersTests: XCTestCase {
         try ScanReport.parse(Data((lines + [summary.replacingOccurrences(of: "\n", with: "")]).joined(separator: "\n").utf8))
     }
 
+    func testNewRowsComeFirstInEveryList() throws {
+        let r = try report([
+            finding("old-1", path: "/Users/me/a/.env", remedy: "migrate"),
+            finding("old-2", path: "/Users/me/b/.env", remedy: "migrate"),
+            finding("new-1", path: "/Users/me/c/.env", remedy: "migrate"),
+            finding("old-3", path: "/Users/me/d/secrets.txt"),
+            finding("new-2", path: "/Users/me/e/secrets.txt"),
+            finding("old-4", path: "/Users/me/.claude/history.jsonl", agent: "Claude Code"),
+            finding("new-3", path: "/Users/me/.cursor/history.jsonl", agent: "Cursor")
+        ])
+        let new: Set = ["new-1", "new-2", "new-3"]
+        XCTAssertEqual(r.groups(in: .protect, new: new).map(\.filePath), ["/Users/me/c/.env", "/Users/me/a/.env", "/Users/me/b/.env"])
+        XCTAssertEqual(r.groups(in: .needsYou, new: new).map(\.filePath), ["/Users/me/e/secrets.txt", "/Users/me/d/secrets.txt"])
+        XCTAssertEqual(r.agentCacheGroups(new: new).map(\.agent), ["Cursor", "Claude Code"])
+        // No earlier scan to compare with: the scan's own order stands.
+        XCTAssertEqual(r.groups(in: .protect, new: nil).map(\.filePath), r.groups(in: .protect).map(\.filePath))
+        XCTAssertEqual(r.groups(in: .protect, new: []).map(\.filePath), r.groups(in: .protect).map(\.filePath))
+    }
+
     func testVaultCopiesAreTheirOwnTierAndNeverNeedsYou() throws {
         let r = try report([
             finding("v1", type: "vault_copy", path: "/Users/me/.claude/a.jsonl", line: 214,

@@ -4,16 +4,20 @@
 import Foundation
 import JitAgentClient
 
-/// The names of the global profiles, read from the manifest file names
-/// under ~/.jit/profiles. Names only: a manifest maps variables to vault
-/// paths and holds no value, and the app does not open it either way.
+/// Every profile on this Mac, found without asking where to look: the
+/// project roots jit's mount registry records, the folders the running
+/// programs work in, and the global store (ProfileDiscovery). Names and
+/// key names only; nothing here opens the vault.
 enum ProfileStore {
-    static func globalNames(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> [String] {
-        let dir = ProfileFiles.directory(home: home.path)
-        let files = (try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? []
-        return files
-            .filter { $0.hasSuffix(".yaml") }
-            .map { String($0.dropLast(".yaml".count)) }
-            .sorted()
+    static func discover(workingDirectories: [String], extraRoots: [String]) -> [DiscoveredProfile] {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.path
+            ?? home + "/Library/Application Support"
+        return ProfileDiscovery.discover(
+            home: home,
+            mountsRegistry: support + "/jitpass/mounts.yaml",
+            workingDirectories: workingDirectories,
+            extraRoots: extraRoots
+        )
     }
 }

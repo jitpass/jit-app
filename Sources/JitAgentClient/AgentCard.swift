@@ -26,7 +26,10 @@ public struct AgentCard: Equatable, Sendable {
         public var newCopies: Int
         public var protectedFiles: Int
         public var mcpKeysInTheOpen: Int
-        public var grantUntil: Date?
+        /// How the agent's grant ends, already worded: "until revoked", or
+        /// "until 17:42". Never a bare Date — a standing grant has no
+        /// deadline, and rendering its zero expiry printed the Unix epoch.
+        public var grantEnds: String?
         /// nil when the service is not running.
         public var consent: Bool?
         /// nil until the audit has been read.
@@ -36,7 +39,7 @@ public struct AgentCard: Equatable, Sendable {
 
         public init(
             tool: String, label: String, key: ToolKeyState, wrapped: Bool, healthy: Bool, stateLabel: String,
-            exposure: AgentExposure?, newCopies: Int, protectedFiles: Int, mcpKeysInTheOpen: Int, grantUntil: Date?,
+            exposure: AgentExposure?, newCopies: Int, protectedFiles: Int, mcpKeysInTheOpen: Int, grantEnds: String?,
             consent: Bool?, activity: AgentActivity?, redactsAfterScan: Bool, home: String
         ) {
             self.tool = tool
@@ -49,7 +52,7 @@ public struct AgentCard: Equatable, Sendable {
             self.newCopies = newCopies
             self.protectedFiles = protectedFiles
             self.mcpKeysInTheOpen = mcpKeysInTheOpen
-            self.grantUntil = grantUntil
+            self.grantEnds = grantEnds
             self.consent = consent
             self.activity = activity
             self.redactsAfterScan = redactsAfterScan
@@ -163,7 +166,7 @@ public struct AgentCard: Equatable, Sendable {
         } else {
             parts.append("no MCP key in the open")
         }
-        parts.append(input.grantUntil.map { "grant until " + SessionState.clock($0) } ?? "no grant")
+        parts.append(input.grantEnds.map { "grant " + $0 } ?? "no grant")
         return (parts.joined(separator: " · "), amber)
     }
 
@@ -199,5 +202,15 @@ public struct AgentCard: Equatable, Sendable {
 
     static func count(_ n: Int, _ singular: String, plural: String? = nil) -> String {
         "\(n) " + (n == 1 ? singular : plural ?? singular + "s")
+    }
+}
+
+public extension AgentCard {
+    /// How a grant ends, in the words every other surface uses. A standing
+    /// grant has no deadline: its `expiresUnix` carries a far-future
+    /// compatibility instant for clients older than the feature, and
+    /// rendering that as a clock is the epoch bug this exists to prevent.
+    static func grantEnds(_ grant: GrantStatus) -> String {
+        grant.isStanding ? "until revoked" : "until " + SessionState.clock(grant.expires)
     }
 }

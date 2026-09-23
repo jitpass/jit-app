@@ -24,17 +24,13 @@ final class StatusItemController {
         size: NSSize(width: 720, height: 480),
         minSize: NSSize(width: 520, height: 320)
     )
-    lazy var grantWindow = ReportWindow(
-        title: "New Grant",
-        content: GrantSheetView(model: model, actions: grantActions),
-        size: NSSize(width: 520, height: 560),
-        minSize: NSSize(width: 520, height: 480)
-    )
+    /// The small window: one purpose, nothing to filter. New Grant is its
+    /// sheet, not a window of its own.
     lazy var grantsWindow = ReportWindow(
-        title: "JitPass Grants",
-        content: GrantsView(model: model, actions: grantsActions),
-        size: NSSize(width: 560, height: 320),
-        minSize: NSSize(width: 480, height: 240)
+        title: "Grants",
+        content: GrantsView(model: model, actions: grantsActions, sheetActions: grantActions),
+        size: Design.Window.small,
+        minSize: Design.Window.minimum(for: Design.Window.small)
     )
     lazy var vaultWindow = ReportWindow(
         title: "JitPass Vault",

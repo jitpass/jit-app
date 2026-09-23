@@ -192,15 +192,43 @@ public extension AgentClient {
         _ = try send(AgentRequest(op: .consentAnswer, consentID: id, decision: allow ? .allow : .deny))
     }
 
+    /// The legacy pair an agent older than per-folder profiles reads: the
+    /// names, plus ONE root for all of them. Sent ALONGSIDE
+    /// `grantProfileRoots`, never instead of it — a newer agent prefers the
+    /// per-folder field and ignores these, an older one sees only these and
+    /// keeps working. Without it, sending only the new field meant an older
+    /// bundled agent saw no profiles at all and refused every create,
+    /// including the timed ones that worked before it existed.
+    ///
+    /// nil when the profiles do not share one root, because the old shape
+    /// cannot express that: a refusal an older agent words itself is better
+    /// than resolving half the names from the wrong folder.
+    static func legacyProfilesForTests(_ profiles: [GrantProfile]) -> (names: [String], root: String?)? {
+        legacyProfiles(profiles)
+    }
+
+    private static func legacyProfiles(_ profiles: [GrantProfile]) -> (names: [String], root: String?)? {
+        let roots = Set(profiles.map(\.root))
+        guard roots.count == 1 else {
+            return nil
+        }
+        return (profiles.map(\.name), roots.first ?? nil)
+    }
+
     /// Creates a tree grant: any process named `name` under the session root
-    /// (terminal app, editor) at `anchorPID`, now or later. Needs an agent
-    /// from jit 1.5.4; an older one refuses on its ancestry check.
+    /// (terminal app, editor) at `anchorPID`, now or later. With `ttl` nil
+    /// it is a standing grant (design/standing-grants.md): no deadline, its
+    /// own key, ends on revoke; needs an agent from jit 2.3. Each profile
+    /// carries the folder it is read from, so two profiles beside two
+    /// projects can share one grant.
     func createTreeGrant(
-        anchorPID: Int32, name: String, profiles: [String], projectRoot: String?, ttl: TimeInterval
+        anchorPID: Int32, name: String, profiles: [GrantProfile], ttl: TimeInterval?
     ) throws -> GrantStatus {
+        let legacy = Self.legacyProfiles(profiles)
         let request = AgentRequest(
-            op: .grantCreate, targetPID: anchorPID, grantProfiles: profiles, projectRoot: projectRoot, ttlSeconds: Int64(ttl),
-            grantName: name, anchorExplicit: true
+            op: .grantCreate, targetPID: anchorPID,
+            grantProfiles: legacy?.names, projectRoot: legacy?.root, ttlSeconds: ttl.map { Int64($0) },
+            grantName: name, anchorExplicit: true, grantProfileRoots: profiles, standing: ttl == nil ? true : nil
         )
         guard let grant = try send(request, timeout: Self.promptTimeout).grants?.first else {
             throw AgentClientError.agent("grant created but not reported back")
@@ -210,10 +238,14 @@ public extension AgentClient {
 
     /// Creates an exact-process grant. The agent puts a disclosed Touch ID
     /// on screen naming the process and the profiles, so this blocks until
-    /// the human answers; callers run it off the main thread.
-    func createGrant(pid: Int32, profiles: [String], projectRoot: String?, ttl: TimeInterval) throws -> GrantStatus {
+    /// the human answers; callers run it off the main thread. Always timed:
+    /// a process cannot outlive a reboot, so it keeps a deadline.
+    func createGrant(pid: Int32, profiles: [GrantProfile], ttl: TimeInterval) throws -> GrantStatus {
+        let legacy = Self.legacyProfiles(profiles)
         let request = AgentRequest(
-            op: .grantCreate, targetPID: pid, grantProfiles: profiles, projectRoot: projectRoot, ttlSeconds: Int64(ttl)
+            op: .grantCreate, targetPID: pid,
+            grantProfiles: legacy?.names, projectRoot: legacy?.root,
+            ttlSeconds: Int64(ttl), grantProfileRoots: profiles
         )
         guard let grant = try send(request, timeout: Self.promptTimeout).grants?.first else {
             throw AgentClientError.agent("grant created but not reported back")

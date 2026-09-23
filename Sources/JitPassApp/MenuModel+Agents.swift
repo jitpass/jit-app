@@ -23,7 +23,7 @@ extension MenuModel {
                 exposure: exposure, newCopies: fresh,
                 protectedFiles: cli?.mounts?.registered ?? 0,
                 mcpKeysInTheOpen: scan?.mcpByFile.reduce(0) { $0 + $1.findings.count } ?? 0,
-                grantUntil: grant.map { Date(timeIntervalSince1970: TimeInterval($0.expiresUnix)) },
+                grantEnds: grant.map(AgentCard.grantEnds),
                 consent: consentEnabled, activity: agentActivity[agent.tool],
                 redactsAfterScan: redactAfterScan || redactAgents.contains(agent.tool), home: home
             ))
