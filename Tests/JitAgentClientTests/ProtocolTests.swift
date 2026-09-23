@@ -37,9 +37,9 @@ final class ProtocolTests: XCTestCase {
     func testHistoryArrivesUnderEvents() throws {
         // The Go response field is Events (json "events"); a client reading
         // "history" would silently see an empty tail forever.
-        let json = #"{"ok":true,"events":[{"unix_time":1789200000,"kind":"lock","cause":"5m idle timeout"}]}"#
+        let json = #"{"ok":true,"events":[{"unix_time":1789200000,"kind":"lock","cause":"5 min idle timeout"}]}"#
         let r = try JSONDecoder().decode(AgentResponse.self, from: Data(json.utf8))
-        XCTAssertEqual(r.events?.first?.cause, "5m idle timeout")
+        XCTAssertEqual(r.events?.first?.cause, "5 min idle timeout")
     }
 
     func testStatusCeilingAndSettingsDecodeWhenPresent() throws {

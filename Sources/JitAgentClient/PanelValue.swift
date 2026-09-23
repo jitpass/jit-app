@@ -24,6 +24,33 @@ public enum PanelValue {
             self.text = text
             self.tone = tone
         }
+
+        /// The value as the panel DRAWS it: Sentence case ("None wrapped",
+        /// "3 problems", "Running").
+        ///
+        /// The casing lives here rather than in the text each factory
+        /// returns, so it is one rule applied once instead of a capital
+        /// letter to remember in twenty string literals — a new row gets it
+        /// for free, and `text` stays the value itself, which is what the
+        /// budget and worst-fact tests are about.
+        ///
+        /// Sentence case, not Title Case, and not the all-lowercase this
+        /// column used until 2026-09-23: the macOS HIG puts static
+        /// information and status readouts in Sentence case, while Title
+        /// Case is the convention for the menu COMMANDS below the rows
+        /// ("Unlock with Touch ID") — values in this column are not
+        /// clickable, and dressing them as commands would say they were.
+        ///
+        /// Uppercasing the first character is the whole transformation, and
+        /// it is why a value may open with a digit: "4 to do" is already
+        /// correct Sentence case and passes through untouched, next to
+        /// "None wrapped" that did not.
+        public var display: String {
+            guard let first = text.first else {
+                return text
+            }
+            return first.uppercased() + text.dropFirst()
+        }
     }
 
     /// "25 secrets": a count, no state.

@@ -88,45 +88,45 @@ struct PanelView: View {
                 }
                 if let vault = model.vaultRow {
                     Button(action: actions.openVault) {
-                        row("archivebox", "Vault", vault.text, dot: dot(vault.tone))
+                        row("archivebox", "Vault", vault.display, dot: dot(vault.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
                 if let agents = model.agentsRow {
                     Button(action: actions.openAgents) {
-                        row("sparkles", "AI Agents", agents.text, dot: dot(agents.tone))
+                        row("sparkles", "AI Agents", agents.display, dot: dot(agents.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
                 if let tools = model.toolsRow {
                     Button(action: actions.openTools) {
-                        row("terminal", "Tools", tools.text, dot: dot(tools.tone))
+                        row("terminal", "Tools", tools.display, dot: dot(tools.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
-                row("play.circle", "Service", model.serviceRow.text, dot: dot(model.serviceRow.tone))
+                row("play.circle", "Service", model.serviceRow.display, dot: dot(model.serviceRow.tone))
                 Button(action: actions.openGrants) {
-                    row("key", "Grants", model.grantsRow.text, dot: dot(model.grantsRow.tone))
+                    row("key", "Grants", model.grantsRow.display, dot: dot(model.grantsRow.tone))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
                 if let decoys = model.decoysRow {
                     Button(action: actions.openDecoys) {
-                        row("eye.slash", "Decoys", decoys.text, dot: dot(decoys.tone))
+                        row("eye.slash", "Decoys", decoys.display, dot: dot(decoys.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
                 }
                 Button(action: actions.openDoctor) {
-                    row("stethoscope", "Doctor", model.doctorRow.text, dot: dot(model.doctorRow.tone))
+                    row("stethoscope", "Doctor", model.doctorRow.display, dot: dot(model.doctorRow.tone))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
                 Button(action: actions.openScan) {
-                    row("scope", "Findings", model.findingsRow.text, dot: dot(model.findingsRow.tone))
+                    row("scope", "Findings", model.findingsRow.display, dot: dot(model.findingsRow.tone))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
