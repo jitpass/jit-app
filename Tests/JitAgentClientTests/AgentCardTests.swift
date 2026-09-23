@@ -45,7 +45,7 @@ final class AgentCardTests: XCTestCase {
     ) -> AgentCard.Input {
         AgentCard.Input(
             tool: "claude", label: "Claude Code", key: key, wrapped: false, healthy: true, stateLabel: "shim is missing",
-            exposure: exposure, newCopies: newCopies, protectedFiles: 3, mcpKeysInTheOpen: mcp, grantUntil: nil,
+            exposure: exposure, newCopies: newCopies, protectedFiles: 3, mcpKeysInTheOpen: mcp, grantEnds: nil,
             consent: consent, activity: activity, redactsAfterScan: redacts, home: "/Users/me"
         )
     }
@@ -163,5 +163,24 @@ final class AgentCardTests: XCTestCase {
         XCTAssertEqual(card.key, "not checked yet")
         XCTAssertEqual(card.since, "Not searched yet: a whole-Mac scan fills in its files.")
         XCTAssertTrue(card.canReach.contains("the service is not running"))
+    }
+}
+
+extension AgentCardTests {
+    /// A standing grant has no deadline. Its expiresUnix carries a far-future
+    /// instant for clients older than the feature, so any surface that renders
+    /// it as a clock prints a date the grant does not have — the exact bug the
+    /// compat instant was added to stop, reproduced once already in this app.
+    func testAStandingGrantNeverRendersADeadline() {
+        let standing = GrantStatus(id: "g-1", name: "claude", standing: true)
+        XCTAssertEqual(AgentCard.grantEnds(standing), "until revoked")
+
+        let timed = GrantStatus(id: "g-2", name: "claude", expiresUnix: 1_790_000_000)
+        XCTAssertTrue(AgentCard.grantEnds(timed).hasPrefix("until "))
+        XCTAssertNotEqual(AgentCard.grantEnds(timed), "until revoked")
+
+        // The zero an older agent sends must never reach a clock either.
+        let old = GrantStatus(id: "g-3", name: "claude", expiresUnix: 0, standing: true)
+        XCTAssertEqual(AgentCard.grantEnds(old), "until revoked")
     }
 }
