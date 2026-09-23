@@ -68,6 +68,16 @@ tools alone, but `swift test` and `swiftlint` need Xcode's toolchain: if
   `Design.Label` instead of a literal. A number that is not in `Design` is missing
   from the system: add it to the artifact's `tokens.json` and `windows.md`
   first, then to `Design`, and never pick one in the view.
+- **One rule diverges from the published system, on purpose (2026-09-23).**
+  Windows still says the row's "new" chip is `app-label-2` on `app-field`,
+  "never a colour", and says nothing about row order. The app ships the
+  chip's WORD in `app-action` on that same neutral fill, and sorts rows
+  carrying one to the top of their card. Do not "fix" it back by reading
+  that page: the grey word measures 3.72:1 on a card, under the 4.5:1
+  floor the same page requires, and the coloured word on the neutral fill
+  measures 4.91:1. A tinted fill was drawn, measured at 4.33:1 and
+  dropped. Meni decided not to republish the artifact, so the divergence
+  is deliberate and lives here.
 - **State colour stays in `StatusMark`.** `Design` deliberately holds none, so
   the menu bar mark, the panel dots and a window's rows cannot disagree
   about what green means. Every state dot is 8pt and always sits beside a
