@@ -43,7 +43,7 @@ struct AIJobsView: View {
         .sheet(isPresented: $model.jobSheet) {
             JobSheetView(model: model, actions: sheetActions)
         }
-        .background(EmptyView().sheet(isPresented: $model.jobReviewSheet) {
+        .background(EmptyView().sheet(isPresented: $model.jobReviewSheet, onDismiss: actions.reviewDismissed) {
             JobReviewSheet(model: model, actions: reviewActions)
         })
         .onAppear(perform: actions.reload)
@@ -216,6 +216,7 @@ struct AIJobsActions {
     var reload: () -> Void = {}
     var remove: (JobStatus) -> Void = { _ in }
     var edit: (JobStatus) -> Void = { _ in }
+    var reviewDismissed: () -> Void = {}
     var newJob: () -> Void = {}
     var review: (JobProposal) -> Void = { _ in }
     var reviewJob: (JobStatus) -> Void = { _ in }
