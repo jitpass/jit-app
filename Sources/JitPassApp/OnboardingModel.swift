@@ -38,6 +38,11 @@ final class OnboardingModel: ObservableObject {
     @Published var offersGuard = false
     /// Only when a terminal would not find `jit` and Homebrew is not the one to fix it.
     @Published var offersCLI = false
+    /// Off by default: it edits another app's settings (`jit mcp install`).
+    /// Offered only when Claude Desktop is installed, not yet connected, and
+    /// the jit this app carries has `jit mcp`.
+    @Published var connectClaudeDesktop = false
+    @Published var offersClaudeDesktop = false
     /// Where the recovery file went, once it has.
     @Published var recoverySaved: String?
     @Published var finishBusy: String?
