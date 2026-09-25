@@ -7,13 +7,24 @@ import XCTest
 /// The Settings window's dots: which card is amber, and which pill
 /// therefore carries the dot for a card the filter is hiding.
 final class SettingsBoardTests: XCTestCase {
-    func testEverySegmentHoldsItsOwnGroupsAndTogetherAllSeven() {
+    func testEverySegmentHoldsItsOwnGroupsAndTogetherAllOfThem() {
         let grouped = SettingsSegment.allCases.flatMap(\.groups)
         XCTAssertEqual(grouped.count, SettingsGroup.allCases.count)
         XCTAssertEqual(Set(grouped), Set(SettingsGroup.allCases))
-        XCTAssertEqual(SettingsSegment.protection.groups, [.protection, .notifications, .vault])
-        XCTAssertEqual(SettingsSegment.scan.groups, [.scan])
-        XCTAssertEqual(SettingsSegment.app.groups, [.thisMac, .updates, .remove])
+        XCTAssertEqual(SettingsSegment.general.groups, [.general])
+        XCTAssertEqual(SettingsSegment.protection.groups, [.protection])
+        XCTAssertEqual(SettingsSegment.notifications.groups, [.notifications])
+        XCTAssertEqual(SettingsSegment.scan.groups, [.scan, .excludes])
+        XCTAssertEqual(SettingsSegment.reset.groups, [.reset])
+    }
+
+    /// The tab Settings opens on holds no button that deletes anything:
+    /// emptying the vault and removing the app are Reset's alone.
+    func testOnlyResetHoldsWhatDeletes() {
+        for segment in SettingsSegment.allCases where segment != .reset {
+            XCTAssertFalse(segment.groups.contains(.reset), segment.title)
+        }
+        XCTAssertEqual(SettingsSegment.allCases.map(\.title), ["General", "Protection", "Notifications", "Scan", "Reset"])
     }
 
     func testAQuietMacHasNoAmberCardAndNoDotOnAnyPill() {
@@ -26,15 +37,23 @@ final class SettingsBoardTests: XCTestCase {
         }
     }
 
-    func testEmptyingTheVaultAndRemovingTheAppAreNeverGreen() {
+    func testResetAndTheSkipListAreNeverGreen() {
         let facts = SettingsFacts()
-        XCTAssertEqual(facts.state(of: .vault), SettingsState.none)
-        XCTAssertEqual(facts.state(of: .remove), SettingsState.none)
+        XCTAssertEqual(facts.state(of: .reset), SettingsState.none)
+        XCTAssertEqual(facts.state(of: .excludes), SettingsState.none)
     }
 
-    func testProtectionIsAmberOnlyWhenTheServiceIsDown() {
+    func testProtectionIsRedOnlyWhenTheServiceIsDown() {
         XCTAssertEqual(SettingsFacts(serviceRunning: true).state(of: .protection), .healthy)
-        XCTAssertEqual(SettingsFacts(serviceRunning: false).state(of: .protection), .needsYou)
+        XCTAssertEqual(SettingsFacts(serviceRunning: false).state(of: .protection), .broken)
+        XCTAssertEqual(SettingsFacts(serviceRunning: false).worst(in: .protection), .broken)
+        XCTAssertTrue(SettingsFacts(serviceRunning: false).needsYou(in: .protection))
+    }
+
+    func testAPillShowsRedBeforeAmber() {
+        let facts = SettingsFacts(updateAvailable: true)
+        XCTAssertEqual(facts.worst(in: .general), .needsYou)
+        XCTAssertNil(facts.worst(in: .reset))
     }
 
     /// Blocked notifications nobody asked for are not a problem the reader
@@ -62,10 +81,10 @@ final class SettingsBoardTests: XCTestCase {
         XCTAssertEqual(SettingsFacts(scanScheduled: true, fullDiskAccess: true).state(of: .scan), .healthy)
     }
 
-    func testUpdatesIsAmberForANewReleaseOrAMissingLink() {
-        XCTAssertEqual(SettingsFacts(updateAvailable: true).state(of: .updates), .needsYou)
-        XCTAssertEqual(SettingsFacts(jitOnPath: false).state(of: .updates), .needsYou)
-        XCTAssertEqual(SettingsFacts().state(of: .updates), .healthy)
+    func testGeneralIsAmberForANewReleaseOrAMissingLink() {
+        XCTAssertEqual(SettingsFacts(updateAvailable: true).state(of: .general), .needsYou)
+        XCTAssertEqual(SettingsFacts(jitOnPath: false).state(of: .general), .needsYou)
+        XCTAssertEqual(SettingsFacts().state(of: .general), .healthy)
     }
 
     /// The whole point of the dot: the card is in a segment the reader is
@@ -74,10 +93,11 @@ final class SettingsBoardTests: XCTestCase {
         let facts = SettingsFacts(scanScheduled: true, fullDiskAccess: false)
         XCTAssertTrue(facts.needsYou(in: .scan))
         XCTAssertFalse(facts.needsYou(in: .protection))
-        XCTAssertFalse(facts.needsYou(in: .app))
+        XCTAssertFalse(facts.needsYou(in: .general))
 
         let blocked = SettingsFacts(notificationsWanted: true, notificationsBlocked: true)
-        XCTAssertTrue(blocked.needsYou(in: .protection))
+        XCTAssertTrue(blocked.needsYou(in: .notifications))
+        XCTAssertFalse(blocked.needsYou(in: .protection))
         XCTAssertFalse(blocked.needsYou(in: .scan))
     }
 

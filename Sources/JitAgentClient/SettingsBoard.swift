@@ -3,14 +3,16 @@
 
 import Foundation
 
-/// The Settings window's three segments. Seven cards are two and a half
-/// screens at 520 wide, so the toolbar splits them where the question
-/// changes: what jit hands out, what reads your disk, how the app behaves
-/// on this Mac (docs/design: windows.md, "Segmented filter").
+/// The Settings window's five segments, each one card or two, so every
+/// tab opens without a scroll (docs/design/mockups/Settings-v2.html). What
+/// deletes or removes has its own segment, so nothing red sits beside a
+/// switch someone flips every week.
 public enum SettingsSegment: String, CaseIterable, Identifiable, Sendable {
+    case general
     case protection
+    case notifications
     case scan
-    case app
+    case reset
 
     public var id: String {
         rawValue
@@ -18,9 +20,11 @@ public enum SettingsSegment: String, CaseIterable, Identifiable, Sendable {
 
     public var title: String {
         switch self {
+        case .general: "General"
         case .protection: "Protection"
+        case .notifications: "Notifications"
         case .scan: "Scan"
-        case .app: "App"
+        case .reset: "Reset"
         }
     }
 
@@ -29,16 +33,15 @@ public enum SettingsSegment: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// One card. The eyebrow carries the group's name and its state, in
-/// reading order within each segment.
+/// One card, in reading order within each segment. A segment's lone card
+/// carries no eyebrow: the pill above it already says what it is.
 public enum SettingsGroup: String, CaseIterable, Identifiable, Sendable {
+    case general
     case protection
     case notifications
-    case vault
     case scan
-    case thisMac
-    case updates
-    case remove
+    case excludes
+    case reset
 
     public var id: String {
         rawValue
@@ -46,32 +49,37 @@ public enum SettingsGroup: String, CaseIterable, Identifiable, Sendable {
 
     public var segment: SettingsSegment {
         switch self {
-        case .protection, .notifications, .vault: .protection
-        case .scan: .scan
-        case .thisMac, .updates, .remove: .app
+        case .general: .general
+        case .protection: .protection
+        case .notifications: .notifications
+        case .scan, .excludes: .scan
+        case .reset: .reset
         }
     }
 
     public var title: String {
         switch self {
+        case .general: "General"
         case .protection: "Protection"
         case .notifications: "Notifications"
-        case .vault: "Vault"
         case .scan: "Scan"
-        case .thisMac: "This Mac"
-        case .updates: "Updates"
-        case .remove: "Remove"
+        case .excludes: "Folders every scan skips"
+        case .reset: "Reset"
         }
     }
 }
 
-/// What a card's dot says. `none` is a card with nothing to be healthy
-/// about — emptying the vault and removing the app are things you do, not
-/// states you are in — and it draws the plain dot, never green.
+/// What a card's state is, for the dot on its segment's pill. `none` is a
+/// card with nothing to be healthy about: emptying the vault, removing the
+/// app and a list of skipped folders are things you do, not states you
+/// are in.
 public enum SettingsState: Sendable, Equatable {
     case none
     case healthy
     case needsYou
+    /// Something only you can fix: jit is not running. Red, as the
+    /// panel's Service row is.
+    case broken
 }
 
 /// Everything the window's dots depend on, in one value a test can build.
@@ -80,7 +88,7 @@ public struct SettingsFacts: Equatable, Sendable {
     /// Whether jit answered at all. Both settings jit owns are unusable
     /// without it, so its card is the one that says so.
     public var serviceRunning: Bool
-    /// Either notification switch is on.
+    /// Any notification switch is on.
     public var notificationsWanted: Bool
     /// macOS will not deliver: denied, or never asked.
     public var notificationsBlocked: Bool
@@ -110,29 +118,38 @@ public struct SettingsFacts: Equatable, Sendable {
 }
 
 public extension SettingsFacts {
-    /// A card is amber only for something the reader can act on here.
+    /// A card is amber only for something the reader can act on here, and
+    /// red only when jit itself is down.
     /// Notifications are blocked only where they were asked for; the scan
     /// waits on Full Disk Access only where a scan is scheduled to run
     /// without anyone present.
     func state(of group: SettingsGroup) -> SettingsState {
         switch group {
-        case .protection: serviceRunning ? .healthy : .needsYou
+        case .protection: serviceRunning ? .healthy : .broken
         case .notifications: notificationsWanted && notificationsBlocked ? .needsYou : .healthy
         case .scan: scanScheduled && !fullDiskAccess ? .needsYou : .healthy
-        case .thisMac: .healthy
-        case .updates: updateAvailable || !jitOnPath ? .needsYou : .healthy
-        case .vault, .remove: .none
+        case .general: updateAvailable || !jitOnPath ? .needsYou : .healthy
+        case .excludes, .reset: .none
         }
     }
 
-    /// The dot a segment's pill carries: amber when a card behind it needs
-    /// the reader, nothing when they are all well. A row of green dots on
-    /// a filter says nothing and costs the eye the same.
+    /// Whether a segment's pill carries a dot: a card behind it needs the
+    /// reader. Nothing when they are all well: a row of green dots on a
+    /// filter says nothing and costs the eye the same.
     func needsYou(in segment: SettingsSegment) -> Bool {
-        segment.groups.contains { state(of: $0) == .needsYou }
+        worst(in: segment) != nil
     }
 
-    /// Every segment, in order. All three always show: unlike a scan's
+    /// The state the pill's dot shows: red before amber.
+    func worst(in segment: SettingsSegment) -> SettingsState? {
+        let states = segment.groups.map { state(of: $0) }
+        if states.contains(.broken) {
+            return .broken
+        }
+        return states.contains(.needsYou) ? .needsYou : nil
+    }
+
+    /// Every segment, in order. All five always show: unlike a scan's
     /// tiers, a settings group cannot be empty.
     var segments: [SettingsSegment] {
         SettingsSegment.allCases

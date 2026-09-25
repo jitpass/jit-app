@@ -44,9 +44,16 @@ extension StatusItemController {
                     Notifier.requestPermission { self?.refreshNotificationPermission() }
                 }
             },
-            setNotifyChanges: { [weak self] on in
-                UserDefaults.standard.set(on, forKey: Notifier.changesPreferenceKey)
-                self?.model.notifyChanges = on
+            setNotifySessions: { [weak self] on in
+                UserDefaults.standard.set(on, forKey: Notifier.sessionsPreferenceKey)
+                self?.model.notifySessions = on
+                if on {
+                    Notifier.requestPermission { self?.refreshNotificationPermission() }
+                }
+            },
+            setNotifyScans: { [weak self] on in
+                UserDefaults.standard.set(on, forKey: Notifier.scansPreferenceKey)
+                self?.model.notifyScans = on
                 if on {
                     Notifier.requestPermission { self?.refreshNotificationPermission() }
                 }

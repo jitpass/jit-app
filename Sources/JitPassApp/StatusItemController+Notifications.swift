@@ -38,7 +38,7 @@ extension StatusItemController {
         }
         // Before setup has asked, the switches read as on by default; the
         // question itself waits for setup's finish screen (or Settings).
-        if Notifier.chosen, Notifier.decoysEnabled || Notifier.changesEnabled {
+        if Notifier.chosen, Notifier.decoysEnabled || Notifier.sessionsEnabled || Notifier.scansEnabled {
             Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
         } else {
             refreshNotificationPermission()
@@ -75,7 +75,8 @@ extension StatusItemController {
     /// the user's choice, and macOS asks.
     func allowNotifications() {
         UserDefaults.standard.set(model.notifyDecoys, forKey: Notifier.decoyPreferenceKey)
-        UserDefaults.standard.set(model.notifyChanges, forKey: Notifier.changesPreferenceKey)
+        UserDefaults.standard.set(model.notifySessions, forKey: Notifier.sessionsPreferenceKey)
+        UserDefaults.standard.set(model.notifyScans, forKey: Notifier.scansPreferenceKey)
         UserDefaults.standard.set(model.notifyJobs, forKey: Notifier.jobsPreferenceKey)
         Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
     }
@@ -152,7 +153,7 @@ extension StatusItemController {
     /// second is a confirmation: a session renewed since the last read
     /// has a new expiry, and must not be announced as running out.
     func checkSessions() {
-        guard model.notifyChanges else {
+        guard model.notifySessions else {
             return
         }
         let fresh = sessionsReadAt.map { Date().timeIntervalSince($0) < Self.sessionRefreshInterval } ?? false
@@ -206,7 +207,7 @@ extension StatusItemController {
     /// the very first scan has nothing to compare with (`rememberFindings`
     /// leaves `macScanNew` nil).
     func announceNewFindings(_ fresh: [ScanFinding], at: Date) {
-        guard model.notifyChanges, !fresh.isEmpty,
+        guard model.notifyScans, !fresh.isEmpty,
               let notice = ScanNotices.make(new: fresh, at: at, home: FileManager.default.homeDirectoryForCurrentUser.path)
         else {
             return
