@@ -220,6 +220,9 @@ final class StatusItemController {
     /// than patched: the agent is the record, and one round trip is cheap.
     private func apply(_ event: SessionEvent) {
         if event.kind == "pending" {
+            if event.job != nil {
+                reloadJobs() // the job-run sheet shows that job's command and folder
+            }
             receive(pending: event)
             return
         }
