@@ -32,6 +32,13 @@ final class StatusItemController {
         size: Design.Window.small,
         minSize: Design.Window.minimum(for: Design.Window.small)
     )
+    /// The small window, like Grants: one purpose, nothing to filter.
+    lazy var aiJobsWindow = ReportWindow(
+        title: "AI Jobs",
+        content: AIJobsView(model: model, actions: aiJobsActions),
+        size: Design.Window.small,
+        minSize: Design.Window.minimum(for: Design.Window.small)
+    )
     lazy var vaultWindow = ReportWindow(
         title: "JitPass Vault",
         content: VaultView(model: model, actions: vaultActions),
@@ -153,30 +160,6 @@ final class StatusItemController {
         offerCommandLineToolAfterLaunch()
     }
 
-    private var panelActions: PanelActions {
-        PanelActions(
-            lock: { [weak self] in self?.lockNow() },
-            unlock: { [weak self] in self?.unlockNow() },
-            openGrants: { [weak self] in self?.openGrants() },
-            openVault: { [weak self] in self?.openVault() },
-            openTools: { [weak self] in self?.openTools() },
-            openAgents: { [weak self] in self?.openAgents() },
-            newGrant: { [weak self] in self?.openGrantSheet() },
-            runScan: { [weak self] in self?.scanNow() },
-            openScan: { [weak self] in self?.openScan() },
-            openDoctor: { [weak self] in self?.openDoctor() },
-            openAudit: { [weak self] in self?.openAudit() },
-            openDecoys: { [weak self] in self?.openDecoys() },
-            openSettings: { [weak self] in self?.openSettings() },
-            openConsent: { [weak self] in self?.openConsent() },
-            about: { [weak self] in self?.showAbout() },
-            installUpdate: { [weak self] in self?.installUpdate() },
-            continueSetup: { [weak self] in self?.continueSetup() },
-            setUpInTerminal: { [weak self] in self?.setUpInTerminal() },
-            quit: { NSApp.terminate(nil) }
-        )
-    }
-
     // MARK: - Feeds
 
     /// One full read of everything the panel shows. Runs at start, on every
@@ -189,6 +172,7 @@ final class StatusItemController {
         reloadToolsIfStale()
         guard case .notRunning = model.state else {
             model.grants = (try? client.grants()) ?? []
+            reloadJobs()
             model.lastEvent = (try? client.history())?.first
             syncConsentRequests()
             render()
@@ -196,6 +180,8 @@ final class StatusItemController {
         }
         model.grants = []
         model.consentRequests = []
+        model.jobs = []
+        model.jobProposals = []
         render()
     }
 
@@ -245,6 +231,10 @@ final class StatusItemController {
         }
         model.lastEvent = event
         model.grants = (try? client.grants()) ?? []
+        // A job's approval, run, stop or removal changes the jobs list.
+        if event.op?.hasPrefix("job_") == true {
+            reloadJobs()
+        }
         pollStatus()
         if auditWindow.isVisible {
             reloadAudit()
@@ -295,12 +285,12 @@ final class StatusItemController {
 
     // MARK: - Actions (each is exactly one CLI-equivalent op)
 
-    private func lockNow() {
+    func lockNow() {
         _ = try? client.lock()
         pollStatus()
     }
 
-    private func unlockNow() {
+    func unlockNow() {
         panel.dismiss()
         guard case .notRunning = model.state else {
             _ = try? client.unlock()
