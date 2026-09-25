@@ -166,6 +166,16 @@ extension Format {
     static let jobRefusedName = "jit won't approve this"
     static let jobFailure = "Nothing was approved"
     static let jobFooterWaiting = "Waiting for Touch ID…"
+    static let jobTouchIDCancelled = "Touch ID was cancelled. Nothing changed."
+
+    /// Whether an approval failed because the human cancelled its Touch ID,
+    /// which is a choice to report plainly, never a failure with jit's raw
+    /// words ("disclosed grant declined: local authentication failed…").
+    static func isTouchIDCancel(_ error: Error) -> Bool {
+        let text = String(describing: error).lowercased()
+        return text.contains("authentication canceled") || text.contains("authentication cancelled")
+            || text.contains("user canceled") || text.contains("user cancelled")
+    }
 
     static let jobNoProfiles = "jit found no profiles on this Mac. A job gets its secrets from one: " +
         "protect a project's .env first, or add the folder that holds one."
@@ -286,7 +296,8 @@ extension Format {
             return why + ". It won't run until you approve it again."
         }
         let count = review.items.count == 1 ? "1 file" : "\(review.items.count) files"
-        return "\(count) changed since you approved this job\(when). It won't run until you approve it again."
+        return "\(count) changed since you approved this job\(when). It won't run until you approve it again. " +
+            "Approve only a change you expected."
     }
 
     static func reviewFact(_ item: JobReview.Item, tracked: Set<String>) -> String {
@@ -301,12 +312,6 @@ extension Format {
             return tracked.contains(file) ? "Changed since approval · in git" : "Changed since approval · not in git"
         }
     }
-
-    static let reviewNotes = [
-        "jit keeps fingerprints, not copies, so it can name a changed file but not show what it was before. " +
-            "Git can, where the folder has it.",
-        "A library edit is as able to leak a key as a script edit. If you did not expect this change, don't approve it."
-    ]
 }
 
 // MARK: - A job's run, brokered
