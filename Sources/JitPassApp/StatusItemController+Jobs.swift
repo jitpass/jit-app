@@ -83,9 +83,9 @@ extension StatusItemController {
             return
         }
         do {
-            let keyNote = try client.removeJob(name: job.name)
+            let keyNote = try KeyNote(client.removeJob(name: job.name))
             model.jobsBanner = Format.removedJobBanner(job, keyNote: keyNote)
-            model.jobsBannerFailed = false
+            model.jobsBannerFailed = keyNote?.failed ?? false
         } catch {
             model.jobsBanner = "Could not remove \(job.name): " + Format.error(error)
             model.jobsBannerFailed = true

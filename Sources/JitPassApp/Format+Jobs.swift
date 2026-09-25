@@ -141,9 +141,10 @@ extension Format {
         return text + " Approving it again is a new Touch ID, not an undo."
     }
 
-    /// With jit's `key_note` when the key could not be deleted at once.
-    static func removedJobBanner(_ job: JobStatus, keyNote: String? = nil) -> String {
-        "Removed \(job.name). AI tools can no longer run it." + (keyNote.map { " " + $0 } ?? "")
+    /// With jit's `key_note` when the key could not be deleted at once; a
+    /// failed delete in plain words, without jit's raw error.
+    static func removedJobBanner(_ job: JobStatus, keyNote: KeyNote? = nil) -> String {
+        "Removed \(job.name). AI tools can no longer run it." + (keyNote.map { " " + $0.sentence } ?? "")
     }
 
     static func mcpChangedBanner(_ app: MCPApp, connected: Bool) -> String {

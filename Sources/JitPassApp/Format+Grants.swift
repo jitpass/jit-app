@@ -166,12 +166,13 @@ extension Format {
     /// the next time it starts (jit's `key_note`).
     static let keyGoes = "Its key is deleted too, now or the next time JitPass's service starts."
 
-    /// `keyNote` is jit's own sentence when the key could not be deleted
-    /// at once; it replaces "Its key is deleted", which would be untrue.
-    static func revokedBanner(_ grant: GrantStatus, keyNote: String? = nil) -> String {
+    /// `keyNote` is jit's note when the key could not be deleted at once;
+    /// it replaces "Its key is deleted", which would be untrue. A failed
+    /// delete is said in plain words, without jit's raw error.
+    static func revokedBanner(_ grant: GrantStatus, keyNote: KeyNote? = nil) -> String {
         let head = "Revoked \(grantName(grant))'s grant to \(grant.profiles.joined(separator: ", "))."
         if let keyNote {
-            return head + " " + keyNote + " It asks for Touch ID again from now."
+            return head + " " + keyNote.sentence + " It asks for Touch ID again from now."
         }
         return grant.isStanding
             ? head + " Its key is deleted and it asks for Touch ID again from now."
