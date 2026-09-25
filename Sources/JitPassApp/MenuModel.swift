@@ -101,7 +101,7 @@ final class MenuModel: ObservableObject {
     @Published var installedApps: Set<String> = []
     /// The New AI Job sheet: its draft (an agent's proposal pre-fills it),
     /// the service's preview of it, the scripts in the profile's folder,
-    /// whether a command is being typed instead, More options, and whether
+    /// whether a command is being typed instead, and whether
     /// the approval's Touch ID is up. The profiles are New Grant's list.
     @Published var jobSheet = false
     @Published var jobDraft = JobDraft()
@@ -109,7 +109,6 @@ final class MenuModel: ObservableObject {
     @Published var jobPreviewBusy = false
     @Published var jobScripts: [JobScript] = []
     @Published var jobTyping = false
-    @Published var jobMoreOptions = false
     @Published var jobBusy = false
     @Published var jobError: String?
     /// Reviewing a stopped job: which one, the files git tracks, and the

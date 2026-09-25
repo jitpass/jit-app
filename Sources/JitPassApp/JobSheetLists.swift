@@ -5,7 +5,7 @@ import JitAgentClient
 import SwiftUI
 
 // The pieces of the New AI Job sheet that are lists or disclosures: the
-// profiles jit found, the scripts in the chosen folder, and More options.
+// profiles jit found and the scripts in the chosen folder.
 // Each is a view of its own so the sheet stays a sentence and its rows.
 
 /// Every profile jit found on the Mac (New Grant's discovery), filterable.
@@ -154,64 +154,6 @@ struct JobRunsPicker: View {
 
     private func hint(_ text: String) -> some View {
         Text(text).font(Win.rowFact).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-    }
-}
-
-/// The name and the output folder, out of the way: most jobs need neither
-/// changed. The system's disclosure, a Plain link ("Show what jit runs ›"),
-/// with both values beside it while closed, so nothing that matters is out
-/// of sight. Editing a job has no name to change, only the output folder.
-struct JobMoreOptions: View {
-    @ObservedObject var model: MenuModel
-    let actions: JobSheetActions
-
-    var body: some View {
-        let draft = model.jobDraft
-        VStack(alignment: .leading, spacing: Win.s5) {
-            HStack(spacing: Win.s5) {
-                Color.clear.frame(width: 62, height: 1)
-                HStack(spacing: Win.s3) {
-                    Button(Format.jobMoreOptions(draft, open: model.jobMoreOptions)) { model.jobMoreOptions.toggle() }
-                        .buttonStyle(AppButton(kind: .plain))
-                    if !model.jobMoreOptions {
-                        Text(Format.jobMoreOptionsValues(draft)).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                }
-            }
-            if model.jobMoreOptions, draft.editing == nil {
-                JobSheetRow(label: "Name") {
-                    AppTextField(placeholder: "", text: nameBinding, width: 240)
-                    Text(Format.jobNameHint).font(Win.rowFact).foregroundStyle(.secondary)
-                }
-                JobSheetRow(label: "Output") {
-                    HStack(spacing: Win.s4) {
-                        if draft.output.isEmpty {
-                            Text("No output folder").font(Win.sub).foregroundStyle(.secondary)
-                        } else {
-                            Text(Format.home(draft.output)).font(Design.Text.command).lineLimit(1).truncationMode(.head)
-                        }
-                        Spacer(minLength: Win.s4)
-                        if !draft.output.isEmpty {
-                            Button("Clear") { model.jobDraft.output = "" }.buttonStyle(AppButton(kind: .quiet))
-                        }
-                        Button("Choose…", action: actions.chooseOutput).buttonStyle(AppButton(kind: .quiet))
-                    }
-                    Text(Format.jobOutputHint).font(Win.rowFact).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-        }
-    }
-
-    /// Typing a name stops it following the script.
-    private var nameBinding: Binding<String> {
-        Binding(
-            get: { model.jobDraft.name },
-            set: { name in
-                model.jobDraft.name = name
-                model.jobDraft.nameSuggested = false
-            }
-        )
     }
 }
 

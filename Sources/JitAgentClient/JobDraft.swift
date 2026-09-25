@@ -6,9 +6,10 @@ import Foundation
 /// The New AI Job sheet's state, and everything about it worth a test: the
 /// command split into arguments, what is still missing (the footer's words
 /// while the button is off), the sentence at the top, and the `JobSpec` it
-/// proposes. The sheet starts from a profile, as New Grant does: the
-/// profile's folder is where the job runs, so a folder is only ever chosen
-/// for a profile from the global store, which has none. The service decides whether the job is allowed;
+/// proposes. The sheet starts from a profile, as New Grant does: the job
+/// runs in the profile's folder unless a folder inside it is chosen, where
+/// the script is; a profile from the global store has no folder, so one is
+/// always chosen for it. The service decides whether the job is allowed;
 /// this only says whether there is enough to ask it.
 public struct JobDraft: Sendable, Equatable {
     public var name = ""
@@ -18,11 +19,17 @@ public struct JobDraft: Sendable, Equatable {
     /// The profile is from `~/.jit/profiles`, so it names no folder and the
     /// job's folder is chosen.
     public var global = false
+    /// The folder the profile is read from; the job's `folder` starts here
+    /// and may be one inside it. Nil for a global profile.
+    public var profileRoot: String?
     /// The name was made from the script and follows it until edited.
     public var nameSuggested = true
     /// Variables whose values may appear in the output.
     public var shown: Set<String> = []
     public var ask: JobAsk = .eachTime
+    /// Not set from the app: `jit job allow --output` only. An edit keeps
+    /// what the job was approved with; a proposal's is dropped, so nothing
+    /// is approved that the sheet did not show.
     public var output = ""
     /// Set when the draft came from an agent's proposal.
     public var proposal: JobProposal?
@@ -40,10 +47,10 @@ public struct JobDraft: Sendable, Equatable {
         command = JobDraft.join(proposal.spec.argv)
         profile = proposal.spec.profile?.name
         global = proposal.spec.profile.map { ($0.root ?? "").isEmpty } ?? false
+        profileRoot = global ? nil : proposal.spec.profile?.root
         nameSuggested = false
         shown = Set(proposal.spec.shown ?? [])
         ask = .eachTime
-        output = proposal.spec.outputs?.first ?? ""
         self.proposal = proposal
     }
 
@@ -55,6 +62,7 @@ public struct JobDraft: Sendable, Equatable {
         command = JobDraft.join(job.argv)
         profile = job.profile
         global = job.profileGlobal == true
+        profileRoot = global ? nil : job.profileRoot ?? job.dir
         shown = Set((job.secrets ?? []).filter(\.isShown).map(\.name))
         ask = JobAsk(rawValue: job.ask ?? "") ?? .eachTime
         output = job.outputs?.first ?? ""
@@ -69,8 +77,10 @@ public struct JobDraft: Sendable, Equatable {
             return []
         }
         var out: [String] = []
-        if profile != job.profile || folder != job.dir {
+        if profile != job.profile {
             out.append("profile " + (profile ?? "none"))
+        } else if folder != job.dir {
+            out.append("runs in " + (folder as NSString).lastPathComponent)
         }
         if argv != job.argv {
             out.append("runs " + command)
@@ -85,9 +95,6 @@ public struct JobDraft: Sendable, Equatable {
         if ask.rawValue != (job.ask ?? JobAsk.eachTime.rawValue) {
             out.append(ask == .eachTime ? "asks each time" : "runs without asking")
         }
-        if output != (job.outputs?.first ?? "") {
-            out.append(output.isEmpty ? "no output folder" : "a new output folder")
-        }
         return out
     }
 
@@ -100,9 +107,23 @@ public struct JobDraft: Sendable, Equatable {
     public mutating func choose(profile picked: DiscoveredProfile) {
         profile = picked.name
         global = picked.root == nil
+        profileRoot = picked.root
         folder = picked.root ?? ""
         command = ""
         shown = []
+        if nameSuggested {
+            name = ""
+        }
+    }
+
+    /// Picks the folder the script is in, which drops the command chosen
+    /// for the last one.
+    public mutating func choose(folder picked: String) {
+        guard picked != folder else {
+            return
+        }
+        folder = picked
+        command = ""
         if nameSuggested {
             name = ""
         }
@@ -220,7 +241,7 @@ public struct JobDraft: Sendable, Equatable {
     public func spec(pathEnv: String, home: String) -> JobSpec {
         JobSpec(
             dir: folder, argv: argv,
-            profile: profile.map { GrantProfile(name: $0, root: global ? nil : folder) },
+            profile: profile.map { GrantProfile(name: $0, root: global ? nil : profileRoot ?? folder) },
             ask: ask.rawValue,
             shown: shown.isEmpty ? nil : shown.sorted(),
             outputs: output.isEmpty ? nil : [output],

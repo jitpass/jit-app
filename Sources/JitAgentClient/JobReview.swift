@@ -58,7 +58,7 @@ public struct JobReview: Sendable, Equatable {
     public func reapproval(pathEnv: String, home: String) -> JobSpec {
         JobSpec(
             dir: job.dir, argv: job.argv,
-            profile: job.profile.map { GrantProfile(name: $0, root: job.profileGlobal == true ? nil : job.dir) },
+            profile: job.profile.map { GrantProfile(name: $0, root: job.profileGlobal == true ? nil : job.profileRoot ?? job.dir) },
             ask: job.ask,
             shown: job.secrets?.filter(\.isShown).map(\.name),
             outputs: job.outputs,

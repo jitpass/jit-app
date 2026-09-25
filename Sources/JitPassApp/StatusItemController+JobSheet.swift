@@ -18,7 +18,6 @@ extension StatusItemController {
             changeProfile: { [weak self] in self?.changeJobProfile() },
             chooseFolder: { [weak self] in self?.chooseJobFolder() },
             addFolder: { [weak self] in self?.chooseProfileFolder() },
-            chooseOutput: { [weak self] in self?.chooseJobOutput() },
             approve: { [weak self] in self?.approveJob() },
             cancel: { [weak self] in self?.closeJobSheet() },
             dismiss: { [weak self] in self?.dismissJobProposal() }
@@ -33,7 +32,6 @@ extension StatusItemController {
         model.jobPreview = nil
         model.jobDraft = prefill
         model.jobTyping = false
-        model.jobMoreOptions = false
         model.jobScripts = JobScripts.suggest(in: prefill.folder)
         if prefill.profile == nil, prefill.folder.isEmpty {
             reloadProfiles()
@@ -80,20 +78,16 @@ extension StatusItemController {
         reloadProfiles()
     }
 
-    /// Only for a global profile, which names no folder of its own.
+    /// The folder the script is in: one inside the profile's folder, or,
+    /// for a global profile, any.
     func chooseJobFolder() {
-        guard let folder = chooseDirectory(message: "Choose the folder the job runs in") else {
+        guard let folder = chooseDirectory(message: "Choose the folder the script is in") else {
             return
         }
-        model.jobDraft.folder = folder
-        model.jobDraft.command = ""
+        model.jobDraft.choose(folder: folder)
+        model.jobPreview = nil
+        model.jobTyping = false
         model.jobScripts = JobScripts.suggest(in: folder)
-    }
-
-    func chooseJobOutput() {
-        if let folder = chooseDirectory(message: "Choose the folder the job writes into") {
-            model.jobDraft.output = folder
-        }
     }
 
     private func chooseDirectory(message: String) -> String? {
@@ -102,8 +96,8 @@ extension StatusItemController {
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.message = message
-        if !model.jobDraft.folder.isEmpty {
-            panel.directoryURL = URL(fileURLWithPath: model.jobDraft.folder)
+        if let start = [model.jobDraft.folder, model.jobDraft.profileRoot ?? ""].first(where: { !$0.isEmpty }) {
+            panel.directoryURL = URL(fileURLWithPath: start)
         }
         return panel.runFrontmost() == .OK ? panel.url?.path : nil
     }
