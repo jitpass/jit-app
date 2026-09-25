@@ -28,6 +28,20 @@ struct ConsentView: View {
 
     @ViewBuilder
     private func content(_ request: ConsentRequest) -> some View {
+        if request.isJobRun {
+            JobRunConsent(
+                request: request,
+                job: model.jobs.first { $0.name == request.job },
+                count: model.consentRequests.count,
+                actions: actions
+            )
+        } else {
+            credentialContent(request)
+        }
+    }
+
+    @ViewBuilder
+    private func credentialContent(_ request: ConsentRequest) -> some View {
         header(request)
         facts(request)
         if request.priorRefusals > 0 {

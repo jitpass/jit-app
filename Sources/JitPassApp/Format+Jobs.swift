@@ -270,3 +270,47 @@ extension Format {
         "A library edit is as able to leak a key as a script edit. If you did not expect this change, don't approve it."
     ]
 }
+
+// MARK: - A job's run, brokered
+
+extension Format {
+    static func jobRunTitle(_ request: ConsentRequest) -> String {
+        "\(request.launchedBy ?? request.program) asks to run an AI job"
+    }
+
+    static func jobRunSentence(_ request: ConsentRequest, job: JobStatus?) -> String {
+        let who = request.launchedBy ?? request.program
+        let count = job?.secrets?.count ?? 0
+        let secrets = count == 1 ? "1 secret" : "\(count) secrets"
+        return "Run \(request.job ?? "this job") with \(secrets). \(who) sees what it prints, never the values."
+    }
+
+    static func jobRunFolder(_ job: JobStatus) -> String {
+        let state = job.jobState == .ready
+            ? "unchanged since you approved it" + (job.approved.map { " on " + stamp($0, withDay: true) } ?? "")
+            : "changed since you approved it"
+        return "In \(home(job.dir)) · \(state)"
+    }
+
+    static func jobRunSecrets(_ job: JobStatus) -> String {
+        let secrets = job.secrets ?? []
+        let hidden = secrets.filter { !$0.isShown }.map(\.name)
+        let shown = secrets.filter(\.isShown).map(\.name)
+        var parts: [String] = []
+        if !hidden.isEmpty {
+            parts.append(hidden.joined(separator: ", ") + " hidden")
+        }
+        if !shown.isEmpty {
+            parts.append(shown.joined(separator: ", ") + " shown")
+        }
+        return parts.isEmpty ? "None" : parts.joined(separator: " · ")
+    }
+
+    static func jobRunNotes(_ request: ConsentRequest) -> [String] {
+        let who = request.launchedBy ?? request.program
+        return [
+            "This run only. The job asks again next time.",
+            "Allow: macOS asks for Touch ID next. Deny: \(who) gets an error and nothing runs."
+        ]
+    }
+}
