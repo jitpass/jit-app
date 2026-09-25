@@ -35,7 +35,7 @@ final class StatusItemController {
     /// The small window, like Grants: one purpose, nothing to filter.
     lazy var aiJobsWindow = ReportWindow(
         title: "AI Jobs",
-        content: AIJobsView(model: model, actions: aiJobsActions, sheetActions: jobSheetActions),
+        content: AIJobsView(model: model, actions: aiJobsActions, sheetActions: jobSheetActions, reviewActions: jobReviewActions),
         size: Design.Window.small,
         minSize: Design.Window.minimum(for: Design.Window.small)
     )

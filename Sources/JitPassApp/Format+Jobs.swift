@@ -237,3 +237,36 @@ extension Format {
         "Proposed \(ago(proposal.date, now: now)) · nothing runs until you approve it"
     }
 }
+
+// MARK: - Review
+
+extension Format {
+    static func reviewSentence(_ review: JobReview) -> String {
+        let when = review.job.approved.map { " on " + stamp($0, withDay: true) } ?? ""
+        if review.items.isEmpty {
+            let why = review.job.lastRefusal.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? "It stopped"
+            return why + ". It won't run until you approve it again."
+        }
+        let count = review.items.count == 1 ? "1 file" : "\(review.items.count) files"
+        return "\(count) changed since you approved this job\(when). It won't run until you approve it again."
+    }
+
+    static func reviewFact(_ item: JobReview.Item, tracked: Set<String>) -> String {
+        switch item.kind {
+        case "removed": return "Removed since approval"
+        case "added": return "Added since approval"
+        case "rewritten": return "Written to since approval; its content matches, but something rewrote it or swapped it back"
+        default:
+            guard let file = item.file else {
+                return "Changed since approval"
+            }
+            return tracked.contains(file) ? "Changed since approval · in git" : "Changed since approval · not in git"
+        }
+    }
+
+    static let reviewNotes = [
+        "jit keeps fingerprints, not copies, so it can name a changed file but not show what it was before. " +
+            "Git can, where the folder has it.",
+        "A library edit is as able to leak a key as a script edit. If you did not expect this change, don't approve it."
+    ]
+}

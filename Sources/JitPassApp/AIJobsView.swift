@@ -14,6 +14,7 @@ struct AIJobsView: View {
     @ObservedObject var model: MenuModel
     let actions: AIJobsActions
     let sheetActions: JobSheetActions
+    let reviewActions: JobReviewActions
 
     var body: some View {
         let board = model.jobsBoard
@@ -42,6 +43,9 @@ struct AIJobsView: View {
         .sheet(isPresented: $model.jobSheet) {
             JobSheetView(model: model, actions: sheetActions)
         }
+        .background(EmptyView().sheet(isPresented: $model.jobReviewSheet) {
+            JobReviewSheet(model: model, actions: reviewActions)
+        })
         .onAppear(perform: actions.reload)
     }
 
@@ -100,7 +104,7 @@ struct AIJobsView: View {
             title: Format.jobStoppedTitle(job),
             note: Format.jobStoppedNote(job)
         ) {
-            EmptyView()
+            Button("Review…") { actions.reviewJob(job) }.buttonStyle(AppButton(kind: .secondary))
         } rows: {
             AppCardRows {
                 jobRow(job, last: true)
@@ -200,6 +204,7 @@ struct AIJobsActions {
     var remove: (JobStatus) -> Void = { _ in }
     var newJob: () -> Void = {}
     var review: (JobProposal) -> Void = { _ in }
+    var reviewJob: (JobStatus) -> Void = { _ in }
     var connect: () -> Void = {}
     var disconnect: () -> Void = {}
     var fit: (CGFloat) -> Void = { _ in }

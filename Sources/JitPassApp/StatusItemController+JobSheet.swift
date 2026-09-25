@@ -198,3 +198,115 @@ extension StatusItemController {
         )
     }
 }
+
+// MARK: - Review a stopped job
+
+extension StatusItemController {
+    var jobReviewActions: JobReviewActions {
+        JobReviewActions(
+            showChanges: { [weak self] file in self?.showJobChanges(file) },
+            openFile: { file in NSWorkspace.shared.open(URL(fileURLWithPath: file)) },
+            approveAgain: { [weak self] in self?.approveJobAgain() },
+            cancel: { [weak self] in self?.closeJobReview() }
+        )
+    }
+
+    func openJobReview(_ job: JobStatus) {
+        let review = JobReview(job: job)
+        model.jobReview = review
+        model.jobReviewDiff = nil
+        model.jobReviewTracked = []
+        model.jobError = nil
+        model.jobReviewSheet = true
+        let files = review.items.compactMap(\.file)
+        Task.detached {
+            let tracked = Set(files.filter { Self.gitTracks($0) })
+            await MainActor.run { [weak self] in
+                self?.model.jobReviewTracked = tracked
+            }
+        }
+    }
+
+    func closeJobReview() {
+        model.jobReviewSheet = false
+        model.jobReview = nil
+        model.jobReviewDiff = nil
+        model.jobError = nil
+    }
+
+    func showJobChanges(_ file: String) {
+        Task.detached {
+            let diff = Self.gitDiff(file)
+            await MainActor.run { [weak self] in
+                self?.model.jobReviewDiff = diff
+            }
+        }
+    }
+
+    func approveJobAgain() {
+        guard let review = model.jobReview else {
+            return
+        }
+        let spec = review.reapproval(pathEnv: JitCLI.environment["PATH"] ?? "", home: NSHomeDirectory())
+        let name = review.job.name
+        let client = client
+        model.jobBusy = true
+        model.jobError = nil
+        Task.detached {
+            let result = Result { try client.allowJob(name: name, spec: spec) }
+            await MainActor.run { [weak self] in
+                guard let self else {
+                    return
+                }
+                model.jobBusy = false
+                switch result {
+                case let .success(job):
+                    closeJobReview()
+                    model.jobsBanner = Format.approvedJobBanner(job)
+                    model.jobsBannerFailed = false
+                    reloadJobs()
+                case let .failure(error):
+                    model.jobError = Format.error(error)
+                }
+                aiJobsWindow.reclaimFocus()
+            }
+        }
+    }
+
+    /// Whether git tracks the file: `git ls-files --error-unmatch` in its
+    /// folder. False for anything git cannot answer about.
+    nonisolated static func gitTracks(_ file: String) -> Bool {
+        git(["ls-files", "--error-unmatch", "--", (file as NSString).lastPathComponent], in: file)?.status == 0
+    }
+
+    /// `git diff` of one file against its last commit, capped: a review
+    /// needs the change, not a megabyte of it.
+    nonisolated static func gitDiff(_ file: String) -> String {
+        guard let result = git(["diff", "--no-color", "HEAD", "--", (file as NSString).lastPathComponent], in: file),
+              result.status == 0
+        else {
+            return "git could not show the changes for this file."
+        }
+        let text = result.output.isEmpty ? "No difference from git's last commit: the file was rewritten with the same content." : result
+            .output
+        return String(text.prefix(20000))
+    }
+
+    private nonisolated static func git(_ arguments: [String], in file: String) -> (status: Int32, output: String)? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["-C", (file as NSString).deletingLastPathComponent] + arguments
+        let out = Pipe()
+        process.standardOutput = out
+        process.standardError = FileHandle.nullDevice
+        process.standardInput = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+    }
+}

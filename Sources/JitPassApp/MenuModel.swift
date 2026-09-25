@@ -107,6 +107,12 @@ final class MenuModel: ObservableObject {
     @Published var jobProfiles: [String] = []
     @Published var jobBusy = false
     @Published var jobError: String?
+    /// Reviewing a stopped job: which one, the files git tracks, and the
+    /// diff being shown.
+    @Published var jobReviewSheet = false
+    @Published var jobReview: JobReview?
+    @Published var jobReviewTracked: Set<String> = []
+    @Published var jobReviewDiff: String?
     @Published var jobsBanner: String?
     @Published var jobsBannerFailed = false
     @Published var doctor: DoctorReport?

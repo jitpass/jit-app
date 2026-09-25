@@ -16,6 +16,7 @@ extension StatusItemController {
             remove: { [weak self] job in self?.confirmRemove(job) },
             newJob: { [weak self] in self?.openJobSheet() },
             review: { [weak self] proposal in self?.openProposal(proposal) },
+            reviewJob: { [weak self] job in self?.openJobReview(job) },
             connect: { [weak self] in self?.setClaudeDesktop(connected: true) },
             disconnect: { [weak self] in self?.confirmDisconnect() },
             fit: { [weak self] height in self?.aiJobsWindow.fit(to: height) }
