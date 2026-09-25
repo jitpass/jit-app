@@ -13,6 +13,7 @@ import SwiftUI
 struct AIJobsView: View {
     @ObservedObject var model: MenuModel
     let actions: AIJobsActions
+    let sheetActions: JobSheetActions
 
     var body: some View {
         let board = model.jobsBoard
@@ -38,6 +39,9 @@ struct AIJobsView: View {
         .onPreferenceChange(WindowHeightKey.self) { height in
             actions.fit(height + Self.chrome(banner: model.jobsBanner != nil, footer: !board.isEmpty))
         }
+        .sheet(isPresented: $model.jobSheet) {
+            JobSheetView(model: model, actions: sheetActions)
+        }
         .onAppear(perform: actions.reload)
     }
 
@@ -54,18 +58,22 @@ struct AIJobsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: Win.s5)
+            Button("New AI Job…", action: actions.newJob).buttonStyle(AppButton(kind: .primary))
         }
         .windowRegion(rule: !board.isEmpty)
     }
 
     @ViewBuilder private func content(_ board: JobsBoard) -> some View {
-        if board.isEmpty {
+        if board.isEmpty, board.proposals.isEmpty {
             WindowEmptyState(tint: Color(StatusMark.green), title: Format.jobsEmptyTitle, message: Format.jobsEmptyMessage) {
                 EmptyView()
             }
         } else {
             ScrollView {
                 VStack(spacing: Win.s5) {
+                    ForEach(board.proposals) { proposal in
+                        proposalCard(proposal)
+                    }
                     ForEach(board.stopped) { job in
                         stoppedCard(job)
                     }
@@ -96,6 +104,32 @@ struct AIJobsView: View {
         } rows: {
             AppCardRows {
                 jobRow(job, last: true)
+            }
+        }
+    }
+
+    /// An agent's proposal waiting for the human. Not drawn in the mockup,
+    /// whose proposal lives only in its sheet (frame D): once that sheet is
+    /// closed, the proposal still waits and the headline counts it, so it
+    /// needs a place to be seen and reopened.
+    private func proposalCard(_ proposal: JobProposal) -> some View {
+        AppCard(
+            eyebrow: "Proposed",
+            eyebrowTint: Color(StatusMark.amber),
+            title: Format.proposalTitle(proposal),
+            note: proposal.why.map { "“\($0)” " + Format.proposalWhyHint(proposal) }
+        ) {
+            Button("Review…") { actions.review(proposal) }.buttonStyle(AppButton(kind: .secondary))
+        } rows: {
+            AppCardRows {
+                AppRow(
+                    name: proposal.name,
+                    detail: "· " + JobDraft.join(proposal.spec.argv),
+                    fact: Format.proposalFact(proposal),
+                    last: true
+                ) {
+                    EmptyView()
+                }
             }
         }
     }
@@ -164,6 +198,8 @@ struct JobsCard<Rows: View>: View {
 struct AIJobsActions {
     var reload: () -> Void = {}
     var remove: (JobStatus) -> Void = { _ in }
+    var newJob: () -> Void = {}
+    var review: (JobProposal) -> Void = { _ in }
     var connect: () -> Void = {}
     var disconnect: () -> Void = {}
     var fit: (CGFloat) -> Void = { _ in }

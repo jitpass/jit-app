@@ -35,7 +35,7 @@ final class StatusItemController {
     /// The small window, like Grants: one purpose, nothing to filter.
     lazy var aiJobsWindow = ReportWindow(
         title: "AI Jobs",
-        content: AIJobsView(model: model, actions: aiJobsActions),
+        content: AIJobsView(model: model, actions: aiJobsActions, sheetActions: jobSheetActions),
         size: Design.Window.small,
         minSize: Design.Window.minimum(for: Design.Window.small)
     )
@@ -128,6 +128,8 @@ final class StatusItemController {
     var liveServes: [SessionEvent] = []
     private var stream: Subscription?
     private var reconnect: Timer?
+    /// The New AI Job sheet's pending preview, cancelled by the next keystroke.
+    var previewTask: Task<Void, Never>?
 
     /// How long to wait before re-opening a stream that ended. Long enough
     /// not to hammer a restarting agent, short enough that the tail is never
@@ -225,6 +227,15 @@ final class StatusItemController {
         if event.kind == SessionEvent.serveStartKind {
             noteLiveServe(event)
             return
+        }
+        // An agent's job proposal carries its id where consent answers do;
+        // it is a question for the human, not an answer to one.
+        if event.kind == SessionEvent.jobProposalKind {
+            receive(jobProposal: event)
+            return
+        }
+        if event.kind == "error", event.op == SessionEvent.jobRunOp {
+            noteJobStop(event)
         }
         if let consentID = event.consentID {
             resolve(consentID: consentID)

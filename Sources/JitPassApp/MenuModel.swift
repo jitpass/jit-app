@@ -97,6 +97,16 @@ final class MenuModel: ObservableObject {
     @Published var jobProposals: [JobProposal] = []
     @Published var claudeDesktopMCP: MCPStatus?
     @Published var claudeDesktopInstalled = false
+    /// The New AI Job sheet: its draft (an agent's proposal pre-fills it),
+    /// the service's preview of it, the profiles in its folder, and whether
+    /// the approval's Touch ID is up.
+    @Published var jobSheet = false
+    @Published var jobDraft = JobDraft()
+    @Published var jobPreview: JobPreview?
+    @Published var jobPreviewBusy = false
+    @Published var jobProfiles: [String] = []
+    @Published var jobBusy = false
+    @Published var jobError: String?
     @Published var jobsBanner: String?
     @Published var jobsBannerFailed = false
     @Published var doctor: DoctorReport?

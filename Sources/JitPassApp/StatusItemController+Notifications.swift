@@ -33,6 +33,7 @@ extension StatusItemController {
             case .agents: self?.openAgents()
             case .tools: self?.openTools()
             case .findings: self?.openScan()
+            case .jobs: self?.openAIJobsForAttention()
             }
         }
         // Before setup has asked, the switches read as on by default; the
