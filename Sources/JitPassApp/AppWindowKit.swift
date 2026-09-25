@@ -261,7 +261,10 @@ struct AppRow<Actions: View>: View {
             HStack(spacing: Win.s5) {
                 VStack(alignment: .leading, spacing: Win.s1) {
                     HStack(spacing: Win.s3) {
-                        Text(name).font(Win.rowName).lineLimit(1).truncationMode(.middle)
+                        // The name is the thing itself: the detail beside it
+                        // gives way first ("notion-li…est-users" was the name
+                        // squeezed by a mono detail and two buttons).
+                        Text(name).font(Win.rowName).lineLimit(1).truncationMode(.middle).layoutPriority(1)
                         if let detail {
                             Text(detail).font(Win.command).foregroundStyle(.secondary)
                                 .lineLimit(1).truncationMode(.head)

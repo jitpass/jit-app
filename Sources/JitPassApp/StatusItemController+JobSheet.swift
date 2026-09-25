@@ -48,7 +48,12 @@ extension StatusItemController {
     }
 
     func openProposal(_ proposal: JobProposal) {
-        openJobSheet(prefill: JobDraft(proposal: proposal))
+        var draft = JobDraft(proposal: proposal)
+        let store = (draft.folder as NSString).appendingPathComponent(ProfileDiscovery.storeSubpath)
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: store)) ?? [])
+            .filter { $0.hasSuffix(".yaml") }.map { String($0.dropLast(5)) }
+        draft.fillProfile(from: names)
+        openJobSheet(prefill: draft)
     }
 
     func closeJobSheet() {
