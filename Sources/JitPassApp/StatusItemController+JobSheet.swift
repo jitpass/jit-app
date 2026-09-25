@@ -254,11 +254,17 @@ extension StatusItemController {
         }
     }
 
+    /// Closes the review. What it showed is cleared once the sheet is gone
+    /// (`jobReviewDismissed`): clearing it here emptied the sheet's content
+    /// before macOS had closed it, and Cancel left it stuck open.
     func closeJobReview() {
         model.jobReviewSheet = false
+        model.jobError = nil
+    }
+
+    func jobReviewDismissed() {
         model.jobReview = nil
         model.jobReviewDiff = nil
-        model.jobError = nil
     }
 
     func showJobChanges(_ file: String) {
