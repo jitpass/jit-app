@@ -42,8 +42,6 @@ struct JobReviewSheet: View {
                 }
                 if let error = model.jobError {
                     AppNoteRow(mark: .failed, name: Format.jobFailure, verbatim: error, last: true) { EmptyView() }
-                } else {
-                    notes
                 }
                 footer
             }
@@ -65,25 +63,20 @@ struct JobReviewSheet: View {
         }
     }
 
-    private var notes: some View {
-        VStack(alignment: .leading, spacing: Win.s2) {
-            Rectangle().fill(WindowSurface.separator).frame(height: 1).padding(.bottom, Win.s4)
-            ForEach(Format.reviewNotes, id: \.self) { line in
-                Text("• " + line).font(Win.rowFact).foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
     private var footer: some View {
         HStack(spacing: Win.s4) {
             if model.jobBusy {
                 ProgressView().controlSize(.small)
                 Text(Format.jobFooterWaiting).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             } else {
-                Text("Touch ID follows.").font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+                Text(model.jobCancelled ? Format.jobTouchIDCancelled : "Touch ID follows.")
+                    .font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: Win.s5)
+            // A stopped job you no longer want is removed from here, not
+            // approved first: the same confirmation as the row's Remove….
+            Button("Remove Job…", action: actions.remove).buttonStyle(AppButton(kind: .secondary))
+                .disabled(model.jobBusy)
             Button("Cancel", action: actions.cancel).buttonStyle(AppButton(kind: .secondary))
                 .keyboardShortcut(.cancelAction)
             Button("Approve Again with Touch ID", action: actions.approveAgain).buttonStyle(AppButton(kind: .primary))
@@ -96,5 +89,6 @@ struct JobReviewActions {
     var showChanges: (String) -> Void = { _ in }
     var openFile: (String) -> Void = { _ in }
     var approveAgain: () -> Void = {}
+    var remove: () -> Void = {}
     var cancel: () -> Void = {}
 }

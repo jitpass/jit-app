@@ -29,6 +29,7 @@ extension StatusItemController {
         panel.dismiss()
         model.jobsBanner = nil
         model.jobError = nil
+        model.jobCancelled = false
         model.jobPreview = nil
         model.jobDraft = prefill
         model.jobTyping = false
@@ -151,6 +152,7 @@ extension StatusItemController {
         let client = client
         model.jobBusy = true
         model.jobError = nil
+        model.jobCancelled = false
         Task.detached {
             let result = Result { try client.allowJob(name: draft.name, spec: approved, proposalID: draft.proposal?.id) }
             await MainActor.run { [weak self] in
@@ -166,7 +168,8 @@ extension StatusItemController {
                     reloadJobs()
                     aiJobsWindow.reclaimFocus()
                 case let .failure(error):
-                    model.jobError = Format.error(error)
+                    model.jobCancelled = Format.isTouchIDCancel(error)
+                    model.jobError = model.jobCancelled ? nil : Format.error(error)
                     aiJobsWindow.reclaimFocus()
                 }
             }
@@ -223,6 +226,13 @@ extension StatusItemController {
             showChanges: { [weak self] file in self?.showJobChanges(file) },
             openFile: { file in NSWorkspace.shared.open(URL(fileURLWithPath: file)) },
             approveAgain: { [weak self] in self?.approveJobAgain() },
+            remove: { [weak self] in
+                guard let self, let job = model.jobReview?.job else {
+                    return
+                }
+                closeJobReview()
+                confirmRemove(job)
+            },
             cancel: { [weak self] in self?.closeJobReview() }
         )
     }
@@ -233,6 +243,7 @@ extension StatusItemController {
         model.jobReviewDiff = nil
         model.jobReviewTracked = []
         model.jobError = nil
+        model.jobCancelled = false
         model.jobReviewSheet = true
         let files = review.items.compactMap(\.file)
         Task.detached {
@@ -268,6 +279,7 @@ extension StatusItemController {
         let client = client
         model.jobBusy = true
         model.jobError = nil
+        model.jobCancelled = false
         Task.detached {
             let result = Result { try client.allowJob(name: name, spec: spec) }
             await MainActor.run { [weak self] in
@@ -282,7 +294,8 @@ extension StatusItemController {
                     model.jobsBannerFailed = false
                     reloadJobs()
                 case let .failure(error):
-                    model.jobError = Format.error(error)
+                    model.jobCancelled = Format.isTouchIDCancel(error)
+                    model.jobError = model.jobCancelled ? nil : Format.error(error)
                 }
                 aiJobsWindow.reclaimFocus()
             }

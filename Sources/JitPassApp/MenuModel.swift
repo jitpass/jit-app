@@ -111,6 +111,9 @@ final class MenuModel: ObservableObject {
     @Published var jobTyping = false
     @Published var jobBusy = false
     @Published var jobError: String?
+    /// The human cancelled the approval's Touch ID: said in the footer, not
+    /// reported as a failure, since it was a choice.
+    @Published var jobCancelled = false
     /// Reviewing a stopped job: which one, the files git tracks, and the
     /// diff being shown.
     @Published var jobReviewSheet = false

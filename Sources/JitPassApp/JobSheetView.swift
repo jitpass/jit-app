@@ -242,7 +242,8 @@ struct JobSheetView: View {
                 ProgressView().controlSize(.small)
                 Text(Format.jobFooterWaiting).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             } else {
-                Text(Format.jobFooter(model.jobDraft, preview: model.jobPreview, checking: model.jobPreviewBusy))
+                Text(model.jobCancelled ? Format.jobTouchIDCancelled
+                    : Format.jobFooter(model.jobDraft, preview: model.jobPreview, checking: model.jobPreviewBusy))
                     .font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: Win.s5)
