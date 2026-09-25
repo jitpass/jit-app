@@ -26,6 +26,15 @@ HELPER_NAME="JitPassAgent"
 HELPER_ID="com.jitpass.agent"
 HELPER="$APP/Contents/Helpers/$HELPER_NAME.app"
 HELPER_JIT_REL="Contents/Helpers/$HELPER_NAME.app/Contents/MacOS/jit"
+# The helper's CODE identifier stays "jit", not $HELPER_ID. Every vault's key
+# today is a login-keychain item whose ACL trusts the program that made it:
+# `identifier jit` + a Developer ID certificate + this team. Signed as
+# com.jitpass.agent, the helper was refused that item (errSecAuthFailed), which
+# on a real Mac is the "wants to use your confidential information" dialog for
+# every existing user. Signed as jit it reads it, and the Secure Enclave
+# entitlement still works: the profile authorizes the entitlement, not the
+# identifier (jit spike/secure-enclave-mek/FINDINGS.md, S3f).
+HELPER_CODE_ID="jit"
 
 # The jit release bundled into the app, pinned in jit.version at the repo
 # root. The app is a client of that exact CLI and service, so the pin is

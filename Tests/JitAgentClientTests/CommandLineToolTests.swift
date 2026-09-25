@@ -79,4 +79,21 @@ final class CommandLineToolTests: XCTestCase {
         XCTAssertEqual(target.directory, "/usr/local/bin")
         XCTAssertTrue(target.needsAdmin)
     }
+
+    /// The helper's path is written twice: scripts/lib.sh (which builds,
+    /// signs, verifies and casks it) and CommandLineTool (which the app runs).
+    /// A rename in one and not the other passed every script and left the
+    /// app silently falling back to whatever jit is on PATH.
+    func testBundledPathMatchesTheBuildScripts() throws {
+        let repo = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let lib = try String(contentsOf: repo.appendingPathComponent("scripts/lib.sh"), encoding: .utf8)
+        let name = try XCTUnwrap(
+            lib.split(separator: "\n")
+                .first { $0.hasPrefix("HELPER_NAME=") }
+                .map { $0.dropFirst("HELPER_NAME=".count).trimmingCharacters(in: CharacterSet(charactersIn: "\"")) },
+            "scripts/lib.sh no longer defines HELPER_NAME"
+        )
+        XCTAssertEqual(CommandLineTool.bundledRelativePath, "Contents/Helpers/\(name).app/Contents/MacOS/jit")
+    }
 }
