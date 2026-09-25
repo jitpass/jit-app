@@ -138,7 +138,7 @@ extension StatusItemController {
                     // only once the new one exists, so a refused prompt
                     // leaves the old grant serving what it still can.
                     if let replacing {
-                        try? client.revokeGrant(id: replacing)
+                        _ = try? client.revokeGrant(id: replacing)
                     }
                     model.grantReplacing = nil
                     model.grantPrefill = nil
@@ -166,8 +166,8 @@ extension StatusItemController {
             return
         }
         do {
-            try client.revokeGrant(id: grant.id)
-            model.grantBanner = Format.revokedBanner(grant)
+            let keyNote = try client.revokeGrant(id: grant.id)
+            model.grantBanner = Format.revokedBanner(grant, keyNote: keyNote)
             model.grantBannerFailed = false
         } catch {
             model.grantBanner = "Could not revoke \(Format.grantName(grant))'s grant: " + Format.error(error)

@@ -158,11 +158,21 @@ extension Format {
         let tail = "\(profiles) go" + (grant.profiles.count == 1 ? "es" : "") +
             " back to asking for Touch ID each time \(grantName(grant)) uses " +
             (grant.profiles.count == 1 ? "it" : "them") + ". Making the grant again is a new Touch ID, not an undo."
-        return grant.isStanding ? "This deletes the grant's key. " + tail : tail
+        return grant.isStanding ? keyGoes + " " + tail : tail
     }
 
-    static func revokedBanner(_ grant: GrantStatus) -> String {
+    /// True whichever way the delete goes: the service deletes the key at
+    /// once, or, when its copy of jit can't reach a Secure Enclave key,
+    /// the next time it starts (jit's `key_note`).
+    static let keyGoes = "Its key is deleted too, now or the next time JitPass's service starts."
+
+    /// `keyNote` is jit's own sentence when the key could not be deleted
+    /// at once; it replaces "Its key is deleted", which would be untrue.
+    static func revokedBanner(_ grant: GrantStatus, keyNote: String? = nil) -> String {
         let head = "Revoked \(grantName(grant))'s grant to \(grant.profiles.joined(separator: ", "))."
+        if let keyNote {
+            return head + " " + keyNote + " It asks for Touch ID again from now."
+        }
         return grant.isStanding
             ? head + " Its key is deleted and it asks for Touch ID again from now."
             : head + " It asks for Touch ID again from now."

@@ -254,8 +254,11 @@ public extension AgentClient {
     }
 
     /// Remove a job now. No prompt: reducing access is always free.
-    func removeJob(name: String) throws {
-        _ = try send(AgentRequest(op: .jobRemove, jobName: name))
+    /// Returns jit's `key_note` when the job is gone but its key could not
+    /// be deleted from here, nil when there was nothing to say.
+    @discardableResult
+    func removeJob(name: String) throws -> String? {
+        try send(AgentRequest(op: .jobRemove, jobName: name)).keyNote.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// The proposals waiting for the human. No prompt.

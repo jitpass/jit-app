@@ -171,8 +171,12 @@ public extension AgentClient {
         try send(AgentRequest(op: .grantList)).grants ?? []
     }
 
-    func revokeGrant(id: String) throws {
-        _ = try send(AgentRequest(op: .grantRevoke, grantID: id))
+    /// Revokes a grant. Returns jit's `key_note` when the grant ended but
+    /// its key could not be deleted from here, nil when there was nothing
+    /// to say.
+    @discardableResult
+    func revokeGrant(id: String) throws -> String? {
+        try send(AgentRequest(op: .grantRevoke, grantID: id)).keyNote.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     func history() throws -> [SessionEvent] {

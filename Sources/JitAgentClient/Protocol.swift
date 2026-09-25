@@ -311,6 +311,11 @@ public struct AgentResponse: Codable, Sendable {
     public var jobs: [JobStatus]?
     public var preview: JobPreview?
     public var proposals: [JobProposal]?
+    /// Answers `grant_revoke` and `job_remove` when the grant or job is
+    /// gone but its key could not be deleted from the service's copy of
+    /// jit (a Secure Enclave key it cannot reach): jit's sentence, shown
+    /// in place of "its key is deleted". nil otherwise (jitpass/jit#168).
+    public var keyNote: String?
 
     public init(ok: Bool) {
         self.ok = ok
@@ -327,5 +332,6 @@ public struct AgentResponse: Codable, Sendable {
         case ttlSeconds = "ttl_seconds"
         case consentEnabled = "consent_enabled"
         case jobs, preview, proposals
+        case keyNote = "key_note"
     }
 }

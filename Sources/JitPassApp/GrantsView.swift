@@ -16,10 +16,11 @@ struct GrantsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if let banner = model.grantBanner {
-                WindowBanner(tint: Color(model.grantBannerFailed ? StatusMark.red : StatusMark.green), text: banner)
-            }
+            // Measured with the banner, which wraps when jit's note is long.
             VStack(spacing: 0) {
+                if let banner = model.grantBanner {
+                    WindowBanner(tint: Color(model.grantBannerFailed ? StatusMark.red : StatusMark.green), text: banner, wraps: true)
+                }
                 header
                 content
             }
@@ -32,16 +33,13 @@ struct GrantsView: View {
         )
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onPreferenceChange(WindowHeightKey.self) { height in
-            actions.fit(height + (model.grantBanner == nil ? 0 : Self.bannerHeight))
+            actions.fit(height)
         }
         .sheet(isPresented: $model.grantSheet) {
             GrantSheetView(model: model, actions: sheetActions)
         }
         .onAppear(perform: actions.reload)
     }
-
-    /// The banner sits outside the measured stack.
-    static let bannerHeight: CGFloat = 39
 
     private var header: some View {
         HStack(alignment: .center, spacing: Win.s5) {
