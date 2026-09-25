@@ -39,9 +39,15 @@ jobs:
           NK: ${{ secrets.MACOS_NOTARY_KEY }}
           NKID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           NISS: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
+          AGENT: ${{ secrets.MACOS_AGENT_PROFILE }}
         run: |
           if [ -z "$P12" ] || [ -z "$PW" ]; then
             echo "::error::refusing to publish without Developer ID signing secrets"; exit 1
+          fi
+          # The helper's Secure Enclave entitlement needs its provisioning
+          # profile; signing without one would ship a jit macOS kills at launch.
+          if [ -z "$AGENT" ]; then
+            echo "::error::refusing to publish without MACOS_AGENT_PROFILE (the helper's Developer ID provisioning profile, base64)"; exit 1
           fi
           if [ -z "$NK" ] || [ -z "$NKID" ] || [ -z "$NISS" ]; then
             echo "::error::refusing to publish without notary secrets"; exit 1
@@ -51,6 +57,7 @@ jobs:
         env:
           P12: ${{ secrets.MACOS_SIGN_P12 }}
           PW: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          AGENT: ${{ secrets.MACOS_AGENT_PROFILE }}
         run: |
           set -euo pipefail
           kc="$RUNNER_TEMP/sign.keychain-db"
@@ -64,6 +71,8 @@ jobs:
           security list-keychains -d user -s "$kc" login.keychain-db
           rm -f "$RUNNER_TEMP/sign.p12"
           echo "SIGN_KEYCHAIN=$kc" >> "$GITHUB_ENV"
+          echo "$AGENT" | base64 --decode > "$RUNNER_TEMP/agent.provisionprofile"
+          echo "AGENT_PROFILE=$RUNNER_TEMP/agent.provisionprofile" >> "$GITHUB_ENV"
 
       - name: Build, sign, notarize, staple, pack
         env:
