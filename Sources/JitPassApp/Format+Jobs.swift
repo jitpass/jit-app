@@ -292,12 +292,27 @@ extension Format {
     static func reviewSentence(_ review: JobReview) -> String {
         let when = review.job.approved.map { " on " + stamp($0, withDay: true) } ?? ""
         if review.items.isEmpty {
-            let why = review.job.lastRefusal.map { $0.prefix(1).uppercased() + $0.dropFirst() } ?? "It stopped"
+            // No file differs now: what stopped it was undone (a file put
+            // back or deleted). The stop still holds, and says so.
+            let why = review.job.lastRefusal.map(sentenceStart) ?? "It stopped"
+            if review.job.jobState == .changed {
+                return why + ". The folder is back as you approved it, but the job stays stopped until you approve it again."
+            }
             return why + ". It won't run until you approve it again."
         }
         let count = review.items.count == 1 ? "1 file" : "\(review.items.count) files"
         return "\(count) changed since you approved this job\(when). It won't run until you approve it again. " +
             "Approve only a change you expected."
+    }
+
+    /// Capitalises a sentence's first letter unless its first word is a
+    /// file or path, whose case is its name ("jit-stop-test.txt added…").
+    static func sentenceStart(_ text: String) -> String {
+        let first = text.prefix { $0 != " " }
+        if first.contains(".") || first.contains("/") {
+            return text
+        }
+        return text.prefix(1).uppercased() + text.dropFirst()
     }
 
     static func reviewFact(_ item: JobReview.Item, tracked: Set<String>) -> String {

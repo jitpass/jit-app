@@ -68,9 +68,10 @@ struct JobReviewSheet: View {
             if model.jobBusy {
                 ProgressView().controlSize(.small)
                 Text(Format.jobFooterWaiting).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
-            } else {
-                Text(model.jobCancelled ? Format.jobTouchIDCancelled : "Touch ID follows.")
-                    .font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+            } else if model.jobCancelled {
+                // The approve button already says Touch ID follows; with three
+                // buttons the footer keeps its words for what happened.
+                Text(Format.jobTouchIDCancelled).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: Win.s5)
             // A stopped job you no longer want is removed from here, not
