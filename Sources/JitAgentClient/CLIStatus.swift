@@ -12,15 +12,36 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     /// "yes", "no" or "unknown": whether the master key exists (jit 1.6.3
     /// adds it). nil from an older jit, which `VaultSetup` reads as unknown.
     public var initialized: String?
+    /// Where the master key is kept: "keychain" or "secure-enclave"
+    /// (jit's `keystore.Kind`). nil from a jit before the Secure Enclave
+    /// move, which cannot move the key either.
+    public var keyStore: String?
+    /// The last `jit vault export`, the recovery file: whether one is
+    /// recorded, when, and whether a secret has been written since. jit
+    /// reports none of them for an empty vault.
+    public var exportRecorded: Bool?
+    public var exportUnixTime: Int64?
+    public var exportStale: Bool?
 
     enum CodingKeys: String, CodingKey {
         case secretsStored = "secrets_stored"
         case initialized
+        case keyStore = "key_store"
+        case exportRecorded = "export_recorded"
+        case exportUnixTime = "export_unix_time"
+        case exportStale = "export_stale"
     }
 
-    public init(secretsStored: Int, initialized: String? = nil) {
+    public init(
+        secretsStored: Int, initialized: String? = nil, keyStore: String? = nil,
+        exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil
+    ) {
         self.secretsStored = secretsStored
         self.initialized = initialized
+        self.keyStore = keyStore
+        self.exportRecorded = exportRecorded
+        self.exportUnixTime = exportUnixTime
+        self.exportStale = exportStale
     }
 }
 

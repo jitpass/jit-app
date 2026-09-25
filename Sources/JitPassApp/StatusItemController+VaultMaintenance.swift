@@ -110,19 +110,9 @@ extension StatusItemController {
 
     /// Save panel, passphrase typed twice, `jit vault export <file> --stdin`.
     func exportVault() {
-        let save = NSSavePanel()
-        save.title = "Export the vault"
-        save.nameFieldStringValue = "jit-vault-\(Format.dateStamp()).export"
-        save.canCreateDirectories = true
-        guard save.runFrontmost() == .OK, let url = save.url else {
+        guard let (path, passphrase) = askExport() else {
             return
         }
-        guard let passphrase = DoctorDialogs.askPassphrase(
-            "Choose a passphrase for the export file. It is needed to import it.", title: "Export"
-        ) else {
-            return
-        }
-        let path = url.path
         runVault(
             "export",
             refresh: false,
@@ -131,6 +121,24 @@ extension StatusItemController {
                 self?.notice("exported to " + Format.home(path))
             }
         )
+    }
+
+    /// The export's save panel and passphrase, typed twice; nil when either
+    /// was cancelled. The move sheet's Save Recovery File… asks the same.
+    func askExport() -> (path: String, passphrase: String)? {
+        let save = NSSavePanel()
+        save.title = "Export the vault"
+        save.nameFieldStringValue = "jit-vault-\(Format.dateStamp()).export"
+        save.canCreateDirectories = true
+        guard save.runFrontmost() == .OK, let url = save.url else {
+            return nil
+        }
+        guard let passphrase = DoctorDialogs.askPassphrase(
+            "Choose a passphrase for the export file. It is needed to import it.", title: "Export"
+        ) else {
+            return nil
+        }
+        return (url.path, passphrase)
     }
 
     /// Open panel, the passphrase, a dialog about overwrites, then

@@ -317,3 +317,10 @@ enum JitCLI {
         return data
     }
 }
+
+extension JitCLI {
+    /// Whether the jit this app runs is its own helper, the only one that
+    /// can reach the Secure Enclave. A dev build's Homebrew jit is not.
+    /// Read once: the bundle does not change under a running app.
+    static let isBundledHelper = VaultKeyRow.isBundledHelper(executable, bundleURL: Bundle.main.bundleURL)
+}

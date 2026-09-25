@@ -202,6 +202,17 @@ final class MenuModel: ObservableObject {
     @Published var settingsApplying: SettingsOutcome.Row?
     /// What the last change did: the banner, or a row under the control.
     @Published var settingsOutcome: SettingsOutcome?
+    /// The sheet that moves the vault key into the Secure Enclave, over
+    /// Settings; Doctor's offer opens it there too.
+    @Published var vaultKeySheet = false
+    /// The recovery file the sheet saves: while jit writes it, and jit's
+    /// words when it did not.
+    @Published var recoveryFileSaving = false
+    @Published var recoveryFileFailure: String?
+    /// A recovery file saved from the app and the count jit said it holds.
+    @Published var recoveryFileRecorded: RecordedExport?
+    /// Doctor's Recommended offer to move the key, dismissed for good.
+    @Published var vaultKeyOfferDismissed = false
     @Published var launchAtLogin = false
     @Published var terminalApp = ""
     /// The bundle identifier of the editor scan rows open files with; "" is the system default.
