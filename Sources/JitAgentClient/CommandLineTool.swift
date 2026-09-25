@@ -23,6 +23,20 @@ public enum CommandLineTool {
     /// password when it exists, /usr/local/bin always needs one.
     public static let usualDirectories = ["/opt/homebrew/bin", "/usr/local/bin"]
 
+    /// Where the bundled jit lives inside JitPass.app: the main executable
+    /// of its own helper bundle, because a provisioning profile authorizes
+    /// only a bundle's main executable (the Secure Enclave plan, step A1).
+    /// `Contents/MacOS/jit` is kept as a symlink to it for launchd plists and
+    /// PATH links made before the move; nothing in the app uses that path.
+    public static let bundledRelativePath = "Contents/Helpers/JitPassAgent.app/Contents/MacOS/jit"
+
+    /// The bundled jit for the app at `bundleURL`, or nil when there is none
+    /// (a dev build run from `.build/`).
+    public static func bundledJit(in bundleURL: URL, fileManager: FileManager = .default) -> String? {
+        let path = bundleURL.appendingPathComponent(bundledRelativePath).path
+        return fileManager.isExecutableFile(atPath: path) ? path : nil
+    }
+
     /// Where the `jitpass` cask keeps its bookkeeping; when it is there,
     /// updates go through `brew upgrade` and the link is Homebrew's to keep.
     public static let caskrooms = ["/opt/homebrew/Caskroom/jitpass", "/usr/local/Caskroom/jitpass"]

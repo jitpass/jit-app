@@ -43,11 +43,20 @@ explain itself, and it is the bundle the agent has to live in.
 
     JitPass.app/
       Contents/
-        MacOS/JitPass              Swift, SwiftUI + AppKit, menu bar only (LSUIElement)
-        Helpers/jit                Go, unchanged binary from the jit release
-        Helpers/jit-agent          Go, unchanged; launchd points here (phase 2)
+        MacOS/JitPass                      Swift, SwiftUI + AppKit, menu bar only (LSUIElement)
+        MacOS/jit                          symlink to the helper's jit, for plists and PATH links made before A1
+        Helpers/JitPassAgent.app/          com.jitpass.agent, CFBundleName JitPass
+          Contents/MacOS/jit               Go, the jit release: CLI and service in one binary
+          Contents/Info.plist
+          Contents/embedded.provisionprofile  the helper's Developer ID profile (A2), authorizing Resources/Agent.entitlements
         Info.plist
-        embedded.provisionprofile  phase 3, Secure Enclave entitlement
+
+jit is the main executable of its own bundle because a provisioning profile
+authorizes only a bundle's main executable: a second executable inside
+JitPass.app is killed at launch once it carries the entitlement (jit's
+`spike/secure-enclave-mek/FINDINGS.md`, S3a). The symlink at the old path
+keeps every existing install working, run directly, through a PATH link and
+under launchd (S3e). There is one binary, not a separate jit-agent.
 
 - **Language: Swift.** Every API the app needs (menu bar item, notifications,
   `LocalAuthentication`, `CryptoKit.SecureEnclave`, signing, entitlements) is
@@ -60,9 +69,12 @@ explain itself, and it is the bundle the agent has to live in.
   it downloads at build time and verifies against `checksums.txt` and the
   Developer ID signature the same way `jit upgrade` does. The Go module never
   imports it; CI here never sees it. Reverting the app is archiving that repo.
-- **Identity.** Team `CZC6BH93GJ`, bundle id `com.jitpass.app`, decided once:
-  the SE entitlement and keychain access group are keyed on it and changing
-  either later orphans keys. The launchd label stays `com.jitpass.agent`.
+- **Identity.** Team `CZC6BH93GJ`. The app is `com.jitpass.app`; jit's
+  helper bundle is `com.jitpass.agent`, the App ID its provisioning profile
+  names. Enclave keys live in the keychain access group
+  `CZC6BH93GJ.com.jitpass.vault`, named for the vault rather than a bundle,
+  so moving jit between bundles orphans nothing. The launchd label stays
+  `com.jitpass.agent`.
 - **One agent.** The app talks to the same socket path the CLI uses and runs
   the same protocol handshake (`Request.MinProtocol`, `Response` protocol
   number). A Homebrew CLI and the app on one machine share one agent, never
@@ -134,7 +146,7 @@ if the app is abandoned.
 |---|---|---|
 | 0. This doc + `subscribe` + richer `status` | `jitpass/jit` | Leave them; CLI-useful |
 | 1. App v0.1: read-only dropdown, lock/unlock, grants, live events. Temporary cask `jit-app` in the tap, depends on the `jitpass` cask | `jitpass/jit-app`, tap | Deprecate the cask; `jitpass` cask untouched |
-| 2. (shipped) `jit` (one binary: CLI and service) inside the bundle at `Contents/MacOS/jit`, fetched from the pinned release in `jit.version` and verified like `jit upgrade` verifies. `jitpass` cask, owned by the app release, installs the app and symlinks that jit via `binary`; version `<jit>,<app>`. The launchd plist records the symlink target inside /Applications, which survives `brew upgrade`. `jit upgrade` refuses inside a bundle and points at the app. `jit-app` cask deprecated with `replacement_cask`. Tarball stays CLI-only | `jitpass/jit-app` release, tap, jit `upgrade.go` | One tap PR pointing the cask back at the tarball; jit's goreleaser cask block restored from history |
+| 2. (shipped) `jit` (one binary: CLI and service) inside the bundle (since plan A1 the main executable of `Contents/Helpers/JitPassAgent.app`, with `Contents/MacOS/jit` a symlink to it), fetched from the pinned release in `jit.version` and verified like `jit upgrade` verifies. `jitpass` cask, owned by the app release, installs the app and symlinks that jit via `binary`; version `<jit>,<app>`. The launchd plist records the symlink target inside /Applications, which survives `brew upgrade`. `jit upgrade` refuses inside a bundle and points at the app. `jit-app` cask deprecated with `replacement_cask`. Tarball stays CLI-only | `jitpass/jit-app` release, tap, jit `upgrade.go` | One tap PR pointing the cask back at the tarball; jit's goreleaser cask block restored from history |
 | 3. Secure Enclave wrapper, opt-in: `jit vault rekey --wrapper secure-enclave`, and the reverse `--wrapper keychain`. `keychainwrap` remains the default for new vaults | `jitpass/jit` | Users run the reverse rekey; default never moved |
 | 4. Consent prompts brokered through the app when it is running | both | Delete the Prompter implementation; `LAContext` path is the fallback and never left |
 

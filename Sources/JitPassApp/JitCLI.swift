@@ -11,7 +11,7 @@ import JitAgentClient
 /// prefixes a GUI app's PATH usually lacks.
 enum JitCLI {
     static var candidates: [String] {
-        let bundled = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("jit").path
+        let bundled = CommandLineTool.bundledJit(in: Bundle.main.bundleURL)
         return [bundled].compactMap { $0 } + ["/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
     }
 
