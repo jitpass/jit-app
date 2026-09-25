@@ -11,13 +11,18 @@ extension MenuModel {
     var vaultKeyRow: VaultKeyRow? {
         VaultKeyRow.state(
             cli?.vault, bundledHelper: JitCLI.isBundledHelper, keyLost: VaultKeyRow.keyLost(doctor),
-            unfinished: VaultKeyMove.unfinished(pending: vaultKeyMovePending, report: doctor)
+            doctorFailed: doctorFailed && !doctorRunning
         )
     }
 
     /// Where jit says the key is now.
     var vaultKeyPlace: VaultKeyPlace? {
         VaultKeyPlace.of(cli?.vault)
+    }
+
+    /// jit's own word on an unfinished move: where it was going.
+    var vaultKeyUnfinished: VaultKeyPlace? {
+        cli?.vault?.moveUnfinished.flatMap(VaultKeyPlace.init(rawValue:))
     }
 
     /// The move sheet's gate: jit's own.
@@ -32,7 +37,7 @@ extension MenuModel {
 
     /// The failure row's Try Again: which way, and whether it finishes.
     var vaultKeyRetry: VaultKeyRetry? {
-        VaultKeyMove.retry(pending: vaultKeyMovePending, now: vaultKeyPlace, report: doctor)
+        VaultKeyMove.retry(unfinished: vaultKeyUnfinished, attempted: vaultKeyAttempted, now: vaultKeyPlace)
     }
 
     /// Doctor's Recommended card.

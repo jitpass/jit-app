@@ -54,6 +54,10 @@ extension DoctorAdvice {
         "bad_path": ("Bad secret paths", nil),
         "vault_key": ("Master key missing", "Without this Mac's master key nothing in the vault decrypts."),
         "rekey": ("Unfinished key rotation", "Every vault write is refused until the rotation completes."),
+        // No note: jit's own sentence is the reason, and it already says
+        // which way the move was going and what is refused until it ends.
+        "vault_move": ("Unfinished vault key move", nil),
+        "vault_restore": ("Secrets this Mac can't open", nil),
         "wrap": ("Broken wrapped tools", "The tool now runs unwrapped, or not at all."),
         "mcp": ("Broken MCP entries", nil),
         "mcp_nested": (

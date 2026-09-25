@@ -52,6 +52,78 @@ final class DoctorVaultKeyTests: XCTestCase {
         XCTAssertEqual(restore.steps.first?.needs, .existingPath(placeholder: "<file>"))
     }
 
+    /// jit's `vault_move` finding (jitpass/jit#169), as doctor.go writes it:
+    /// the fix is derived from its action, presence true, not destructive.
+    static let moveReport = #"""
+    {"schema_version":2,"ok":false,"problems":[{"kind":"vault_move","detail":"moving the vault key into the Secure \#
+    Enclave did not finish, so every command that changes the vault will refuse until it does.","action":"`jit vault \#
+    rekey --wrapper secure-enclave` to finish it","fixes":[{"command":"jit vault rekey --wrapper secure-enclave","argv":\#
+    ["vault","rekey","--wrapper","secure-enclave"],"destructive":false,"presence":true}]}],"warnings":[]}
+    """#
+
+    /// jit's `vault_restore` finding: secrets sealed to the lost key that
+    /// no import has brought back; the import is destructive and needs a file.
+    static let restoreReport = #"""
+    {"schema_version":2,"ok":false,"problems":[{"kind":"vault_restore","detail":"3 secrets were sealed to a key this \#
+    Mac no longer has, so they can't be opened. A recovery file brings them back.","action":"`jit vault import <file>` \#
+    from a `jit vault export` backup","fixes":[{"command":"jit vault import <file>","argv":["vault","import","<file>"],\#
+    "destructive":true,"presence":true,"needs":"<file>"}]}],"warnings":[]}
+    """#
+
+    /// The unfinished move's card runs the Settings row's own Finish Move,
+    /// toward jit's target, and nothing that reads as a rotation: a
+    /// rotation's `jit vault rekey` refuses to finish a move.
+    func testAnUnfinishedMoveIsFixNowWithFinishMove() throws {
+        let board = try DoctorBoard.make(report(Self.moveReport))
+        let card = try XCTUnwrap(board.cards.first)
+        XCTAssertEqual(board.cards.count, 1)
+        XCTAssertEqual(card.tier, .broken)
+        XCTAssertEqual(card.title, "Unfinished vault key move")
+        XCTAssertEqual(
+            card.reason,
+            "Moving the vault key into the Secure Enclave did not finish, "
+                + "so every command that changes the vault will refuse until it does."
+        )
+        let finish = try XCTUnwrap(card.primary)
+        XCTAssertEqual(finish.title, "Finish Move")
+        XCTAssertTrue(card.primaryProminent)
+        XCTAssertEqual(finish.steps.first?.argv, [VaultKeyPlace.secureEnclave.moveArguments])
+        XCTAssertEqual(finish.steps.first?.presence, true)
+        XCTAssertEqual(finish.steps.first?.destructive, false)
+        let titles = [card.primary?.title] + card.menu.map { entry -> String? in
+            if case let .button(button) = entry {
+                return button.title
+            }
+            return nil
+        }
+        XCTAssertFalse(titles.contains("Finish Rotation"))
+    }
+
+    /// The way back, from jit's own fix.
+    func testAnUnfinishedMoveBackFinishesTowardTheKeychain() throws {
+        let json = Self.moveReport.replacingOccurrences(of: "secure-enclave", with: "keychain")
+        let card = try XCTUnwrap(try DoctorBoard.make(report(json)).cards.first)
+        XCTAssertEqual(card.primary?.steps.first?.argv, [VaultKeyPlace.keychain.moveArguments])
+    }
+
+    /// A pending restore offers the lost card's restore without `jit vault
+    /// init`: the key exists already, and init would refuse or replace it.
+    func testAPendingRestoreIsFixNowWithTheImportAlone() throws {
+        let board = try DoctorBoard.make(report(Self.restoreReport))
+        let card = try XCTUnwrap(board.cards.first)
+        XCTAssertEqual(card.tier, .broken)
+        XCTAssertEqual(card.title, "Secrets this Mac can't open")
+        XCTAssertEqual(
+            card.reason, "3 secrets were sealed to a key this Mac no longer has, so they can't be opened. A recovery file brings them back."
+        )
+        let restore = try XCTUnwrap(card.primary)
+        XCTAssertEqual(restore.title, "Restore from Recovery File…")
+        XCTAssertEqual(restore.steps.first?.argv, [["vault", "import", "<file>", "--stdin", "--yes"]])
+        XCTAssertEqual(restore.steps.first?.needs, .existingPath(placeholder: "<file>"))
+        XCTAssertEqual(restore.steps.first?.destructive, true)
+        XCTAssertEqual(restore.steps.first?.input, .passphrase(prompt: "The recovery file's passphrase"))
+    }
+
     /// A keychain key that is gone keeps its own card: no init, no enclave.
     func testAKeyGoneFromTheKeychainIsUnchanged() throws {
         let card = try XCTUnwrap(try DoctorBoard.make(report(VaultKeyTests.goneFromKeychainReport)).cards.first)

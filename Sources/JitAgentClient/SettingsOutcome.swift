@@ -30,13 +30,17 @@ public struct SettingsOutcome: Equatable, Sendable {
     public var detail: String
     /// jit's own line, kept only where it is the diagnosis.
     public var verbatim: String?
+    /// The result is not known (jit could not be asked afterwards), so the
+    /// row's button asks again rather than repeating the change.
+    public var checksAgain: Bool
 
-    public init(row: Row, ok: Bool, title: String, detail: String = "", verbatim: String? = nil) {
+    public init(row: Row, ok: Bool, title: String, detail: String = "", verbatim: String? = nil, checksAgain: Bool = false) {
         self.row = row
         self.ok = ok
         self.title = title
         self.detail = detail
         self.verbatim = verbatim
+        self.checksAgain = checksAgain
     }
 }
 
@@ -98,9 +102,15 @@ public extension SettingsOutcome {
 
     /// The vault key's failure offers the move again: every refusal before
     /// the last step leaves the key where it was, and one after it is
-    /// finished by running the same move again.
+    /// finished by running the same move again. Not when the result is
+    /// unknown: that row asks jit again first (`offersCheck`).
     var offersRetry: Bool {
-        !ok && row == .vaultKey
+        !ok && row == .vaultKey && !checksAgain
+    }
+
+    /// Check Again: re-read where jit says the key is.
+    var offersCheck: Bool {
+        !ok && checksAgain
     }
 
     /// jit's own phrasing when the socket is not there. Two spellings, and
@@ -150,7 +160,18 @@ public extension SettingsOutcome {
     /// changed" only where the key is still where it was.
     static func vaultKeyFailed(to target: VaultKeyPlace, now place: VaultKeyPlace?, line: String) -> SettingsOutcome {
         let verbatim = line.isEmpty ? nil : line
-        guard let place, place != target else {
+        // jit could not be asked where the key is after the failure, so
+        // nothing is claimed about it: not "nothing changed", and not that
+        // trying again would finish it.
+        guard let place else {
+            return SettingsOutcome(
+                row: .vaultKey, ok: false, title: "The move's result is unknown",
+                detail: "jit could not say where the key is now. Check again to find out."
+                    + (verbatim == nil ? "" : " jit's own words are below."),
+                verbatim: verbatim, checksAgain: true
+            )
+        }
+        guard place != target else {
             return SettingsOutcome(
                 row: .vaultKey, ok: false, title: "The move did not finish",
                 detail: "Try again to finish it. jit's own words are below.", verbatim: verbatim

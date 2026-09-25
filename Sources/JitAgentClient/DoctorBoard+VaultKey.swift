@@ -22,10 +22,19 @@ extension DoctorBoard {
         return card
     }
 
-    /// The lost enclave key in the reader's words. The note does not guess
+    /// The lost enclave key in the reader's words, and an unfinished move
+    /// in jit's. The note does not guess
     /// the cause: jit can't tell a new Mac from a repaired one. The button
     /// is the vault_key finding's own restore (`DoctorAdvice`).
     static func vaultKeyLost(_ card: DoctorCard) -> DoctorCard {
+        if card.items.count == 1, let item = card.items.first, item.kind == "vault_move", let detail = item.detail {
+            // jit's own sentence, which says which way the move was going,
+            // begun as a sentence: it starts lower case in jit's report.
+            var card = card
+            card.reason = detail.prefix(1).uppercased() + detail.dropFirst()
+            card.subject = "The vault key"
+            return card
+        }
         guard card.items.contains(where: VaultKeyRow.isLostFinding) else {
             return card
         }
@@ -47,4 +56,21 @@ public extension DoctorAdvice {
         argv: [["vault", "init"], ["vault", "import", "<file>", "--stdin", "--yes"]],
         input: .passphrase(prompt: "The recovery file's passphrase")
     )
+
+    /// The restore after a lost key that has a new one already (doctor's
+    /// `vault_restore`, status's `restore_pending`): the import alone.
+    static let importRecoveryFile = DoctorAction(
+        "Restore from Recovery File", "jit vault import <file>",
+        needs: .existingPath(placeholder: "<file>"),
+        argv: [["vault", "import", "<file>", "--stdin", "--yes"]],
+        input: .passphrase(prompt: "The recovery file's passphrase")
+    )
+
+    /// Doctor's `vault_move` card: the unfinished move run again as it is,
+    /// the command the Settings row's Finish Move runs.
+    static func finishMove(_ target: VaultKeyPlace) -> DoctorAction {
+        DoctorAction(
+            "Finish Move", "jit vault rekey --wrapper \(target.rawValue)", argv: [target.moveArguments], presence: true
+        )
+    }
 }

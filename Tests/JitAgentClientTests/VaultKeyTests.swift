@@ -39,6 +39,24 @@ final class VaultKeyTests: XCTestCase {
         XCTAssertEqual(vault.exportStale, true)
     }
 
+    /// jitpass/jit#169's two fields, as status.go writes them: the move's
+    /// target, and a restore still owed after a lost key. Both omitted when
+    /// there is nothing to say.
+    func testDecodesAnUnfinishedMoveAndAPendingRestore() throws {
+        let json = #"""
+        {"vault":{"initialized":"yes","key_store":"keychain","move_unfinished":"secure-enclave",
+         "restore_pending":true,"secrets_stored":4}}
+        """#
+        let vault = try XCTUnwrap(JSONDecoder().decode(CLIStatus.self, from: Data(json.utf8)).vault)
+        XCTAssertEqual(vault.moveUnfinished, "secure-enclave")
+        XCTAssertEqual(vault.restorePending, true)
+        let plain = try XCTUnwrap(
+            JSONDecoder().decode(CLIStatus.self, from: Data(#"{"vault":{"initialized":"yes","secrets_stored":4}}"#.utf8)).vault
+        )
+        XCTAssertNil(plain.moveUnfinished)
+        XCTAssertNil(plain.restorePending)
+    }
+
     /// A jit before the move says nothing about where the key is.
     func testAnOlderJitLeavesTheNewFieldsNil() throws {
         let json = #"{"vault":{"initialized":"yes","secrets_stored":3}}"#
@@ -49,8 +67,12 @@ final class VaultKeyTests: XCTestCase {
 
     // MARK: - The row
 
-    private func vault(_ store: String?, initialized: String = "yes", secrets: Int = 5) -> CLIVaultStatus {
-        CLIVaultStatus(secretsStored: secrets, initialized: initialized, keyStore: store)
+    private func vault(
+        _ store: String?, initialized: String = "yes", secrets: Int = 5, unfinished: String? = nil, restore: Bool? = nil
+    ) -> CLIVaultStatus {
+        CLIVaultStatus(
+            secretsStored: secrets, initialized: initialized, keyStore: store, moveUnfinished: unfinished, restorePending: restore
+        )
     }
 
     func testTheRowSaysWhereTheKeyIs() {
@@ -65,16 +87,54 @@ final class VaultKeyTests: XCTestCase {
         XCTAssertEqual(VaultKeyRow.state(vault("keychain"), bundledHelper: true, keyLost: nil), .keychain)
     }
 
-    /// A move the app started, while jit's marker is there, is its own
-    /// state; a lost key still comes first, since nothing opens.
-    func testAnUnfinishedMoveIsItsOwnState() {
+    /// An unfinished move is jit's own `move_unfinished`, whoever started
+    /// it and whatever doctor last said: a stale or clean doctor report
+    /// cannot hide it (the review's finding on the app's own guess, which
+    /// a report without the marker used to erase). A lost key still comes
+    /// first, since nothing opens; a word this app doesn't know is no move.
+    func testAnUnfinishedMoveComesFromJitsStatus() {
         XCTAssertEqual(
-            VaultKeyRow.state(vault("keychain"), bundledHelper: true, keyLost: false, unfinished: .keychain),
+            VaultKeyRow.state(vault("keychain", unfinished: "secure-enclave"), bundledHelper: true, keyLost: false),
+            .unfinished(.secureEnclave)
+        )
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("secure-enclave", unfinished: "keychain"), bundledHelper: true, keyLost: nil),
             .unfinished(.keychain)
         )
         XCTAssertEqual(
-            VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: true, unfinished: .keychain), .lost
+            VaultKeyRow.state(vault("secure-enclave", unfinished: "keychain"), bundledHelper: true, keyLost: true), .lost
         )
+        XCTAssertEqual(VaultKeyRow.state(vault("keychain", unfinished: "tpm"), bundledHelper: true, keyLost: false), .keychain)
+    }
+
+    /// A restore jit still owes keeps its offer on the row though the key
+    /// is in the keychain, until jit stops reporting it; an unfinished move
+    /// comes first, since the import would be refused until it ends.
+    func testAPendingRestoreKeepsTheRestoreOffer() {
+        XCTAssertEqual(VaultKeyRow.state(vault("keychain", restore: true), bundledHelper: true, keyLost: false), .restorePending)
+        XCTAssertEqual(VaultKeyRow.state(vault("keychain", restore: true), bundledHelper: true, keyLost: nil), .restorePending)
+        XCTAssertEqual(VaultKeyRow.state(vault("keychain", restore: false), bundledHelper: true, keyLost: false), .keychain)
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("keychain", unfinished: "secure-enclave", restore: true), bundledHelper: true, keyLost: false),
+            .unfinished(.secureEnclave)
+        )
+    }
+
+    /// A doctor check that could not run never leaves the row waiting for
+    /// an answer that is not coming: it reads "unchecked", which offers
+    /// Check Again and keeps Move Back. While a check runs, or before the
+    /// first, it is "checking"; an answer from an earlier report stands.
+    func testAFailedDoctorCheckIsNotALastingChecking() {
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: nil, doctorFailed: true), .unchecked
+        )
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: nil, doctorFailed: false), .checking
+        )
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: false, doctorFailed: true), .secureEnclave
+        )
+        XCTAssertEqual(VaultKeyRow.state(vault("keychain"), bundledHelper: true, keyLost: nil, doctorFailed: true), .keychain)
     }
 
     /// jit reports the recovery file only for a vault with something in

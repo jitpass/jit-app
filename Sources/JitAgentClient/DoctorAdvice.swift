@@ -238,6 +238,15 @@ public enum DoctorAdvice {
             )]
         },
         "rekey": { _ in [DoctorAction("Finish Rotation", "jit vault rekey", argv: [["vault", "rekey", "--yes"]])] },
+        // A move of the vault key has its own kind (jitpass/jit#169): a
+        // rotation's `jit vault rekey` refuses to finish it, so the card's
+        // button is the Settings row's own Finish Move, the same command.
+        "vault_move": { item in
+            VaultKeyPlace.moveTarget(item).map { [finishMove($0)] } ?? []
+        },
+        // The key already exists (jit made it when the old one was lost),
+        // so the restore is the import alone, with no `jit vault init`.
+        "vault_restore": { _ in [importRecoveryFile] },
         "legacy_envelope": { _ in [DoctorAction(
             "Re-encrypt", "jit vault export <file> && jit vault import <file>", needs: .newFile(placeholder: "<file>"),
             argv: [["vault", "export", "<file>", "--stdin"], ["vault", "import", "<file>", "--stdin", "--yes"]],
