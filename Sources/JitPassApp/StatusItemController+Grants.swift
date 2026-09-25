@@ -166,9 +166,11 @@ extension StatusItemController {
             return
         }
         do {
-            let keyNote = try client.revokeGrant(id: grant.id)
+            // A delete that failed is a failure banner; the key kept in an
+            // enclave this jit can't reach is not (`KeyNote`).
+            let keyNote = try KeyNote(client.revokeGrant(id: grant.id))
             model.grantBanner = Format.revokedBanner(grant, keyNote: keyNote)
-            model.grantBannerFailed = false
+            model.grantBannerFailed = keyNote?.failed ?? false
         } catch {
             model.grantBanner = "Could not revoke \(Format.grantName(grant))'s grant: " + Format.error(error)
             model.grantBannerFailed = true
