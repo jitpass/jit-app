@@ -5,7 +5,7 @@
 	<!-- Hardened runtime only, no App Sandbox: the sandbox would block the
 	     agent's Unix socket under ~/Library/Application Support. No Apple
 	     Events either: the terminal is driven by opening a .command file, not
-	     by scripting it. The Secure Enclave keychain entitlement lands here in
-	     phase 3 of the design doc. -->
+	     by scripting it. The Secure Enclave entitlement is not here: it
+	     belongs to the helper that holds the key, Agent.entitlements. -->
 </dict>
 </plist>

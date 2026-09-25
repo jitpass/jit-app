@@ -110,8 +110,7 @@ extension StatusItemController {
 
     /// The jit inside this bundle, nil for a dev build run from .build/.
     var bundledJit: String? {
-        let path = Bundle.main.executableURL?.deletingLastPathComponent().appendingPathComponent("jit").path
-        return path.flatMap { FileManager.default.isExecutableFile(atPath: $0) ? $0 : nil }
+        CommandLineTool.bundledJit(in: Bundle.main.bundleURL)
     }
 
     func refreshCommandLineTool() {

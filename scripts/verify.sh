@@ -32,8 +32,31 @@ version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/C
 # The bundled jit is what `brew install jitpass` puts on PATH, so it is
 # verified the way jit's own release gate verifies a tarball: signed by the
 # team, and reporting the version the bundle claims to carry.
-jit="$app/Contents/MacOS/jit"
-[ -x "$jit" ] || die "bundle carries no executable jit"
+helper="$app/Contents/Helpers/$HELPER_NAME.app"
+jit="$app/$HELPER_JIT_REL"
+[ -x "$jit" ] || die "bundle carries no executable jit in $HELPER_NAME.app"
+codesign --verify --strict --verbose=2 "$helper"
+helperid=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$helper/Contents/Info.plist")
+[ "$helperid" = "$HELPER_ID" ] || die "helper bundle is $helperid, want $HELPER_ID"
+helperinfo=$(codesign --display --verbose=2 "$helper" 2>&1)
+[[ "$helperinfo" == *"(runtime)"* ]] || die "helper lacks the hardened runtime"
+[[ "$helperinfo" == *$'\n'"Identifier=$HELPER_CODE_ID"$'\n'* ]] || die "helper's code identifier is not $HELPER_CODE_ID: existing keychain vault keys would ask for access"
+# The Secure Enclave entitlement, and the profile that authorizes it for the
+# very certificate that signed this helper. The `jit --version` below is the
+# launch that proves macOS accepts the pair.
+[ -f "$helper/Contents/embedded.provisionprofile" ] || die "helper carries no embedded.provisionprofile"
+helperents=$(codesign --display --entitlements - --xml "$helper" 2>/dev/null)
+[[ "$helperents" == *"$HELPER_GROUP"* && "$helperents" == *"$TEAM_ID.$HELPER_ID"* ]] || die "helper lacks the Secure Enclave entitlement"
+certs=$(mktemp -d)
+(cd "$certs" && codesign --display --extract-certificates=c "$helper" 2>/dev/null)
+signer=$(shasum -a 1 "$certs/c0" | awk '{print toupper($1)}')
+rm -rf "$certs"
+check_agent_profile "$helper/Contents/embedded.provisionprofile" "$signer"
+# The old path every installed plist and PATH link names must still lead here.
+compat="$app/Contents/MacOS/jit"
+[ -L "$compat" ] || die "Contents/MacOS/jit is not the compat symlink"
+[ "$(cd "$(dirname "$compat")" && realpath "$(readlink "$compat")")" = "$(realpath "$jit")" ] \
+  || die "Contents/MacOS/jit does not resolve to the helper's jit"
 jitinfo=$(codesign --display --verbose=2 "$jit" 2>&1)
 [[ "$jitinfo" == *"TeamIdentifier=$TEAM_ID"* ]] || die "bundled jit is not signed by team $TEAM_ID"
 want=$(/usr/libexec/PlistBuddy -c "Print :JitVersion" "$app/Contents/Info.plist")

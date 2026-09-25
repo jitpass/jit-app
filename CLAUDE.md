@@ -118,8 +118,13 @@ than skipping), sign by TEAM ID never by identity name (this machine's
 keychain holds a second, unrelated team), verify the PUBLISHED zip and not
 `dist/`, publish as a draft and undraft only after that verification. The
 bundle CAN be stapled, unlike jit's bare binary, so the cask needs no online
-ticket fetch. Local credentials live in `~/.apple-signing`; the five Apple
-secrets are set on this repo, and so is `HOMEBREW_TAP_GITHUB_TOKEN` (since
+ticket fetch. Local credentials live in `~/.apple-signing`; the six Apple
+secrets are set on this repo (the sixth, `MACOS_AGENT_PROFILE`, is the
+helper's Developer ID provisioning profile in base64: `check_agent_profile`
+in `scripts/lib.sh` refuses to sign or publish with a profile that does not
+match the signing certificate, app ID and keychain group, or has under 90
+days left on it or its certificate, because a helper whose entitlements no
+profile authorizes is killed at launch), and so is `HOMEBREW_TAP_GITHUB_TOKEN` (since
 2026-09-17), so the cask is pushed to the tap automatically — only after the
 release is verified and visible, never at a draft. The workflow still falls
 back to printing the cask for a manual push if that token ever goes missing.
@@ -130,7 +135,10 @@ back to printing the cask for a manual push if that token ever goes missing.
 downloads that tag's tarball from github.com, checks it against the
 release's own `checksums.txt`, verifies the binary's Developer ID team and
 hardened runtime, and stages it under `dist/`; `bundle.sh` copies it to
-`Contents/MacOS/jit` with the completions under `Resources/`. The `jitpass`
+`Contents/Helpers/JitPassAgent.app/Contents/MacOS/jit`, the main executable
+of jit's own helper bundle (`com.jitpass.agent`), leaves `Contents/MacOS/jit`
+as a symlink to it for installs made before, and puts the completions under
+`Resources/`. `sign.sh` signs the helper first, then the app; never `--deep`. The `jitpass`
 cask (`scripts/cask.sh`) installs the app and symlinks that jit onto PATH.
 One product, one number: an app tag is the bundled jit's version, plus a
 fourth part for an app-only release (`v1.5.8` ships jit 1.5.8, `v1.5.8.1`
