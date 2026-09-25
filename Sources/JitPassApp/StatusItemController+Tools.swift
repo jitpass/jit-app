@@ -35,7 +35,8 @@ extension StatusItemController {
             openVault: { [weak self] in self?.openVault() },
             openSettings: { [weak self] in self?.openSettings() },
             openScan: { [weak self] in self?.openScan() },
-            openDoctor: { [weak self] in self?.openDoctor() }
+            openDoctor: { [weak self] in self?.openDoctor() },
+            openAIJobs: { [weak self] in self?.openAIJobs() }
         )
     }
 

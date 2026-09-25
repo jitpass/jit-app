@@ -90,6 +90,15 @@ final class MenuModel: ObservableObject {
     /// What just happened in the Grants window; clears on the next action.
     @Published var grantBanner: String?
     @Published var grantBannerFailed = false
+    /// AI Jobs (jit design/agent-jobs.md): the approved jobs with their state,
+    /// agents' proposals waiting for the human, whether Claude Desktop starts
+    /// jit's MCP server, and what just happened in the window.
+    @Published var jobs: [JobStatus] = []
+    @Published var jobProposals: [JobProposal] = []
+    @Published var claudeDesktopMCP: MCPStatus?
+    @Published var claudeDesktopInstalled = false
+    @Published var jobsBanner: String?
+    @Published var jobsBannerFailed = false
     @Published var doctor: DoctorReport?
     @Published var doctorAt: Date?
     @Published var doctorRunning = false
