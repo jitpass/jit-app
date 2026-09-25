@@ -51,3 +51,11 @@ final class JobsBoardTests: XCTestCase {
         XCTAssertFalse(status.isConnected, "an entry whose jit is gone is not connected")
     }
 }
+
+final class MCPAppTests: XCTestCase {
+    /// The ids are jit's `--client` values; a drift would connect nothing.
+    func testIDsAreJitsClientValues() {
+        XCTAssertEqual(MCPApp.allCases.map(\.rawValue), ["claude-desktop", "cursor"])
+        XCTAssertEqual(MCPApp.cursor.arguments("install"), ["mcp", "install", "--client", "cursor"])
+    }
+}

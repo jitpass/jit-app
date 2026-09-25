@@ -17,8 +17,8 @@ extension StatusItemController {
             newJob: { [weak self] in self?.openJobSheet() },
             review: { [weak self] proposal in self?.openProposal(proposal) },
             reviewJob: { [weak self] job in self?.openJobReview(job) },
-            connect: { [weak self] in self?.setClaudeDesktop(connected: true) },
-            disconnect: { [weak self] in self?.confirmDisconnect() },
+            connect: { [weak self] app in self?.setMCP(app, connected: true) },
+            disconnect: { [weak self] app in self?.confirmDisconnect(app) },
             fit: { [weak self] height in self?.aiJobsWindow.fit(to: height) }
         )
     }
@@ -49,17 +49,21 @@ extension StatusItemController {
     /// is what makes "changed" true the moment it is, and takes a moment.
     func reloadJobs() {
         let client = client
-        model.claudeDesktopInstalled = FileManager.default.fileExists(atPath: "/Applications/Claude.app")
+        let installed = MCPApp.allCases.filter { FileManager.default.fileExists(atPath: $0.appPath) }
+        model.installedApps = Set(installed.map(\.id))
         Task.detached {
             let jobs = (try? client.jobs()) ?? []
             let proposals = (try? client.jobProposals()) ?? []
-            let mcp = try? JitCLI.document(["mcp", "status", "--format", "json"]) {
-                try JSONDecoder().decode(MCPStatus.self, from: Data($0.utf8))
-            }.get()
+            var status: [String: MCPStatus] = [:]
+            for app in installed {
+                status[app.id] = try? JitCLI.document(app.arguments("status") + ["--format", "json"]) {
+                    try JSONDecoder().decode(MCPStatus.self, from: Data($0.utf8))
+                }.get()
+            }
             await MainActor.run { [weak self] in
                 self?.model.jobs = jobs
                 self?.model.jobProposals = proposals
-                self?.model.claudeDesktopMCP = mcp
+                self?.model.mcpStatus = status
             }
         }
     }
@@ -87,23 +91,24 @@ extension StatusItemController {
         reloadJobs()
     }
 
-    func confirmDisconnect() {
+    func confirmDisconnect(_ app: MCPApp) {
         let alert = NSAlert()
-        alert.messageText = "Disconnect Claude Desktop?"
-        alert.informativeText = "Cowork can no longer list or run your AI jobs. Your jobs stay; connecting again brings them back."
+        alert.messageText = "Disconnect \(app.name)?"
+        alert.informativeText = Format.disconnectMessage(app)
         alert.alertStyle = .informational
         alert.addButton(withTitle: "Disconnect")
         alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
-        setClaudeDesktop(connected: false)
+        setMCP(app, connected: false)
     }
 
-    /// `jit mcp install` / `uninstall`: one entry in Claude Desktop's config,
-    /// after a backup, and nothing else in it. Connecting approves nothing.
-    func setClaudeDesktop(connected: Bool) {
-        let arguments = ["mcp", connected ? "install" : "uninstall"]
+    /// `jit mcp install` / `uninstall --client <app>`: one entry in the app's
+    /// config, after a backup, and nothing else in it. Connecting approves
+    /// nothing; it only lets the app's agent ask.
+    func setMCP(_ app: MCPApp, connected: Bool) {
+        let arguments = app.arguments(connected ? "install" : "uninstall")
         Task.detached {
             let result = JitCLI.execute(arguments)
             await MainActor.run { [weak self] in
@@ -114,11 +119,10 @@ extension StatusItemController {
                 let failed: Bool
                 switch result {
                 case .success:
-                    text = connected ? Format.connectedBanner : Format.disconnectedBanner
+                    text = Format.mcpChangedBanner(app, connected: connected)
                     failed = false
                 case let .failure(error):
-                    let verb = connected ? "connect" : "disconnect"
-                    text = "Could not \(verb) Claude Desktop: " + Self.describeTools(error)
+                    text = "Could not \(connected ? "connect" : "disconnect") \(app.name): " + Self.describeTools(error)
                     failed = true
                 }
                 // Said in the window the button was pressed in.
