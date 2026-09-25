@@ -58,14 +58,6 @@ extension MenuModel {
         PanelValue.aiJobs(jobsBoard, connected: mcpStatus.values.contains(where: \.isConnected))
     }
 
-    var claudeDesktopMCP: MCPStatus? {
-        mcpStatus[MCPApp.claudeDesktop.id]
-    }
-
-    var claudeDesktopInstalled: Bool {
-        installedApps.contains(MCPApp.claudeDesktop.id)
-    }
-
     /// The AI apps installed here that jit can connect, in a stable order.
     var connectableApps: [MCPApp] {
         MCPApp.allCases.filter { installedApps.contains($0.id) }

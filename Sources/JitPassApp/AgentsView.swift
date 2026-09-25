@@ -129,7 +129,7 @@ struct AgentsView: View {
 
     @ViewBuilder
     private func body(_ board: AgentsBoard) -> some View {
-        if !board.hasAgents, !model.claudeDesktopInstalled, model.toolListing != nil, model.toolsMessage == nil {
+        if !board.hasAgents, model.connectableApps.isEmpty, model.toolListing != nil, model.toolsMessage == nil {
             noAgents
         } else {
             ScrollView {
@@ -140,8 +140,8 @@ struct AgentsView: View {
                     ForEach(board.rows) { row in
                         agentCard(row, scanned: board.scanned)
                     }
-                    if model.claudeDesktopInstalled {
-                        claudeDesktopCard
+                    ForEach(model.connectableApps) { app in
+                        appCard(app)
                     }
                 }
                 .padding(Win.s6)
@@ -208,8 +208,8 @@ struct AgentsActions {
     var setRedactAfterScan: (ToolRecord, Bool) -> Void = { _, _ in }
     var openGrants: () -> Void = {}
     var openAIJobs: () -> Void = {}
-    var connectClaudeDesktop: () -> Void = {}
-    var disconnectClaudeDesktop: () -> Void = {}
+    var connectApp: (MCPApp) -> Void = { _ in }
+    var disconnectApp: (MCPApp) -> Void = { _ in }
     var openScan: () -> Void = {}
     var openSettings: () -> Void = {}
     var openTools: () -> Void = {}

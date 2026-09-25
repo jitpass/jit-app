@@ -339,11 +339,32 @@ extension Format {
         return text
     }
 
-    static let claudeDesktopNote = "An app, not a command line tool. Its Cowork shell runs in a Linux VM, so it can't run jit itself. " +
-        "It asks through AI Jobs."
-    static let claudeDesktopNotConnectedNote = "Installed, but its Cowork shell can't reach jit. " +
-        "Connect it and Claude can run scripts you approve, without seeing their keys."
-    static let claudeDesktopAsksThrough = "jit mcp, in Claude Desktop's settings"
+    /// What the app is, on its connected card.
+    static func appNote(_ app: MCPApp) -> String {
+        switch app {
+        case .claudeDesktop:
+            "An app, not a command line tool. Its Cowork shell runs in a Linux VM, so it can't run jit itself. " +
+                "It asks through AI Jobs."
+        case .cursor:
+            "An editor with an agent, not a command line tool. Its agent asks through AI Jobs."
+        }
+    }
+
+    static func appNotConnectedNote(_ app: MCPApp) -> String {
+        switch app {
+        case .claudeDesktop:
+            "Installed, but its Cowork shell can't reach jit. " +
+                "Connect it and Claude can run scripts you approve, without seeing their keys."
+        case .cursor:
+            "Installed, but not connected to jit. " +
+                "Connect it and its agent can run scripts you approve, without seeing their keys."
+        }
+    }
+
+    static func appAsksThrough(_ app: MCPApp) -> String {
+        "jit mcp, in \(app.name)'s settings"
+    }
+
     static let onboardingClaudeDesktopTitle = "Let Claude Desktop run your scripts without seeing keys"
     static let onboardingClaudeDesktopDetail = "Lets Claude ask to run your scripts. You approve each one first."
 }

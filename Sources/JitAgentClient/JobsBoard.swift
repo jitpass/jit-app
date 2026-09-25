@@ -93,6 +93,15 @@ public enum MCPApp: String, CaseIterable, Sendable, Identifiable {
         }
     }
 
+    /// Who the service names when this app's agent runs a job: the
+    /// `last_caller` a job records, so a card can say which run was its own.
+    public var caller: String {
+        switch self {
+        case .claudeDesktop: "Claude"
+        case .cursor: "Cursor"
+        }
+    }
+
     /// Where the app is installed, which is when its row is shown.
     public var appPath: String {
         switch self {
