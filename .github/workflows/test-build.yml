@@ -15,12 +15,12 @@
 #     through env:, quoted.
 #   - jit is built, and its completions generated (by running it), in a
 #     separate job that holds no secrets. The signing job never runs that
-#     job's binary before the identity is imported, except where sign.sh
-#     must: it launches the freshly signed helper once to prove macOS
-#     accepts its entitlements and profile. That launch happens while the
-#     identity is in an unlocked keychain; the key is imported
-#     non-extractable (-x), and the keychain is deleted straight after
-#     sign.sh, before the notary key is written or verify.sh runs jit again.
+#     binary while the identity is usable: sign.sh signs the helper and the
+#     app, LOCKS the temporary keychain, and only then launches the signed
+#     helper once (the check that macOS accepts its entitlements and
+#     profile). The key is imported non-extractable (-x), and the keychain
+#     is deleted straight after sign.sh, before the notary key is written
+#     or verify.sh runs jit again.
 #
 # Run it on a branch (the workflow file must be on the default branch for
 # workflow_dispatch to see it, and it then uses the dispatched branch's
@@ -217,7 +217,8 @@ jobs:
 
       # The source-built jit, staged where fetch-jit.sh treats it as already
       # fetched. Unpacked only, never run here: the next time it runs is
-      # sign.sh's launch check of the signed helper.
+      # sign.sh's launch check of the signed helper, after the keychain is
+      # locked.
       - name: Download the source-built jit
         if: inputs.jit_ref != ''
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -241,8 +242,9 @@ jobs:
           printf '%s\n' "$label" > jit.version
           rm -rf "$RUNNER_TEMP/jit-stage"
 
-      # Only now, with every run of the source-built jit behind us (bar
-      # sign.sh's launch check), does the identity reach this runner. The key
+      # Only now, with every run of the source-built jit behind us, does the
+      # identity reach this runner. (sign.sh's launch check runs it again,
+      # but only after both signatures, with this keychain locked.) The key
       # is non-extractable (-x): usable for signing while the keychain is
       # unlocked, never exportable from it. Only codesign is on its ACL.
       - name: Import the signing identity into a temporary keychain
@@ -274,8 +276,9 @@ jobs:
           scripts/bundle.sh release
           scripts/sign.sh
 
-      # The identity is gone before the notary key is written, and before
-      # verify.sh runs the bundled jit again.
+      # sign.sh left the keychain locked; it is deleted outright before the
+      # notary key is written, and before verify.sh runs the bundled jit
+      # again.
       - name: Remove the signing keychain
         run: |
           set -euo pipefail
