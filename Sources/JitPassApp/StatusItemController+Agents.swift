@@ -18,6 +18,7 @@ extension StatusItemController {
         model.toolsMessage = nil
         reloadTools()
         refreshAgentActivity()
+        reloadJobs() // the Can run rows and Claude Desktop's card
         agentsWindow.present()
     }
 
@@ -57,6 +58,9 @@ extension StatusItemController {
             redact: { [weak self] agent in self?.redactAgent(agent) },
             setRedactAfterScan: { [weak self] agent, on in self?.setRedactAfterScan(agent: agent, on: on) },
             openGrants: { [weak self] in self?.openGrants() },
+            openAIJobs: { [weak self] in self?.openAIJobs() },
+            connectClaudeDesktop: { [weak self] in self?.setClaudeDesktop(connected: true) },
+            disconnectClaudeDesktop: { [weak self] in self?.confirmDisconnect() },
             openScan: { [weak self] in self?.openScan() },
             openSettings: { [weak self] in self?.openSettings() },
             openTools: { [weak self] in self?.openTools() },

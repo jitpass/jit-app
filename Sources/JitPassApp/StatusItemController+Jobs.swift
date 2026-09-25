@@ -110,14 +110,23 @@ extension StatusItemController {
                 guard let self else {
                     return
                 }
+                let text: String
+                let failed: Bool
                 switch result {
                 case .success:
-                    model.jobsBanner = connected ? Format.connectedBanner : Format.disconnectedBanner
-                    model.jobsBannerFailed = false
+                    text = connected ? Format.connectedBanner : Format.disconnectedBanner
+                    failed = false
                 case let .failure(error):
                     let verb = connected ? "connect" : "disconnect"
-                    model.jobsBanner = "Could not \(verb) Claude Desktop: " + Self.describeTools(error)
-                    model.jobsBannerFailed = true
+                    text = "Could not \(verb) Claude Desktop: " + Self.describeTools(error)
+                    failed = true
+                }
+                // Said in the window the button was pressed in.
+                if agentsWindow.isVisible, !aiJobsWindow.isVisible {
+                    model.agentsOutcome = WindowOutcome(title: text, text: text, failed: failed)
+                } else {
+                    model.jobsBanner = text
+                    model.jobsBannerFailed = failed
                 }
                 reloadJobs()
             }

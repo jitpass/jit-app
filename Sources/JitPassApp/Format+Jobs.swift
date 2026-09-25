@@ -314,3 +314,30 @@ extension Format {
         ]
     }
 }
+
+// MARK: - AI Agents: what each agent can run
+
+extension Format {
+    /// "3 AI jobs, never seeing their keys · ran notion-guests 5 minutes ago".
+    /// The last run is this agent's own, matched on the name the service
+    /// recorded for who asked ("claude" for the CLI, "Claude" for the app).
+    static func agentCanRun(caller: String, jobs: [JobStatus], now: Date = Date()) -> String {
+        guard !jobs.isEmpty else {
+            return "No AI jobs yet"
+        }
+        var text = (jobs.count == 1 ? "1 AI job" : "\(jobs.count) AI jobs") + ", never seeing their keys"
+        let mine = jobs.filter { $0.lastCaller == caller && $0.lastRun != nil }
+        if let last = mine.max(by: { ($0.lastRunUnix ?? 0) < ($1.lastRunUnix ?? 0) }), let when = last.lastRun {
+            text += " · ran \(last.name) \(ago(when, now: now))"
+        }
+        return text
+    }
+
+    static let claudeDesktopNote = "An app, not a command line tool. Its Cowork shell runs in a Linux VM, so it can't run jit itself. " +
+        "It asks through AI Jobs."
+    static let claudeDesktopNotConnectedNote = "Installed, but its Cowork shell can't reach jit. " +
+        "Connect it and Claude can run scripts you approve, without seeing their keys."
+    static let claudeDesktopAsksThrough = "jit mcp, in Claude Desktop's settings"
+    static let onboardingClaudeDesktopTitle = "Let Claude Desktop run your scripts without seeing keys"
+    static let onboardingClaudeDesktopDetail = "Lets Claude ask to run your scripts. You approve each one first."
+}

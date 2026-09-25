@@ -231,6 +231,12 @@ struct OnboardingDone: View {
                     Toggle("Command line tool", isOn: $model.installCLI).labelsHidden().toggleStyle(.switch)
                 }
             }
+            if model.offersClaudeDesktop {
+                Divider()
+                OnboardingFinishRow(title: Format.onboardingClaudeDesktopTitle, detail: Format.onboardingClaudeDesktopDetail) {
+                    Toggle("Claude Desktop", isOn: $model.connectClaudeDesktop).labelsHidden().toggleStyle(.switch)
+                }
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 4)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.07)))
