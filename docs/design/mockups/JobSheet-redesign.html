@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New AI Job redrawn</title>
+<style>
+:root{
+  --app-unlocked:#3ecf8e;--app-locked:#e5484d;--app-asking:#f0b545;--app-action:#7fd4ff;
+  --app-sheet-material:#323438;--app-window:#323438;--app-card:#414347;--app-titlebar:#343536;
+  --app-label:rgba(255,255,255,.85);--app-label-2:rgba(255,255,255,.55);--app-label-3:rgba(255,255,255,.25);
+  --app-separator:rgba(255,255,255,.10);--app-row-line:rgba(255,255,255,.07);--app-hover:rgba(255,255,255,.05);
+  --app-field:rgba(255,255,255,.07);--app-btn-line:rgba(255,255,255,.16);--app-button-quiet:rgba(255,255,255,.13);
+  --app-segment-track:rgba(255,255,255,.08);--app-segment-on:rgba(255,255,255,.16);--app-verbatim:rgba(0,0,0,.20);
+  --app-window-line:rgba(255,255,255,.09);--app-control-accent:#0068dc;--app-button-2:#7e8081;
+  --accent-dim:rgba(62,207,142,.13);--accent-ink:#061a11;--app-asking-dim:rgba(240,181,69,.22);
+  --space-app-1:2px;--space-app-2:4px;--space-app-3:6px;--space-app-4:8px;--space-app-5:12px;--space-app-6:18px;
+  --radius-panel:10px;--radius-control:6px;--radius-callout:6px;--radius-segment:5px;--radius-box:4px;
+  --size-btn:22px;--size-win-s:520px;--size-sheet-wide:520px;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,monospace;
+  --page:#111314;--page-2:#17191b;--page-text:#e8efe9;--page-muted:#8c968e;--page-line:rgba(150,230,190,.10);
+  --page-accent:#3ecf8e;--page-amber:#f0a94a;
+  color-scheme:dark;
+}
+body{margin:0;background:var(--page);color:var(--page-text);font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1040px;margin:0 auto}
+header.page{padding-block:44px 28px;border-bottom:1px solid var(--page-line);margin-bottom:8px}
+header.page h1{font-size:26px;font-weight:700;letter-spacing:-.01em;margin:0 0 12px;text-wrap:balance}
+header.page p{margin:0 0 10px;max-width:66ch;color:var(--page-muted)}
+header.page p:last-child{margin-bottom:0}
+header.page b{color:var(--page-text);font-weight:600}
+.say-big{font-size:17px;line-height:1.55;color:var(--page-muted);max-width:60ch;margin:0 0 18px;text-wrap:balance}
+.say-big b{color:var(--page-text);font-weight:600}
+h2{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--page-accent);margin:52px 0 6px}
+h2+p{margin:0 0 20px;max-width:66ch;color:var(--page-muted)}
+h2+p b{color:var(--page-text);font-weight:600}
+.states{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+figure{margin:0;display:flex;flex-direction:column;gap:10px;max-width:100%}
+figcaption{font-size:12px;color:var(--page-muted);max-width:520px;line-height:1.5}
+figcaption b{color:var(--page-text);font-weight:600}
+ul.pts{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-width:800px}
+ul.pts li{display:grid;grid-template-columns:20px 1fr;gap:12px;background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;padding:12px 14px}
+ul.pts .n{font-family:var(--font-mono);font-size:12px;color:var(--page-accent);padding-top:2px}
+ul.pts b{font-weight:600}
+ul.pts span{display:block;color:var(--page-muted);margin-top:2px}
+ul.pts .warn{color:var(--page-amber)}
+code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border:1px solid var(--page-line);border-radius:5px;padding:1px 5px}
+
+/* ---- JitPass window components, from the design system's bundle ---- */
+.jp-window{width:var(--size-win-s);max-width:100%;box-sizing:border-box;border-radius:10px;overflow:hidden;color:var(--app-label);background:var(--app-window);border:1px solid var(--app-window-line);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:13px;line-height:1.35;box-shadow:0 0 0 .5px rgba(255,255,255,.2),0 20px 50px rgba(0,0,0,.5);-webkit-font-smoothing:antialiased}
+.jp-window__bar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;background:var(--app-titlebar);font-size:13px;font-weight:600;color:var(--app-label-2)}
+.jp-window__lights{position:absolute;left:10px;top:8px;display:flex;gap:8px}
+.jp-window__lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}
+.jp-window__lights i:nth-child(2){background:#febc2e}.jp-window__lights i:nth-child(3){background:#28c840}
+.jp-window__banner{display:flex;align-items:center;gap:var(--space-app-3);padding:var(--space-app-4) var(--space-app-6);background:var(--accent-dim);border-bottom:1px solid var(--app-separator);font-size:12px;color:var(--app-label)}
+.jp-window__head{display:flex;align-items:center;gap:var(--space-app-5);padding:var(--space-app-5) var(--space-app-6);border-bottom:1px solid var(--app-separator)}
+.jp-window__h{font-size:15px;font-weight:600;color:var(--app-label)}
+.jp-window__sub{font-size:12px;color:var(--app-label-2);margin-top:var(--space-app-1)}
+.jp-window__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-window__body{padding:var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-5)}
+.jp-window__foot{display:flex;align-items:center;gap:var(--space-app-4);padding:var(--space-app-4) var(--space-app-6);background:var(--app-titlebar);border-top:1px solid var(--app-separator);font-size:12px;color:var(--app-label-2)}
+.jp-window__count{flex:1;font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-window__count b{color:var(--app-label);font-weight:600}
+.jp-card{background:var(--app-card);border-radius:var(--radius-panel);padding:var(--space-app-5);display:flex;flex-direction:column;gap:var(--space-app-4)}
+.jp-card__eyebrow{display:flex;align-items:center;gap:var(--space-app-3);font-size:11px;font-weight:500;color:var(--app-label-2)}
+.jp-card__top{display:flex;align-items:flex-start;gap:var(--space-app-5)}
+.jp-card__title{font-size:13px;font-weight:600;color:var(--app-label)}
+.jp-card__note{font-size:12px;color:var(--app-label-2);max-width:62ch;margin:var(--space-app-1) 0 0;line-height:1.4}
+.jp-card__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-card__rows{display:flex;flex-direction:column;border-top:1px solid var(--app-separator)}
+.jp-row{display:flex;align-items:center;gap:var(--space-app-5);padding:var(--space-app-4) 0;border-bottom:1px solid var(--app-row-line)}
+.jp-row:last-child{border-bottom:0}
+.jp-row--top{align-items:flex-start}
+.jp-row--on{background:var(--accent-dim);margin:0 calc(-1 * var(--space-app-4));padding-inline:var(--space-app-4);border-radius:var(--radius-control)}
+.jp-row--off{opacity:.55}
+.jp-row__text{min-width:0;flex:1;display:flex;flex-direction:column;gap:var(--space-app-1)}
+.jp-row__name{font-size:13px;font-weight:600;color:var(--app-label);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jp-row__name span{font-weight:400;color:var(--app-label-2);font-family:var(--font-mono);font-size:11px}
+.jp-row__fact{font-size:11px;color:var(--app-label-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-row__fact--mono{font-family:var(--font-mono)}
+.jp-row__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-chip{font-size:11px;font-weight:500;color:var(--app-label-2);background:var(--app-field);border-radius:var(--radius-box);padding:1px 6px;margin-left:var(--space-app-3);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.jp-abtn{font:inherit;font-size:12px;line-height:1;height:var(--size-btn);padding:0 var(--space-app-5);border:0;border-radius:var(--radius-control);white-space:nowrap;background:var(--app-button-2);color:#fff;display:inline-flex;align-items:center;gap:var(--space-app-3);cursor:default}
+.jp-abtn--default{background:var(--app-control-accent);font-weight:600}
+.jp-abtn--quiet{background:var(--app-button-quiet);color:var(--app-label)}
+.jp-abtn[disabled]{opacity:.45}
+.jp-seg{display:inline-flex;gap:2px;padding:2px;background:var(--app-segment-track);border-radius:var(--radius-callout);align-self:flex-start;max-width:100%;flex-wrap:wrap}
+.jp-seg--fill{align-self:stretch;display:flex;flex-wrap:nowrap}
+.jp-seg--fill .jp-seg__pill{flex:1;text-align:center}
+.jp-seg__pill{font-size:12px;padding:var(--space-app-2) var(--space-app-5);border-radius:var(--radius-segment);color:var(--app-label-2);white-space:nowrap;border:0;background:none;font-family:inherit;line-height:1.3}
+.jp-seg__pill b{font-weight:400;color:var(--app-label-3);margin-left:5px;font-variant-numeric:tabular-nums}
+.jp-seg__pill--on{background:var(--app-segment-on);color:var(--app-label)}
+.jp-search{flex:1;min-width:0;display:flex;align-items:center;gap:var(--space-app-3);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);padding:0 var(--space-app-4);color:var(--app-label-2);font-size:12px;height:var(--size-btn);box-sizing:border-box}
+.jp-search svg{flex:none}
+.jp-field{display:inline-flex;align-items:center;height:var(--size-btn);box-sizing:border-box;padding:0 var(--space-app-4);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);color:var(--app-label);font-size:12px;width:132px}
+.jp-popup{height:var(--size-btn);padding:0 var(--space-app-4);display:inline-flex;align-items:center;gap:var(--space-app-4);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);color:var(--app-label);font:inherit;font-size:12px;line-height:1;white-space:nowrap;box-sizing:border-box;max-width:100%;overflow:hidden}
+.jp-popup svg{flex:none;opacity:.55}
+.jp-popup span.jp-mono{font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.jp-check{width:15px;height:15px;flex:none;border-radius:var(--radius-box);border:1px solid var(--app-btn-line);background:var(--app-card);display:grid;place-items:center}
+.jp-check svg{opacity:0}
+.jp-check--on{background:var(--app-control-accent);border-color:var(--app-control-accent)}
+.jp-check--on svg{opacity:1}
+.jp-dot{width:8px;height:8px;border-radius:50%;flex:none;display:block;background:var(--app-label-2)}
+.jp-dot--ok{background:var(--app-unlocked)}.jp-dot--warn{background:var(--app-asking)}
+.jp-glyph{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700}
+.jp-glyph--bad{background:var(--app-locked);color:#fff}
+.jp-spin{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--app-asking-dim);border-top-color:var(--app-asking);animation:jp-spin .9s linear infinite;box-sizing:border-box}
+@keyframes jp-spin{to{transform:rotate(360deg)}}
+.jp-verbatim{margin-top:var(--space-app-3);background:var(--app-verbatim);border-radius:var(--radius-control);padding:var(--space-app-4) var(--space-app-5);font-family:var(--font-mono);font-size:11px;color:var(--app-label-2);line-height:1.5}
+.jp-mono{font-family:var(--font-mono)}
+.jp-mark{--mark:var(--app-unlocked);position:relative;display:inline-grid;place-items:center;width:56px;height:56px;border-radius:50%;flex:none}
+.jp-mark::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--mark);opacity:.22}
+.jp-mark::after{content:"";position:absolute;inset:22%;border-radius:50%;background:var(--mark)}
+.jp-mark>svg{position:relative;z-index:1;width:30%;height:30%}
+.jp-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--space-app-5);padding:44px var(--space-app-6)}
+.jp-empty__title{font-size:14px;font-weight:600;color:var(--app-label)}
+.jp-empty p{margin:0;font-size:12px;color:var(--app-label-2);max-width:400px;line-height:1.45}
+/* ---- sheet ---- */
+.jp-sheet{width:var(--size-sheet-wide);background:var(--app-sheet-material)}
+.jp-sheet__body{padding:var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-5)}
+.jp-sheet__title{font-size:13px;font-weight:600;color:var(--app-label)}
+.jp-say{font-size:13px;line-height:1.5;color:var(--app-label-2);margin-top:var(--space-app-3)}
+.jp-say b{color:#fff;font-weight:600}
+.jp-say i{font-style:normal;color:var(--app-label-3)}
+.jp-sheet__grid{display:grid;grid-template-columns:62px 1fr;column-gap:var(--space-app-5);row-gap:var(--space-app-5);align-items:start}
+.jp-sheet__k{text-align:right;color:var(--app-label-2);font-size:12px;padding-top:4px}
+.jp-sheet__v{min-width:0;display:flex;flex-direction:column;gap:var(--space-app-3)}
+.jp-sheet__hint{font-size:11px;color:var(--app-label-2);line-height:1.45}
+.jp-sheet__inline{display:flex;align-items:center;gap:var(--space-app-4);flex-wrap:wrap}
+.jp-sheet__notes{border-top:1px solid var(--app-separator);padding-top:var(--space-app-5);font-size:11px;line-height:1.6;color:var(--app-label-2)}
+.jp-sheet__foot{display:flex;align-items:center;gap:var(--space-app-4);font-size:12px;color:var(--app-label-2)}
+.jp-sheet .jp-card{padding:var(--space-app-4) var(--space-app-5)}
+.jp-sheet .jp-card__rows{border-top:0}
+.jp-fail{display:flex;gap:var(--space-app-4);align-items:flex-start;font-size:12px;color:var(--app-label);line-height:1.45}
+.jp-fail .jp-glyph{margin-top:1px}
+.jp-fail>div{flex:1;min-width:0}
+/* ---- alert ---- */
+.jp-alert{width:440px;max-width:100%;box-sizing:border-box;background:var(--app-sheet-material);border:1px solid var(--app-window-line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:20px var(--space-app-6) var(--space-app-6);display:flex;gap:var(--space-app-5);color:var(--app-label);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.jp-alert__plate{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--app-asking-dim);font-size:20px}
+.jp-alert__body{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--space-app-4)}
+.jp-alert__title{font-size:13px;font-weight:600}
+.jp-alert__msg{font-size:12px;color:var(--app-label-2);line-height:1.5}
+.jp-alert__msg strong{color:var(--app-label);font-weight:600}
+.jp-alert__buttons{display:flex;gap:var(--space-app-4);justify-content:flex-end;margin-top:var(--space-app-2)}
+.chev{width:9px;height:12px}
+@media (max-width:600px){.jp-sheet__grid{grid-template-columns:1fr}.jp-sheet__k{text-align:left;padding-top:0}}
+@media (prefers-reduced-motion:reduce){.jp-spin{animation:none}}
+</style>
+<style>
+/* ---- additions for Jobs, beyond the Grants mockup's set ---- */
+.jp-window__banner--ask{background:var(--app-asking-dim)}
+.jp-cmd{font-family:var(--font-mono);font-size:11px;color:var(--app-label);background:var(--app-verbatim);border-radius:var(--radius-control);padding:var(--space-app-4) var(--space-app-5);line-height:1.5;overflow-wrap:anywhere}
+.jp-cmd i{font-style:normal;color:var(--app-label-2)}
+.jp-seg--sm .jp-seg__pill{font-size:11px;padding:1px var(--space-app-4)}
+.jp-row__side{margin-left:auto;flex:none}
+.jp-quote{font-size:12px;color:var(--app-label);border-left:2px solid var(--app-asking);padding-left:var(--space-app-4);line-height:1.45}
+.jp-hide{color:var(--app-action)}
+/* Touch ID system prompt and notification, drawn at macOS size */
+.os-auth{width:280px;background:#2b2c2f;border:1px solid var(--app-window-line);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:18px 16px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;color:var(--app-label);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.os-auth__icon{width:52px;height:52px;border-radius:12px;background:var(--app-card);display:grid;place-items:center}
+.os-auth__title{font-size:13px;font-weight:600}
+.os-auth__msg{font-size:11px;color:var(--app-label-2);line-height:1.45}
+.os-auth__msg b{color:var(--app-label);font-weight:600}
+.os-auth__fp{width:44px;height:44px;border-radius:50%;border:2px solid #ff4f6e;display:grid;place-items:center;color:#ff4f6e;font-size:22px;margin-top:2px}
+.os-auth__btns{display:flex;gap:8px;width:100%}
+.os-auth__btns .jp-abtn{flex:1;justify-content:center}
+.os-note{width:344px;max-width:100%;box-sizing:border-box;background:rgba(50,52,56,.92);border:1px solid var(--app-window-line);border-radius:14px;padding:10px 12px;display:flex;gap:10px;color:var(--app-label);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.os-note__icon{width:34px;height:34px;border-radius:8px;background:var(--app-card);flex:none;display:grid;place-items:center}
+.os-note__app{font-size:11px;color:var(--app-label-2)}
+.os-note__title{font-size:13px;font-weight:600;margin-top:1px}
+.os-note__body{font-size:12px;color:var(--app-label-2);line-height:1.4;margin-top:1px}
+/* what the AI tool receives */
+.tool-result{width:520px;max-width:100%;box-sizing:border-box;background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;overflow:hidden;font-size:12px}
+.tool-result__head{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--page-line);color:var(--page-muted);font-family:var(--font-mono);font-size:11px}
+.tool-result__head b{color:var(--page-text);font-weight:600}
+.tool-result pre{margin:0;padding:10px 12px;font-family:var(--font-mono);font-size:11px;line-height:1.55;color:var(--page-text);white-space:pre-wrap;overflow-wrap:anywhere}
+.tool-result .hid{color:#7fd4ff}
+.flow{display:grid;gap:10px;max-width:800px;margin:0;padding:0;list-style:none}
+.flow li{display:grid;grid-template-columns:150px 1fr;gap:14px;background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;padding:12px 14px}
+.flow .k{font-family:var(--font-mono);font-size:12px;color:var(--page-accent);padding-top:2px}
+.flow span{color:var(--page-muted)}
+@media (max-width:600px){.flow li{grid-template-columns:1fr;gap:4px}}
+</style>
+</head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="chev" viewBox="0 0 9 12"><path d="M1.6 4.8 4.5 1.9l2.9 2.9M1.6 7.2l2.9 2.9 2.9-2.9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="search" viewBox="0 0 12 12"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M7.7 7.7 10.5 10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+<symbol id="disc" viewBox="0 0 9 9"><path d="M3 1.5 6 4.5 3 7.5" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+<style>
+.jp-row--pick{cursor:default}
+.jp-more{display:flex;align-items:center;gap:var(--space-app-3);font-size:12px;color:var(--app-label-2)}
+.jp-more svg{width:9px;height:9px}
+.jp-row__name.jp-mono{font-weight:400;font-size:12px}
+.diff{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-width:800px}
+.diff li{display:grid;grid-template-columns:1fr 1fr;gap:14px;background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;padding:12px 14px}
+.diff .was{color:var(--page-muted)}
+.diff .was b,.diff .now b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:2px}
+.diff .was b{color:var(--page-amber)}.diff .now b{color:var(--page-accent)}
+@media (max-width:600px){.diff li{grid-template-columns:1fr}}
+</style>
+
+<div class="wrap">
+<header class="page">
+  <h1>New AI Job, redrawn</h1>
+  <p class="say-big">Pick a <b>profile</b>, pick a <b>script</b>, approve. Everything else jit already knows.</p>
+  <p>The sheet as built asks you to type four things jit can find by itself, and it drifted from the approved frame C and from the design system. This redraws it the way New Grant works: the profiles jit finds on the Mac, no folder picker, the sentence filling in as you choose. It replaces frame C in <code>Jobs.html</code>; frames D and E (a proposal, a refusal) keep their shape.</p>
+</header>
+
+<h2>The sheet, three moments</h2>
+<p>One sheet, read top to bottom before a Touch ID. The sentence is the Touch ID's own words; a blank is grey until you fill it.</p>
+<div class="states">
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>AI Jobs</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">New AI Job</div>
+      <div class="jp-say">Let AI tools run <i>a script</i> with <i>a profile's secrets</i>. They see what it prints, never the values.</div>
+    </div>
+    <div class="jp-sheet__grid">
+      <div class="jp-sheet__k">Profile</div>
+      <div class="jp-sheet__v">
+        <span class="jp-search"><svg width="12" height="12"><use href="#search"/></svg><span>Filter profiles</span></span>
+        <div class="jp-card"><div class="jp-card__rows">
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">notion <span>· 3 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops/custom_scripts/notion</span> · NOTION_API_KEY, INTERNAL_DOMAINS, …</div></div></div>
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">jamf <span>· 14 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops/custom_scripts/jamf</span> · EA_BROWSER_LOGIN, EA_DEFAULT_BROWSER, …</div></div></div>
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">mcp-caido <span>· 1 secret</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops</span> · CAIDO_URL</div></div></div>
+          <div class="jp-row" style="border-bottom:0"><div class="jp-row__text"><div class="jp-row__name">custom_scripts-wiz <span>· 5 secrets</span></div>
+            <div class="jp-row__fact"><span class="jp-mono">~/Security-Ops</span> · WIZ_CLIENT_ID, WIZ_CLIENT_SECRET, …</div></div></div>
+        </div></div>
+      </div>
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count">Choose the profile whose secrets the script needs</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default" disabled>Approve with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>C1. It opens on the profiles.</b> Every profile jit finds on this Mac, the same discovery New Grant uses, with its folder under its name. One is chosen, so a row fills <code>accent-dim</code> rather than taking a checkbox. Nothing below appears until there is something true to say, so there is no "this folder has no profile" before a folder exists.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>AI Jobs</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">New AI Job</div>
+      <div class="jp-say">Let AI tools run <i>a script</i> in <b>notion</b> with <b>3 secrets</b>. They see what it prints, never the values.</div>
+    </div>
+    <div class="jp-sheet__grid">
+      <div class="jp-sheet__k">Profile</div>
+      <div class="jp-sheet__v">
+        <button class="jp-popup">notion <svg class="chev"><use href="#chev"/></svg></button>
+        <div class="jp-sheet__hint">In <span class="jp-mono">~/Security-Ops/custom_scripts/notion</span></div>
+      </div>
+      <div class="jp-sheet__k">Runs</div>
+      <div class="jp-sheet__v">
+        <div class="jp-card"><div class="jp-card__rows">
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">list_guest_users.py</div>
+            <div class="jp-row__fact jp-row__fact--mono">.venv/bin/python list_guest_users.py</div></div></div>
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">setup.sh</div>
+            <div class="jp-row__fact jp-row__fact--mono">./setup.sh</div></div></div>
+          <div class="jp-row" style="border-bottom:0"><div class="jp-row__text"><div class="jp-row__name">Another command…</div>
+            <div class="jp-row__fact">Type it as you would in a terminal in this folder</div></div></div>
+        </div></div>
+        <div class="jp-sheet__hint">The scripts in this folder. jit saw the .venv, so Python runs from it.</div>
+      </div>
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count">Choose what the AI tool may run</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default" disabled>Approve with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>C2. The profile picks the folder.</b> The list collapses to a popup showing the current value, and the folder is stated, never chosen. Runs lists the scripts in that folder, each with the exact command it becomes in <code>mono</code>, because a command is what <code>mono</code> is for. "Another command…" turns into the field, for a job that is not a file in the folder.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>AI Jobs</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">New AI Job</div>
+      <div class="jp-say">Let AI tools run <b>list_guest_users.py</b> in <b>notion</b> with <b>3 secrets</b>. They see what it prints, never the values.</div>
+    </div>
+    <div class="jp-sheet__grid">
+      <div class="jp-sheet__k">Profile</div>
+      <div class="jp-sheet__v">
+        <button class="jp-popup">notion <svg class="chev"><use href="#chev"/></svg></button>
+        <div class="jp-sheet__hint">In <span class="jp-mono">~/Security-Ops/custom_scripts/notion</span></div>
+      </div>
+      <div class="jp-sheet__k">Runs</div>
+      <div class="jp-sheet__v">
+        <button class="jp-popup"><span class="jp-mono">.venv/bin/python list_guest_users.py</span> <svg class="chev"><use href="#chev"/></svg></button>
+        <div class="jp-sheet__hint">Exactly this, with no arguments added</div>
+      </div>
+      <div class="jp-sheet__k">Secrets</div>
+      <div class="jp-sheet__v">
+        <div class="jp-card"><div class="jp-card__rows">
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name jp-mono">NOTION_API_KEY</div></div>
+            <span class="jp-seg jp-seg--sm"><button class="jp-seg__pill jp-seg__pill--on">Hidden</button><button class="jp-seg__pill">Shown</button></span></div>
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name jp-mono">INTERNAL_DOMAINS</div><div class="jp-row__fact">Shown: configuration the script prints, not a key</div></div>
+            <span class="jp-seg jp-seg--sm"><button class="jp-seg__pill">Hidden</button><button class="jp-seg__pill jp-seg__pill--on">Shown</button></span></div>
+          <div class="jp-row" style="border-bottom:0"><div class="jp-row__text"><div class="jp-row__name jp-mono">OUTPUT_FILE</div></div>
+            <span class="jp-seg jp-seg--sm"><button class="jp-seg__pill jp-seg__pill--on">Hidden</button><button class="jp-seg__pill">Shown</button></span></div>
+        </div></div>
+      </div>
+      <div class="jp-sheet__k">Asks</div>
+      <div class="jp-sheet__v">
+        <span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">Each time</button><button class="jp-seg__pill">Never, until you remove it</button></span>
+        <div class="jp-sheet__hint">Touch ID for every run, naming who asked.</div>
+      </div>
+      <div class="jp-sheet__k"></div>
+      <div class="jp-sheet__v"><span class="jp-more"><svg><use href="#disc"/></svg>More options · named notion-list-guest-users · no output folder</span></div>
+    </div>
+    <div class="jp-sheet__notes">
+      • jit fingerprints this folder now: 242 files. Change any of them and the job stops until you approve it again.<br>
+      • The script runs with only these 3 secrets, never anything from the tool that asked.<br>
+      • Remove it any time from the AI Jobs window. That never asks.
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count">Touch ID follows.</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default">Approve with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>C3. Ready: two choices made.</b> Every secret starts Hidden; you touch the switch only for a value the script prints. The name and the output folder sit under "More options", with their current values on its line so nothing is hidden that matters: the name is made from the script and can be changed there. The notes are frame C's, unchanged.</figcaption>
+</figure>
+
+</div>
+
+<h2>What changes from the build</h2>
+<p>Each line is something the sheet in your screenshot does that the design system or the approved frame C does not.</p>
+<ul class="diff">
+<li><div class="was"><b>Built</b>Four blanks to fill: Name, Folder (Choose…), a typed command, then the profile is inferred from the folder.</div><div class="now"><b>Redrawn</b>Two picks: a profile from the list, then a script from its folder. Name and output are under More options.</div></li>
+<li><div class="was"><b>Built</b>The sentence says "with no secrets" and the Secrets row says "This folder has no jit profile" before any folder is chosen.</div><div class="now"><b>Redrawn</b>Blanks stay grey (<code>app-label-3</code>) until chosen, as New Grant's do. No row claims anything that has not been checked.</div></li>
+<li><div class="was"><b>Built</b>"No folder chosen" and "None" in <code>mono</code>, and the Runs placeholder reads like a value.</div><div class="now"><b>Redrawn</b><code>mono</code> only for a real path or a command. A popup's label is its current value.</div></li>
+<li><div class="was"><b>Built</b>Two Secondary "Choose…" buttons inside rows.</div><div class="now"><b>Redrawn</b>No folder button at all. Output's Choose… under More options is Quiet, the kind a row takes.</div></li>
+<li><div class="was"><b>Built</b>Name is the first field, empty, before you know what the job is.</div><div class="now"><b>Redrawn</b>Named from the script (<code>notion-list-guest-users</code>), editable under More options.</div></li>
+<li><div class="was"><b>Built</b>Frame C's command box was dropped for a text field.</div><div class="now"><b>Redrawn</b>The command is always visible in <code>mono</code>: in the Runs list, then as the popup's value.</div></li>
+</ul>
+
+<h2>How it maps to the build</h2>
+<ul class="pts">
+<li><span class="n">1</span><div><b>Profiles: the grant sheet's discovery.</b><span><code>ProfileDiscovery.discover</code>, as New Grant calls it. A profile from <code>~/.jit/profiles</code> has no folder of its own; picking one shows a Quiet "Choose folder…" where the folder line is, the one case a folder is chosen.</span></div></li>
+<li><span class="n">2</span><div><b>Scripts: suggestions, never decisions.</b><span>The top level of the folder: <code>*.py</code> (through <code>.venv/bin/python</code> when that exists, else <code>python3</code>), <code>*.sh</code>, <code>*.js</code>/<code>*.mjs</code> through <code>node</code>, and any executable file. What it picks is only the command line; <code>job_preview</code> still checks it, and a refusal shows as frame E.</span></div></li>
+<li><span class="n">3</span><div><b>No new op.</b><span>The spec sent is the same <code>job_allow</code> spec the CLI sends, so the app is still never the only way to make a job. The CLI's <code>jit job allow</code> is unchanged.</span></div></li>
+<li><span class="n">4</span><div><b>A proposal (frame D) skips C1 and C2.</b><span>It arrives with profile and command filled in, so it opens straight at C3 with the amber banner.</span></div></li>
+</ul>
+
+<h2>Worth a yes or a no before I build</h2>
+<ul class="pts">
+<li><span class="n">1</span><div><b>Two picks, everything else under More options.</b><span>The name and output folder move out of sight, with their values on the disclosure line.</span></div></li>
+<li><span class="n">2</span><div><b>Only scripts at the folder's top level.</b><span>Not subfolders: a folder with a <code>node_modules</code> or <code>.venv</code> would list thousands. Anything else goes through "Another command…".</span></div></li>
+</ul>
+</div>
+</body></html>

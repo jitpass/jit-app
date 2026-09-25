@@ -14,7 +14,10 @@ extension StatusItemController {
     var jobSheetActions: JobSheetActions {
         JobSheetActions(
             preview: { [weak self] in self?.previewJobSoon() },
+            chooseProfile: { [weak self] profile in self?.chooseJobProfile(profile) },
+            changeProfile: { [weak self] in self?.changeJobProfile() },
             chooseFolder: { [weak self] in self?.chooseJobFolder() },
+            addFolder: { [weak self] in self?.chooseProfileFolder() },
             chooseOutput: { [weak self] in self?.chooseJobOutput() },
             approve: { [weak self] in self?.approveJob() },
             cancel: { [weak self] in self?.closeJobSheet() },
@@ -29,9 +32,11 @@ extension StatusItemController {
         model.jobError = nil
         model.jobPreview = nil
         model.jobDraft = prefill
-        model.jobProfiles = Self.profiles(in: prefill.folder)
-        if model.jobDraft.profile == nil {
-            model.jobDraft.profile = model.jobProfiles.count == 1 ? model.jobProfiles.first : nil
+        model.jobTyping = false
+        model.jobMoreOptions = false
+        model.jobScripts = JobScripts.suggest(in: prefill.folder)
+        if prefill.profile == nil, prefill.folder.isEmpty {
+            reloadProfiles()
         }
         reloadJobs()
         aiJobsWindow.present()
@@ -49,28 +54,36 @@ extension StatusItemController {
         previewTask?.cancel()
     }
 
-    /// The profiles a folder's `.jit/profiles` holds, by name.
-    nonisolated static func profiles(in folder: String) -> [String] {
-        guard !folder.isEmpty else {
-            return []
-        }
-        let dir = (folder as NSString).appendingPathComponent(".jit/profiles")
-        let names = (try? FileManager.default.contentsOfDirectory(atPath: dir)) ?? []
-        return names.filter { $0.hasSuffix(".yaml") }.map { String($0.dropLast(5)) }.sorted()
+    // MARK: - Choosing
+
+    /// A profile sets the folder, and the folder's scripts are what Runs
+    /// offers.
+    func chooseJobProfile(_ profile: DiscoveredProfile) {
+        model.jobDraft.choose(profile: profile)
+        model.jobPreview = nil
+        model.jobTyping = false
+        model.jobScripts = JobScripts.suggest(in: model.jobDraft.folder)
     }
 
-    // MARK: - Choosing folders
+    /// Back to the list, dropping what was chosen for the last profile.
+    func changeJobProfile() {
+        var draft = JobDraft()
+        draft.ask = model.jobDraft.ask
+        model.jobDraft = draft
+        model.jobPreview = nil
+        model.jobTyping = false
+        model.jobScripts = []
+        reloadProfiles()
+    }
 
+    /// Only for a global profile, which names no folder of its own.
     func chooseJobFolder() {
         guard let folder = chooseDirectory(message: "Choose the folder the job runs in") else {
             return
         }
         model.jobDraft.folder = folder
-        if model.jobDraft.name.isEmpty {
-            model.jobDraft.name = JobDraft.suggestedName(folder: folder)
-        }
-        model.jobProfiles = Self.profiles(in: folder)
-        model.jobDraft.profile = model.jobProfiles.count == 1 ? model.jobProfiles.first : nil
+        model.jobDraft.command = ""
+        model.jobScripts = JobScripts.suggest(in: folder)
     }
 
     func chooseJobOutput() {
@@ -103,7 +116,7 @@ extension StatusItemController {
             return
         }
         let spec = draft.spec(pathEnv: JitCLI.environment["PATH"] ?? "", home: NSHomeDirectory())
-        let name = draft.name.isEmpty ? JobDraft.suggestedName(folder: draft.folder) : draft.name
+        let name = JobDraft.isValidName(draft.name) ? draft.name : JobDraft.suggestedName(folder: draft.folder)
         let client = client
         model.jobPreviewBusy = true
         previewTask = Task.detached {

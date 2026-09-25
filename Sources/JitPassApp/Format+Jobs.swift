@@ -158,14 +158,29 @@ extension Format {
     static let jobFooterWaiting = "Waiting for Touch ID. The service is asking, not this app."
     static let jobOutputHint = "The tool is told which new files appear here. It gets paths, never their contents."
 
-    /// The sentence at the top, from what the service resolved when it has,
-    /// else from what is typed. It says what the approval will mean.
-    static func jobSentence(_ draft: JobDraft, preview: JobPreview?) -> String {
-        let program = preview?.program ?? draft.argv.first.map { ($0 as NSString).lastPathComponent } ?? "a command"
-        let folder = draft.folder.isEmpty ? "a folder" : (draft.folder as NSString).lastPathComponent
-        let count = preview?.secrets?.count ?? 0
-        let secrets = count == 0 ? "no secrets" : (count == 1 ? "1 secret" : "\(count) secrets")
-        return "Let AI tools run \(program) in \(folder) with \(secrets). They see what it prints, never the values."
+    static let jobNoProfiles = "jit found no profiles on this Mac. A job gets its secrets from one: " +
+        "protect a project's .env first, or add the folder that holds one."
+    static let jobGlobalProfileHint = "A profile from ~/.jit/profiles names no folder."
+    static let jobTypingHint = "Type it as you would in a terminal in this folder"
+    static let jobShownHint = "Every value is hidden in what the tool sees. " +
+        "Show one only when it is configuration the script prints, never a key."
+    static let jobNameHint = "What AI tools call it: lowercase letters, digits and dashes."
+
+    static func jobScriptsHint(_ scripts: [JobScript], folder: String) -> String {
+        if scripts.isEmpty {
+            return "No scripts at the top of \(home(folder)). Type the command instead."
+        }
+        if scripts.contains(where: { $0.argv.first?.hasPrefix(".venv/") == true || $0.argv.first?.hasPrefix("venv/") == true }) {
+            return "The scripts in this folder. jit saw its virtualenv, so Python runs from it."
+        }
+        return "The scripts in this folder."
+    }
+
+    /// The closed More options line, with both values on it.
+    static func jobMoreOptions(_ draft: JobDraft) -> String {
+        let name = draft.name.isEmpty ? "not named yet" : "named \(draft.name)"
+        let output = draft.output.isEmpty ? "no output folder" : "output in " + (draft.output as NSString).lastPathComponent
+        return "More options · \(name) · \(output)"
     }
 
     static func proposalBanner(_ proposal: JobProposal) -> String {
@@ -178,19 +193,9 @@ extension Format {
 
     static func jobRunsHint(_: JobDraft, preview: JobPreview?) -> String {
         if let exe = preview?.exe {
-            return "Runs \(home(exe)), exactly as typed, with no arguments added"
+            return "Runs \(home(exe)), exactly this, with no arguments added"
         }
-        return "Exactly this, in the folder above, with no arguments added"
-    }
-
-    static func jobSecretsHint(_ draft: JobDraft, preview: JobPreview?, profiles: [String]) -> String {
-        guard let profile = draft.profile else {
-            return profiles.isEmpty ? "This folder has no jit profile, so the job gets no secrets." : "Choose the profile the job uses."
-        }
-        if preview?.secrets?.isEmpty ?? true {
-            return "From profile \(profile)."
-        }
-        return "From profile \(profile), as it is now. Editing \(profile).yaml later changes nothing here."
+        return "Exactly this, with no arguments added"
     }
 
     static func jobAskHint(_ ask: JobAsk) -> String {
@@ -225,7 +230,7 @@ extension Format {
         if checking || preview == nil {
             return "Checking the job…"
         }
-        return preview?.refusal == nil ? "Touch ID follows. The service decides, not this app." : "Nothing to approve"
+        return preview?.refusal == nil ? "Touch ID follows." : "Nothing to approve"
     }
 
     static func approvedJobBanner(_ job: JobStatus) -> String {

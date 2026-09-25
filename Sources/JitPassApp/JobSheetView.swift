@@ -4,14 +4,15 @@
 import JitAgentClient
 import SwiftUI
 
-/// New AI Job (the Jobs mockup, frames C, D and E): one sheet, read top to
-/// bottom before a Touch ID is spent. The command is shown as typed, in mono,
-/// because it is the one thing to read and the thing the fingerprint
-/// protects. What the service resolved (the program, the secrets, the file
-/// count, a refusal) comes from `job_preview`, the same checks approval runs,
-/// so this sheet can never promise what approval would then refuse. An
-/// agent's proposal opens the same sheet pre-filled, with its words shown as
-/// theirs and unchecked, and Dismiss where Cancel was.
+/// New AI Job (JobSheet-redesign.html, frames C1 to C3; frames D and E of
+/// the Jobs mockup for a proposal and a refusal): one sheet, read top to
+/// bottom before a Touch ID is spent. It starts from a profile, as New
+/// Grant does, and the profile's folder is where the job runs, so a folder
+/// is chosen only for a global profile. Runs offers the scripts in that
+/// folder. What the service resolved (the program, the secrets, the file
+/// count, a refusal) comes from `job_preview`, the checks approval runs, so
+/// this sheet can never promise what approval would then refuse. An agent's
+/// proposal opens the same sheet filled in, its words shown as theirs.
 struct JobSheetView: View {
     @ObservedObject var model: MenuModel
     let actions: JobSheetActions
@@ -24,9 +25,7 @@ struct JobSheetView: View {
             VStack(alignment: .leading, spacing: Win.s5) {
                 VStack(alignment: .leading, spacing: Win.s3) {
                     Text(Format.jobSheetTitle).font(Win.cardTitle)
-                    Text(Format.jobSentence(model.jobDraft, preview: model.jobPreview))
-                        .font(Design.Text.row).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    sentence
                 }
                 rows
                     .opacity(model.jobBusy ? 0.55 : 1)
@@ -35,7 +34,7 @@ struct JobSheetView: View {
                     AppNoteRow(mark: .failed, name: Format.jobRefusedName, verbatim: refusal, last: true) { EmptyView() }
                 } else if let error = model.jobError {
                     AppNoteRow(mark: .failed, name: Format.jobFailure, verbatim: error, last: true) { EmptyView() }
-                } else if model.jobPreview != nil {
+                } else if model.jobPreview != nil, model.jobDraft.isComplete {
                     notes
                 }
                 footer
@@ -51,56 +50,77 @@ struct JobSheetView: View {
         .onAppear(perform: actions.preview)
     }
 
+    // MARK: - The sentence
+
+    private var sentence: some View {
+        let parts = model.jobDraft.sentence(program: model.jobPreview?.program, secrets: model.jobPreview?.secrets?.count)
+        var text = Text("")
+        for part in parts {
+            text = text + piece(part) // swiftlint:disable:this shorthand_operator
+        }
+        return text.font(Design.Text.row).fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func piece(_ part: GrantDraft.Part) -> Text {
+        switch part {
+        case let .text(s): Text(s).foregroundStyle(.secondary)
+        case let .value(s): Text(s).fontWeight(.semibold).foregroundStyle(.primary)
+        case let .blank(s): Text(s).foregroundStyle(.tertiary)
+        }
+    }
+
     // MARK: - Rows
 
+    /// Only what is true yet: the profile first, then what runs, then what
+    /// the service resolved. Nothing claims a folder or its secrets before
+    /// there is one.
     private var rows: some View {
-        VStack(alignment: .leading, spacing: Win.s5) {
-            if let why = model.jobDraft.proposal?.why, !why.isEmpty {
+        let draft = model.jobDraft
+        return VStack(alignment: .leading, spacing: Win.s5) {
+            if let why = draft.proposal?.why, !why.isEmpty {
                 row("Why") {
                     Text("“\(why)”").font(Win.sub).fixedSize(horizontal: false, vertical: true)
-                    hint(Format.proposalWhyHint(model.jobDraft.proposal))
+                    hint(Format.proposalWhyHint(draft.proposal))
                 }
             }
-            row("Name") {
-                AppTextField(placeholder: "notion-guests", text: $model.jobDraft.name, width: 200)
-            }
-            row("Folder") {
-                HStack(spacing: Win.s4) {
-                    Text(model.jobDraft.folder.isEmpty ? "No folder chosen" : Format.home(model.jobDraft.folder))
-                        .font(Win.command).foregroundStyle(model.jobDraft.folder.isEmpty ? .tertiary : .primary)
-                        .lineLimit(1).truncationMode(.head)
-                    Spacer(minLength: Win.s4)
-                    Button("Choose…", action: actions.chooseFolder).buttonStyle(AppButton(kind: .secondary))
+            if draft.profile == nil, draft.folder.isEmpty {
+                row("Profile") { JobProfileList(model: model, actions: actions) }
+            } else {
+                profileRow
+                if !draft.folder.isEmpty {
+                    row("Runs") { JobRunsPicker(model: model) }
                 }
-            }
-            row("Runs") {
-                TextField(".venv/bin/python list_guest_users.py", text: $model.jobDraft.command)
-                    .textFieldStyle(.plain).font(Win.command).appField()
-                hint(Format.jobRunsHint(model.jobDraft, preview: model.jobPreview))
-            }
-            row("Secrets") { secrets }
-            row("Asks") {
-                AppSegmented(
-                    items: [
-                        AppSegmentItem(value: JobAsk.eachTime, title: "Each time"),
-                        AppSegmentItem(value: JobAsk.never, title: "Never, until you remove it")
-                    ],
-                    selection: $model.jobDraft.ask
-                )
-                hint(Format.jobAskHint(model.jobDraft.ask))
-            }
-            row("Output") {
-                HStack(spacing: Win.s4) {
-                    Text(model.jobDraft.output.isEmpty ? "None" : Format.home(model.jobDraft.output))
-                        .font(Win.command).foregroundStyle(model.jobDraft.output.isEmpty ? .tertiary : .primary)
-                        .lineLimit(1).truncationMode(.head)
-                    Spacer(minLength: Win.s4)
-                    if !model.jobDraft.output.isEmpty {
-                        Button("Clear") { model.jobDraft.output = "" }.buttonStyle(AppButton(kind: .plain))
+                if draft.isComplete || !draft.argv.isEmpty {
+                    if let secrets = model.jobPreview?.secrets, !secrets.isEmpty {
+                        row("Secrets") { secretRows(secrets) }
                     }
-                    Button("Choose…", action: actions.chooseOutput).buttonStyle(AppButton(kind: .secondary))
+                    askRow
+                    JobMoreOptions(model: model, actions: actions)
                 }
-                hint(Format.jobOutputHint)
+            }
+        }
+    }
+
+    /// The chosen profile and the folder it sets: stated, not chosen.
+    /// A global profile has no folder, so that one is chosen here.
+    private var profileRow: some View {
+        let draft = model.jobDraft
+        return row("Profile") {
+            HStack(spacing: Win.s4) {
+                Text(draft.profile ?? "No profile").font(Win.rowName)
+                Spacer(minLength: Win.s4)
+                if draft.proposal == nil {
+                    Button("Change…", action: actions.changeProfile).buttonStyle(AppButton(kind: .quiet))
+                }
+            }
+            if draft.folder.isEmpty {
+                HStack(spacing: Win.s3) {
+                    hint(Format.jobGlobalProfileHint)
+                    Button("Choose Folder…", action: actions.chooseFolder).buttonStyle(AppButton(kind: .quiet))
+                }
+            } else {
+                (Text("In ") + Text(Format.home(draft.folder)).font(Win.command))
+                    .font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
             }
         }
     }
@@ -108,17 +128,11 @@ struct JobSheetView: View {
     /// The profile's secrets as the service resolved them, each with its
     /// Hidden/Shown switch. Hidden is the default; Shown is for values that
     /// appear in what the script prints and are not keys.
-    @ViewBuilder private var secrets: some View {
-        if model.jobProfiles.count > 1 {
-            AppPopup(
-                options: model.jobProfiles.map { AppSegmentItem(value: String?.some($0), title: $0) },
-                selection: $model.jobDraft.profile
-            )
-        }
-        if let resolved = model.jobPreview?.secrets, !resolved.isEmpty {
+    private func secretRows(_ secrets: [JobSecretStatus]) -> some View {
+        VStack(alignment: .leading, spacing: Win.s3) {
             AppCardRows {
-                ForEach(Array(resolved.enumerated()), id: \.element.name) { index, secret in
-                    AppRow(name: secret.name, last: index == resolved.count - 1) {
+                ForEach(Array(secrets.enumerated()), id: \.element.name) { index, secret in
+                    AppRow(name: secret.name, last: index == secrets.count - 1) {
                         AppSegmented(
                             items: [AppSegmentItem(value: false, title: "Hidden"), AppSegmentItem(value: true, title: "Shown")],
                             selection: shownBinding(secret.name)
@@ -128,8 +142,21 @@ struct JobSheetView: View {
             }
             .padding(.horizontal, Win.s4)
             .background(WindowSurface.card, in: RoundedRectangle(cornerRadius: Win.card, style: .continuous))
+            hint(Format.jobShownHint)
         }
-        hint(Format.jobSecretsHint(model.jobDraft, preview: model.jobPreview, profiles: model.jobProfiles))
+    }
+
+    private var askRow: some View {
+        row("Asks") {
+            AppSegmented(
+                items: [
+                    AppSegmentItem(value: JobAsk.eachTime, title: "Each time"),
+                    AppSegmentItem(value: JobAsk.never, title: "Never, until you remove it")
+                ],
+                selection: $model.jobDraft.ask
+            )
+            hint(Format.jobAskHint(model.jobDraft.ask))
+        }
     }
 
     private func shownBinding(_ name: String) -> Binding<Bool> {
@@ -145,13 +172,8 @@ struct JobSheetView: View {
         )
     }
 
-    private func row(_ label: String, @ViewBuilder _ content: () -> some View) -> some View {
-        HStack(alignment: .top, spacing: Win.s5) {
-            Text(label).font(Win.sub).foregroundStyle(.secondary)
-                .frame(width: 62, alignment: .trailing).padding(.top, 4)
-            VStack(alignment: .leading, spacing: Win.s3) { content() }
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+    private func row(_ label: String, @ViewBuilder _ content: @escaping () -> some View) -> some View {
+        JobSheetRow(label: label, content: content)
     }
 
     private func hint(_ text: String) -> some View {
@@ -197,9 +219,28 @@ struct JobSheetView: View {
     }
 }
 
+/// A sheet row: the label in its column, the content beside it. New
+/// Grant's shape, so the two sheets line up.
+struct JobSheetRow<Content: View>: View {
+    let label: String
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Win.s5) {
+            Text(label).font(Win.sub).foregroundStyle(.secondary)
+                .frame(width: 62, alignment: .trailing).padding(.top, 4)
+            VStack(alignment: .leading, spacing: Win.s3) { content() }
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
 struct JobSheetActions {
     var preview: () -> Void = {}
+    var chooseProfile: (DiscoveredProfile) -> Void = { _ in }
+    var changeProfile: () -> Void = {}
     var chooseFolder: () -> Void = {}
+    var addFolder: () -> Void = {}
     var chooseOutput: () -> Void = {}
     var approve: () -> Void = {}
     var cancel: () -> Void = {}
