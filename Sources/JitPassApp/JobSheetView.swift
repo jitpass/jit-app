@@ -49,7 +49,6 @@ struct JobSheetView: View {
         .onChange(of: model.jobDraft.command) { _, _ in actions.preview() }
         .onChange(of: model.jobDraft.profile) { _, _ in actions.preview() }
         .onChange(of: model.jobDraft.ask) { _, _ in actions.preview() }
-        .onChange(of: model.jobDraft.output) { _, _ in actions.preview() }
         .onAppear(perform: actions.preview)
     }
 
@@ -90,6 +89,7 @@ struct JobSheetView: View {
                 row("Profile") { JobProfileList(model: model, actions: actions) }
             } else {
                 profileRow
+                folderRow
                 if !draft.folder.isEmpty {
                     row("Runs") { JobRunsPicker(model: model) }
                 }
@@ -98,14 +98,15 @@ struct JobSheetView: View {
                         row("Secrets") { secretRows(secrets) }
                     }
                     askRow
-                    JobMoreOptions(model: model, actions: actions)
+                    if draft.editing == nil {
+                        nameRow
+                    }
                 }
             }
         }
     }
 
-    /// The chosen profile and the folder it sets: stated, not chosen.
-    /// A global profile has no folder, so that one is chosen here.
+    /// The chosen profile.
     private var profileRow: some View {
         let draft = model.jobDraft
         return row("Profile") {
@@ -116,16 +117,47 @@ struct JobSheetView: View {
                     Button("Change…", action: actions.changeProfile).buttonStyle(AppButton(kind: .quiet))
                 }
             }
-            if draft.folder.isEmpty {
-                HStack(spacing: Win.s3) {
-                    hint(Format.jobGlobalProfileHint)
-                    Button("Choose Folder…", action: actions.chooseFolder).buttonStyle(AppButton(kind: .quiet))
-                }
-            } else {
-                (Text("In ") + Text(Format.home(draft.folder)).font(Win.command))
-                    .font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1).truncationMode(.head)
-            }
         }
+    }
+
+    /// Where the script is: the profile's folder until a folder inside it
+    /// is chosen. The job runs there and fingerprints only that folder. A
+    /// global profile names none, so one is chosen before anything else.
+    private var folderRow: some View {
+        let draft = model.jobDraft
+        return row("Folder") {
+            HStack(spacing: Win.s4) {
+                if draft.folder.isEmpty {
+                    Text("None yet").font(Win.sub).foregroundStyle(.secondary)
+                } else {
+                    Text(Format.home(draft.folder)).font(Design.Text.command).lineLimit(1).truncationMode(.head)
+                }
+                Spacer(minLength: Win.s4)
+                if draft.proposal == nil {
+                    Button("Choose…", action: actions.chooseFolder).buttonStyle(AppButton(kind: .quiet))
+                }
+            }
+            hint(Format.jobFolderHint(draft))
+        }
+    }
+
+    /// The name AI tools call it by, made from the script until typed over.
+    private var nameRow: some View {
+        row("Name") {
+            AppTextField(placeholder: "", text: nameBinding, width: 240)
+            hint(Format.jobNameHint)
+        }
+    }
+
+    /// Typing a name stops it following the script.
+    private var nameBinding: Binding<String> {
+        Binding(
+            get: { model.jobDraft.name },
+            set: { name in
+                model.jobDraft.name = name
+                model.jobDraft.nameSuggested = false
+            }
+        )
     }
 
     /// The profile's secrets as the service resolved them, each with its
@@ -252,7 +284,6 @@ struct JobSheetActions {
     var changeProfile: () -> Void = {}
     var chooseFolder: () -> Void = {}
     var addFolder: () -> Void = {}
-    var chooseOutput: () -> Void = {}
     var approve: () -> Void = {}
     var cancel: () -> Void = {}
     var dismiss: () -> Void = {}

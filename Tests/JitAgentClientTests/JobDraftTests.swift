@@ -159,4 +159,39 @@ final class JobDraftTests: XCTestCase {
         XCTAssertNil(draft.spec(pathEnv: "", home: "").profile?.root)
         XCTAssertNil(JobReview(job: approved(global: true)).reapproval(pathEnv: "", home: "").profile?.root)
     }
+
+    /// A script in a folder inside the profile's project: the job runs and
+    /// is fingerprinted there, while its secrets still come from the
+    /// profile's own folder.
+    func testAFolderInsideTheProfileKeepsTheProfilesRoot() {
+        var draft = JobDraft()
+        draft.choose(profile: DiscoveredProfile(name: "mcp-google", root: "/x/Security-Ops", manifestPath: "/m", keys: ["K"]))
+        draft.command = "python3 a.py"
+        draft.choose(folder: "/x/Security-Ops/custom_scripts/google")
+        XCTAssertTrue(draft.command.isEmpty, "a new folder drops the last folder's command")
+        draft.command = "python3 investigate.py"
+        let spec = draft.spec(pathEnv: "", home: "")
+        XCTAssertEqual(spec.dir, "/x/Security-Ops/custom_scripts/google")
+        XCTAssertEqual(spec.profile, GrantProfile(name: "mcp-google", root: "/x/Security-Ops"))
+    }
+
+    /// Editing such a job sends the profile's folder it was made with, and a
+    /// proposal's output folder, which the sheet never shows, is dropped.
+    func testEditKeepsTheProfilesRootAndProposalsDropOutputs() throws {
+        var job = approved()
+        job.dir = "/x/Security-Ops/custom_scripts/google"
+        job.profileRoot = "/x/Security-Ops"
+        job.outputs = ["/x/out"]
+        var draft = JobDraft(editing: job)
+        draft.ask = .eachTime
+        let spec = draft.spec(pathEnv: "", home: "")
+        XCTAssertEqual(spec.profile?.root, "/x/Security-Ops")
+        XCTAssertEqual(spec.outputs, ["/x/out"], "an edit keeps what the job was approved with")
+        XCTAssertEqual(JobReview(job: job).reapproval(pathEnv: "", home: "").profile?.root, "/x/Security-Ops")
+
+        let json = #"{"id":"c-1","name":"g","spec":{"dir":"/n","argv":["python3","a.py"],"outputs":["/tmp/o"],"#
+            + #""path_env":"","home":""},"unix_time":1}"#
+        let proposal = try JSONDecoder().decode(JobProposal.self, from: Data(json.utf8))
+        XCTAssertNil(JobDraft(proposal: proposal).spec(pathEnv: "", home: "").outputs)
+    }
 }

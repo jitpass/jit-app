@@ -105,6 +105,9 @@ public struct JobStatus: Codable, Sendable, Equatable, Identifiable {
     public var profile: String?
     /// The profile is read from `~/.jit/profiles`, not the job's folder.
     public var profileGlobal: Bool?
+    /// The folder the profile is read from, when it is not global; the job
+    /// may run in a folder inside it.
+    public var profileRoot: String?
     public var secrets: [JobSecretStatus]?
     public var ask: String?
     public var outputs: [String]?
@@ -136,6 +139,7 @@ public struct JobStatus: Codable, Sendable, Equatable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case name, dir, argv, exe, profile, secrets, ask, outputs, description, files, state, changes
         case profileGlobal = "profile_global"
+        case profileRoot = "profile_root"
         case approvedUnix = "approved_unix"
         case runs
         case lastRunUnix = "last_run_unix"

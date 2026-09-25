@@ -254,7 +254,11 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
       <div class="jp-sheet__k">Profile</div>
       <div class="jp-sheet__v">
         <button class="jp-popup">notion <svg class="chev"><use href="#chev"/></svg></button>
-        <div class="jp-sheet__hint">In <span class="jp-mono">~/Security-Ops/custom_scripts/notion</span></div>
+      </div>
+      <div class="jp-sheet__k">Folder</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline"><span class="jp-mono" style="font-size:12px">~/Security-Ops/custom_scripts/notion</span><span style="margin-left:auto"><button class="jp-abtn jp-abtn--quiet">Choose…</button></span></div>
+        <div class="jp-sheet__hint">The profile's folder. Choose a folder inside it if the script is elsewhere.</div>
       </div>
       <div class="jp-sheet__k">Runs</div>
       <div class="jp-sheet__v">
@@ -291,7 +295,11 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
       <div class="jp-sheet__k">Profile</div>
       <div class="jp-sheet__v">
         <button class="jp-popup">notion <svg class="chev"><use href="#chev"/></svg></button>
-        <div class="jp-sheet__hint">In <span class="jp-mono">~/Security-Ops/custom_scripts/notion</span></div>
+      </div>
+      <div class="jp-sheet__k">Folder</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline"><span class="jp-mono" style="font-size:12px">~/Security-Ops/custom_scripts/notion</span><span style="margin-left:auto"><button class="jp-abtn jp-abtn--quiet">Choose…</button></span></div>
+        <div class="jp-sheet__hint">The profile's folder. Choose a folder inside it if the script is elsewhere.</div>
       </div>
       <div class="jp-sheet__k">Runs</div>
       <div class="jp-sheet__v">
@@ -314,8 +322,9 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
         <span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">Each time</button><button class="jp-seg__pill">Never, until you remove it</button></span>
         <div class="jp-sheet__hint">Touch ID for every run, naming who asked.</div>
       </div>
-      <div class="jp-sheet__k"></div>
-      <div class="jp-sheet__v"><span class="jp-more"><button class="jp-abtn jp-abtn--plain">Show name and output folder ›</button><span style="font-size:11px">notion-list-guest-users · no output folder</span></span></div>
+      <div class="jp-sheet__k">Name</div>
+      <div class="jp-sheet__v"><span class="jp-field">notion-list-guest-users</span>
+        <div class="jp-sheet__hint">What AI tools call it: lowercase letters, digits and dashes.</div></div>
     </div>
     <div class="jp-sheet__notes">
       • jit fingerprints this folder now: 242 files. Change any of them and the job stops until you approve it again.<br>
@@ -329,7 +338,7 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
     </div>
   </div>
 </div>
-<figcaption><b>C3. Ready: two choices made.</b> Every secret starts Hidden; you touch the switch only for a value the script prints. The name and the output folder sit behind the system's disclosure link, with their current values beside it so nothing is hidden that matters: the name is made from the script and can be changed there. The notes are frame C's, unchanged.</figcaption>
+<figcaption><b>C3. Ready: two choices made.</b> Every secret starts Hidden; you touch the switch only for a value the script prints. The name is made from the script and can be typed over. Nothing is hidden: there is no output folder in the app (the terminal keeps <code>--output</code>), because an AI tool that can read the script already knows where it writes. The notes are frame C's, unchanged.</figcaption>
 </figure>
 
 </div>
@@ -376,7 +385,11 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
       <div class="jp-sheet__k">Profile</div>
       <div class="jp-sheet__v">
         <div class="jp-sheet__inline"><b style="font-size:13px">notion</b><span style="margin-left:auto"><button class="jp-abtn jp-abtn--quiet">Change…</button></span></div>
-        <div class="jp-sheet__hint">In <span class="jp-mono">~/Security-Ops/custom_scripts/notion</span></div>
+      </div>
+      <div class="jp-sheet__k">Folder</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline"><span class="jp-mono" style="font-size:12px">~/Security-Ops/custom_scripts/notion</span><span style="margin-left:auto"><button class="jp-abtn jp-abtn--quiet">Choose…</button></span></div>
+        <div class="jp-sheet__hint">The profile's folder. Choose a folder inside it if the script is elsewhere.</div>
       </div>
       <div class="jp-sheet__k">Runs</div>
       <div class="jp-sheet__v">
@@ -399,8 +412,7 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
         <span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">Each time</button><button class="jp-seg__pill">Never, until you remove it</button></span>
         <div class="jp-sheet__hint">Touch ID for every run, naming who asked.</div>
       </div>
-      <div class="jp-sheet__k"></div>
-      <div class="jp-sheet__v"><span class="jp-more"><button class="jp-abtn jp-abtn--plain">Show output folder ›</button><span style="font-size:11px">no output folder</span></span></div>
+
     </div>
     <div class="jp-sheet__notes">
       • Changed: INTERNAL_DOMAINS and OUTPUT_FILE shown/hidden swapped · asks each time.<br>
@@ -414,7 +426,7 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
     </div>
   </div>
 </div>
-<figcaption><b>E2. The same sheet, filled in from the job.</b> The title names the job, and the name is the one thing that cannot change here: renaming is a new job, so the disclosure holds only the output folder. The first note says what differs from the approved job; with nothing changed yet the button stays off and the footer says "Nothing changed yet". Switching a never-asking job to Each time deletes its keychain key, as removing it does.</figcaption>
+<figcaption><b>E2. The same sheet, filled in from the job.</b> The title names the job, and the name is the one thing that cannot change here: renaming is a new job, so the sheet has no Name row. The first note says what differs from the approved job; with nothing changed yet the button stays off and the footer says "Nothing changed yet". Switching a never-asking job to Each time deletes its keychain key, as removing it does.</figcaption>
 </figure>
 
 </div>
@@ -422,11 +434,11 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
 <h2>What changes from the build</h2>
 <p>Each line is something the sheet in your screenshot does that the design system or the approved frame C does not.</p>
 <ul class="diff">
-<li><div class="was"><b>Built</b>Four blanks to fill: Name, Folder (Choose…), a typed command, then the profile is inferred from the folder.</div><div class="now"><b>Redrawn</b>Two picks: a profile from the list, then a script from its folder. Name and output are behind a disclosure link.</div></li>
+<li><div class="was"><b>Built</b>Four blanks to fill: Name, Folder (Choose…), a typed command, then the profile is inferred from the folder.</div><div class="now"><b>Redrawn</b>Two picks: a profile from the list, then a script from its folder. The folder starts at the profile's and is changed only when the script is elsewhere; the name is filled in from the script.</div></li>
 <li><div class="was"><b>Built</b>The sentence says "with no secrets" and the Secrets row says "This folder has no jit profile" before any folder is chosen.</div><div class="now"><b>Redrawn</b>Blanks stay grey (<code>app-label-3</code>) until chosen, as New Grant's do. No row claims anything that has not been checked.</div></li>
 <li><div class="was"><b>Built</b>"No folder chosen" and "None" in <code>mono</code>, and the Runs placeholder reads like a value.</div><div class="now"><b>Redrawn</b><code>mono</code> only for a real path or a command. A popup's label is its current value.</div></li>
-<li><div class="was"><b>Built</b>Two Secondary "Choose…" buttons inside rows.</div><div class="now"><b>Redrawn</b>No folder button at all. Output's Choose…, behind the disclosure, is Quiet, the kind a row takes.</div></li>
-<li><div class="was"><b>Built</b>Name is the first field, empty, before you know what the job is.</div><div class="now"><b>Redrawn</b>Named from the script (<code>notion-list-guest-users</code>), editable behind the disclosure.</div></li>
+<li><div class="was"><b>Built</b>Two Secondary "Choose…" buttons inside rows, one for an output folder.</div><div class="now"><b>Redrawn</b>One Quiet Choose…, the kind a row takes, for the folder. No output folder: an AI tool that can read the script knows where it writes; the terminal keeps <code>--output</code>.</div></li>
+<li><div class="was"><b>Built</b>Name is the first field, empty, before you know what the job is.</div><div class="now"><b>Redrawn</b>Name is the last row, filled in from the script (<code>notion-list-guest-users</code>), and can be typed over.</div></li>
 <li><div class="was"><b>Built</b>Frame C's command box was dropped for a text field.</div><div class="now"><b>Redrawn</b>The command is always visible in <code>mono</code>: in the Runs list, then as the popup's value.</div></li>
 </ul>
 
@@ -440,7 +452,7 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
 
 <h2>Worth a yes or a no before I build</h2>
 <ul class="pts">
-<li><span class="n">1</span><div><b>Two picks, everything else behind a disclosure.</b><span>The name and output folder move out of sight, with their values on the disclosure line.</span></div></li>
+<li><span class="n">1</span><div><b>Two picks, nothing hidden.</b><span>Folder and Name are ordinary rows already filled in; there is no disclosure and no output folder.</span></div></li>
 <li><span class="n">2</span><div><b>Only scripts at the folder's top level.</b><span>Not subfolders: a folder with a <code>node_modules</code> or <code>.venv</code> would list thousands. Anything else goes through "Another command…".</span></div></li>
 </ul>
 </div>

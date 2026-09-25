@@ -166,11 +166,20 @@ extension Format {
     static let jobRefusedName = "jit won't approve this"
     static let jobFailure = "Nothing was approved"
     static let jobFooterWaiting = "Waiting for Touch ID…"
-    static let jobOutputHint = "The tool is told which new files appear here. It gets paths, never their contents."
 
     static let jobNoProfiles = "jit found no profiles on this Mac. A job gets its secrets from one: " +
         "protect a project's .env first, or add the folder that holds one."
-    static let jobGlobalProfileHint = "A profile from ~/.jit/profiles names no folder."
+    /// What the folder is, in the reader's words, and where it came from.
+    static func jobFolderHint(_ draft: JobDraft) -> String {
+        guard let root = draft.profileRoot else {
+            return "A profile from ~/.jit/profiles names no folder. Choose the one the script is in."
+        }
+        if draft.folder == root {
+            return "The profile's folder. Choose a folder inside it if the script is elsewhere."
+        }
+        return "Inside \(home(root)), the profile's folder. The job runs here and watches only this folder."
+    }
+
     static let jobTypingHint = "Type it as you would in a terminal in this folder"
     static let jobShownHint = "Every value is hidden in what the tool sees. " +
         "Show one only when it is configuration the script prints, never a key."
@@ -184,21 +193,6 @@ extension Format {
             return "The scripts in this folder. jit saw its virtualenv, so Python runs from it."
         }
         return "The scripts in this folder."
-    }
-
-    /// The disclosure's link: what it holds, never "More options".
-    static func jobMoreOptions(_ draft: JobDraft, open: Bool) -> String {
-        let what = draft.editing == nil ? "name and output folder" : "output folder"
-        return open ? "Hide " + what : "Show " + what + " ›"
-    }
-
-    /// The values beside the closed disclosure.
-    static func jobMoreOptionsValues(_ draft: JobDraft) -> String {
-        let output = draft.output.isEmpty ? "no output folder" : "output in " + (draft.output as NSString).lastPathComponent
-        if draft.editing != nil {
-            return output
-        }
-        return (draft.name.isEmpty ? "not named yet" : draft.name) + " · " + output
     }
 
     static func proposalBanner(_ proposal: JobProposal) -> String {
