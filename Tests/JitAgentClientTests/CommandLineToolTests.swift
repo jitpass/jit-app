@@ -25,7 +25,7 @@ final class CommandLineToolTests: XCTestCase {
     }
 
     func testLinkedWhenPathResolvesIntoTheBundle() throws {
-        let bundled = try executable("JitPass.app/Contents/MacOS/jit")
+        let bundled = try executable("JitPass.app/" + CommandLineTool.bundledRelativePath)
         let bin = root.appendingPathComponent("bin")
         try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
         try FileManager.default.createSymbolicLink(atPath: bin.appendingPathComponent("jit").path, withDestinationPath: bundled)
@@ -34,16 +34,42 @@ final class CommandLineToolTests: XCTestCase {
     }
 
     func testOtherWhenAForeignJitComesFirst() throws {
-        let bundled = try executable("JitPass.app/Contents/MacOS/jit")
+        let bundled = try executable("JitPass.app/" + CommandLineTool.bundledRelativePath)
         let foreign = try executable("local/bin/jit")
         let state = CommandLineTool.state(bundled: bundled, path: root.appendingPathComponent("local/bin").path)
         XCTAssertEqual(state, .other(foreign))
     }
 
     func testMissingWhenNoJitOnPath() throws {
-        let bundled = try executable("JitPass.app/Contents/MacOS/jit")
+        let bundled = try executable("JitPass.app/" + CommandLineTool.bundledRelativePath)
         XCTAssertEqual(CommandLineTool.state(bundled: bundled, path: root.path), .missing)
         XCTAssertEqual(CommandLineTool.state(bundled: bundled, path: ""), .missing)
+    }
+
+    func testBundledJitIsTheHelperBundlesMainExecutable() throws {
+        let app = root.appendingPathComponent("JitPass.app")
+        XCTAssertNil(CommandLineTool.bundledJit(in: app), "no helper yet: a dev build has none")
+        let helperJit = try executable("JitPass.app/Contents/Helpers/JitPassAgent.app/Contents/MacOS/jit")
+        XCTAssertEqual(CommandLineTool.bundledJit(in: app), helperJit)
+    }
+
+    /// Every install made before jit moved into its helper bundle has a PATH
+    /// link naming the old place, Contents/MacOS/jit, which the bundle keeps
+    /// as a symlink to the helper. That link must still read as this app's
+    /// jit, not as some other copy, or Settings would offer to replace it.
+    func testALinkToTheOldPathStillCountsAsLinked() throws {
+        let helperJit = try executable("JitPass.app/" + CommandLineTool.bundledRelativePath)
+        let oldPath = root.appendingPathComponent("JitPass.app/Contents/MacOS/jit")
+        try FileManager.default.createDirectory(at: oldPath.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            atPath: oldPath.path,
+            withDestinationPath: "../Helpers/JitPassAgent.app/Contents/MacOS/jit"
+        )
+        let bin = root.appendingPathComponent("bin")
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        let link = bin.appendingPathComponent("jit").path
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: oldPath.path)
+        XCTAssertEqual(CommandLineTool.state(bundled: helperJit, path: bin.path), .linked(link))
     }
 
     func testLinkTargetFallsBackToUsrLocalWithAdmin() {

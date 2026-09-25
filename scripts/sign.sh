@@ -16,6 +16,17 @@ identity=$(security find-identity -v -p codesigning ${SIGN_KEYCHAIN:+"$SIGN_KEYC
   | grep "Developer ID Application" | grep "($TEAM_ID)" | head -1 | awk '{print $2}')
 [ -n "$identity" ] || die "no Developer ID Application identity for team $TEAM_ID in the keychain"
 
+# Inside out, never --deep: the helper first, then the app that seals it.
+# Signing the helper replaces the signature jit's own release gave the
+# binary, so the hardened runtime is passed again here; fetch-jit.sh has
+# already verified that release signature on the staged copy. The helper
+# carries no entitlements until plan step A2 adds the Secure Enclave one.
+codesign --force --sign "$identity" --options runtime --timestamp "$HELPER"
+codesign --verify --strict --verbose=2 "$HELPER"
+helperinfo=$(codesign --display --verbose=2 "$HELPER" 2>&1)
+[[ "$helperinfo" == *"TeamIdentifier=$TEAM_ID"* ]] || die "helper signed, but not by team $TEAM_ID"
+[[ "$helperinfo" == *"(runtime)"* ]] || die "helper signed without the hardened runtime"
+
 codesign --force --sign "$identity" --options runtime --timestamp \
   --entitlements Resources/JitPass.entitlements "$APP"
 codesign --verify --strict --verbose=2 "$APP"

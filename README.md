@@ -85,7 +85,7 @@ scripts/verify.sh dist/JitPass-1.7.0-arm64.zip dist/checksums.txt
 Sources/JitAgentClient   socket client and protocol models, no AppKit, tested
 Sources/JitPassApp       AppKit menu bar app, a view over JitAgentClient
 Tests/JitAgentClientTests
-Resources/               Info.plist, entitlements
+Resources/               Info.plist, Agent-Info.plist (jit's helper bundle), entitlements
 scripts/                 bundle, sign, notarize, verify, cask
 docs/design/             design doc and mockup sources
 ```

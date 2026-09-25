@@ -15,6 +15,18 @@ BUNDLE_ID="com.jitpass.app"
 DIST="dist"
 APP="$DIST/$APP_NAME.app"
 
+# jit's own bundle inside the app (Secure Enclave plan, step A1). A
+# provisioning profile authorizes only a bundle's MAIN executable, so the
+# Secure Enclave entitlement (step A2) needs jit to be one; a second
+# executable in JitPass.app is killed at launch (jit's
+# spike/secure-enclave-mek/FINDINGS.md, S3a). The old path,
+# Contents/MacOS/jit, stays as a symlink into it: every installed launchd
+# plist and every PATH link names that path (S3e).
+HELPER_NAME="JitPassAgent"
+HELPER_ID="com.jitpass.agent"
+HELPER="$APP/Contents/Helpers/$HELPER_NAME.app"
+HELPER_JIT_REL="Contents/Helpers/$HELPER_NAME.app/Contents/MacOS/jit"
+
 # The jit release bundled into the app, pinned in jit.version at the repo
 # root. The app is a client of that exact CLI and service, so the pin is
 # reviewed like any other dependency; bump it on purpose, in its own commit.
