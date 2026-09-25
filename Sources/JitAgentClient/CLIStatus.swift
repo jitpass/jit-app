@@ -22,9 +22,14 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     public var exportRecorded: Bool?
     public var exportUnixTime: Int64?
     public var exportStale: Bool?
+    /// The `_backups/…` entries `jit migrate undo` keeps. jit reports the
+    /// recovery file only when secrets and backups together are not zero
+    /// (status.go's gatherVaultStatus), so this says whether it could.
+    public var backupsStored: Int?
 
     enum CodingKeys: String, CodingKey {
         case secretsStored = "secrets_stored"
+        case backupsStored = "backups_stored"
         case initialized
         case keyStore = "key_store"
         case exportRecorded = "export_recorded"
@@ -34,7 +39,7 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
 
     public init(
         secretsStored: Int, initialized: String? = nil, keyStore: String? = nil,
-        exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil
+        exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil, backupsStored: Int? = nil
     ) {
         self.secretsStored = secretsStored
         self.initialized = initialized
@@ -42,6 +47,7 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
         self.exportRecorded = exportRecorded
         self.exportUnixTime = exportUnixTime
         self.exportStale = exportStale
+        self.backupsStored = backupsStored
     }
 }
 

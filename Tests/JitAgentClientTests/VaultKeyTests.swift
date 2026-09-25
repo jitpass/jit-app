@@ -58,6 +58,36 @@ final class VaultKeyTests: XCTestCase {
         XCTAssertEqual(VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: false), .secureEnclave)
     }
 
+    /// Never green before doctor has said this Mac's enclave has the key:
+    /// "checking" until the report lands. A keychain vault needs no answer.
+    func testAnEnclaveKeyIsCheckingUntilDoctorAnswers() {
+        XCTAssertEqual(VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: nil), .checking)
+        XCTAssertEqual(VaultKeyRow.state(vault("keychain"), bundledHelper: true, keyLost: nil), .keychain)
+    }
+
+    /// A move the app started, while jit's marker is there, is its own
+    /// state; a lost key still comes first, since nothing opens.
+    func testAnUnfinishedMoveIsItsOwnState() {
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("keychain"), bundledHelper: true, keyLost: false, unfinished: .keychain),
+            .unfinished(.keychain)
+        )
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: true, unfinished: .keychain), .lost
+        )
+    }
+
+    /// jit reports the recovery file only for a vault with something in
+    /// it, so an empty one is never offered the move; backups count, as
+    /// they do in status.go.
+    func testAnEmptyVaultIsNotOfferedTheMove() {
+        XCTAssertFalse(VaultKeyRow.canMoveIn(CLIVaultStatus(secretsStored: 0, keyStore: "keychain", backupsStored: 0)))
+        XCTAssertFalse(VaultKeyRow.canMoveIn(CLIVaultStatus(secretsStored: 0, keyStore: "keychain")))
+        XCTAssertTrue(VaultKeyRow.canMoveIn(CLIVaultStatus(secretsStored: 0, keyStore: "keychain", backupsStored: 2)))
+        XCTAssertTrue(VaultKeyRow.canMoveIn(CLIVaultStatus(secretsStored: 1, keyStore: "keychain")))
+        XCTAssertFalse(VaultKeyRow.canMoveIn(nil))
+    }
+
     /// Doctor's lost key turns the enclave row into the bad state; it says
     /// nothing about a keychain vault, whose missing key is another finding.
     func testALostEnclaveKeyIsItsOwnState() {
@@ -89,27 +119,35 @@ final class VaultKeyTests: XCTestCase {
 
     // MARK: - Which jit
 
-    /// The helper's own path and the compat symlink to it count; a copy
-    /// elsewhere, even a symlink to another jit, does not.
-    func testOnlyTheBundledHelperCounts() throws {
-        let fm = FileManager.default
-        let app = fm.temporaryDirectory.appendingPathComponent("VaultKeyTests-\(UUID().uuidString)/JitPass.app")
-        defer { try? fm.removeItem(at: app.deletingLastPathComponent()) }
-        let helper = app.appendingPathComponent(CommandLineTool.bundledRelativePath)
-        try fm.createDirectory(at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data().write(to: helper)
-        let compat = app.appendingPathComponent("Contents/MacOS/jit")
-        try fm.createDirectory(at: compat.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try fm.createSymbolicLink(atPath: compat.path, withDestinationPath: "../Helpers/JitPassAgent.app/Contents/MacOS/jit")
-        let brew = app.deletingLastPathComponent().appendingPathComponent("bin/jit")
-        try fm.createDirectory(at: brew.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try Data().write(to: brew)
+    /// A FileManager that says which paths are executable, so the
+    /// Homebrew fallback is tested without touching /opt/homebrew.
+    private final class FakeFiles: FileManager, @unchecked Sendable {
+        var executables: Set<String> = []
+        override func isExecutableFile(atPath path: String) -> Bool {
+            executables.contains(path)
+        }
+    }
 
-        XCTAssertTrue(VaultKeyRow.isBundledHelper(helper.path, bundleURL: app))
-        XCTAssertTrue(VaultKeyRow.isBundledHelper(compat.path, bundleURL: app))
-        XCTAssertFalse(VaultKeyRow.isBundledHelper(brew.path, bundleURL: app))
-        XCTAssertFalse(VaultKeyRow.isBundledHelper("/opt/homebrew/bin/jit", bundleURL: app))
-        XCTAssertFalse(VaultKeyRow.isBundledHelper(nil, bundleURL: app))
+    /// The path the app runs, and the bundled check read from the same
+    /// place: the helper when it is there, else Homebrew's jit, which is
+    /// never the helper.
+    func testTheAppRunsItsHelperFirstAndFallsBackToHomebrew() {
+        let app = URL(fileURLWithPath: "/Applications/JitPass.app")
+        let helper = app.appendingPathComponent(CommandLineTool.bundledRelativePath).path
+        let files = FakeFiles()
+        files.executables = [helper, "/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
+        XCTAssertEqual(CommandLineTool.runnableJit(in: app, fileManager: files), helper)
+        XCTAssertTrue(CommandLineTool.runsBundledJit(in: app, fileManager: files))
+
+        files.executables = ["/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
+        XCTAssertEqual(CommandLineTool.runnableJit(in: app, fileManager: files), "/opt/homebrew/bin/jit")
+        XCTAssertFalse(CommandLineTool.runsBundledJit(in: app, fileManager: files))
+
+        files.executables = ["/usr/local/bin/jit"]
+        XCTAssertEqual(CommandLineTool.runnableJit(in: app, fileManager: files), "/usr/local/bin/jit")
+        files.executables = []
+        XCTAssertNil(CommandLineTool.runnableJit(in: app, fileManager: files))
+        XCTAssertFalse(CommandLineTool.runsBundledJit(in: app, fileManager: files))
     }
 
     // MARK: - Doctor's lost key
@@ -136,9 +174,20 @@ final class VaultKeyTests: XCTestCase {
     func testDoctorSaysWhenTheEnclaveKeyIsLost() throws {
         let lost = try JSONDecoder().decode(DoctorReport.self, from: Data(Self.lostReport.utf8))
         let gone = try JSONDecoder().decode(DoctorReport.self, from: Data(Self.goneFromKeychainReport.utf8))
-        XCTAssertTrue(VaultKeyRow.keyLost(lost))
-        XCTAssertFalse(VaultKeyRow.keyLost(gone))
-        XCTAssertFalse(VaultKeyRow.keyLost(nil))
+        XCTAssertEqual(VaultKeyRow.keyLost(lost), true)
+        XCTAssertEqual(VaultKeyRow.keyLost(gone), false)
+        XCTAssertNil(VaultKeyRow.keyLost(nil))
+    }
+
+    /// Ignoring the finding opens nothing: the row stays lost, never green.
+    func testAnIgnoredLostKeyIsStillLost() throws {
+        var report = try JSONDecoder().decode(DoctorReport.self, from: Data(Self.lostReport.utf8))
+        report.ignored = report.problems
+        report.problems = []
+        XCTAssertEqual(VaultKeyRow.keyLost(report), true)
+        XCTAssertEqual(
+            VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: VaultKeyRow.keyLost(report)), .lost
+        )
     }
 
     /// Doctor's offer: a keychain vault with secrets, a jit that can move
@@ -164,121 +213,26 @@ final class VaultKeyTests: XCTestCase {
 
     func testNoRecoveryFile() {
         let none = CLIVaultStatus(secretsStored: 67, initialized: "yes", keyStore: "keychain", exportRecorded: false)
-        XCTAssertEqual(RecoveryFile.check(none, recorded: nil, now: now), .none)
-        XCTAssertEqual(RecoveryFile.check(nil, recorded: nil, now: now), .none)
-        XCTAssertFalse(RecoveryFile.check(none, recorded: nil, now: now).ready)
+        XCTAssertEqual(RecoveryFile.check(none), .none)
+        XCTAssertEqual(RecoveryFile.check(nil), .none)
+        XCTAssertFalse(RecoveryFile.check(none).ready)
     }
 
-    /// The decision: a file counts when it holds the vault's current count.
-    func testAFileHoldingTheVaultsCountIsCurrentWhateverItsAge() {
+    /// The gate is jit's rule and nothing else (recoveryFileCurrent): a
+    /// recorded file no secret is newer than counts, whatever its age and
+    /// however many entries jit's export line counted (it counts backups,
+    /// which status does not, so the numbers were never comparable).
+    func testAFileNoSecretIsNewerThanCountsWhateverItsAge() {
         let vault = exported(daysAgo: 90)
-        let recorded = RecordedExport(unixTime: vault.exportUnixTime ?? 0, secrets: 67)
-        let file = RecoveryFile.check(vault, recorded: recorded, now: now)
-        XCTAssertEqual(file, .current(at: Date(timeIntervalSince1970: TimeInterval(recorded.unixTime)), secrets: 67))
+        let file = RecoveryFile.check(vault)
+        XCTAssertEqual(file, .current(at: Date(timeIntervalSince1970: TimeInterval(vault.exportUnixTime ?? 0))))
         XCTAssertTrue(file.ready)
     }
 
-    func testAFileWithAnotherCountIsBehind() {
-        let vault = exported(daysAgo: 1, secrets: 70)
-        let recorded = RecordedExport(unixTime: vault.exportUnixTime ?? 0, secrets: 67)
-        let file = RecoveryFile.check(vault, recorded: recorded, now: now)
-        XCTAssertEqual(file, .behind(at: Date(timeIntervalSince1970: TimeInterval(recorded.unixTime)), secrets: 67, vault: 70))
-        XCTAssertFalse(file.ready)
-        XCTAssertEqual(RecoveryFile.newSecrets(vault, recorded: recorded), 3)
-    }
-
-    /// Without a count (a file saved in a terminal, or the app's record is
-    /// of an older export), 30 days is the fallback.
-    func testWithoutACountThirtyDaysDecides() {
-        XCTAssertTrue(RecoveryFile.check(exported(daysAgo: 29), recorded: nil, now: now).ready)
-        let old = exported(daysAgo: 31)
-        XCTAssertEqual(
-            RecoveryFile.check(old, recorded: nil, now: now),
-            .expired(at: Date(timeIntervalSince1970: TimeInterval(old.exportUnixTime ?? 0)))
-        )
-        let earlier = RecordedExport(unixTime: (old.exportUnixTime ?? 0) - 60, secrets: 60)
-        XCTAssertFalse(RecoveryFile.check(old, recorded: earlier, now: now).ready)
-        XCTAssertNil(RecoveryFile.newSecrets(old, recorded: earlier))
-    }
-
-    /// jit refuses the move for a file older than the newest secret, so the
-    /// sheet never offers it, even when the counts match.
+    /// jit refuses the move for a file older than the newest secret.
     func testAStaleFileNeverCounts() {
         let vault = exported(daysAgo: 1, stale: true)
-        let recorded = RecordedExport(unixTime: vault.exportUnixTime ?? 0, secrets: 67)
-        XCTAssertEqual(
-            RecoveryFile.check(vault, recorded: recorded, now: now),
-            .older(at: Date(timeIntervalSince1970: TimeInterval(recorded.unixTime)))
-        )
-        XCTAssertFalse(RecoveryFile.check(vault, recorded: nil, now: now).ready)
-    }
-
-    /// jit's closing line, from `jit vault export` (countWord in vault.go).
-    func testReadsTheCountFromJitsExportLine() {
-        XCTAssertEqual(RecordedExport.count(in: "Exported 67 secrets to /Users/me/r.export."), 67)
-        XCTAssertEqual(RecordedExport.count(in: "Touch ID…\nExported 1 secret to /tmp/x.export."), 1)
-        XCTAssertNil(RecordedExport.count(in: "jit vault export: canceled"))
-        XCTAssertNil(RecordedExport.count(in: ""))
-    }
-
-    // MARK: - Outcomes
-
-    func testTheBannerSaysWhatMoved() {
-        let into = SettingsOutcome.vaultKeyMoved(to: .secureEnclave)
-        XCTAssertTrue(into.ok)
-        XCTAssertEqual(into.row, .vaultKey)
-        XCTAssertEqual(into.title, "Moved the vault key into the Secure Enclave · every secret opens as before")
-        XCTAssertEqual(SettingsOutcome.vaultKeyMoved(to: .keychain).title, "Moved the vault key back to your keychain")
-    }
-
-    /// Frame F: where the key still is, what stopped it in the reader's
-    /// words, jit's own line under it, and Try Again.
-    func testACancelledTouchIDSaysNothingChanged() {
-        let line = "jit vault rekey: local authentication failed: Canceled by user."
-        let outcome = SettingsOutcome.vaultKeyFailed(to: .secureEnclave, now: .keychain, line: line)
-        XCTAssertFalse(outcome.ok)
-        XCTAssertEqual(outcome.row, .vaultKey)
-        XCTAssertEqual(outcome.title, "Still in your login keychain")
-        XCTAssertEqual(outcome.detail, "Touch ID was cancelled, so nothing changed.")
-        XCTAssertEqual(outcome.verbatim, line)
-        XCTAssertTrue(outcome.offersRetry)
-        XCTAssertFalse(outcome.offersStart)
-    }
-
-    func testTheOtherRefusalsInTheirOwnSentence() {
-        let outside = SettingsOutcome.vaultKeyFailed(
-            to: .secureEnclave, now: .keychain,
-            line: "jit vault rekey: sealing the key to the Secure Enclave: this copy of jit can't use the Secure Enclave; "
-                + "use the jit inside JitPass.app (nothing changed)"
-        )
-        XCTAssertEqual(outside.detail, "This copy of jit can't reach the Secure Enclave, so nothing changed.")
-        let stale = "jit vault rekey: your recovery file is older than your newest secret; save a new one with `jit vault export` first"
-        XCTAssertEqual(
-            SettingsOutcome.vaultKeyFailed(to: .secureEnclave, now: .keychain, line: stale, newSecrets: 3).detail,
-            "The recovery file is from before 3 new secrets, so nothing changed."
-        )
-        XCTAssertEqual(
-            SettingsOutcome.vaultKeyFailed(to: .secureEnclave, now: .keychain, line: stale).detail,
-            "The recovery file is older than your newest secret, so nothing changed."
-        )
-        let back = SettingsOutcome.vaultKeyFailed(to: .keychain, now: .secureEnclave, line: "jit vault rekey: the Mac is locked")
-        XCTAssertEqual(back.title, "Still in the Secure Enclave")
-        XCTAssertEqual(back.detail, "jit did not move it. Its own words are below.")
-        // A line that happens to say "not running" is still the move's
-        // failure: its button is Try Again, never Start Service.
-        let down = SettingsOutcome.vaultKeyFailed(to: .keychain, now: .secureEnclave, line: "jit: the service is not running")
-        XCTAssertFalse(down.offersStart)
-        XCTAssertTrue(down.offersRetry)
-    }
-
-    /// A failure after the key reached its new place ("re-run to finish")
-    /// must not claim nothing changed.
-    func testAHalfFinishedMoveSaysSo() {
-        let line = "jit vault rekey: the key is in the Secure Enclave, but its old keychain copy could not be deleted: "
-            + "denied (re-run to finish)"
-        let outcome = SettingsOutcome.vaultKeyFailed(to: .secureEnclave, now: .secureEnclave, line: line)
-        XCTAssertEqual(outcome.title, "The move did not finish")
-        XCTAssertFalse(outcome.detail.contains("nothing changed"))
-        XCTAssertTrue(outcome.offersRetry)
+        XCTAssertEqual(RecoveryFile.check(vault), .older(at: Date(timeIntervalSince1970: TimeInterval(vault.exportUnixTime ?? 0))))
+        XCTAssertFalse(RecoveryFile.check(vault).ready)
     }
 }

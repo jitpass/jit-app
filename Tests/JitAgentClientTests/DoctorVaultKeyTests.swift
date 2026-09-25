@@ -20,7 +20,7 @@ final class DoctorVaultKeyTests: XCTestCase {
         XCTAssertEqual(board.cards.count, 1)
         XCTAssertEqual(card.tier, .recommended)
         XCTAssertEqual(card.title, "Keep the vault key in the Secure Enclave")
-        XCTAssertEqual(card.reason, "In the keychain, a program running as you could read it. One Touch ID moves it.")
+        XCTAssertEqual(card.reason, "In the keychain, a program running as you could read it. Touch ID moves it.")
         XCTAssertEqual(card.primary, DoctorButton("Move…", .moveVaultKey))
         XCTAssertFalse(card.primaryProminent)
         XCTAssertEqual(card.menu, [.button(DoctorButton("Don't Suggest Again", .dismissVaultKeyOffer))])

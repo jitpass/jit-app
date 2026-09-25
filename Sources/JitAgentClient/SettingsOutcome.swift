@@ -122,14 +122,33 @@ public extension SettingsOutcome {
         return SettingsOutcome(row: .vaultKey, ok: true, title: title)
     }
 
+    /// How a move ended, read from where jit says the key is afterwards
+    /// rather than from the exit code alone: jit exits 0 for "already in
+    /// the Secure Enclave. Nothing to do." as well as for a move. The
+    /// banner shows only when the key is at the target and this run put it
+    /// there: it was somewhere else before, or the run finished a move jit
+    /// had left half done (`finishing`). nil where nothing changed, or
+    /// where jit could not say where the key is now.
+    static func vaultKeyMoveEnded(
+        to target: VaultKeyPlace, before: VaultKeyPlace?, now: VaultKeyPlace?, finishing: Bool, failure: String?
+    ) -> SettingsOutcome? {
+        if let failure {
+            return vaultKeyFailed(to: target, now: now, line: failure)
+        }
+        guard let now else {
+            return nil
+        }
+        guard now == target else {
+            return vaultKeyFailed(to: target, now: now, line: "")
+        }
+        return before != target || finishing ? vaultKeyMoved(to: target) : nil
+    }
+
     /// A move jit refused. The title says where the key is now, read from
     /// jit after the failure; the sentence says what stopped it, in the
     /// reader's words where jit's line names the cause, and "nothing
-    /// changed" only where the key is still where it was. `newSecrets` is
-    /// how far behind the recovery file is, when the counts are known.
-    static func vaultKeyFailed(
-        to target: VaultKeyPlace, now place: VaultKeyPlace?, line: String, newSecrets: Int? = nil
-    ) -> SettingsOutcome {
+    /// changed" only where the key is still where it was.
+    static func vaultKeyFailed(to target: VaultKeyPlace, now place: VaultKeyPlace?, line: String) -> SettingsOutcome {
         let verbatim = line.isEmpty ? nil : line
         guard let place, place != target else {
             return SettingsOutcome(
@@ -141,13 +160,13 @@ public extension SettingsOutcome {
         case .keychain: "Still in your login keychain"
         case .secureEnclave: "Still in the Secure Enclave"
         }
-        return SettingsOutcome(row: .vaultKey, ok: false, title: title, detail: stopped(line, newSecrets: newSecrets), verbatim: verbatim)
+        return SettingsOutcome(row: .vaultKey, ok: false, title: title, detail: stopped(line), verbatim: verbatim)
     }
 
     /// jit's refusals, from internal/cli/vaultmove.go and the two key
     /// stores' own errors. A line that names none of them keeps its words
     /// with no cause invented over them.
-    private static func stopped(_ line: String, newSecrets: Int?) -> String {
+    private static func stopped(_ line: String) -> String {
         let lower = line.lowercased()
         if lower.contains("local authentication failed"), lower.contains("cancel") {
             return "Touch ID was cancelled, so nothing changed."
@@ -156,13 +175,13 @@ public extension SettingsOutcome {
             return "This copy of jit can't reach the Secure Enclave, so nothing changed."
         }
         if lower.contains("older than your newest secret") {
-            if let newSecrets {
-                return "The recovery file is from before \(newSecrets) new secret\(newSecrets == 1 ? "" : "s"), so nothing changed."
-            }
-            return "The recovery file is older than your newest secret, so nothing changed."
+            return "Secrets were added or changed after the recovery file was saved, so nothing changed."
         }
         if lower.contains("save a recovery file first") {
             return "There is no recovery file yet, so nothing changed."
+        }
+        if line.isEmpty {
+            return "jit did not move it."
         }
         return "jit did not move it. Its own words are below."
     }

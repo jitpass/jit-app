@@ -119,42 +119,63 @@ extension SettingsView {
                     EmptyView()
                 }
             } else {
-                switch state {
-                case .keychain:
-                    AppRow(
-                        name: Format.vaultKeyName, detail: Format.vaultKeyDetail(state), fact: Format.vaultKeyFact(state),
-                        wraps: true, last: last
-                    ) {
-                        Button("Move to Secure Enclave…", action: actions.moveVaultKey)
-                            .buttonStyle(AppButton())
-                            .disabled(model.settingsApplying != nil)
-                    }
-                case .secureEnclave:
-                    AppRow(
-                        dot: Color(StatusMark.green),
-                        name: Format.vaultKeyName, detail: Format.vaultKeyDetail(state), fact: Format.vaultKeyFact(state),
-                        wraps: true, last: last
-                    ) {
-                        Menu {
-                            Button("Move Back to Keychain…", action: actions.moveVaultKeyBack)
-                        } label: {
-                            Text("···")
-                        }
-                        .menuStyle(.button)
+                vaultKeyStateRow(state, last: last)
+            }
+        }
+    }
+
+    @ViewBuilder private func vaultKeyStateRow(_ state: VaultKeyRow, last: Bool) -> some View {
+        let detail = Format.vaultKeyDetail(state, now: model.vaultKeyPlace)
+        switch state {
+        case .keychain:
+            AppRow(
+                name: Format.vaultKeyName, detail: detail,
+                fact: Format.vaultKeyFact(state, movable: model.canMoveVaultKeyIn), wraps: true, last: last
+            ) {
+                // Not on an empty vault: jit reports no recovery file for
+                // one, so the sheet's Move Key could never open.
+                if model.canMoveVaultKeyIn {
+                    Button("Move to Secure Enclave…", action: actions.moveVaultKey)
                         .buttonStyle(AppButton())
-                        .menuIndicator(.hidden)
-                        .fixedSize()
                         .disabled(model.settingsApplying != nil)
-                    }
-                case .lost:
-                    AppRow(
-                        dot: Color(StatusMark.red),
-                        name: Format.vaultKeyName, detail: Format.vaultKeyDetail(state), fact: Format.vaultKeyFact(state),
-                        wraps: true, last: last
-                    ) {
-                        Button("Restore from Recovery File…", action: actions.restoreVaultKey).buttonStyle(AppButton())
-                    }
                 }
+            }
+        case .secureEnclave:
+            AppRow(
+                dot: Color(StatusMark.green),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                Menu {
+                    Button("Move Back to Keychain…", action: actions.moveVaultKeyBack)
+                } label: {
+                    Text("···")
+                }
+                .menuStyle(.button)
+                .buttonStyle(AppButton())
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .disabled(model.settingsApplying != nil)
+            }
+        case .checking:
+            // No colour and no move until doctor says this Mac has the key.
+            AppRow(name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last) {
+                EmptyView()
+            }
+        case .lost:
+            AppRow(
+                dot: Color(StatusMark.red),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                Button("Restore from Recovery File…", action: actions.restoreVaultKey).buttonStyle(AppButton())
+            }
+        case .unfinished:
+            AppRow(
+                dot: Color(StatusMark.amber),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                Button(Format.vaultKeyRetryTitle(finishes: true), action: actions.retryVaultKey)
+                    .buttonStyle(AppButton())
+                    .disabled(model.settingsApplying != nil)
             }
         }
     }

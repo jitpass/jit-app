@@ -6,8 +6,7 @@ import Foundation
 /// Where the vault key is kept, and moving it (the Secure Enclave plan,
 /// step A4; the mockup is "Vault key in the Secure Enclave"). The move is
 /// jit's own `jit vault rekey --wrapper …`: the app decides only whether
-/// to show the row and whether the recovery file is good enough to offer
-/// Move Key.
+/// to show the row, and its Move Key follows jit's own recovery file rule.
 public enum VaultKeyPlace: String, Sendable, Equatable {
     case keychain
     case secureEnclave = "secure-enclave"
@@ -27,51 +26,64 @@ public enum VaultKeyRow: Equatable, Sendable {
     /// In the Secure Enclave, and this Mac's enclave has it: a green dot,
     /// and Move Back in ···.
     case secureEnclave
+    /// The vault says the Secure Enclave, and doctor has not answered yet
+    /// whether this Mac's enclave has the key: no colour until it does.
+    case checking
     /// The vault says the Secure Enclave, and this Mac's enclave has no
     /// such key: nothing opens until a recovery file is restored.
     case lost
+    /// A move this app started toward the place named, whose marker jit
+    /// still has: every vault write is refused until it finishes.
+    case unfinished(VaultKeyPlace)
 
     /// The row, or nil where it has nothing true to offer: a jit that is
     /// not the app's own helper cannot reach the enclave, a jit too old to
     /// report where the key is cannot move it, and a Mac with no vault has
-    /// no key to move. `keyLost` is doctor's word for the enclave's half.
-    public static func state(_ vault: CLIVaultStatus?, bundledHelper: Bool, keyLost: Bool) -> VaultKeyRow? {
-        guard bundledHelper, let vault, vault.initialized == "yes",
-              let place = vault.keyStore.flatMap(VaultKeyPlace.init(rawValue:))
-        else {
+    /// no key to move. `keyLost` is doctor's word for the enclave's half,
+    /// nil before doctor has answered; `unfinished` is `VaultKeyMove`'s.
+    public static func state(
+        _ vault: CLIVaultStatus?, bundledHelper: Bool, keyLost: Bool?, unfinished: VaultKeyPlace? = nil
+    ) -> VaultKeyRow? {
+        guard bundledHelper, let vault, vault.initialized == "yes", let place = VaultKeyPlace.of(vault) else {
             return nil
+        }
+        if place == .secureEnclave, keyLost == true {
+            return .lost
+        }
+        if let unfinished {
+            return .unfinished(unfinished)
         }
         switch place {
         case .keychain: return .keychain
-        case .secureEnclave: return keyLost ? .lost : .secureEnclave
+        case .secureEnclave: return keyLost == false ? .secureEnclave : .checking
         }
-    }
-
-    /// Whether the jit the app runs is the helper inside this app, the one
-    /// binary a provisioning profile lets use the Secure Enclave: its path,
-    /// or `Contents/MacOS/jit`, the compat symlink to it. A Homebrew or
-    /// development jit is not, even when it is the same version.
-    public static func isBundledHelper(_ executable: String?, bundleURL: URL) -> Bool {
-        guard let executable else {
-            return false
-        }
-        let helper = bundleURL.appendingPathComponent(CommandLineTool.bundledRelativePath)
-        return resolved(URL(fileURLWithPath: executable)) == resolved(helper)
-    }
-
-    private static func resolved(_ url: URL) -> String {
-        url.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     /// Doctor's lost-key finding: `vault_key` with `jit vault init` among
     /// its fixes, which jit adds only when the key is not in this Mac's
-    /// Secure Enclave (a keychain key that is gone needs no init).
-    public static func keyLost(_ report: DoctorReport?) -> Bool {
-        (report?.problems ?? []).contains(where: isLostFinding)
+    /// Secure Enclave (a keychain key that is gone needs no init). An
+    /// ignored finding still counts: ignoring it opens nothing. nil when
+    /// doctor has not run.
+    public static func keyLost(_ report: DoctorReport?) -> Bool? {
+        guard let report else {
+            return nil
+        }
+        return (report.problems + report.ignored).contains(where: isLostFinding)
     }
 
     public static func isLostFinding(_ item: DoctorItem) -> Bool {
         item.kind == "vault_key" && (item.fixes ?? []).contains { $0.argv.starts(with: ["vault", "init"]) }
+    }
+
+    /// Whether the move in can be offered: jit reports the recovery file,
+    /// its gate, only for a vault with something in it (status.go returns
+    /// before the export fields when secrets and backups are both zero),
+    /// so an empty vault could never pass the sheet.
+    public static func canMoveIn(_ vault: CLIVaultStatus?) -> Bool {
+        guard let vault else {
+            return false
+        }
+        return vault.secretsStored + (vault.backupsStored ?? 0) > 0
     }
 
     /// Doctor's Recommended offer: a keychain vault with secrets in it, on
@@ -82,48 +94,83 @@ public enum VaultKeyRow: Equatable, Sendable {
     }
 }
 
-/// A recovery file the app saw jit write: when jit recorded it, and how
-/// many secrets jit said it put in it. jit records only the time, so the
-/// count is known only for a file saved from the app.
-public struct RecordedExport: Codable, Equatable, Sendable {
-    public var unixTime: Int64
-    public var secrets: Int
-
-    public init(unixTime: Int64, secrets: Int) {
-        self.unixTime = unixTime
-        self.secrets = secrets
-    }
-
-    /// The count in jit's own closing line, "Exported 67 secrets to …"
-    /// (or "1 secret"); nil when the line is not there.
-    public static func count(in output: String) -> Int? {
-        for line in output.split(separator: "\n") {
-            let words = line.split(separator: " ")
-            if words.count > 2, words[0] == "Exported", words[2].hasPrefix("secret"), let count = Int(words[1]) {
-                return count
-            }
-        }
-        return nil
+public extension VaultKeyPlace {
+    /// Where `jit status` says the key is, or nil for a jit that does not
+    /// say or a word this app does not know.
+    static func of(_ vault: CLIVaultStatus?) -> VaultKeyPlace? {
+        vault?.keyStore.flatMap(VaultKeyPlace.init(rawValue:))
     }
 }
 
-/// The move sheet's gate. A recovery file counts when it holds the vault's
-/// current secret count; where the count is not known (a file saved in a
-/// terminal), when it is at most 30 days old. Either way a file jit calls
-/// stale (a secret written since) does not count, because jit refuses the
-/// move for it.
+/// A move the app started, and what jit's marker says about it. jit
+/// reports the marker only as doctor's `rekey` finding, which does not
+/// tell a move from a rotation or name the move's target, so the target
+/// is the one the app itself asked for (kept until jit's marker is gone).
+public enum VaultKeyMove {
+    /// Whether jit's rekey marker is there: doctor's `rekey` finding,
+    /// ignored or not. nil when doctor has not run.
+    public static func markerPresent(_ report: DoctorReport?) -> Bool? {
+        guard let report else {
+            return nil
+        }
+        return (report.problems + report.warnings + report.ignored).contains { $0.kind == "rekey" }
+    }
+
+    /// The move to finish: the app's own target, while the marker is there.
+    public static func unfinished(pending: VaultKeyPlace?, report: DoctorReport?) -> VaultKeyPlace? {
+        markerPresent(report) == true ? pending : nil
+    }
+
+    /// Whether the app's record of its move can go: doctor answered and
+    /// jit has no marker, so nothing is left to finish.
+    public static func settled(_ report: DoctorReport?) -> Bool {
+        markerPresent(report) == false
+    }
+
+    /// Where Try Again goes: the move that failed, because a half-done
+    /// move is finished by running the same one again and jit refuses the
+    /// other direction; the other place only when the app has no record.
+    /// `finishes` when that move is half done (the key already reached the
+    /// target, or jit's marker is there): it runs again as it is, with no
+    /// sheet, because the question was answered when it started and jit
+    /// skips its recovery file rule for a move it is finishing.
+    public static func retry(pending: VaultKeyPlace?, now: VaultKeyPlace?, report: DoctorReport?) -> VaultKeyRetry? {
+        let target: VaultKeyPlace
+        if let pending {
+            target = pending
+        } else if let now {
+            target = now == .keychain ? .secureEnclave : .keychain
+        } else {
+            return nil
+        }
+        let finishes = pending == target && (now == target || markerPresent(report) == true)
+        return VaultKeyRetry(target: target, finishes: finishes)
+    }
+}
+
+/// What the failure row's button does: the move toward `target`, asked
+/// again (sheet or alert), or run again to finish it.
+public struct VaultKeyRetry: Equatable, Sendable {
+    public var target: VaultKeyPlace
+    public var finishes: Bool
+
+    public init(target: VaultKeyPlace, finishes: Bool) {
+        self.target = target
+        self.finishes = finishes
+    }
+}
+
+/// The move sheet's gate, which is jit's own (vaultmove.go's
+/// recoveryFileCurrent, decision D3): a recovery file counts when jit has
+/// one on record and no secret is newer than it (`export_stale` false).
+/// jit records only the time, so the sheet claims nothing about a count.
 public enum RecoveryFile: Equatable, Sendable {
     case none
-    /// `secrets` is nil when the count is not known.
-    case current(at: Date, secrets: Int?)
-    /// The file holds a different number of secrets than the vault.
-    case behind(at: Date, secrets: Int, vault: Int)
-    /// A secret was written after the file: jit's own `export_stale`.
+    /// Newer than every secret: the move can go ahead.
+    case current(at: Date)
+    /// A secret was written after the file: jit's own `export_stale`, and
+    /// jit refuses the move for it.
     case older(at: Date)
-    /// No count to compare, and older than `fallbackAge`.
-    case expired(at: Date)
-
-    public static let fallbackAge: TimeInterval = 30 * 24 * 60 * 60
 
     public var ready: Bool {
         if case .current = self {
@@ -135,34 +182,40 @@ public enum RecoveryFile: Equatable, Sendable {
     public var savedAt: Date? {
         switch self {
         case .none: nil
-        case let .current(at, _), let .behind(at, _, _), let .older(at), let .expired(at): at
+        case let .current(at), let .older(at): at
         }
     }
 
-    /// `recorded` counts only when it is the export jit has on record now:
-    /// a file saved later in a terminal replaces jit's record, not the app's.
-    public static func check(_ vault: CLIVaultStatus?, recorded: RecordedExport?, now: Date = Date()) -> RecoveryFile {
+    public static func check(_ vault: CLIVaultStatus?) -> RecoveryFile {
         guard let vault, vault.exportRecorded == true, let unix = vault.exportUnixTime else {
             return .none
         }
         let at = Date(timeIntervalSince1970: TimeInterval(unix))
-        if vault.exportStale == true {
-            return .older(at: at)
+        return vault.exportStale == true ? .older(at: at) : .current(at: at)
+    }
+}
+
+/// Which of the move sheet's buttons takes Return. Never more than one,
+/// and never Move Key while a save has failed: the row asking to save
+/// again is the next step, even when an earlier file still counts.
+public enum VaultKeySheetDefault: Equatable, Sendable {
+    case saveRecoveryFile
+    case moveKey
+    /// While jit writes the file: nothing to press.
+    case none
+
+    public static func pick(_ file: RecoveryFile, saving: Bool, saveFailed: Bool) -> VaultKeySheetDefault {
+        if saving {
+            return .none
         }
-        if let recorded, recorded.unixTime == unix {
-            return recorded.secrets == vault.secretsStored
-                ? .current(at: at, secrets: recorded.secrets)
-                : .behind(at: at, secrets: recorded.secrets, vault: vault.secretsStored)
+        if saveFailed {
+            return .saveRecoveryFile
         }
-        return now.timeIntervalSince(at) > fallbackAge ? .expired(at: at) : .current(at: at, secrets: nil)
+        return file.ready ? .moveKey : .saveRecoveryFile
     }
 
-    /// How many more secrets the vault holds than the file, when both
-    /// counts are known: the number a stale-file refusal names.
-    public static func newSecrets(_ vault: CLIVaultStatus?, recorded: RecordedExport?) -> Int? {
-        guard let vault, let recorded, recorded.unixTime == vault.exportUnixTime, vault.secretsStored > recorded.secrets else {
-            return nil
-        }
-        return vault.secretsStored - recorded.secrets
+    /// Move Key can be pressed: the file counts and nothing is being saved.
+    public static func moveEnabled(_ file: RecoveryFile, saving: Bool) -> Bool {
+        file.ready && !saving
     }
 }
