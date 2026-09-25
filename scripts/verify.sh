@@ -41,6 +41,17 @@ helperid=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$helper/Conte
 helperinfo=$(codesign --display --verbose=2 "$helper" 2>&1)
 [[ "$helperinfo" == *"(runtime)"* ]] || die "helper lacks the hardened runtime"
 [[ "$helperinfo" == *$'\n'"Identifier=$HELPER_CODE_ID"$'\n'* ]] || die "helper's code identifier is not $HELPER_CODE_ID: existing keychain vault keys would ask for access"
+# The Secure Enclave entitlement, and the profile that authorizes it for the
+# very certificate that signed this helper. The `jit --version` below is the
+# launch that proves macOS accepts the pair.
+[ -f "$helper/Contents/embedded.provisionprofile" ] || die "helper carries no embedded.provisionprofile"
+helperents=$(codesign --display --entitlements - --xml "$helper" 2>/dev/null)
+[[ "$helperents" == *"$HELPER_GROUP"* && "$helperents" == *"$TEAM_ID.$HELPER_ID"* ]] || die "helper lacks the Secure Enclave entitlement"
+certs=$(mktemp -d)
+(cd "$certs" && codesign --display --extract-certificates=c "$helper" 2>/dev/null)
+signer=$(shasum -a 1 "$certs/c0" | awk '{print toupper($1)}')
+rm -rf "$certs"
+check_agent_profile "$helper/Contents/embedded.provisionprofile" "$signer"
 # The old path every installed plist and PATH link names must still lead here.
 compat="$app/Contents/MacOS/jit"
 [ -L "$compat" ] || die "Contents/MacOS/jit is not the compat symlink"

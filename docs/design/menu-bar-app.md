@@ -48,7 +48,7 @@ explain itself, and it is the bundle the agent has to live in.
         Helpers/JitPassAgent.app/          com.jitpass.agent, CFBundleName JitPass
           Contents/MacOS/jit               Go, the jit release: CLI and service in one binary
           Contents/Info.plist
-          Contents/embedded.provisionprofile  Secure Enclave plan A2, the keychain entitlement
+          Contents/embedded.provisionprofile  the helper's Developer ID profile (A2), authorizing Resources/Agent.entitlements
         Info.plist
 
 jit is the main executable of its own bundle because a provisioning profile
