@@ -14,6 +14,7 @@ extension StatusItemController {
         AIJobsActions(
             reload: { [weak self] in self?.reloadJobs() },
             remove: { [weak self] job in self?.confirmRemove(job) },
+            edit: { [weak self] job in self?.editJob(job) },
             newJob: { [weak self] in self?.openJobSheet() },
             review: { [weak self] proposal in self?.openProposal(proposal) },
             reviewJob: { [weak self] job in self?.openJobReview(job) },

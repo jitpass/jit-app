@@ -182,7 +182,7 @@ struct JobMoreOptions: View {
                 }
                 .buttonStyle(.plain)
             }
-            if model.jobMoreOptions {
+            if model.jobMoreOptions, draft.editing == nil {
                 JobSheetRow(label: "Name") {
                     AppTextField(placeholder: "", text: nameBinding, width: 240)
                     Text(Format.jobNameHint).font(Win.rowFact).foregroundStyle(.secondary)

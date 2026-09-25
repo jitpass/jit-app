@@ -24,7 +24,7 @@ struct JobSheetView: View {
             }
             VStack(alignment: .leading, spacing: Win.s5) {
                 VStack(alignment: .leading, spacing: Win.s3) {
-                    Text(Format.jobSheetTitle).font(Win.cardTitle)
+                    Text(Format.jobSheetTitle(model.jobDraft)).font(Win.cardTitle)
                     sentence
                 }
                 rows
@@ -218,7 +218,8 @@ struct JobSheetView: View {
                 Button("Cancel", action: actions.cancel).buttonStyle(AppButton(kind: .secondary))
                     .keyboardShortcut(.cancelAction)
             }
-            Button("Approve with Touch ID", action: actions.approve).buttonStyle(AppButton(kind: .primary))
+            Button(model.jobDraft.editing == nil ? "Approve with Touch ID" : "Approve Changes with Touch ID", action: actions.approve)
+                .buttonStyle(AppButton(kind: .primary))
                 .keyboardShortcut(.defaultAction)
                 .disabled(!ready)
                 .opacity(ready ? 1 : 0.45)

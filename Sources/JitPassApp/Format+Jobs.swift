@@ -158,7 +158,11 @@ extension Format {
 // MARK: - New AI Job
 
 extension Format {
-    static let jobSheetTitle = "New AI Job"
+    /// "New AI Job", or the job's name when editing it.
+    static func jobSheetTitle(_ draft: JobDraft) -> String {
+        draft.editing.map { "Edit \($0.name)" } ?? "New AI Job"
+    }
+
     static let jobRefusedName = "jit won't approve this"
     static let jobFailure = "Nothing was approved"
     static let jobFooterWaiting = "Waiting for Touch ID…"
@@ -184,8 +188,11 @@ extension Format {
 
     /// The closed More options line, with both values on it.
     static func jobMoreOptions(_ draft: JobDraft) -> String {
-        let name = draft.name.isEmpty ? "not named yet" : "named \(draft.name)"
         let output = draft.output.isEmpty ? "no output folder" : "output in " + (draft.output as NSString).lastPathComponent
+        if draft.editing != nil {
+            return "More options · \(output)"
+        }
+        let name = draft.name.isEmpty ? "not named yet" : "named \(draft.name)"
         return "More options · \(name) · \(output)"
     }
 
@@ -214,6 +221,14 @@ extension Format {
 
     static func jobNotes(_ draft: JobDraft, preview: JobPreview?) -> [String] {
         let files = preview?.files ?? 0
+        if draft.editing != nil {
+            return [
+                "Changed: " + draft.changes.joined(separator: " · ") + ".",
+                "Approving fingerprints the folder as it is now (\(files == 1 ? "1 file" : "\(files) files")), " +
+                    "and the job's run count starts over.",
+                "Until you approve, it runs as it was."
+            ]
+        }
         let count = preview?.secrets?.count ?? 0
         var notes = ["jit fingerprints this folder now: \(files == 1 ? "1 file" : "\(files) files"). " +
             "Change any of them and the job stops until you approve it again."]
@@ -239,6 +254,11 @@ extension Format {
             return "Checking the job…"
         }
         return preview?.refusal == nil ? "Touch ID follows." : "Nothing to approve"
+    }
+
+    static func approvedEditBanner(_ job: JobStatus) -> String {
+        let files = job.files ?? 0
+        return "Approved the changes to \(job.name) · \(files == 1 ? "1 file" : "\(files) files") fingerprinted again."
     }
 
     static func approvedJobBanner(_ job: JobStatus) -> String {
@@ -332,52 +352,4 @@ extension Format {
             "Allow: macOS asks for Touch ID next. Deny: \(who) gets an error and nothing runs."
         ]
     }
-}
-
-// MARK: - AI Agents: what each agent can run
-
-extension Format {
-    /// "3 AI jobs, never seeing their keys · ran notion-guests 5 minutes ago".
-    /// The last run is this agent's own, matched on the name the service
-    /// recorded for who asked ("claude" for the CLI, "Claude" for the app).
-    static func agentCanRun(caller: String, jobs: [JobStatus], now: Date = Date()) -> String {
-        guard !jobs.isEmpty else {
-            return "No AI jobs yet"
-        }
-        var text = (jobs.count == 1 ? "1 AI job" : "\(jobs.count) AI jobs") + ", never seeing their keys"
-        let mine = jobs.filter { $0.lastCaller == caller && $0.lastRun != nil }
-        if let last = mine.max(by: { ($0.lastRunUnix ?? 0) < ($1.lastRunUnix ?? 0) }), let when = last.lastRun {
-            text += " · ran \(last.name) \(ago(when, now: now))"
-        }
-        return text
-    }
-
-    /// What the app is, on its connected card.
-    static func appNote(_ app: MCPApp) -> String {
-        switch app {
-        case .claudeDesktop:
-            "An app, not a command line tool. Its Cowork shell runs in a Linux VM, so it can't run jit itself. " +
-                "It asks through AI Jobs."
-        case .cursor:
-            "An editor with an agent, not a command line tool. Its agent asks through AI Jobs."
-        }
-    }
-
-    static func appNotConnectedNote(_ app: MCPApp) -> String {
-        switch app {
-        case .claudeDesktop:
-            "Installed, but its Cowork shell can't reach jit. " +
-                "Connect it and Claude can run scripts you approve, without seeing their keys."
-        case .cursor:
-            "Installed, but not connected to jit. " +
-                "Connect it and its agent can run scripts you approve, without seeing their keys."
-        }
-    }
-
-    static func appAsksThrough(_ app: MCPApp) -> String {
-        "jit mcp, in \(app.name)'s settings"
-    }
-
-    static let onboardingClaudeDesktopTitle = "Let Claude Desktop run your scripts without seeing keys"
-    static let onboardingClaudeDesktopDetail = "Lets Claude ask to run your scripts. You approve each one first."
 }

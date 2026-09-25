@@ -43,6 +43,12 @@ extension StatusItemController {
         model.jobSheet = true
     }
 
+    /// Edit: the same sheet filled in from the approved job. Nothing
+    /// changes until its approval; the job runs as it was until then.
+    func editJob(_ job: JobStatus) {
+        openJobSheet(prefill: JobDraft(editing: job))
+    }
+
     func openProposal(_ proposal: JobProposal) {
         openJobSheet(prefill: JobDraft(proposal: proposal))
     }
@@ -67,9 +73,7 @@ extension StatusItemController {
 
     /// Back to the list, dropping what was chosen for the last profile.
     func changeJobProfile() {
-        var draft = JobDraft()
-        draft.ask = model.jobDraft.ask
-        model.jobDraft = draft
+        model.jobDraft = model.jobDraft.cleared()
         model.jobPreview = nil
         model.jobTyping = false
         model.jobScripts = []
@@ -144,7 +148,7 @@ extension StatusItemController {
         }
         let spec = draft.spec(pathEnv: JitCLI.environment["PATH"] ?? "", home: NSHomeDirectory())
         var approved = spec
-        approved.replace = model.jobPreview?.exists == true ? true : nil
+        approved.replace = spec.replace ?? (model.jobPreview?.exists == true ? true : nil)
         let client = client
         model.jobBusy = true
         model.jobError = nil
@@ -158,7 +162,7 @@ extension StatusItemController {
                 switch result {
                 case let .success(job):
                     closeJobSheet()
-                    model.jobsBanner = Format.approvedJobBanner(job)
+                    model.jobsBanner = draft.editing == nil ? Format.approvedJobBanner(job) : Format.approvedEditBanner(job)
                     model.jobsBannerFailed = false
                     reloadJobs()
                     aiJobsWindow.reclaimFocus()

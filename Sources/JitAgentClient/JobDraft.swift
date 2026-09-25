@@ -26,6 +26,9 @@ public struct JobDraft: Sendable, Equatable {
     public var output = ""
     /// Set when the draft came from an agent's proposal.
     public var proposal: JobProposal?
+    /// Set when the draft edits an approved job: what it was approved as.
+    /// Approving it again replaces the job under the same name.
+    public var editing: JobStatus?
 
     public init() {}
 
@@ -44,6 +47,50 @@ public struct JobDraft: Sendable, Equatable {
         self.proposal = proposal
     }
 
+    /// A draft that edits `job`: everything as it was approved, and the
+    /// name fixed, since renaming is a new job.
+    public init(editing job: JobStatus) {
+        name = job.name
+        folder = job.dir
+        command = JobDraft.join(job.argv)
+        profile = job.profile
+        global = job.profileGlobal == true
+        shown = Set((job.secrets ?? []).filter(\.isShown).map(\.name))
+        ask = JobAsk(rawValue: job.ask ?? "") ?? .eachTime
+        output = job.outputs?.first ?? ""
+        nameSuggested = false
+        editing = job
+    }
+
+    /// What an edit changes from the approved job, in the sheet's words.
+    /// Empty when nothing has changed yet.
+    public var changes: [String] {
+        guard let job = editing else {
+            return []
+        }
+        var out: [String] = []
+        if profile != job.profile || folder != job.dir {
+            out.append("profile " + (profile ?? "none"))
+        }
+        if argv != job.argv {
+            out.append("runs " + command)
+        }
+        let was = Set((job.secrets ?? []).filter(\.isShown).map(\.name))
+        let names = Set((job.secrets ?? []).map(\.name))
+        if profile == job.profile, folder == job.dir {
+            for name in names.sorted() where shown.contains(name) != was.contains(name) {
+                out.append(name + (shown.contains(name) ? " shown" : " hidden"))
+            }
+        }
+        if ask.rawValue != (job.ask ?? JobAsk.eachTime.rawValue) {
+            out.append(ask == .eachTime ? "asks each time" : "runs without asking")
+        }
+        if output != (job.outputs?.first ?? "") {
+            out.append(output.isEmpty ? "no output folder" : "a new output folder")
+        }
+        return out
+    }
+
     public var argv: [String] {
         JobDraft.split(command)
     }
@@ -59,6 +106,19 @@ public struct JobDraft: Sendable, Equatable {
         if nameSuggested {
             name = ""
         }
+    }
+
+    /// Back to choosing a profile. An edit keeps the job it edits and its
+    /// name; the ask is kept either way.
+    public func cleared() -> JobDraft {
+        var draft = JobDraft()
+        draft.ask = ask
+        if let job = editing {
+            draft.editing = job
+            draft.name = job.name
+            draft.nameSuggested = false
+        }
+        return draft
     }
 
     /// Picks a script: the command, and the name made from it unless the
@@ -80,6 +140,9 @@ public struct JobDraft: Sendable, Equatable {
         }
         if argv.isEmpty {
             return "Choose what the AI tool may run"
+        }
+        if editing != nil, changes.isEmpty {
+            return "Nothing changed yet"
         }
         if name.isEmpty {
             return "Name the job"
@@ -161,7 +224,9 @@ public struct JobDraft: Sendable, Equatable {
             ask: ask.rawValue,
             shown: shown.isEmpty ? nil : shown.sorted(),
             outputs: output.isEmpty ? nil : [output],
-            pathEnv: pathEnv, home: home
+            pathEnv: pathEnv, home: home,
+            description: editing?.description,
+            replace: editing == nil ? nil : true
         )
     }
 
