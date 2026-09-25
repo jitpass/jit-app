@@ -4,6 +4,24 @@
 # how a change to what ships (the helper bundle, its entitlements) is tried
 # on a real Mac before any release carries it.
 #
+# TRUST RULE: run it only on refs you trust, in this repo AND in jitpass/jit.
+# Whatever it builds is signed with the Developer ID identity, notarized, and
+# uploaded as an artifact of a public repo. The guards below narrow the risk;
+# they do not make an untrusted ref safe to build:
+#   - jit_ref must be a branch name, a tag name, or a full 40-hex commit SHA
+#     reachable from a jitpass/jit branch or tag. refs/pull/*, anything with
+#     "..", a leading "-", or characters outside [A-Za-z0-9._/-] is refused
+#     before anything is checked out, and it only ever reaches a shell
+#     through env:, quoted.
+#   - jit is built, and its completions generated (by running it), in a
+#     separate job that holds no secrets. The signing job never runs that
+#     job's binary before the identity is imported, except where sign.sh
+#     must: it launches the freshly signed helper once to prove macOS
+#     accepts its entitlements and profile. That launch happens while the
+#     identity is in an unlocked keychain; the key is imported
+#     non-extractable (-x), and the keychain is deleted straight after
+#     sign.sh, before the notary key is written or verify.sh runs jit again.
+#
 # Run it on a branch (the workflow file must be on the default branch for
 # workflow_dispatch to see it, and it then uses the dispatched branch's
 # scripts):
@@ -14,7 +32,7 @@ on:
   workflow_dispatch:
     inputs:
       jit_ref:
-        description: "jitpass/jit ref to build jit from (empty = the release pinned in jit.version)"
+        description: "jitpass/jit branch, tag or full commit SHA to build jit from (empty = the release pinned in jit.version). Trusted refs only."
         required: false
         default: ""
 
@@ -22,11 +40,143 @@ permissions:
   contents: read
 
 jobs:
+  # No secrets in this job. It is the only place the source-built jit runs
+  # before it is signed, so nothing it does can reach the signing identity
+  # or poison the signing job's environment ($GITHUB_ENV, $GITHUB_PATH, the
+  # workspace): that job runs on a fresh runner.
+  build-jit:
+    if: inputs.jit_ref != ''
+    runs-on: macos-15
+    timeout-minutes: 20
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      # Validated before any checkout. Only a branch or tag name, or a full
+      # commit SHA; resolved against jitpass/jit's own heads and tags, so a
+      # pull request's head (refs/pull/N/head) or a fork's branch is never
+      # built. The job checks out the resolved SHA, not the name.
+      - name: Validate and resolve jit_ref
+        id: resolve
+        env:
+          JIT_REF: ${{ inputs.jit_ref }}
+        run: |
+          set -euo pipefail
+          ref="$JIT_REF"
+          refuse() { echo "::error::jit_ref refused: $1. Give a jitpass/jit branch name, tag name, or full 40-character commit SHA."; exit 1; }
+          [ "${#ref}" -le 200 ] || refuse "longer than 200 characters"
+          [[ "$ref" =~ ^[A-Za-z0-9._/-]+$ ]] || refuse "only letters, digits and . _ / - are allowed"
+          case "$ref" in
+            -*) refuse "it starts with -" ;;
+            refs/pull*|*/pull/*) refuse "pull request refs are never built" ;;
+            refs/*) refuse "give the bare branch or tag name, not a refs/ path" ;;
+            /*|*/|*//*|*..*|*.lock|*.|.*|*/.*) refuse "not a valid branch or tag name" ;;
+          esac
+          if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+            # Reachability from a branch or tag is checked after checkout.
+            echo "kind=sha" >> "$GITHUB_OUTPUT"
+            echo "sha=$ref" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          remote=$(git ls-remote --heads --tags https://github.com/jitpass/jit \
+            "refs/heads/$ref" "refs/tags/$ref" "refs/tags/$ref^{}")
+          # An annotated tag is peeled to its commit ("^{}"): checkout lands on
+          # the commit, and the SHA check below compares against it.
+          head=$(awk -v r="refs/heads/$ref" '$2 == r { print $1 }' <<< "$remote")
+          tag=$(awk -v r="refs/tags/$ref^{}" '$2 == r { print $1 }' <<< "$remote")
+          [ -n "$tag" ] || tag=$(awk -v r="refs/tags/$ref" '$2 == r { print $1 }' <<< "$remote")
+          if [ -n "$head" ] && [ -n "$tag" ]; then refuse "it names both a branch and a tag in jitpass/jit"; fi
+          sha="${head:-$tag}"
+          [ -n "$sha" ] || refuse "no branch or tag of that name in jitpass/jit"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || refuse "resolved to something that is not a commit SHA"
+          echo "kind=name" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "jit_ref resolved to $sha"
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # jit from source, when asked. Only a branch whose sign.sh re-signs the
+      # bundled jit (the helper bundle, jit-app #52 onward) may do this: before
+      # that, the bundled jit ships with the signature it came with, and a
+      # source build has none.
+      - name: Refuse a source-built jit this branch would ship unsigned
+        run: |
+          if ! grep -q 'HELPER' scripts/sign.sh; then
+            echo "::error::this branch's sign.sh does not re-sign the bundled jit, so a jit built from source would ship unsigned; run with an empty jit_ref, or on a branch with the helper bundle"
+            exit 1
+          fi
+
+      - name: Check out jitpass/jit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: jitpass/jit
+          ref: ${{ steps.resolve.outputs.sha }}
+          path: jit-src
+          fetch-depth: 0
+          persist-credentials: false
+
+      # A bare SHA is only built when a jitpass/jit branch or tag contains
+      # it: GitHub serves any commit in the fork network by SHA, pull request
+      # heads included.
+      - name: Confirm the checked-out commit
+        env:
+          SHA: ${{ steps.resolve.outputs.sha }}
+          KIND: ${{ steps.resolve.outputs.kind }}
+        run: |
+          set -euo pipefail
+          [ "$(git -C jit-src rev-parse HEAD)" = "$SHA" ] || { echo "::error::jit-src is not at $SHA"; exit 1; }
+          if [ "$KIND" = sha ]; then
+            [ -n "$(git -C jit-src for-each-ref --count=1 --contains "$SHA" refs/remotes/origin refs/tags)" ] \
+              || { echo "::error::jit_ref refused: $SHA is not on any jitpass/jit branch or tag"; exit 1; }
+          fi
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: jit-src/go.mod
+          cache-dependency-path: jit-src/go.sum
+
+      # Built the way jit's goreleaser builds it (the version by ldflags, the
+      # completions from the binary itself), and labelled <pinned>-dev.<sha>.
+      # The signing job writes the same label into its jit.version, where it
+      # becomes the bundle's JitVersion and the staging directory
+      # fetch-jit.sh treats as already fetched, and verify.sh's "the bundled
+      # jit reports the bundle's JitVersion" check then holds honestly.
+      # Everything that runs the built jit happens here, in this job.
+      - name: Build jit from source into the staging directory
+        env:
+          SHA: ${{ steps.resolve.outputs.sha }}
+        run: |
+          set -euo pipefail
+          label="$(tr -d '[:space:]' < jit.version)-dev.${SHA:0:7}"
+          stage="jit-$label"
+          mkdir -p "stage/$stage/completions"
+          (cd jit-src && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath \
+            -ldflags "-s -w -X github.com/jitpass/jit/internal/agent.version=$label" \
+            -o "$GITHUB_WORKSPACE/stage/$stage/jit" ./cmd/jit)
+          "stage/$stage/jit" completion zsh > "stage/$stage/completions/_jit"
+          "stage/$stage/jit" completion bash > "stage/$stage/completions/jit.bash"
+          "stage/$stage/jit" completion fish > "stage/$stage/completions/jit.fish"
+          "stage/$stage/jit" --version
+          # A tarball keeps the executable bit an artifact would drop.
+          tar -czf jit-stage.tar.gz -C stage "$stage"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: jit-stage
+          path: jit-stage.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+
   test-build:
+    needs: build-jit
+    # Runs with an empty jit_ref (build-jit skipped) or after build-jit
+    # succeeded; never after it failed or was cancelled.
+    if: ${{ !failure() && !cancelled() }}
     runs-on: macos-15
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       # Same refusal as release.yml, plus the helper's provisioning profile
       # when this branch's scripts use one (jit-app #53 onward): signing the
@@ -51,6 +201,50 @@ jobs:
             echo "::error::this branch signs the helper with a provisioning profile; MACOS_AGENT_PROFILE is not set"; exit 1
           fi
 
+      # The bundle's version: never one a release could have, so a test
+      # build is never mistaken for one (lib.sh's version_from_env would
+      # otherwise stamp the branch name). 0.0.<run> sorts below every
+      # release, so an installed test build is offered the real one.
+      - name: Stamp a test version
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_NUMBER" =~ ^[0-9]+$ ]] || { echo "::error::run number is not a number"; exit 1; }
+          echo "VERSION=0.0.$RUN_NUMBER" >> "$GITHUB_ENV"
+          # An artifact name may not hold a slash; a branch name may.
+          echo "ARTIFACT=JitPass-test-$RUN_NUMBER-$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')" >> "$GITHUB_ENV"
+
+      # The source-built jit, staged where fetch-jit.sh treats it as already
+      # fetched. Unpacked only, never run here: the next time it runs is
+      # sign.sh's launch check of the signed helper.
+      - name: Download the source-built jit
+        if: inputs.jit_ref != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: jit-stage
+          path: ${{ runner.temp }}/jit-stage
+
+      - name: Stage the source-built jit
+        if: inputs.jit_ref != ''
+        env:
+          SHA: ${{ needs.build-jit.outputs.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::build-jit gave no commit SHA"; exit 1; }
+          label="$(tr -d '[:space:]' < jit.version)-dev.${SHA:0:7}"
+          [[ "$label" =~ ^[0-9A-Za-z.+-]+$ ]] || { echo "::error::unexpected jit label"; exit 1; }
+          mkdir -p dist
+          tar -xzf "$RUNNER_TEMP/jit-stage/jit-stage.tar.gz" -C dist "jit-$label"
+          [ -f "dist/jit-$label/jit" ] && [ ! -L "dist/jit-$label/jit" ] || { echo "::error::staged jit missing"; exit 1; }
+          [ -f "dist/jit-$label/completions/_jit" ] || { echo "::error::staged completions missing"; exit 1; }
+          printf '%s\n' "$label" > jit.version
+          rm -rf "$RUNNER_TEMP/jit-stage"
+
+      # Only now, with every run of the source-built jit behind us (bar
+      # sign.sh's launch check), does the identity reach this runner. The key
+      # is non-extractable (-x): usable for signing while the keychain is
+      # unlocked, never exportable from it. Only codesign is on its ACL.
       - name: Import the signing identity into a temporary keychain
         env:
           P12: ${{ secrets.MACOS_SIGN_P12 }}
@@ -62,9 +256,9 @@ jobs:
           kcpw=$(openssl rand -hex 24)
           echo "$P12" | base64 --decode > "$RUNNER_TEMP/sign.p12"
           security create-keychain -p "$kcpw" "$kc"
-          security set-keychain-settings -lut 3600 "$kc"
+          security set-keychain-settings -lut 1800 "$kc"
           security unlock-keychain -p "$kcpw" "$kc"
-          security import "$RUNNER_TEMP/sign.p12" -k "$kc" -P "$PW" -T /usr/bin/codesign -T /usr/bin/security
+          security import "$RUNNER_TEMP/sign.p12" -k "$kc" -P "$PW" -x -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$kcpw" "$kc" > /dev/null
           security list-keychains -d user -s "$kc" login.keychain-db
           rm -f "$RUNNER_TEMP/sign.p12"
@@ -74,67 +268,21 @@ jobs:
             echo "AGENT_PROFILE=$RUNNER_TEMP/agent.provisionprofile" >> "$GITHUB_ENV"
           fi
 
-      # The bundle's version: never one a release could have, so a test
-      # build is never mistaken for one (lib.sh's version_from_env would
-      # otherwise stamp the branch name). 0.0.<run> sorts below every
-      # release, so an installed test build is offered the real one.
-      - name: Stamp a test version
-        run: |
-          echo "VERSION=0.0.${{ github.run_number }}" >> "$GITHUB_ENV"
-          # An artifact name may not hold a slash; a branch name may.
-          echo "ARTIFACT=JitPass-test-${{ github.run_number }}-$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')" >> "$GITHUB_ENV"
-
-      # jit from source, when asked. Only a branch whose sign.sh re-signs the
-      # bundled jit (the helper bundle, jit-app #52 onward) may do this: before
-      # that, the bundled jit ships with the signature it came with, and a
-      # source build has none.
-      - name: Refuse a source-built jit this branch would ship unsigned
-        if: inputs.jit_ref != ''
-        run: |
-          if ! grep -q 'HELPER' scripts/sign.sh; then
-            echo "::error::this branch's sign.sh does not re-sign the bundled jit, so a jit built from source would ship unsigned; run with an empty jit_ref, or on a branch with the helper bundle"
-            exit 1
-          fi
-
-      - name: Check out jitpass/jit
-        if: inputs.jit_ref != ''
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          repository: jitpass/jit
-          ref: ${{ inputs.jit_ref }}
-          path: jit-src
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
-        if: inputs.jit_ref != ''
-        with:
-          go-version-file: jit-src/go.mod
-          cache-dependency-path: jit-src/go.sum
-
-      # Built the way jit's goreleaser builds it (the version by ldflags, the
-      # completions from the binary itself), and labelled <pinned>-dev.<sha>:
-      # written into this checkout's jit.version, it becomes the bundle's
-      # JitVersion and the staging directory fetch-jit.sh treats as already
-      # fetched, and verify.sh's "the bundled jit reports the bundle's
-      # JitVersion" check then holds honestly.
-      - name: Build jit from source into the staging directory
-        if: inputs.jit_ref != ''
+      - name: Build and sign
         run: |
           set -euo pipefail
-          sha=$(git -C jit-src rev-parse --short=7 HEAD)
-          label="$(tr -d '[:space:]' < jit.version)-dev.$sha"
-          printf '%s\n' "$label" > jit.version
-          stage="dist/jit-$label"
-          mkdir -p "$stage/completions"
-          (cd jit-src && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -trimpath \
-            -ldflags "-s -w -X github.com/jitpass/jit/internal/agent.version=$label" \
-            -o "$GITHUB_WORKSPACE/$stage/jit" ./cmd/jit)
-          "$stage/jit" completion zsh > "$stage/completions/_jit"
-          "$stage/jit" completion bash > "$stage/completions/jit.bash"
-          "$stage/jit" completion fish > "$stage/completions/jit.fish"
-          "$stage/jit" --version
-          echo "JIT_SOURCE=jitpass/jit@${{ inputs.jit_ref }} ($(git -C jit-src rev-parse HEAD)), labelled $label" >> "$GITHUB_ENV"
+          scripts/bundle.sh release
+          scripts/sign.sh
 
-      - name: Build, sign, notarize, staple, pack
+      # The identity is gone before the notary key is written, and before
+      # verify.sh runs the bundled jit again.
+      - name: Remove the signing keychain
+        run: |
+          set -euo pipefail
+          security list-keychains -d user -s login.keychain-db
+          security delete-keychain "$SIGN_KEYCHAIN"
+
+      - name: Notarize, staple, pack
         env:
           NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
@@ -143,8 +291,6 @@ jobs:
           set -euo pipefail
           printf '%s' "$NK" > "$RUNNER_TEMP/AuthKey.p8"
           export NOTARY_KEY_FILE="$RUNNER_TEMP/AuthKey.p8"
-          scripts/bundle.sh release
-          scripts/sign.sh
           scripts/notarize.sh
           rm -f "$RUNNER_TEMP/AuthKey.p8"
 
@@ -163,19 +309,39 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-      - name: Summary
+      # Runs however the job ended: a failed sign.sh or notarize.sh must not
+      # leave the keychain, the notary key or the profile on the runner.
+      - name: Remove signing material
         if: always()
         run: |
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sign.p12" "$RUNNER_TEMP/agent.provisionprofile"
+          kc="$RUNNER_TEMP/sign.keychain-db"
+          if [ -e "$kc" ]; then
+            security list-keychains -d user -s login.keychain-db || true
+            security delete-keychain "$kc" || rm -f "$kc"
+          fi
+
+      - name: Summary
+        if: always()
+        env:
+          JIT_REF: ${{ inputs.jit_ref }}
+          JIT_SHA: ${{ needs.build-jit.outputs.sha }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ -n "$JIT_REF" ]; then
+            jit="source build of jitpass/jit \`$JIT_REF\` at commit \`$JIT_SHA\`, labelled \`$(tr -d '[:space:]' < jit.version)\`"
+          else
+            jit="the release pinned in jit.version ($(tr -d '[:space:]' < jit.version))"
+          fi
+          if [ "$JOB_STATUS" = success ]; then verified="yes, scripts/verify.sh passed"; else verified="no, see the failed step"; fi
           {
-            echo "## JitPass test build ${VERSION}"
-            echo
-            echo "- **App:** \`${GITHUB_REF_NAME}\` at \`${GITHUB_SHA}\`"
-            echo "- **jit:** ${JIT_SOURCE:-the release pinned in jit.version ($(tr -d '[:space:]' < jit.version))}"
-            echo "- **Verified:** ${{ job.status == 'success' && 'yes, scripts/verify.sh passed' || 'no, see the failed step' }}"
-            echo "- **Published:** never. This build is only the artifact below, kept 7 days."
-            echo
-            echo "### Install it for testing"
-            echo "1. Download the artifact \`${ARTIFACT}\` from this run and unzip it (it holds \`JitPass-${VERSION}-arm64.zip\`)."
-            echo "2. Quit JitPass, unzip \`JitPass-${VERSION}-arm64.zip\`, and move \`JitPass.app\` into /Applications, replacing the installed one."
-            echo "3. Open it. The next real release is offered as an update (a test build is 0.0.N)."
+            printf '## JitPass test build %s\n\n' "$VERSION"
+            printf -- '- **App:** `%s` at `%s`\n' "$GITHUB_REF_NAME" "$GITHUB_SHA"
+            printf -- '- **jit:** %s\n' "$jit"
+            printf -- '- **Verified:** %s\n' "$verified"
+            printf -- '- **Published:** never. This build is only the artifact below, kept 7 days.\n\n'
+            printf '### Install it for testing\n'
+            printf '1. Download the artifact `%s` from this run and unzip it (it holds `JitPass-%s-arm64.zip`).\n' "$ARTIFACT" "$VERSION"
+            printf '2. Quit JitPass, unzip `JitPass-%s-arm64.zip`, and move `JitPass.app` into /Applications, replacing the installed one.\n' "$VERSION"
+            printf '3. Open it. The next real release is offered as an update (a test build is 0.0.N).\n'
           } >> "$GITHUB_STEP_SUMMARY"
