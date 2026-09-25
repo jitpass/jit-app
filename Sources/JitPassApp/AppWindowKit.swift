@@ -212,6 +212,40 @@ struct AppCard<Rows: View, Actions: View>: View {
     }
 }
 
+/// A card with no eyebrow, for a window whose segment pill already names
+/// what the card holds (Settings). A title appears only where the card is
+/// a list with a name of its own, and its rows sit under the rule then.
+struct AppPlainCard<Rows: View, Actions: View>: View {
+    var title: String?
+    @ViewBuilder var actions: () -> Actions
+    @ViewBuilder var rows: () -> Rows
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Win.s4) {
+            if let title {
+                HStack(alignment: .center, spacing: Win.s5) {
+                    Text(title).font(Win.cardTitle)
+                    Spacer(minLength: Win.s5)
+                    HStack(spacing: Win.s3) { actions() }
+                }
+                AppCardRows { rows() }
+            } else {
+                VStack(spacing: 0) { rows() }
+            }
+        }
+        .padding(Win.s5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WindowSurface.card, in: RoundedRectangle(cornerRadius: Win.card, style: .continuous))
+    }
+}
+
+extension AppPlainCard where Actions == EmptyView {
+    /// A card that is its rows and nothing else.
+    init(@ViewBuilder rows: @escaping () -> Rows) {
+        self.init(title: nil, actions: { EmptyView() }, rows: rows)
+    }
+}
+
 /// The rows a card lists, under the rule that separates them from its
 /// note, each divided from the next but not from the card's edge.
 struct AppCardRows<Content: View>: View {
