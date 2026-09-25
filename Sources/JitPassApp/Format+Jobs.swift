@@ -108,12 +108,12 @@ extension Format {
 
     static let jobsAppsEyebrow = "AI apps that can ask"
 
-    static func claudeDesktopFact(_ status: MCPStatus?) -> String {
+    static func mcpFact(_ app: MCPApp, _ status: MCPStatus?) -> String {
         guard let status else {
             return "Checking…"
         }
         if status.isConnected {
-            return "Connected · Cowork asks through jit mcp"
+            return "Connected · " + app.via
         }
         return status.installed ? "Set up for a jit that is no longer there" : "Not connected"
     }
@@ -139,8 +139,14 @@ extension Format {
         "Removed \(job.name). AI tools can no longer run it."
     }
 
-    static let connectedBanner = "Claude Desktop will start jit's MCP server. Quit and reopen Claude Desktop to pick this up."
-    static let disconnectedBanner = "Claude Desktop no longer starts jit's MCP server. Quit and reopen Claude Desktop to pick this up."
+    static func mcpChangedBanner(_ app: MCPApp, connected: Bool) -> String {
+        (connected ? "\(app.name) will start jit's MCP server." : "\(app.name) no longer starts jit's MCP server.") +
+            " Quit and reopen \(app.name) to pick this up."
+    }
+
+    static func disconnectMessage(_ app: MCPApp) -> String {
+        "\(app.name)'s agent can no longer list or run your AI jobs. Your jobs stay; connecting again brings them back."
+    }
 }
 
 // MARK: - New AI Job

@@ -72,6 +72,12 @@ struct AIJobsView: View {
             WindowEmptyState(tint: Color(StatusMark.green), title: Format.jobsEmptyTitle, message: Format.jobsEmptyMessage) {
                 EmptyView()
             }
+            // Differs from frame A, which is only the empty message: someone
+            // who opens AI Jobs to connect Claude Desktop or Cursor before any
+            // job exists had nowhere to do it here.
+            if !model.connectableApps.isEmpty {
+                appsCard.padding([.horizontal, .bottom], Win.s6)
+            }
         } else {
             ScrollView {
                 VStack(spacing: Win.s5) {
@@ -149,12 +155,13 @@ struct AIJobsView: View {
     /// agents always can, through `jit job run`.
     private var appsCard: some View {
         JobsCard(eyebrow: Format.jobsAppsEyebrow, tint: Design.Label.secondary) {
-            if model.claudeDesktopInstalled {
-                AppRow(name: "Claude Desktop", fact: Format.claudeDesktopFact(model.claudeDesktopMCP)) {
-                    if model.claudeDesktopMCP?.isConnected == true {
-                        Button("Disconnect…", action: actions.disconnect).buttonStyle(AppButton(kind: .quiet))
-                    } else if model.claudeDesktopMCP != nil {
-                        Button("Connect", action: actions.connect).buttonStyle(AppButton(kind: .secondary))
+            ForEach(model.connectableApps) { app in
+                let status = model.mcpStatus[app.id]
+                AppRow(name: app.name, fact: Format.mcpFact(app, status)) {
+                    if status?.isConnected == true {
+                        Button("Disconnect…") { actions.disconnect(app) }.buttonStyle(AppButton(kind: .quiet))
+                    } else if status != nil {
+                        Button("Connect") { actions.connect(app) }.buttonStyle(AppButton(kind: .secondary))
                     }
                 }
             }
@@ -205,7 +212,7 @@ struct AIJobsActions {
     var newJob: () -> Void = {}
     var review: (JobProposal) -> Void = { _ in }
     var reviewJob: (JobStatus) -> Void = { _ in }
-    var connect: () -> Void = {}
-    var disconnect: () -> Void = {}
+    var connect: (MCPApp) -> Void = { _ in }
+    var disconnect: (MCPApp) -> Void = { _ in }
     var fit: (CGFloat) -> Void = { _ in }
 }

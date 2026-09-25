@@ -75,3 +75,42 @@ public struct MCPStatus: Codable, Sendable, Equatable {
         installed && runnable
     }
 }
+
+/// The AI apps `jit mcp install` can connect, mirrored from jit's own table
+/// (internal/cli/mcp.go, `mcpClients`): the id is its `--client` value.
+public enum MCPApp: String, CaseIterable, Sendable, Identifiable {
+    case claudeDesktop = "claude-desktop"
+    case cursor
+
+    public var id: String {
+        rawValue
+    }
+
+    public var name: String {
+        switch self {
+        case .claudeDesktop: "Claude Desktop"
+        case .cursor: "Cursor"
+        }
+    }
+
+    /// Where the app is installed, which is when its row is shown.
+    public var appPath: String {
+        switch self {
+        case .claudeDesktop: "/Applications/Claude.app"
+        case .cursor: "/Applications/Cursor.app"
+        }
+    }
+
+    /// How its agent reaches the jobs, for the connected row.
+    public var via: String {
+        switch self {
+        case .claudeDesktop: "Cowork asks through jit mcp"
+        case .cursor: "its agent asks through jit mcp"
+        }
+    }
+
+    /// The `jit mcp` arguments that connect, disconnect or read it.
+    public func arguments(_ verb: String) -> [String] {
+        ["mcp", verb, "--client", rawValue]
+    }
+}

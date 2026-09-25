@@ -95,8 +95,10 @@ final class MenuModel: ObservableObject {
     /// jit's MCP server, and what just happened in the window.
     @Published var jobs: [JobStatus] = []
     @Published var jobProposals: [JobProposal] = []
-    @Published var claudeDesktopMCP: MCPStatus?
-    @Published var claudeDesktopInstalled = false
+    /// Per AI app (MCPApp id): whether jit's MCP server is set up in it, and
+    /// which of them are installed on this Mac.
+    @Published var mcpStatus: [String: MCPStatus] = [:]
+    @Published var installedApps: Set<String> = []
     /// The New AI Job sheet: its draft (an agent's proposal pre-fills it),
     /// the service's preview of it, the profiles in its folder, and whether
     /// the approval's Touch ID is up.
