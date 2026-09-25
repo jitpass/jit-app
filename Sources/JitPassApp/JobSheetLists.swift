@@ -94,7 +94,7 @@ struct JobRunsPicker: View {
         let draft = model.jobDraft
         if model.jobTyping {
             TextField("", text: $model.jobDraft.command)
-                .textFieldStyle(.plain).font(Win.command).appField()
+                .textFieldStyle(.plain).font(Design.Text.command).appField()
             hint(Format.jobTypingHint)
         } else if draft.argv.isEmpty {
             list
@@ -108,7 +108,7 @@ struct JobRunsPicker: View {
                 Button("Another command…") { model.jobTyping = true }
             } label: {
                 HStack(spacing: Win.s4) {
-                    Text(draft.command).font(Win.command).lineLimit(1).truncationMode(.middle)
+                    Text(draft.command).font(Design.Text.command).lineLimit(1).truncationMode(.middle)
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 8, weight: .semibold)).opacity(0.55)
                 }
@@ -192,7 +192,7 @@ struct JobMoreOptions: View {
                         if draft.output.isEmpty {
                             Text("No output folder").font(Win.sub).foregroundStyle(.secondary)
                         } else {
-                            Text(Format.home(draft.output)).font(Win.command).lineLimit(1).truncationMode(.head)
+                            Text(Format.home(draft.output)).font(Design.Text.command).lineLimit(1).truncationMode(.head)
                         }
                         Spacer(minLength: Win.s4)
                         if !draft.output.isEmpty {
