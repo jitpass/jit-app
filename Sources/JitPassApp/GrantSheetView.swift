@@ -47,6 +47,9 @@ struct GrantSheetView: View {
         }
         .padding(Win.s6)
         .frame(width: Win.sheetWide)
+        // app-sheet-material is the window's own material; left unset, macOS
+        // paints its default sheet, warmer than the window it drops from.
+        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onAppear {
             draft = model.grantPrefill ?? GrantDraft()
         }
