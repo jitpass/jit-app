@@ -36,6 +36,9 @@ extension Format {
 
     /// The footer states; it configures nothing.
     static func jobsFooter(_ board: JobsBoard) -> String {
+        if board.runs == 0 {
+            return jobsCount(board.jobCount) + " · none run yet"
+        }
         let runs = board.runs == 1 ? "1 run" : "\(board.runs) runs"
         return jobsCount(board.jobCount) + " · " + runs + " since each was approved"
     }
@@ -67,12 +70,15 @@ extension Format {
     // MARK: - A job's row
 
     /// "· python list_guest_users.py": the program's name and its arguments.
+    /// What tells two jobs apart on their row: the script an interpreter
+    /// runs (`list_guest_users.py`), else the program. The whole command is
+    /// on the review sheet; cut from the front here, it read as "…ython".
     static func jobCommand(_ job: JobStatus) -> String {
         guard let first = job.argv.first else {
             return ""
         }
-        let program = (first as NSString).lastPathComponent
-        return "· " + ([program] + job.argv.dropFirst()).joined(separator: " ")
+        let script = job.argv.count > 1 && !job.argv[1].hasPrefix("-") ? job.argv[1] : first
+        return "· " + (script as NSString).lastPathComponent
     }
 
     static func jobAsks(_ job: JobStatus) -> String {
@@ -155,7 +161,7 @@ extension Format {
     static let jobSheetTitle = "New AI Job"
     static let jobRefusedName = "jit won't approve this"
     static let jobFailure = "Nothing was approved"
-    static let jobFooterWaiting = "Waiting for Touch ID. The service is asking, not this app."
+    static let jobFooterWaiting = "Waiting for Touch ID…"
     static let jobOutputHint = "The tool is told which new files appear here. It gets paths, never their contents."
 
     static let jobNoProfiles = "jit found no profiles on this Mac. A job gets its secrets from one: " +
@@ -191,11 +197,13 @@ extension Format {
         "Written by \(proposal?.launchedBy ?? "the AI tool"). jit does not check it."
     }
 
-    static func jobRunsHint(_: JobDraft, preview: JobPreview?) -> String {
-        if let exe = preview?.exe {
-            return "Runs \(home(exe)), exactly this, with no arguments added"
+    /// Where the program was found only when the command does not already
+    /// say it: `python3` is resolved on PATH, `.venv/bin/python` is not.
+    static func jobRunsHint(_ draft: JobDraft, preview: JobPreview?) -> String {
+        if let exe = preview?.exe, let first = draft.argv.first, !first.contains("/") {
+            return "Exactly this, with no arguments added. \(first) is \(home(exe))."
         }
-        return "Exactly this, with no arguments added"
+        return "Exactly this, with no arguments added."
     }
 
     static func jobAskHint(_ ask: JobAsk) -> String {

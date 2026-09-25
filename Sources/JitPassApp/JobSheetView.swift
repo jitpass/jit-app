@@ -130,17 +130,24 @@ struct JobSheetView: View {
     /// appear in what the script prints and are not keys.
     private func secretRows(_ secrets: [JobSecretStatus]) -> some View {
         VStack(alignment: .leading, spacing: Win.s3) {
-            AppCardRows {
+            VStack(spacing: 0) {
                 ForEach(Array(secrets.enumerated()), id: \.element.name) { index, secret in
-                    AppRow(name: secret.name, last: index == secrets.count - 1) {
+                    HStack(spacing: Win.s5) {
+                        // A key name is mono, as the system reserves it for.
+                        Text(secret.name).font(Win.command).lineLimit(1).truncationMode(.middle)
+                        Spacer(minLength: Win.s5)
                         AppSegmented(
                             items: [AppSegmentItem(value: false, title: "Hidden"), AppSegmentItem(value: true, title: "Shown")],
                             selection: shownBinding(secret.name)
                         )
                     }
+                    .padding(.vertical, Win.s4)
+                    if index < secrets.count - 1 {
+                        Rectangle().fill(WindowSurface.rowLine).frame(height: 1)
+                    }
                 }
             }
-            .padding(.horizontal, Win.s4)
+            .padding(.horizontal, Win.s5)
             .background(WindowSurface.card, in: RoundedRectangle(cornerRadius: Win.card, style: .continuous))
             hint(Format.jobShownHint)
         }
