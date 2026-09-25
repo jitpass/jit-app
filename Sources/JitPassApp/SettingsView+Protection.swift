@@ -118,10 +118,17 @@ extension SettingsView {
                 AppRow(
                     name: "A session expires, or a scheduled scan finds something new",
                     fact: "The next aws call fails until you renew; or a scan found a secret the last one did not, and Findings has it.",
+                    wraps: true
+                ) {
+                    AppSwitch(isOn: notifyChangesBinding)
+                }
+                AppRow(
+                    name: "An AI job stops, or an AI tool proposes one",
+                    fact: "A changed file stopped a job, or an agent asks to add one. Either waits for you in AI Jobs.",
                     wraps: true,
                     last: true
                 ) {
-                    AppSwitch(isOn: notifyChangesBinding)
+                    AppSwitch(isOn: notifyJobsBinding)
                 }
             }
         }
@@ -135,7 +142,7 @@ extension SettingsView {
                 AppNoteRow(
                     mark: .dot(Color(StatusMark.amber)),
                     name: "macOS has notifications off for JitPass",
-                    fact: "Both switches below stay set. Nothing is delivered until macOS allows it."
+                    fact: "The switches below stay set. Nothing is delivered until macOS allows it."
                 ) {
                     Button("Open System Settings…", action: actions.openNotificationSettings).buttonStyle(AppButton())
                 }
@@ -208,5 +215,9 @@ extension SettingsView {
 
     private var notifyChangesBinding: Binding<Bool> {
         Binding(get: { model.notifyChanges }, set: actions.setNotifyChanges)
+    }
+
+    private var notifyJobsBinding: Binding<Bool> {
+        Binding(get: { model.notifyJobs }, set: actions.setNotifyJobs)
     }
 }

@@ -60,6 +60,7 @@ final class MenuModel: ObservableObject {
     @Published var decoyReadsByProgram: [String: Int] = [:]
     @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var notifyChanges = Notifier.changesEnabled
+    @Published var notifyJobs = Notifier.jobsEnabled
     /// What macOS allows, re-read when Settings opens and whenever the app
     /// comes forward (the answer changes in System Settings).
     @Published var notificationPermission: NotificationPermission = .unknown
