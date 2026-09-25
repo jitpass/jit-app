@@ -130,7 +130,10 @@ back to printing the cask for a manual push if that token ever goes missing.
 downloads that tag's tarball from github.com, checks it against the
 release's own `checksums.txt`, verifies the binary's Developer ID team and
 hardened runtime, and stages it under `dist/`; `bundle.sh` copies it to
-`Contents/MacOS/jit` with the completions under `Resources/`. The `jitpass`
+`Contents/Helpers/JitPassAgent.app/Contents/MacOS/jit`, the main executable
+of jit's own helper bundle (`com.jitpass.agent`), leaves `Contents/MacOS/jit`
+as a symlink to it for installs made before, and puts the completions under
+`Resources/`. `sign.sh` signs the helper first, then the app; never `--deep`. The `jitpass`
 cask (`scripts/cask.sh`) installs the app and symlinks that jit onto PATH.
 One product, one number: an app tag is the bundled jit's version, plus a
 fourth part for an app-only release (`v1.5.8` ships jit 1.5.8, `v1.5.8.1`

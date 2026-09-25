@@ -35,7 +35,7 @@ cask "jitpass" do
   depends_on macos: :sonoma
 
   app "$APP_NAME.app"
-  binary "#{appdir}/$APP_NAME.app/Contents/MacOS/jit"
+  binary "#{appdir}/$APP_NAME.app/$HELPER_JIT_REL"
   bash_completion "#{appdir}/$APP_NAME.app/Contents/Resources/completions/jit.bash"
   fish_completion "#{appdir}/$APP_NAME.app/Contents/Resources/completions/jit.fish"
   zsh_completion "#{appdir}/$APP_NAME.app/Contents/Resources/completions/_jit"
