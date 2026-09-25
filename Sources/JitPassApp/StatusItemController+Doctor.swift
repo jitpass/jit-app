@@ -307,6 +307,7 @@ extension StatusItemController {
                 doctorProgress.outcome = nil
             }
         }
+        vaultKeyDoctorLanded()
     }
 }
 

@@ -184,6 +184,14 @@ enum Design {
         static let tertiary = Color.white.opacity(0.25)
     }
 
+    /// Opacities that are rules of a control, not surfaces.
+    enum Opacity {
+        /// 45%. A disabled button, which keeps its label (windows.md,
+        /// Controls: "A disabled button is 45% opacity"). Not yet a named
+        /// token in the artifact's `tokens.json`.
+        static let disabled = 0.45
+    }
+
     /// The macOS accent for default buttons, switches that are on, and a
     /// checked checkbox. A control takes the system accent, never the
     /// brand green: green is the mark, a healthy state and a filled

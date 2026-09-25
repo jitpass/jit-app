@@ -20,6 +20,11 @@ struct VaultKeySheet: View {
         model.recoveryFile
     }
 
+    /// The one button Return presses (`VaultKeySheetDefault`).
+    private var returnKey: VaultKeySheetDefault {
+        .pick(file, saving: model.recoveryFileSaving, saveFailed: model.recoveryFileFailure != nil)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: Win.s5) {
             VStack(alignment: .leading, spacing: Win.s3) {
@@ -63,7 +68,7 @@ struct VaultKeySheet: View {
         VStack(spacing: 0) {
             HStack(alignment: .top, spacing: Win.s5) {
                 Text("✓").font(Win.rowFact.weight(.bold)).foregroundStyle(Color(StatusMark.green))
-                    .frame(width: 16).padding(.top, 2)
+                    .frame(width: Design.Size.glyph).padding(.top, Design.Space.one)
                 VStack(alignment: .leading, spacing: Win.s1) {
                     Text(name).font(Win.rowName).fixedSize(horizontal: false, vertical: true)
                     Text(fact).font(Win.rowFact).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -77,10 +82,9 @@ struct VaultKeySheet: View {
         }
     }
 
-    /// No file yet (B), a file that counts (C), or one that does not: the
-    /// row says when, and how many secrets against the vault's, so a file
-    /// older than recent changes shows it. Saving is the export the Vault
-    /// window already has, returning here.
+    /// No file yet (B), a file that counts (C), or one jit would refuse:
+    /// the row says when, and jit's verdict on it. Saving is the export
+    /// the Vault window already has, returning here.
     @ViewBuilder private var recoveryRow: some View {
         if model.recoveryFileSaving {
             AppNoteRow(mark: .busy, name: "Saving the recovery file…", fact: Format.vaultKeyWaiting, last: true) {
@@ -91,23 +95,24 @@ struct VaultKeySheet: View {
                 mark: .failed, name: "The recovery file was not saved",
                 fact: "jit did not save it. Its own words are below.", verbatim: failure, last: true
             ) {
-                saveButton("Save Recovery File…", primary: true)
+                saveButton("Save Recovery File…")
             }
         } else {
             AppNoteRow(
                 mark: .dot(Color(file.ready ? StatusMark.green : StatusMark.amber)),
                 name: Format.recoveryFileName(file),
-                fact: Format.recoveryFileFact(file, vault: model.cli?.vault?.secretsStored ?? 0),
+                fact: Format.recoveryFileFact(file),
                 last: true
             ) {
-                file.ready ? saveButton("Save Another…", primary: false) : saveButton("Save Recovery File…", primary: true)
+                saveButton(file.ready ? "Save Another…" : "Save Recovery File…")
             }
         }
     }
 
-    /// The next step takes Return: saving, until there is a file that counts.
-    @ViewBuilder private func saveButton(_ title: String, primary: Bool) -> some View {
-        if primary {
+    /// Saving takes Return when it is the next step (`returnKey`), and is
+    /// the quiet kind otherwise.
+    @ViewBuilder private func saveButton(_ title: String) -> some View {
+        if returnKey == .saveRecoveryFile {
             Button(title, action: actions.saveRecoveryFile).buttonStyle(AppButton(kind: .primary))
                 .keyboardShortcut(.defaultAction)
         } else {
@@ -116,24 +121,26 @@ struct VaultKeySheet: View {
     }
 
     private var footer: some View {
-        let ready = file.ready && !model.recoveryFileSaving
+        let enabled = VaultKeySheetDefault.moveEnabled(file, saving: model.recoveryFileSaving)
         return HStack(spacing: Win.s4) {
             Button(showsCommand ? "Hide what jit runs ˅" : "Show what jit runs ›") { showsCommand.toggle() }
                 .buttonStyle(AppButton(kind: .plain))
             Spacer(minLength: Win.s5)
-            if ready {
+            if enabled {
                 Text("Touch ID follows.").font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             }
             Button("Cancel", action: actions.cancelVaultKeyMove).buttonStyle(AppButton(kind: .secondary))
                 .keyboardShortcut(.cancelAction)
-            if ready {
+            if returnKey == .moveKey {
                 // Return moves: it destroys nothing, and the reverse exists.
                 Button("Move Key", action: actions.confirmVaultKeyMove).buttonStyle(AppButton(kind: .primary))
                     .keyboardShortcut(.defaultAction)
             } else {
+                // Pressable after a failed save when an earlier file still
+                // counts, but Return belongs to the save row then.
                 Button("Move Key", action: actions.confirmVaultKeyMove).buttonStyle(AppButton(kind: .secondary))
-                    .disabled(true)
-                    .opacity(0.45)
+                    .disabled(!enabled)
+                    .opacity(enabled ? 1 : Design.Opacity.disabled)
             }
         }
     }

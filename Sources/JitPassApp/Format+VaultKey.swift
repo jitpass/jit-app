@@ -13,21 +13,46 @@ extension Format {
     static let vaultKeyName = "Vault key"
 
     /// The mono detail beside the name, as the PATH row names its path.
-    static func vaultKeyDetail(_ row: VaultKeyRow) -> String {
+    /// A lost key's is one word, so "Vault key missing" is never cut by
+    /// the Restore button beside it. An unfinished move says where jit
+    /// says the key is now.
+    static func vaultKeyDetail(_ row: VaultKeyRow, now: VaultKeyPlace?) -> String {
         switch row {
         case .keychain: "in your login keychain"
-        case .secureEnclave, .lost: "in the Secure Enclave"
+        case .secureEnclave, .checking: "in the Secure Enclave"
+        case .lost: "missing"
+        case .unfinished: now == .secureEnclave ? "in the Secure Enclave" : "in your login keychain"
         }
     }
 
-    static func vaultKeyFact(_ row: VaultKeyRow) -> String {
+    /// `movable`: false for an empty vault, which jit reports no recovery
+    /// file for, so the row says why it offers no move.
+    static func vaultKeyFact(_ row: VaultKeyRow, movable: Bool = true) -> String {
         switch row {
-        case .keychain: "JitPass asks for Touch ID. A program running as you could read it."
+        case .keychain:
+            movable ? "JitPass asks for Touch ID. A program running as you could read it."
+                : "A program running as you could read it. It can move once the vault holds a secret."
         case .secureEnclave: "Only JitPass can use it, after Touch ID or your password."
+        case .checking: "Checking that this Mac's Secure Enclave has it…"
         // Doctor's Fix now card, in its own words: it carries the restore.
         case .lost: "This Mac's Secure Enclave doesn't have the vault key. The vault can't open here."
+        case let .unfinished(target): target == .secureEnclave
+            ? "Moving it into the Secure Enclave did not finish. Vault changes are refused until it does."
+            : "Moving it back to your keychain did not finish. Vault changes are refused until it does."
         }
     }
+
+    /// The failure row's button: the question again, or the half-done
+    /// move run again as it is.
+    static func vaultKeyRetryTitle(finishes: Bool) -> String {
+        finishes ? "Finish Move" : "Try Again…"
+    }
+
+    // MARK: - Restore, in the Doctor window
+
+    static let restoreQueued = "Restore from Recovery File… starts when this check finishes."
+    static let restoreBusy = "Another action is still running. Restore from Recovery File… when it finishes."
+    static let restoreNotNeeded = "This Mac has the vault key now, so there is nothing to restore."
 
     static let vaultKeyMoving = "Moving the key…"
     static let vaultKeyWaiting = "Waiting for Touch ID"
@@ -53,22 +78,17 @@ extension Format {
         return "Recovery file saved " + day(at, now: now)
     }
 
-    /// "11:42 · 67 secrets · the vault holds 67": when, what it holds, and
-    /// what the vault holds now, so a file older than recent changes
-    /// shows it. Without a count, the part that decides instead.
-    static func recoveryFileFact(_ file: RecoveryFile, vault: Int, now: Date = Date()) -> String {
-        let holds = "the vault holds \(vault)"
+    /// When, and jit's own verdict on it: newer than every secret (the
+    /// move can go), or secrets added or changed since (jit refuses it).
+    /// jit records only the time, so nothing here claims a count.
+    static func recoveryFileFact(_ file: RecoveryFile, now: Date = Date()) -> String {
         switch file {
         case .none:
-            return "Every secret, encrypted with a passphrase you choose."
-        case let .current(at, secrets):
-            return ([when(at, now: now)] + (secrets.map { [secretsWord($0)] } ?? []) + [holds]).joined(separator: " · ")
-        case let .behind(at, secrets, _):
-            return [when(at, now: now), secretsWord(secrets), holds].joined(separator: " · ")
+            "Every secret, encrypted with a passphrase you choose."
+        case let .current(at):
+            [when(at, now: now), "newer than every secret in the vault"].joined(separator: " · ")
         case let .older(at):
-            return [when(at, now: now), "older than your newest secret"].joined(separator: " · ")
-        case let .expired(at):
-            return [when(at, now: now), "more than 30 days old"].joined(separator: " · ")
+            [when(at, now: now), "secrets were added or changed after it was saved"].joined(separator: " · ")
         }
     }
 
@@ -81,10 +101,6 @@ extension Format {
         + "Your secrets, grants and AI Jobs stay as they are. Touch ID follows."
 
     // MARK: - Helpers
-
-    private static func secretsWord(_ count: Int) -> String {
-        count == 1 ? "1 secret" : "\(count) secrets"
-    }
 
     /// "today", "yesterday", "3 days ago".
     private static func day(_ date: Date, now: Date) -> String {

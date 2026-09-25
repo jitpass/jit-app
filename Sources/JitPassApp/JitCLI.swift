@@ -10,13 +10,8 @@ import JitAgentClient
 /// run from `.build/` has no bundled copy and falls back to the Homebrew
 /// prefixes a GUI app's PATH usually lacks.
 enum JitCLI {
-    static var candidates: [String] {
-        let bundled = CommandLineTool.bundledJit(in: Bundle.main.bundleURL)
-        return [bundled].compactMap { $0 } + ["/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
-    }
-
     static var executable: String? {
-        candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
+        CommandLineTool.runnableJit(in: Bundle.main.bundleURL)
     }
 
     /// Every `jit status` run is itself a line in `jit audit`, so the panel
@@ -322,5 +317,5 @@ extension JitCLI {
     /// Whether the jit this app runs is its own helper, the only one that
     /// can reach the Secure Enclave. A dev build's Homebrew jit is not.
     /// Read once: the bundle does not change under a running app.
-    static let isBundledHelper = VaultKeyRow.isBundledHelper(executable, bundleURL: Bundle.main.bundleURL)
+    static let isBundledHelper = CommandLineTool.runsBundledJit(in: Bundle.main.bundleURL)
 }

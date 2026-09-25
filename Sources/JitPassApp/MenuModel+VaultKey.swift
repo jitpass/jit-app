@@ -9,12 +9,30 @@ import JitAgentClient
 extension MenuModel {
     /// The Protection card's Vault key row, or nil where it is not drawn.
     var vaultKeyRow: VaultKeyRow? {
-        VaultKeyRow.state(cli?.vault, bundledHelper: JitCLI.isBundledHelper, keyLost: VaultKeyRow.keyLost(doctor))
+        VaultKeyRow.state(
+            cli?.vault, bundledHelper: JitCLI.isBundledHelper, keyLost: VaultKeyRow.keyLost(doctor),
+            unfinished: VaultKeyMove.unfinished(pending: vaultKeyMovePending, report: doctor)
+        )
     }
 
-    /// The move sheet's gate.
+    /// Where jit says the key is now.
+    var vaultKeyPlace: VaultKeyPlace? {
+        VaultKeyPlace.of(cli?.vault)
+    }
+
+    /// The move sheet's gate: jit's own.
     var recoveryFile: RecoveryFile {
-        RecoveryFile.check(cli?.vault, recorded: recoveryFileRecorded)
+        RecoveryFile.check(cli?.vault)
+    }
+
+    /// Whether the move in can be offered at all (not on an empty vault).
+    var canMoveVaultKeyIn: Bool {
+        VaultKeyRow.canMoveIn(cli?.vault)
+    }
+
+    /// The failure row's Try Again: which way, and whether it finishes.
+    var vaultKeyRetry: VaultKeyRetry? {
+        VaultKeyMove.retry(pending: vaultKeyMovePending, now: vaultKeyPlace, report: doctor)
     }
 
     /// Doctor's Recommended card.

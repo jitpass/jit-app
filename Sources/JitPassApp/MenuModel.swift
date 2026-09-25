@@ -209,8 +209,13 @@ final class MenuModel: ObservableObject {
     /// words when it did not.
     @Published var recoveryFileSaving = false
     @Published var recoveryFileFailure: String?
-    /// A recovery file saved from the app and the count jit said it holds.
-    @Published var recoveryFileRecorded: RecordedExport?
+    /// The place the app last asked jit to move the key to, kept until
+    /// the key is there and jit's marker is gone: jit's marker does not
+    /// say which way a move was going (`VaultKeyMove`).
+    @Published var vaultKeyMovePending: VaultKeyPlace?
+    /// The Settings row's Restore, waiting for the doctor check running
+    /// when it was pressed.
+    @Published var vaultKeyRestoreQueued = false
     /// Doctor's Recommended offer to move the key, dismissed for good.
     @Published var vaultKeyOfferDismissed = false
     @Published var launchAtLogin = false

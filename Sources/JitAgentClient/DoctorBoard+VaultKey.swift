@@ -9,12 +9,13 @@ import Foundation
 extension DoctorBoard {
     static let vaultKeyOfferID = "vault-key-offer"
 
-    /// "Move…" opens the move sheet; ··· holds Don't Suggest Again.
+    /// "Move…" opens the move sheet; ··· holds Don't Suggest Again, which
+    /// has no undo: the Settings row is where the move stays on offer.
     static var vaultKeyOffer: DoctorCard {
         var card = DoctorCard(
             id: vaultKeyOfferID, tier: .recommended, title: "Keep the vault key in the Secure Enclave", items: []
         )
-        card.reason = "In the keychain, a program running as you could read it. One Touch ID moves it."
+        card.reason = "In the keychain, a program running as you could read it. Touch ID moves it."
         card.primary = DoctorButton("Move…", .moveVaultKey)
         card.primaryProminent = false
         card.menu = [.button(DoctorButton("Don't Suggest Again", .dismissVaultKeyOffer))]
@@ -37,7 +38,7 @@ extension DoctorBoard {
     }
 }
 
-extension DoctorAdvice {
+public extension DoctorAdvice {
     /// The lost key's restore: the import the Doctor window already runs
     /// for a missing key, after the `jit vault init` jit's fix names.
     static let restoreRecoveryFile = DoctorAction(

@@ -11,23 +11,32 @@ import JitAgentClient
 /// jit's y/N would. The spinner and the outcome land on the Protection
 /// card's Vault key row; success is the window's banner.
 extension StatusItemController {
-    /// Where the app keeps the count jit said a recovery file holds, next
-    /// to jit's own record of when it was saved.
-    static let recoveryFileKey = "recoveryFileExport"
     static let vaultKeyOfferDismissedKey = "vaultKeyOfferDismissed"
+    /// The move the app started and jit may not have finished: kept across
+    /// a relaunch, because jit's marker outlives the app.
+    static let vaultKeyMovePendingKey = "vaultKeyMovePending"
 
     /// The saved preferences the row and Doctor's offer read.
     func loadVaultKeyPreferences() {
         let defaults = UserDefaults.standard
         model.vaultKeyOfferDismissed = defaults.bool(forKey: Self.vaultKeyOfferDismissedKey)
-        model.recoveryFileRecorded = defaults.data(forKey: Self.recoveryFileKey)
-            .flatMap { try? JSONDecoder().decode(RecordedExport.self, from: $0) }
+        model.vaultKeyMovePending = defaults.string(forKey: Self.vaultKeyMovePendingKey).flatMap(VaultKeyPlace.init(rawValue:))
+    }
+
+    private func setVaultKeyMovePending(_ place: VaultKeyPlace?) {
+        model.vaultKeyMovePending = place
+        if let place {
+            UserDefaults.standard.set(place.rawValue, forKey: Self.vaultKeyMovePendingKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.vaultKeyMovePendingKey)
+        }
     }
 
     /// Sheet B or C, over Settings. Doctor's Move… comes here too, so the
-    /// move happens where its promise says it can be undone.
+    /// move happens where the way back is. Never for an empty vault: jit
+    /// reports no recovery file for one, so Move Key could never open.
     func openVaultKeyMove() {
-        guard model.settingsApplying == nil else {
+        guard model.settingsApplying == nil, model.canMoveVaultKeyIn else {
             return
         }
         openSettings()
@@ -36,8 +45,8 @@ extension StatusItemController {
     }
 
     /// "Save Recovery File…": the Vault window's export, its save panel and
-    /// passphrase, returning to the sheet. jit's closing line carries the
-    /// count, kept beside jit's own record of the time.
+    /// passphrase, returning to the sheet, which then reads jit's own record
+    /// of it from `jit status`.
     func saveRecoveryFile() {
         guard !model.recoveryFileSaving, let (path, passphrase) = askExport() else {
             return
@@ -54,30 +63,16 @@ extension StatusItemController {
                 }
                 model.recoveryFileSaving = false
                 model.cli = status ?? model.cli
-                switch result {
-                case let .success(output):
-                    recordExport(output, status: status)
-                case let .failure(error):
+                if case let .failure(error) = result {
                     model.recoveryFileFailure = Self.describe(error)
                 }
             }
         }
     }
 
-    private func recordExport(_ output: String, status: CLIStatus?) {
-        guard let count = RecordedExport.count(in: output), let unix = status?.vault?.exportUnixTime else {
-            return
-        }
-        let recorded = RecordedExport(unixTime: unix, secrets: count)
-        model.recoveryFileRecorded = recorded
-        if let data = try? JSONEncoder().encode(recorded) {
-            UserDefaults.standard.set(data, forKey: Self.recoveryFileKey)
-        }
-    }
-
     /// Move Key: the sheet closes, the row carries the wait.
     func confirmVaultKeyMove() {
-        guard model.recoveryFile.ready else {
+        guard VaultKeySheetDefault.moveEnabled(model.recoveryFile, saving: model.recoveryFileSaving) else {
             return
         }
         model.vaultKeySheet = false
@@ -104,25 +99,40 @@ extension StatusItemController {
         moveVaultKey(to: .keychain)
     }
 
-    /// The failure row's Try Again…: the same question again, for the way
-    /// the key was going (sheet C in, alert G back).
+    /// The failure row's Try Again… and the unfinished row's Finish Move:
+    /// the move that failed, never the opposite one, which jit refuses
+    /// while a move is half done. A half-done move runs again as it is;
+    /// one that changed nothing asks again (sheet C in, alert G back).
     func retryVaultKey() {
-        switch model.vaultKeyRow {
-        case .secureEnclave: confirmMoveBack()
-        default: openVaultKeyMove()
+        guard let retry = model.vaultKeyRetry else {
+            return
+        }
+        if retry.finishes {
+            moveVaultKey(to: retry.target)
+        } else if retry.target == .secureEnclave {
+            openVaultKeyMove()
+        } else {
+            confirmMoveBack()
         }
     }
 
     /// One `jit vault rekey --wrapper …`, then jit is asked where the key
-    /// is now, so the row and the failure's title say what is true rather
-    /// than what was meant.
+    /// is now, so the banner, the row and the failure's title say what is
+    /// true rather than what was meant or what the exit code implied.
     private func moveVaultKey(to target: VaultKeyPlace) {
         guard model.settingsApplying == nil else {
             return
         }
         model.settingsApplying = .vaultKey
         model.settingsOutcome = nil
-        let recorded = model.recoveryFileRecorded
+        let before = model.vaultKeyPlace
+        // A move this app started toward the same place and never saw end.
+        let finishing = model.vaultKeyMovePending == target
+        // A marker the app did not make (a move run in a terminal) is not
+        // the app's to name: jit's refusal says which way it goes.
+        if VaultKeyMove.markerPresent(model.doctor) != true || model.vaultKeyMovePending != nil {
+            setVaultKeyMovePending(target)
+        }
         Task.detached {
             let result = JitCLI.apply(target.moveArguments)
             JitCLI.forgetStatus()
@@ -133,17 +143,17 @@ extension StatusItemController {
                 }
                 model.settingsApplying = nil
                 model.cli = status ?? model.cli
-                let now = status?.vault?.keyStore.flatMap(VaultKeyPlace.init(rawValue:))
-                switch result {
-                case .success:
-                    model.settingsOutcome = .vaultKeyMoved(to: target)
-                case let .failure(JitCLI.CLIError.failed(line)):
-                    let behind = RecoveryFile.newSecrets(status?.vault, recorded: recorded)
-                    model.settingsOutcome = .vaultKeyFailed(to: target, now: now, line: line, newSecrets: behind)
-                case .failure:
-                    model.settingsOutcome = .vaultKeyFailed(
-                        to: target, now: now, line: "jit is not installed where the app can find it."
-                    )
+                let now = VaultKeyPlace.of(status?.vault)
+                let failure: String? = switch result {
+                case .success: nil
+                case let .failure(JitCLI.CLIError.failed(line)): line
+                case .failure: "jit is not installed where the app can find it."
+                }
+                model.settingsOutcome = .vaultKeyMoveEnded(
+                    to: target, before: before, now: now, finishing: finishing, failure: failure
+                )
+                if failure == nil, now == target {
+                    setVaultKeyMovePending(nil)
                 }
                 settingsWindow.reclaimFocus()
                 pollStatus()
@@ -152,22 +162,51 @@ extension StatusItemController {
         }
     }
 
-    /// The Settings row's Restore from Recovery File…: Doctor's Fix now
-    /// card's own button, run in the Doctor window, where its progress and
-    /// how it ended are shown.
-    func restoreVaultKey() {
-        openDoctor()
-        guard let report = model.doctor,
-              let card = DoctorBoard.make(report).cards.first(where: { $0.items.contains(where: VaultKeyRow.isLostFinding) }),
-              let restore = card.primary, doctorIdle
-        else {
-            return
+    /// A doctor report landed: the app's record of its move goes once jit
+    /// has no marker (unless a move is running now), and a Restore pressed
+    /// during the check runs now.
+    func vaultKeyDoctorLanded() {
+        if VaultKeyMove.settled(model.doctor), model.settingsApplying != .vaultKey {
+            setVaultKeyMovePending(nil)
         }
-        runBoardButton(restore, card: card, key: card.id)
+        if model.vaultKeyRestoreQueued {
+            model.vaultKeyRestoreQueued = false
+            model.doctorMessage = nil
+            if VaultKeyRow.keyLost(model.doctor) == false {
+                model.doctorMessage = Format.restoreNotNeeded
+            } else {
+                restoreVaultKey()
+            }
+        }
     }
 
-    /// Doctor's ··· "Don't Suggest Again". The Settings row still offers
-    /// the move.
+    /// The Settings row's Restore from Recovery File…: the lost key's own
+    /// restore (`DoctorAdvice.restoreRecoveryFile`), run in the Doctor
+    /// window, where its progress and how it ended are shown. It always
+    /// says something: it runs, it waits for the check running now, or it
+    /// says another action is in the way.
+    func restoreVaultKey() {
+        openDoctor()
+        guard doctorIdle else {
+            if model.doctorBusy == nil {
+                model.vaultKeyRestoreQueued = true
+                model.doctorMessage = Format.restoreQueued
+            } else {
+                model.doctorMessage = Format.restoreBusy
+            }
+            return
+        }
+        let card = model.doctor.flatMap { report in
+            DoctorBoard.make(report).cards.first { $0.items.contains(where: VaultKeyRow.isLostFinding) }
+        }
+        perform(
+            [DoctorAdvice.restoreRecoveryFile],
+            target: DoctorTarget(key: card?.id ?? "vault-key-restore", card: card, button: card?.primary)
+        )
+    }
+
+    /// Doctor's ··· "Don't Suggest Again". Final: nothing brings the card
+    /// back, and the Settings row still offers the move.
     func dismissVaultKeyOffer() {
         UserDefaults.standard.set(true, forKey: Self.vaultKeyOfferDismissedKey)
         model.vaultKeyOfferDismissed = true

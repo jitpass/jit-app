@@ -128,6 +128,11 @@ extension StatusItemController {
         if model.cli == nil {
             model.cli = JitCLI.status()
         }
+        // An enclave key is not shown healthy before doctor has said this
+        // Mac has it: the row reads "checking" until the report lands.
+        if model.vaultKeyRow == .checking {
+            refreshDoctorIfStale()
+        }
         model.updateMessage = nil
         refreshCommandLineTool()
         settingsWindow.present()
