@@ -158,8 +158,9 @@ struct JobRunsPicker: View {
 }
 
 /// The name and the output folder, out of the way: most jobs need neither
-/// changed. The closed line carries both values, so nothing that matters
-/// is out of sight.
+/// changed. The system's disclosure, a Plain link ("Show what jit runs ›"),
+/// with both values beside it while closed, so nothing that matters is out
+/// of sight. Editing a job has no name to change, only the output folder.
 struct JobMoreOptions: View {
     @ObservedObject var model: MenuModel
     let actions: JobSheetActions
@@ -169,18 +170,13 @@ struct JobMoreOptions: View {
         VStack(alignment: .leading, spacing: Win.s5) {
             HStack(spacing: Win.s5) {
                 Color.clear.frame(width: 62, height: 1)
-                Button {
-                    model.jobMoreOptions.toggle()
-                } label: {
-                    HStack(spacing: Win.s3) {
-                        Image(systemName: model.jobMoreOptions ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 9, weight: .semibold))
-                        Text(Format.jobMoreOptions(draft)).font(Win.sub).lineLimit(1)
+                HStack(spacing: Win.s3) {
+                    Button(Format.jobMoreOptions(draft, open: model.jobMoreOptions)) { model.jobMoreOptions.toggle() }
+                        .buttonStyle(AppButton(kind: .plain))
+                    if !model.jobMoreOptions {
+                        Text(Format.jobMoreOptionsValues(draft)).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1)
                     }
-                    .foregroundStyle(.secondary)
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
             }
             if model.jobMoreOptions, draft.editing == nil {
                 JobSheetRow(label: "Name") {

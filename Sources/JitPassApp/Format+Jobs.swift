@@ -186,14 +186,19 @@ extension Format {
         return "The scripts in this folder."
     }
 
-    /// The closed More options line, with both values on it.
-    static func jobMoreOptions(_ draft: JobDraft) -> String {
+    /// The disclosure's link: what it holds, never "More options".
+    static func jobMoreOptions(_ draft: JobDraft, open: Bool) -> String {
+        let what = draft.editing == nil ? "name and output folder" : "output folder"
+        return open ? "Hide " + what : "Show " + what + " ›"
+    }
+
+    /// The values beside the closed disclosure.
+    static func jobMoreOptionsValues(_ draft: JobDraft) -> String {
         let output = draft.output.isEmpty ? "no output folder" : "output in " + (draft.output as NSString).lastPathComponent
         if draft.editing != nil {
-            return "More options · \(output)"
+            return output
         }
-        let name = draft.name.isEmpty ? "not named yet" : "named \(draft.name)"
-        return "More options · \(name) · \(output)"
+        return (draft.name.isEmpty ? "not named yet" : draft.name) + " · " + output
     }
 
     static func proposalBanner(_ proposal: JobProposal) -> String {
