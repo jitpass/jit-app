@@ -11,7 +11,7 @@ enum NotificationPermission {
 
 /// Where a clicked notification takes the user.
 enum NotificationTarget: String {
-    case audit, agents, tools, findings
+    case audit, agents, tools, findings, jobs
 }
 
 /// macOS notifications: a decoy served to a reader outside any grant, a

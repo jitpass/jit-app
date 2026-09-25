@@ -14,6 +14,8 @@ extension StatusItemController {
         AIJobsActions(
             reload: { [weak self] in self?.reloadJobs() },
             remove: { [weak self] job in self?.confirmRemove(job) },
+            newJob: { [weak self] in self?.openJobSheet() },
+            review: { [weak self] proposal in self?.openProposal(proposal) },
             connect: { [weak self] in self?.setClaudeDesktop(connected: true) },
             disconnect: { [weak self] in self?.confirmDisconnect() },
             fit: { [weak self] height in self?.aiJobsWindow.fit(to: height) }
@@ -25,6 +27,21 @@ extension StatusItemController {
         model.jobsBanner = nil
         reloadJobs()
         aiJobsWindow.present()
+    }
+
+    /// A notification's click: the window, and the oldest waiting proposal's
+    /// sheet when there is one.
+    func openAIJobsForAttention() {
+        openAIJobs()
+        let client = client
+        Task.detached {
+            let proposals = (try? client.jobProposals()) ?? []
+            await MainActor.run { [weak self] in
+                if let first = proposals.min(by: { $0.unixTime < $1.unixTime }) {
+                    self?.openProposal(first)
+                }
+            }
+        }
     }
 
     /// Off the main thread: listing re-fingerprints every job folder, which
