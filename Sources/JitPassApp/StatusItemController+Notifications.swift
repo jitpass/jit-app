@@ -33,6 +33,7 @@ extension StatusItemController {
             case .agents: self?.openAgents()
             case .tools: self?.openTools()
             case .findings: self?.openScan()
+            case .jobs: self?.openAIJobsForAttention()
             }
         }
         // Before setup has asked, the switches read as on by default; the
@@ -75,6 +76,7 @@ extension StatusItemController {
     func allowNotifications() {
         UserDefaults.standard.set(model.notifyDecoys, forKey: Notifier.decoyPreferenceKey)
         UserDefaults.standard.set(model.notifyChanges, forKey: Notifier.changesPreferenceKey)
+        UserDefaults.standard.set(model.notifyJobs, forKey: Notifier.jobsPreferenceKey)
         Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
     }
 

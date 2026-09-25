@@ -60,6 +60,7 @@ final class MenuModel: ObservableObject {
     @Published var decoyReadsByProgram: [String: Int] = [:]
     @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var notifyChanges = Notifier.changesEnabled
+    @Published var notifyJobs = Notifier.jobsEnabled
     /// What macOS allows, re-read when Settings opens and whenever the app
     /// comes forward (the answer changes in System Settings).
     @Published var notificationPermission: NotificationPermission = .unknown
@@ -90,6 +91,38 @@ final class MenuModel: ObservableObject {
     /// What just happened in the Grants window; clears on the next action.
     @Published var grantBanner: String?
     @Published var grantBannerFailed = false
+    /// AI Jobs (jit design/agent-jobs.md): the approved jobs with their state,
+    /// agents' proposals waiting for the human, whether Claude Desktop starts
+    /// jit's MCP server, and what just happened in the window.
+    @Published var jobs: [JobStatus] = []
+    @Published var jobProposals: [JobProposal] = []
+    /// Per AI app (MCPApp id): whether jit's MCP server is set up in it, and
+    /// which of them are installed on this Mac.
+    @Published var mcpStatus: [String: MCPStatus] = [:]
+    @Published var installedApps: Set<String> = []
+    /// The New AI Job sheet: its draft (an agent's proposal pre-fills it),
+    /// the service's preview of it, the scripts in the profile's folder,
+    /// whether a command is being typed instead, and whether
+    /// the approval's Touch ID is up. The profiles are New Grant's list.
+    @Published var jobSheet = false
+    @Published var jobDraft = JobDraft()
+    @Published var jobPreview: JobPreview?
+    @Published var jobPreviewBusy = false
+    @Published var jobScripts: [JobScript] = []
+    @Published var jobTyping = false
+    @Published var jobBusy = false
+    @Published var jobError: String?
+    /// The human cancelled the approval's Touch ID: said in the footer, not
+    /// reported as a failure, since it was a choice.
+    @Published var jobCancelled = false
+    /// Reviewing a stopped job: which one, the files git tracks, and the
+    /// diff being shown.
+    @Published var jobReviewSheet = false
+    @Published var jobReview: JobReview?
+    @Published var jobReviewTracked: Set<String> = []
+    @Published var jobReviewDiff: String?
+    @Published var jobsBanner: String?
+    @Published var jobsBannerFailed = false
     @Published var doctor: DoctorReport?
     @Published var doctorAt: Date?
     @Published var doctorRunning = false

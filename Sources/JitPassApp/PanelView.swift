@@ -113,6 +113,15 @@ struct PanelView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(HoverRowStyle())
+                // Under Grants: both answer "what can use my secrets
+                // without me". Absent until AI Jobs is used.
+                if let jobs = model.jobsRow {
+                    Button(action: actions.openAIJobs) {
+                        row("checklist", "AI Jobs", jobs.display, dot: dot(jobs.tone))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
+                }
                 if let decoys = model.decoysRow {
                     Button(action: actions.openDecoys) {
                         row("eye.slash", "Decoys", decoys.display, dot: dot(decoys.tone))
@@ -256,6 +265,7 @@ struct PanelActions {
     var lock: () -> Void = {}
     var unlock: () -> Void = {}
     var openGrants: () -> Void = {}
+    var openAIJobs: () -> Void = {}
     var openVault: () -> Void = {}
     var openTools: () -> Void = {}
     var openAgents: () -> Void = {}

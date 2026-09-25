@@ -11,7 +11,7 @@ enum NotificationPermission {
 
 /// Where a clicked notification takes the user.
 enum NotificationTarget: String {
-    case audit, agents, tools, findings
+    case audit, agents, tools, findings, jobs
 }
 
 /// macOS notifications: a decoy served to a reader outside any grant, a
@@ -23,6 +23,7 @@ enum NotificationTarget: String {
 enum Notifier {
     static let decoyPreferenceKey = "NotifyDecoys"
     static let changesPreferenceKey = "NotifyChanges"
+    static let jobsPreferenceKey = "NotifyJobs"
     /// The session notices already posted, so a relaunch does not repeat
     /// them (SessionNotices keys).
     static let sessionsToldKey = "SessionNoticesTold"
@@ -49,12 +50,20 @@ enum Notifier {
         UserDefaults.standard.object(forKey: changesPreferenceKey) as? Bool ?? true
     }
 
-    /// Whether the user has ever set either switch, in setup or Settings.
+    /// AI Jobs: a job that stopped, or a proposal waiting. On by default:
+    /// both are questions only the human can answer, and an AI tool that
+    /// hit one has nothing to do until they do.
+    static var jobsEnabled: Bool {
+        UserDefaults.standard.object(forKey: jobsPreferenceKey) as? Bool ?? true
+    }
+
+    /// Whether the user has ever set any of the switches, in setup or Settings.
     /// Until then the defaults read as on, but macOS must not ask yet:
     /// setup's finish screen is where that question belongs.
     static var chosen: Bool {
         UserDefaults.standard.object(forKey: decoyPreferenceKey) != nil
             || UserDefaults.standard.object(forKey: changesPreferenceKey) != nil
+            || UserDefaults.standard.object(forKey: jobsPreferenceKey) != nil
     }
 
     static var sessionsTold: Set<String> {

@@ -17,6 +17,7 @@ extension StatusItemController {
         onboarding.offersGuard = (ProcessInfo.processInfo.environment["SHELL"] ?? "").hasSuffix("zsh")
             && model.cli?.guardStatus?.installed != true
         onboarding.offersCLI = model.cliTool == .missing && !CommandLineTool.installedByHomebrew()
+        onboarding.offersClaudeDesktop = Self.claudeDesktopConnectable()
         onboarding.launchAtLogin = true
         onboarding.finishProblems = []
         onboarding.finishApplied = false
@@ -99,6 +100,11 @@ extension StatusItemController {
         }
         if onboarding.offersCLI, onboarding.installCLI {
             installCommandLineTool()
+        }
+        if onboarding.offersClaudeDesktop, onboarding.connectClaudeDesktop {
+            if case let .failure(error) = JitCLI.execute(["mcp", "install"]) {
+                problems.append("Claude Desktop: " + Self.describeTools(error))
+            }
         }
         onboarding.finishProblems = problems
         if problems.isEmpty {
@@ -231,5 +237,17 @@ extension StatusItemController {
                 }
             }
         }
+    }
+
+    /// Claude Desktop is installed, not connected yet, and this jit can
+    /// connect it: `jit mcp status` answers only on a jit that has it.
+    static func claudeDesktopConnectable() -> Bool {
+        guard FileManager.default.fileExists(atPath: "/Applications/Claude.app") else {
+            return false
+        }
+        let status = try? JitCLI.document(["mcp", "status", "--format", "json"]) {
+            try JSONDecoder().decode(MCPStatus.self, from: Data($0.utf8))
+        }.get()
+        return status.map { !$0.isConnected } ?? false
     }
 }

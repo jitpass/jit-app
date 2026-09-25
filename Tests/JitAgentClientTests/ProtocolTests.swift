@@ -166,6 +166,9 @@ final class ProtocolTests: XCTestCase {
         XCTAssertFalse(ops.contains("wrap"))
         XCTAssertFalse(ops.contains("unwrap"))
         XCTAssertFalse(ops.contains("reveal_pid"))
+        // Running an AI job is what an AI tool does; the app only shows and
+        // approves them, so it never holds a run's output either.
+        XCTAssertFalse(ops.contains("job_run"))
     }
 }
 

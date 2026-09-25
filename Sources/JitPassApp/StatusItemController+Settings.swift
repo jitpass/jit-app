@@ -51,6 +51,13 @@ extension StatusItemController {
                     Notifier.requestPermission { self?.refreshNotificationPermission() }
                 }
             },
+            setNotifyJobs: { [weak self] on in
+                UserDefaults.standard.set(on, forKey: Notifier.jobsPreferenceKey)
+                self?.model.notifyJobs = on
+                if on {
+                    Notifier.requestPermission { self?.refreshNotificationPermission() }
+                }
+            },
             allowNotifications: { [weak self] in self?.allowNotifications() },
             openNotificationSettings: { Notifier.openSystemSettings() },
             vaultClean: { [weak self] in self?.vaultDestructive(

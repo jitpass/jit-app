@@ -80,6 +80,8 @@ The dropdown, top to bottom. Each row is a socket op the CLI can also send.
 | Last N events, live | `subscribe` | `jit audit -f` |
 | Pending consent request with Deny / Allow with Touch ID (phase 4) | `subscribe` with `broker`, `consent_list`, `consent_answer` | none; the dialog itself is the CLI's view |
 | Open jit audit / doctor in Terminal | none | shell out |
+| AI Jobs window: jobs, stopped jobs, proposals; New AI Job / Review / Remove | `job_list`, `job_preview`, `job_allow`, `job_remove`, `job_proposals`, `job_dismiss` | `jit job list/allow/remove`, `jit job allow --dry-run` |
+| Connect Claude Desktop / Cursor | none (writes the app's MCP config) | `jit mcp install [--client cursor]` |
 
 Notifications, opt-in per kind: session locked (with why: idle, ceiling,
 screen lock, sleep), grant ended, a **decoy was served** to a reader outside
@@ -117,8 +119,14 @@ if the app is abandoned.
    dialog. The outcome event carries the request's `consent_id`. This is the
    only addition that touches a decision path, and it never adds authority:
    the app can only refuse or ask the human.
-
-Nothing else in `internal/agent` changes. `internal/consent` stays pure.
+4. **AI Jobs ops** (jit `design/agent-jobs.md`): `job_allow`, `job_list`,
+   `job_remove`, `job_preview`, `job_proposals`, `job_dismiss` and
+   `job_request`, plus the `job` field on `SessionEvent` so a brokered
+   `job_allow`/`job_run` prompt shows the job's own sheet before its Touch
+   ID. `job_preview` runs approval's checks with no prompt, so the New AI
+   Job sheet can never promise what approval then refuses. The app never
+   sends `job_run`.
+ `internal/consent` stays pure.
 
 ## Phases and how each reverts
 
@@ -218,6 +226,10 @@ is ever asked, and it is worded for the person, not for whoever wrote jit:
   the app's signature. `verifyStagedSignature` and `upgradeTeamIDs` apply to
   the bundle exactly as they do to the binary today; a bundle cannot be
   stapled either, so the online notarization ticket story is unchanged.
+- AI Jobs add no path to a value. The app approves a job through the
+  service's own Touch ID and never runs one (`job_run` is not in `AgentOp`);
+  a proposal an agent sends is shown as the agent's words, unchecked, and
+  creates nothing until the human approves it.
 - The CGo surface does not grow: Secure Enclave lands in
   `internal/secureenclave`, already one of the named packages, behind the
   existing `vault.KeyWrapper` interface.

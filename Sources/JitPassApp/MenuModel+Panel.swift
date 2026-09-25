@@ -48,6 +48,21 @@ extension MenuModel {
         PanelValue.grants(active: grants.count)
     }
 
+    var jobsBoard: JobsBoard {
+        JobsBoard(jobs: jobs, proposals: jobProposals)
+    }
+
+    /// Nil, so no row, until AI Jobs is used: a job, a proposal, or Claude
+    /// Desktop connected.
+    var jobsRow: PanelValue.Row? {
+        PanelValue.aiJobs(jobsBoard, connected: mcpStatus.values.contains(where: \.isConnected))
+    }
+
+    /// The AI apps installed here that jit can connect, in a stable order.
+    var connectableApps: [MCPApp] {
+        MCPApp.allCases.filter { installedApps.contains($0.id) }
+    }
+
     /// The Decoys window's own report, from what the panel already holds:
     /// the mount list, the vault's names, the week's serve events.
     var decoyReport: DecoyReport {
