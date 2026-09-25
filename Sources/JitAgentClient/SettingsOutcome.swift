@@ -160,6 +160,23 @@ public extension SettingsOutcome {
     /// changed" only where the key is still where it was.
     static func vaultKeyFailed(to target: VaultKeyPlace, now place: VaultKeyPlace?, line: String) -> SettingsOutcome {
         let verbatim = line.isEmpty ? nil : line
+        // jit refuses every move while a change it can't read or doesn't
+        // understand is unfinished, so trying again would only be refused
+        // again: the row asks jit again instead, which shows the blocked
+        // row doctor's rekey_unknown draws, in jit's words.
+        if refusesEveryMove(line) {
+            let title = switch place {
+            case .keychain?: "Still in your login keychain"
+            case .secureEnclave?: "Still in the Secure Enclave"
+            case nil: "The move was refused"
+            }
+            return SettingsOutcome(
+                row: .vaultKey, ok: false, title: title,
+                detail: "An unfinished vault key change this JitPass doesn't understand is in the way, so nothing changed. "
+                    + "jit's own words are below.",
+                verbatim: verbatim, checksAgain: true
+            )
+        }
         // jit could not be asked where the key is after the failure, so
         // nothing is claimed about it: not "nothing changed", and not that
         // trying again would finish it.
@@ -182,6 +199,16 @@ public extension SettingsOutcome {
         case .secureEnclave: "Still in the Secure Enclave"
         }
         return SettingsOutcome(row: .vaultKey, ok: false, title: title, detail: stopped(line), verbatim: verbatim)
+    }
+
+    /// jit's refusal while its rekey marker is one it can't read or a move
+    /// it doesn't know (vaultmove.go's unknownMarkerDetail, through
+    /// rekeyMarkerRefusal). jit sends only the sentence, so its two stable
+    /// phrases are matched; a structured field would be better.
+    static func refusesEveryMove(_ line: String) -> Bool {
+        let lower = line.lowercased()
+        return lower.contains("this version of jit doesn't understand")
+            || lower.contains("can't read the file that marks an unfinished change of the vault key")
     }
 
     /// jit's refusals, from internal/cli/vaultmove.go and the two key

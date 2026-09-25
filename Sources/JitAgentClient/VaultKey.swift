@@ -43,6 +43,16 @@ public enum VaultKeyRow: Equatable, Sendable {
     /// sealed to the old one stay unopenable until a recovery file is
     /// imported. The restore stays on offer until jit stops saying so.
     case restorePending
+    /// `restore_pending` with jit's `restore_check_error`: jit could not
+    /// check which secrets the lost key left sealed, and says why. jit
+    /// names no restore for it, so the row offers none of its own: only
+    /// Check Again, and whatever doctor's `vault_restore` finding names.
+    case restoreUnchecked(String)
+    /// Doctor's `rekey_unknown`: an unfinished change of the vault key
+    /// this jit can't read or doesn't understand, in jit's own words.
+    /// Every vault change is refused, a move too, so the row offers no
+    /// move at all.
+    case changeUnknown(String)
 
     /// The row, or nil where it has nothing true to offer: a jit that is
     /// not the app's own helper cannot reach the enclave, a jit too old to
@@ -51,9 +61,12 @@ public enum VaultKeyRow: Equatable, Sendable {
     /// nil before doctor has answered; `doctorFailed` says the last check
     /// could not run (and none is running), so nil will not change by
     /// waiting. An unfinished move and a pending restore are jit's own
-    /// status fields, never a guess of the app's.
+    /// status fields, never a guess of the app's; `changeUnknown` is
+    /// doctor's `rekey_unknown` sentence (`changeUnknown(_:)`), which jit's
+    /// status does not carry.
     public static func state(
-        _ vault: CLIVaultStatus?, bundledHelper: Bool, keyLost: Bool?, doctorFailed: Bool = false
+        _ vault: CLIVaultStatus?, bundledHelper: Bool, keyLost: Bool?, doctorFailed: Bool = false,
+        changeUnknown: String? = nil
     ) -> VaultKeyRow? {
         guard bundledHelper, let vault, vault.initialized == "yes", let place = VaultKeyPlace.of(vault) else {
             return nil
@@ -61,10 +74,16 @@ public enum VaultKeyRow: Equatable, Sendable {
         if place == .secureEnclave, keyLost == true {
             return .lost
         }
+        if let changeUnknown {
+            return .changeUnknown(changeUnknown)
+        }
         if let unfinished = vault.moveUnfinished.flatMap(VaultKeyPlace.init(rawValue:)) {
             return .unfinished(unfinished)
         }
         if vault.restorePending == true {
+            if let error = vault.restoreCheckError, !error.isEmpty {
+                return .restoreUnchecked(error)
+            }
             return .restorePending
         }
         switch place {
@@ -100,6 +119,73 @@ public enum VaultKeyRow: Equatable, Sendable {
         item.kind == "vault_restore"
     }
 
+    /// Doctor's `rekey_unknown` in jit's own words, its detail and then its
+    /// step, each begun as a sentence: "A change of the vault key this
+    /// version of jit doesn't understand is unfinished, … Update jit, then
+    /// finish it with the newer jit." An ignored finding still counts:
+    /// ignoring it refuses nothing less. nil when doctor has not run or
+    /// reports none.
+    public static func changeUnknown(_ report: DoctorReport?) -> String? {
+        guard let report,
+              let item = (report.problems + report.warnings + report.ignored).first(where: { $0.kind == "rekey_unknown" })
+        else {
+            return nil
+        }
+        return changeUnknownText(item)
+    }
+
+    static func changeUnknownText(_ item: DoctorItem) -> String {
+        [item.detail, item.action].compactMap { part in
+            guard let part = part?.trimmingCharacters(in: .whitespaces), !part.isEmpty else {
+                return nil
+            }
+            // "jit" stays lower case: it is the tool's name.
+            let sentence = part.hasPrefix("jit ") ? part : part.prefix(1).uppercased() + part.dropFirst()
+            return sentence.hasSuffix(".") ? sentence : sentence + "."
+        }.joined(separator: " ")
+    }
+
+    /// The restore the vault needs, and the finding it answers, or nil:
+    /// the lost key's own (a new key, then the import); else what doctor's
+    /// `vault_restore` finding names (the import alone, or nothing when jit
+    /// could not check); else, before doctor has answered, the import for a
+    /// restore jit's status reports pending and did check. Never an import
+    /// while jit says it could not check (`restore_check_error`): the app
+    /// adds no fix jit did not name.
+    public static func restore(
+        _ vault: CLIVaultStatus?, report: DoctorReport?
+    ) -> (action: DoctorAction, finding: (DoctorItem) -> Bool)? {
+        if keyLost(report) == true {
+            return (DoctorAdvice.restoreRecoveryFile, isLostFinding)
+        }
+        let unchecked = !(vault?.restoreCheckError ?? "").isEmpty
+        if let report, let item = (report.problems + report.ignored).first(where: isRestoreFinding) {
+            let offered = DoctorAdvice.actions(for: item).first { !(unchecked && imports($0)) }
+            return offered.map { ($0, isRestoreFinding) }
+        }
+        guard vault?.restorePending == true, !unchecked else {
+            return nil
+        }
+        return (DoctorAdvice.importRecoveryFile, isRestoreFinding)
+    }
+
+    private static func imports(_ action: DoctorAction) -> Bool {
+        DoctorAdvice.steps(of: action).contains(where: importsAFile)
+    }
+
+    /// Doctor's `vault_restore` when jit could not check it: no import of
+    /// a recovery file among its fixes (jit gives the checked finding one,
+    /// always). `jit vault import --finish`, the way out jit names for an
+    /// unchecked restore, imports nothing.
+    public static func isUncheckedRestore(_ item: DoctorItem) -> Bool {
+        isRestoreFinding(item) && !(item.fixes ?? []).map(\.argv).contains(where: importsAFile)
+    }
+
+    /// `jit vault import <file>`, and not `jit vault import --finish`.
+    static func importsAFile(_ argv: [String]) -> Bool {
+        argv.starts(with: ["vault", "import"]) && !argv.contains("--finish")
+    }
+
     /// Whether the move in can be offered: jit reports the recovery file,
     /// its gate, only for a vault with something in it (status.go returns
     /// before the export fields when secrets and backups are both zero),
@@ -113,9 +199,13 @@ public enum VaultKeyRow: Equatable, Sendable {
 
     /// Doctor's Recommended offer: a keychain vault with secrets in it, on
     /// a Mac whose jit can move it, that the reader has not dismissed.
-    public static func offersMove(_ vault: CLIVaultStatus?, bundledHelper: Bool, dismissed: Bool) -> Bool {
+    /// Not while doctor reports a change jit doesn't understand
+    /// (`changeUnknown`): jit refuses every move until it ends.
+    public static func offersMove(
+        _ vault: CLIVaultStatus?, bundledHelper: Bool, dismissed: Bool, changeUnknown: String? = nil
+    ) -> Bool {
         !dismissed && (vault?.secretsStored ?? 0) > 0
-            && state(vault, bundledHelper: bundledHelper, keyLost: false) == .keychain
+            && state(vault, bundledHelper: bundledHelper, keyLost: false, changeUnknown: changeUnknown) == .keychain
     }
 }
 

@@ -58,6 +58,9 @@ extension DoctorAdvice {
         // which way the move was going and what is refused until it ends.
         "vault_move": ("Unfinished vault key move", nil),
         "vault_restore": ("Secrets this Mac can't open", nil),
+        // No note either: jit's own sentence, and its step, are the reason
+        // (`DoctorBoard.vaultKeyLost`).
+        "rekey_unknown": ("An unfinished vault key change this JitPass doesn't understand", nil),
         "wrap": ("Broken wrapped tools", "The tool now runs unwrapped, or not at all."),
         "mcp": ("Broken MCP entries", nil),
         "mcp_nested": (

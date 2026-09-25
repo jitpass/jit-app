@@ -153,9 +153,7 @@ extension SettingsView {
             // stays where it always is.
             AppRow(name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last) {
                 HStack(spacing: Design.Space.three) {
-                    Button(Format.vaultKeyCheckAgain, action: actions.checkVaultKeyAgain)
-                        .buttonStyle(AppButton())
-                        .disabled(model.settingsApplying != nil)
+                    checkAgainButton
                     moveBackMenu
                 }
             }
@@ -171,6 +169,8 @@ extension SettingsView {
             ) {
                 Button("Restore from Recovery File…", action: actions.restoreVaultKey).buttonStyle(AppButton())
             }
+        case .restoreUnchecked, .changeUnknown:
+            vaultKeyBlockedRow(state, detail: detail, last: last)
         case .unfinished:
             AppRow(
                 dot: Color(StatusMark.amber),
@@ -181,6 +181,50 @@ extension SettingsView {
                     .disabled(model.settingsApplying != nil)
             }
         }
+    }
+
+    /// The states where jit names no fix of its own, or none the row
+    /// could press: a restore jit could not check, and a change of the key
+    /// jit doesn't understand.
+    @ViewBuilder private func vaultKeyBlockedRow(_ state: VaultKeyRow, detail: String, last: Bool) -> some View {
+        switch state {
+        case .restoreUnchecked:
+            // Amber, a question: jit could not check, so it does not know
+            // whether anything is left to restore. No Restore, since jit
+            // names none; only what doctor's finding names, and Check Again.
+            AppRow(
+                dot: Color(StatusMark.amber),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                HStack(spacing: Design.Space.three) {
+                    if let restore = model.vaultKeyRestore {
+                        Button(restore.action.buttonTitle, action: actions.restoreVaultKey)
+                            .buttonStyle(AppButton())
+                            .fixedSize()
+                            .disabled(model.settingsApplying != nil)
+                    }
+                    checkAgainButton
+                }
+            }
+        case .changeUnknown:
+            // Red: every vault change is refused, a move too, and nothing
+            // this app can press ends it. jit's words say what does.
+            AppRow(
+                dot: Color(StatusMark.red),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                checkAgainButton
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private var checkAgainButton: some View {
+        Button(Format.vaultKeyCheckAgain, action: actions.checkVaultKeyAgain)
+            .buttonStyle(AppButton())
+            .fixedSize()
+            .disabled(model.settingsApplying != nil)
     }
 
     /// ···, holding Move Back to Keychain…

@@ -22,8 +22,8 @@ extension Format {
         case .keychain: "in your login keychain"
         case .secureEnclave, .checking, .unchecked: "in the Secure Enclave"
         case .lost: "missing"
-        case .restorePending: "replaced"
-        case .unfinished: now == .secureEnclave ? "in the Secure Enclave" : "in your login keychain"
+        case .restorePending, .restoreUnchecked: "replaced"
+        case .unfinished, .changeUnknown: now == .secureEnclave ? "in the Secure Enclave" : "in your login keychain"
         }
     }
 
@@ -44,6 +44,11 @@ extension Format {
             : "Moving it back to your keychain did not finish. Vault changes are refused until it does."
         // jit's own status line; status gives no count, doctor's card does.
         case .restorePending: "Some secrets are sealed to a key this Mac no longer has. A recovery file brings them back."
+        // jit's own status line, error and all: it could not check, so
+        // nothing here claims secrets are sealed, or that a restore helps.
+        case let .restoreUnchecked(error): "jit couldn't check the vault for secrets sealed to a lost key: " + error
+        // jit's own sentence and step (doctor's rekey_unknown).
+        case let .changeUnknown(words): words
         }
     }
 
@@ -53,8 +58,9 @@ extension Format {
         finishes ? "Finish Move" : "Try Again…"
     }
 
-    /// Asks jit again: after a move whose result is unknown, and on an
-    /// enclave row whose doctor check could not run.
+    /// Asks jit again: after a move whose result is unknown, on an enclave
+    /// row whose doctor check could not run, and where jit could not check
+    /// a restore or does not understand an unfinished change.
     static let vaultKeyCheckAgain = "Check Again"
 
     // MARK: - Restore, in the Doctor window

@@ -26,6 +26,12 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     /// `jit vault import <file>` brings them back (jitpass/jit#169).
     /// Omitted, so nil, when false.
     public var restorePending: Bool?
+    /// jit could not check which secrets are still sealed to the lost key
+    /// (its record unreadable, or the vault not readable): jit's own error.
+    /// `restorePending` is true with it, since an unchecked restore is
+    /// never reported as done; but jit names no restore for it, so the app
+    /// offers none. Omitted, so nil, otherwise.
+    public var restoreCheckError: String?
     /// The last `jit vault export`, the recovery file: whether one is
     /// recorded, when, and whether a secret has been written since. jit
     /// reports none of them for an empty vault.
@@ -44,6 +50,7 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
         case keyStore = "key_store"
         case moveUnfinished = "move_unfinished"
         case restorePending = "restore_pending"
+        case restoreCheckError = "restore_check_error"
         case exportRecorded = "export_recorded"
         case exportUnixTime = "export_unix_time"
         case exportStale = "export_stale"
@@ -52,7 +59,7 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     public init(
         secretsStored: Int, initialized: String? = nil, keyStore: String? = nil,
         exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil, backupsStored: Int? = nil,
-        moveUnfinished: String? = nil, restorePending: Bool? = nil
+        moveUnfinished: String? = nil, restorePending: Bool? = nil, restoreCheckError: String? = nil
     ) {
         self.secretsStored = secretsStored
         self.initialized = initialized
@@ -63,6 +70,7 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
         self.backupsStored = backupsStored
         self.moveUnfinished = moveUnfinished
         self.restorePending = restorePending
+        self.restoreCheckError = restoreCheckError
     }
 }
 

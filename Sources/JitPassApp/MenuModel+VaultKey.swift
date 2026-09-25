@@ -11,8 +11,13 @@ extension MenuModel {
     var vaultKeyRow: VaultKeyRow? {
         VaultKeyRow.state(
             cli?.vault, bundledHelper: JitCLI.isBundledHelper, keyLost: VaultKeyRow.keyLost(doctor),
-            doctorFailed: doctorFailed && !doctorRunning
+            doctorFailed: doctorFailed && !doctorRunning, changeUnknown: VaultKeyRow.changeUnknown(doctor)
         )
+    }
+
+    /// The restore the row and Doctor run: jit's own (`VaultKeyRow.restore`).
+    var vaultKeyRestore: (action: DoctorAction, finding: (DoctorItem) -> Bool)? {
+        VaultKeyRow.restore(cli?.vault, report: doctor)
     }
 
     /// Where jit says the key is now.
@@ -42,6 +47,9 @@ extension MenuModel {
 
     /// Doctor's Recommended card.
     var offersVaultKeyMove: Bool {
-        VaultKeyRow.offersMove(cli?.vault, bundledHelper: JitCLI.isBundledHelper, dismissed: vaultKeyOfferDismissed)
+        VaultKeyRow.offersMove(
+            cli?.vault, bundledHelper: JitCLI.isBundledHelper, dismissed: vaultKeyOfferDismissed,
+            changeUnknown: VaultKeyRow.changeUnknown(doctor)
+        )
     }
 }
