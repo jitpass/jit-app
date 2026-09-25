@@ -8,12 +8,19 @@ import JitAgentClient
 /// header, the footer and the empty state together. The cards' own facts
 /// are AgentCard's, in JitAgentClient, under test.
 extension Format {
-    /// The headline: how many agents. The lines under it say what they ask.
-    static func agentsHeadline(_ board: AgentsBoard) -> String {
+    /// The headline: how many agents, and the AI apps with a card of their
+    /// own (Claude Desktop, Cursor), so it counts every card the window
+    /// shows. The lines under it say what they ask.
+    static func agentsHeadline(_ board: AgentsBoard, apps: Int = 0) -> String {
         guard board.hasAgents else {
-            return "No AI agent CLI on this Mac"
+            return apps == 0 ? "No AI agent CLI on this Mac" : count(apps, "AI app") + " on this Mac"
         }
-        return count(board.rows.count, "agent") + " on this Mac"
+        return agentsAndApps(board.rows.count, apps: apps) + " on this Mac"
+    }
+
+    /// "1 agent" / "1 agent and 2 AI apps".
+    static func agentsAndApps(_ agents: Int, apps: Int) -> String {
+        count(agents, "agent") + (apps == 0 ? "" : " and " + count(apps, "AI app"))
     }
 
     /// The sentence under it: where the facts come from, and the one
@@ -31,8 +38,8 @@ extension Format {
     }
 
     /// The footer states: agents, copies in their files, runs this week.
-    static func agentsFooter(_ board: AgentsBoard, activity: [String: AgentActivity]) -> String {
-        var parts = [count(board.rows.count, "agent")]
+    static func agentsFooter(_ board: AgentsBoard, activity: [String: AgentActivity], apps: Int = 0) -> String {
+        var parts = [agentsAndApps(board.rows.count, apps: apps)]
         if board.scanned {
             let exposed = board.rows.filter { $0.card.redactCount > 0 || $0.card.offersClean }.count
             parts.append(exposed == 0 ? "nothing in their files" : "copies in " + count(exposed, "agent's files", plural: "agents' files"))
