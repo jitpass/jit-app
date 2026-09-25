@@ -118,8 +118,13 @@ than skipping), sign by TEAM ID never by identity name (this machine's
 keychain holds a second, unrelated team), verify the PUBLISHED zip and not
 `dist/`, publish as a draft and undraft only after that verification. The
 bundle CAN be stapled, unlike jit's bare binary, so the cask needs no online
-ticket fetch. Local credentials live in `~/.apple-signing`; the five Apple
-secrets are set on this repo, and so is `HOMEBREW_TAP_GITHUB_TOKEN` (since
+ticket fetch. Local credentials live in `~/.apple-signing`; the six Apple
+secrets are set on this repo (the sixth, `MACOS_AGENT_PROFILE`, is the
+helper's Developer ID provisioning profile in base64: `check_agent_profile`
+in `scripts/lib.sh` refuses to sign or publish with a profile that does not
+match the signing certificate, app ID and keychain group, or has under 90
+days left on it or its certificate, because a helper whose entitlements no
+profile authorizes is killed at launch), and so is `HOMEBREW_TAP_GITHUB_TOKEN` (since
 2026-09-17), so the cask is pushed to the tap automatically — only after the
 release is verified and visible, never at a draft. The workflow still falls
 back to printing the cask for a manual push if that token ever goes missing.

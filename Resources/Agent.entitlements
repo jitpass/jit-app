@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The helper's (Contents/Helpers/JitPassAgent.app, the bundled jit)
+	     entitlements: what lets jit keep the vault key in the Secure Enclave.
+	     Restricted: only the embedded.provisionprofile sign.sh places beside
+	     them authorizes them, and a helper carrying them without it is killed
+	     at launch. Values must match scripts/lib.sh (TEAM_ID, HELPER_ID,
+	     HELPER_GROUP); verify.sh checks the published helper against it. -->
+	<key>com.apple.application-identifier</key>
+	<string>CZC6BH93GJ.com.jitpass.agent</string>
+	<key>com.apple.developer.team-identifier</key>
+	<string>CZC6BH93GJ</string>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>CZC6BH93GJ.com.jitpass.vault</string>
+	</array>
+</dict>
+</plist>
