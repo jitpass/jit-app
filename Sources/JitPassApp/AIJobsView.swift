@@ -146,8 +146,12 @@ struct AIJobsView: View {
 
     private func jobRow(_ job: JobStatus, last: Bool) -> some View {
         AppRow(name: job.name, detail: Format.jobCommand(job), fact: Format.jobFact(job), last: last) {
-            // The safe verb first: Edit changes nothing until its approval.
-            Button("Edit…") { actions.edit(job) }.buttonStyle(AppButton(kind: .quiet))
+            // The safe verb first: Edit changes nothing until its approval. A
+            // stopped job has none: Review… on its card is its edit, the one
+            // that starts from what changed (mockup frame E1).
+            if job.jobState == .ready {
+                Button("Edit…") { actions.edit(job) }.buttonStyle(AppButton(kind: .quiet))
+            }
             Button("Remove…") { actions.remove(job) }.buttonStyle(AppButton(kind: .quiet))
         }
     }
