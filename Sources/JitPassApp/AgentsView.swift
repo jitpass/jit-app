@@ -69,7 +69,7 @@ struct AgentsView: View {
         HStack(alignment: .top, spacing: Win.s5) {
             WindowMark(tint: Color(board.tier.tint), hollow: !board.scanned && board.hasAgents)
             VStack(alignment: .leading, spacing: Win.s1) {
-                Text(Format.agentsHeadline(board)).font(Win.head)
+                Text(Format.agentsHeadline(board, apps: model.connectableApps.count)).font(Win.head)
                 if board.hasAgents {
                     HeaderTodoLines(todos: todos(board)).padding(.top, Win.s2)
                 }
@@ -186,7 +186,8 @@ struct AgentsView: View {
     private func footer(_ board: AgentsBoard) -> some View {
         HStack(spacing: Win.s4) {
             StateDot(tint: Color(board.tier.tint))
-            Text(Format.agentsFooter(board, activity: model.agentActivity)).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+            Text(Format.agentsFooter(board, activity: model.agentActivity, apps: model.connectableApps.count)).font(Win.sub)
+                .foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: Win.s5)
         }
         .padding(.horizontal, Win.s6)
