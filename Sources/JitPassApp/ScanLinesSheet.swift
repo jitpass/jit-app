@@ -77,5 +77,7 @@ struct ScanLinesSheet: View {
         }
         .padding(Win.s6)
         .frame(width: Win.sheetWide)
+        // app-sheet-material: the window's own material, not macOS's default sheet.
+        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
     }
 }

@@ -37,6 +37,11 @@ extension AgentsView {
                 AppRow(name: "Can reach", fact: row.card.canReach) {
                     Button("Grants…", action: actions.openGrants).buttonStyle(AppButton(kind: .plain))
                 }
+                // Beside Can reach on purpose: secrets the agent holds, then
+                // scripts it can run without holding them.
+                AppRow(name: "Can run", fact: Format.agentCanRun(caller: row.agent.tool, jobs: model.jobs)) {
+                    Button("AI Jobs…", action: actions.openAIJobs).buttonStyle(AppButton(kind: .plain))
+                }
                 AppRow(name: "This week", fact: row.card.thisWeek) {
                     Button("Audit…") { actions.openAudit(row.agent) }.buttonStyle(AppButton(kind: .plain))
                 }

@@ -68,6 +68,16 @@ extension StatusItemController {
         model.grantProcesses = RunningProcesses.list(all: false)
         model.grantAllProcesses = RunningProcesses.list(all: true)
         model.grantSessionRoots = RunningProcesses.sessionRoots()
+        reloadProfiles()
+    }
+
+    /// Every profile jit can find from the registry, the running programs'
+    /// folders and the global store, and which of them the service would
+    /// refuse. New Grant and New AI Job list the same profiles.
+    func reloadProfiles() {
+        if model.grantAllProcesses.isEmpty {
+            model.grantAllProcesses = RunningProcesses.list(all: true)
+        }
         let folders = model.grantAllProcesses.map { Format.expandHome($0.folder) }.filter { !$0.isEmpty }
         model.grantProfiles = ProfileStore.discover(workingDirectories: folders, extraRoots: model.grantExtraRoots)
         model.brokenProfiles = model.doctor?.brokenProfiles ?? JitCLI.doctor()?.brokenProfiles ?? [:]
@@ -194,6 +204,10 @@ extension StatusItemController {
             return
         }
         model.grantExtraRoots.append(url.path)
-        reloadGrantSheet()
+        if model.jobSheet {
+            reloadProfiles()
+        } else {
+            reloadGrantSheet()
+        }
     }
 }

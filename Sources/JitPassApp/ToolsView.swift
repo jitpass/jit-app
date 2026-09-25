@@ -140,6 +140,7 @@ struct ToolsView: View {
             Button("Findings…", action: actions.openScan)
             Button("Doctor…", action: actions.openDoctor)
             Button("Vault…", action: actions.openVault)
+            Button("AI Jobs…", action: actions.openAIJobs)
         } label: {
             Text("···")
         }
@@ -375,4 +376,5 @@ struct ToolsActions {
     var openSettings: () -> Void = {}
     var openScan: () -> Void = {}
     var openDoctor: () -> Void = {}
+    var openAIJobs: () -> Void = {}
 }

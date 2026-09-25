@@ -37,9 +37,11 @@ tools alone, but `swift test` and `swiftlint` need Xcode's toolchain: if
   building.** One place to change wording, and the controller stays a list
   of rows.
 - **The app's op vocabulary is `AgentOp`, and it never contains `wrap`,
-  `unwrap` or `reveal_pid`.** `testAppNeverSpeaksWrapOrUnwrap` enforces it.
-  That is the whole guarantee that no plaintext or data key reaches this
-  process; do not widen it for convenience.
+  `unwrap`, `reveal_pid` or `job_run`.** `testAppNeverSpeaksWrapOrUnwrap`
+  enforces it. That is the whole guarantee that no plaintext or data key
+  reaches this process; do not widen it for convenience. AI Jobs are
+  approved, listed, removed and previewed here, never run: running one is
+  what an AI tool does, through `jit job run` or `jit mcp`.
 - **Every menu action must be one op the CLI can also send.** If a feature
   needs something the CLI cannot do, add the op to the agent and the CLI
   first (in `jitpass/jit`), then use it here. The app is never the only way

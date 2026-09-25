@@ -72,8 +72,22 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
         switch event.op {
         case "grant_create": return "create a grant: unattended access until a deadline"
         case "grant_extend": return "extend a grant's deadline"
+        // A job asks on every run, so "remembered until the vault locks",
+        // the default below, is false for it (seen in the first Cowork run).
+        case SessionEvent.jobRunOp: return "run an AI job: this run only, and it asks again next time"
+        case SessionEvent.jobAllowOp: return "approve an AI job"
         default: return "use a credential once, remembered until the vault locks"
         }
+    }
+
+    /// The AI job a job prompt is about, and whether this is a job's run,
+    /// which the app shows as that job's own sheet.
+    public var job: String? {
+        event.job
+    }
+
+    public var isJobRun: Bool {
+        event.op == SessionEvent.jobRunOp && event.job != nil
     }
 
     /// How many times this same request was already refused this session,

@@ -90,7 +90,7 @@ struct SettingsView: View {
     var facts: SettingsFacts {
         SettingsFacts(
             serviceRunning: model.consentEnabled != nil,
-            notificationsWanted: model.notifyDecoys || model.notifyChanges,
+            notificationsWanted: model.notifyDecoys || model.notifyChanges || model.notifyJobs,
             notificationsBlocked: model.notificationPermission == .denied || model.notificationPermission == .notAsked,
             scanScheduled: model.scanSchedule != .off,
             fullDiskAccess: model.fullDiskAccess,

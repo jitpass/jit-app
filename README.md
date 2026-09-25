@@ -13,6 +13,10 @@ last few audit events, and the prompts that explain themselves.
 - A thin client of the `jit-agent` Unix socket. Every menu action is one
   socket op the `jit` CLI can also send. The app never decides anything on
   its own and never sees a secret value or a data key.
+- The place to approve and review AI Jobs (commands an AI tool may run by
+  name, getting the output with every secret value hidden) and to connect
+  Claude Desktop and Cursor to them. The app approves jobs; it never runs
+  one.
 - Not mandatory. The CLI keeps working without it, headless and in CI.
 - The `.app` bundle jit's Secure Enclave key binding needs (phase 3).
 
