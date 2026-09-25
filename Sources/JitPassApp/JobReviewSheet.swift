@@ -49,6 +49,7 @@ struct JobReviewSheet: View {
             }
             .padding(Win.s6)
             .frame(width: Win.sheetWide)
+            .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         }
     }
 

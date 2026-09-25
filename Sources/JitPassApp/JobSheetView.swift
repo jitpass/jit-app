@@ -42,6 +42,9 @@ struct JobSheetView: View {
             .padding(Win.s6)
         }
         .frame(width: Win.sheetWide)
+        // app-sheet-material is the window's own material; left unset, macOS
+        // paints its default sheet, warmer than every window it drops from.
+        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onChange(of: model.jobDraft.folder) { _, _ in actions.preview() }
         .onChange(of: model.jobDraft.command) { _, _ in actions.preview() }
         .onChange(of: model.jobDraft.profile) { _, _ in actions.preview() }
@@ -134,7 +137,7 @@ struct JobSheetView: View {
                 ForEach(Array(secrets.enumerated()), id: \.element.name) { index, secret in
                     HStack(spacing: Win.s5) {
                         // A key name is mono, as the system reserves it for.
-                        Text(secret.name).font(Win.command).lineLimit(1).truncationMode(.middle)
+                        Text(secret.name).font(Design.Text.command).lineLimit(1).truncationMode(.middle)
                         Spacer(minLength: Win.s5)
                         AppSegmented(
                             items: [AppSegmentItem(value: false, title: "Hidden"), AppSegmentItem(value: true, title: "Shown")],
