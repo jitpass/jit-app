@@ -16,6 +16,16 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     /// (jit's `keystore.Kind`). nil from a jit before the Secure Enclave
     /// move, which cannot move the key either.
     public var keyStore: String?
+    /// Where an interrupted `jit vault rekey --wrapper` was moving the key,
+    /// "secure-enclave" or "keychain" (jitpass/jit#169). Omitted when no
+    /// move is unfinished; while it is set, every vault change is refused
+    /// until `jit vault rekey --wrapper <that value>` finishes it.
+    public var moveUnfinished: String?
+    /// A lost Secure Enclave key was replaced by `jit vault init`, and
+    /// secrets sealed to the old one are still on disk, unopenable, until
+    /// `jit vault import <file>` brings them back (jitpass/jit#169).
+    /// Omitted, so nil, when false.
+    public var restorePending: Bool?
     /// The last `jit vault export`, the recovery file: whether one is
     /// recorded, when, and whether a secret has been written since. jit
     /// reports none of them for an empty vault.
@@ -32,6 +42,8 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
         case backupsStored = "backups_stored"
         case initialized
         case keyStore = "key_store"
+        case moveUnfinished = "move_unfinished"
+        case restorePending = "restore_pending"
         case exportRecorded = "export_recorded"
         case exportUnixTime = "export_unix_time"
         case exportStale = "export_stale"
@@ -39,7 +51,8 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
 
     public init(
         secretsStored: Int, initialized: String? = nil, keyStore: String? = nil,
-        exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil, backupsStored: Int? = nil
+        exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil, backupsStored: Int? = nil,
+        moveUnfinished: String? = nil, restorePending: Bool? = nil
     ) {
         self.secretsStored = secretsStored
         self.initialized = initialized
@@ -48,6 +61,8 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
         self.exportUnixTime = exportUnixTime
         self.exportStale = exportStale
         self.backupsStored = backupsStored
+        self.moveUnfinished = moveUnfinished
+        self.restorePending = restorePending
     }
 }
 

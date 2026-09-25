@@ -14,13 +14,15 @@ extension Format {
 
     /// The mono detail beside the name, as the PATH row names its path.
     /// A lost key's is one word, so "Vault key missing" is never cut by
-    /// the Restore button beside it. An unfinished move says where jit
-    /// says the key is now.
+    /// the Restore button beside it, and so is a pending restore's: the
+    /// lost key was replaced, and the fact says what that left behind. An
+    /// unfinished move says where jit says the key is now.
     static func vaultKeyDetail(_ row: VaultKeyRow, now: VaultKeyPlace?) -> String {
         switch row {
         case .keychain: "in your login keychain"
-        case .secureEnclave, .checking: "in the Secure Enclave"
+        case .secureEnclave, .checking, .unchecked: "in the Secure Enclave"
         case .lost: "missing"
+        case .restorePending: "replaced"
         case .unfinished: now == .secureEnclave ? "in the Secure Enclave" : "in your login keychain"
         }
     }
@@ -34,11 +36,14 @@ extension Format {
                 : "A program running as you could read it. It can move once the vault holds a secret."
         case .secureEnclave: "Only JitPass can use it, after Touch ID or your password."
         case .checking: "Checking that this Mac's Secure Enclave has it…"
+        case .unchecked: "The check that this Mac's Secure Enclave has it couldn't run."
         // Doctor's Fix now card, in its own words: it carries the restore.
         case .lost: "This Mac's Secure Enclave doesn't have the vault key. The vault can't open here."
         case let .unfinished(target): target == .secureEnclave
             ? "Moving it into the Secure Enclave did not finish. Vault changes are refused until it does."
             : "Moving it back to your keychain did not finish. Vault changes are refused until it does."
+        // jit's own status line; status gives no count, doctor's card does.
+        case .restorePending: "Some secrets are sealed to a key this Mac no longer has. A recovery file brings them back."
         }
     }
 
@@ -47,6 +52,10 @@ extension Format {
     static func vaultKeyRetryTitle(finishes: Bool) -> String {
         finishes ? "Finish Move" : "Try Again…"
     }
+
+    /// Asks jit again: after a move whose result is unknown, and on an
+    /// enclave row whose doctor check could not run.
+    static let vaultKeyCheckAgain = "Check Again"
 
     // MARK: - Restore, in the Doctor window
 

@@ -32,58 +32,42 @@ final class VaultKeyMoveTests: XCTestCase {
 
     // MARK: - An unfinished move
 
-    private func doctor(_ kinds: [String], ignored: [String] = []) throws -> DoctorReport {
-        let item = { (kind: String) in #"{"kind":"\#(kind)","detail":"x"}"# }
-        let json = #"{"schema_version":2,"ok":false,"problems":[\#(kinds.map(item).joined(separator: ","))],"#
-            + #""warnings":[],"ignored":[\#(ignored.map(item).joined(separator: ","))]}"#
-        return try JSONDecoder().decode(DoctorReport.self, from: Data(json.utf8))
-    }
-
-    /// Try Again goes the way the failed move went, never the opposite way
-    /// jit would refuse ("a move to secure-enclave is unfinished").
-    func testTryAgainRetriesTheFailedMovesTarget() throws {
-        let marker = try doctor(["rekey"])
-        // Stopped halfway: the key reached the enclave, the keychain copy
-        // was not deleted. The row reads "in the Secure Enclave".
+    /// Finish Move and Try Again: jit's `move_unfinished` names the move to
+    /// finish, whichever way the app last tried, and it runs as it is. With
+    /// no move unfinished, the move that failed is asked again, never the
+    /// opposite one; the other place only with no record of the attempt.
+    func testTryAgainFinishesWhatJitSaysIsUnfinished() {
+        // Crashed after the key reached the enclave: jit names the target.
         XCTAssertEqual(
-            VaultKeyMove.retry(pending: .secureEnclave, now: .secureEnclave, report: marker),
+            VaultKeyMove.retry(unfinished: .secureEnclave, attempted: .secureEnclave, now: .secureEnclave),
             VaultKeyRetry(target: .secureEnclave, finishes: true)
         )
-        // Stopped halfway on the way back.
+        // Crashed before the key moved, after a relaunch (nothing attempted
+        // in this run of the app): still jit's target.
         XCTAssertEqual(
-            VaultKeyMove.retry(pending: .keychain, now: .keychain, report: nil),
+            VaultKeyMove.retry(unfinished: .secureEnclave, attempted: nil, now: .keychain),
+            VaultKeyRetry(target: .secureEnclave, finishes: true)
+        )
+        // A move started in a terminal, the other way from the app's last.
+        XCTAssertEqual(
+            VaultKeyMove.retry(unfinished: .keychain, attempted: .secureEnclave, now: .secureEnclave),
             VaultKeyRetry(target: .keychain, finishes: true)
         )
-        // Crashed before the key moved: the marker is there, the key is not.
+        // Refused before anything changed: ask again.
         XCTAssertEqual(
-            VaultKeyMove.retry(pending: .secureEnclave, now: .keychain, report: marker),
-            VaultKeyRetry(target: .secureEnclave, finishes: true)
-        )
-        // Refused before anything changed (jit removed its marker): ask again.
-        XCTAssertEqual(
-            try VaultKeyMove.retry(pending: .secureEnclave, now: .keychain, report: doctor([])),
+            VaultKeyMove.retry(unfinished: nil, attempted: .secureEnclave, now: .keychain),
             VaultKeyRetry(target: .secureEnclave, finishes: false)
         )
-        // No record of the app's own move: the other place, asked again.
+        // Failed, but the key is at the target and jit has no marker.
         XCTAssertEqual(
-            VaultKeyMove.retry(pending: nil, now: .secureEnclave, report: marker),
+            VaultKeyMove.retry(unfinished: nil, attempted: .keychain, now: .keychain),
+            VaultKeyRetry(target: .keychain, finishes: true)
+        )
+        XCTAssertEqual(
+            VaultKeyMove.retry(unfinished: nil, attempted: nil, now: .secureEnclave),
             VaultKeyRetry(target: .keychain, finishes: false)
         )
-        XCTAssertNil(VaultKeyMove.retry(pending: nil, now: nil, report: nil))
-    }
-
-    /// jit reports its marker only as doctor's `rekey` finding: the row
-    /// offers to finish the app's own move while it is there, and the
-    /// app's record goes once doctor answers without it.
-    func testTheMarkerFromDoctorDecidesTheUnfinishedRow() throws {
-        XCTAssertEqual(try VaultKeyMove.unfinished(pending: .secureEnclave, report: doctor(["rekey"])), .secureEnclave)
-        XCTAssertEqual(try VaultKeyMove.unfinished(pending: .keychain, report: doctor([], ignored: ["rekey"])), .keychain)
-        XCTAssertNil(try VaultKeyMove.unfinished(pending: nil, report: doctor(["rekey"])))
-        XCTAssertNil(try VaultKeyMove.unfinished(pending: .keychain, report: doctor([])))
-        XCTAssertNil(VaultKeyMove.unfinished(pending: .keychain, report: nil))
-        XCTAssertTrue(try VaultKeyMove.settled(doctor([])))
-        XCTAssertFalse(try VaultKeyMove.settled(doctor(["rekey"])))
-        XCTAssertFalse(VaultKeyMove.settled(nil))
+        XCTAssertNil(VaultKeyMove.retry(unfinished: nil, attempted: nil, now: nil))
     }
 
     // MARK: - Outcomes
@@ -167,6 +151,31 @@ final class VaultKeyMoveTests: XCTestCase {
         let down = SettingsOutcome.vaultKeyFailed(to: .keychain, now: .secureEnclave, line: "jit: the service is not running")
         XCTAssertFalse(down.offersStart)
         XCTAssertTrue(down.offersRetry)
+    }
+
+    /// A failure after which jit could not be asked where the key is:
+    /// nothing is claimed ("Try again to finish it" was a guess), and the
+    /// row's button asks again rather than moving.
+    func testAnUnknownResultOffersCheckAgain() {
+        let line = "jit vault rekey: the Mac is locked"
+        let outcome = SettingsOutcome.vaultKeyFailed(to: .secureEnclave, now: nil, line: line)
+        XCTAssertFalse(outcome.ok)
+        XCTAssertEqual(outcome.title, "The move's result is unknown")
+        XCTAssertEqual(outcome.detail, "jit could not say where the key is now. Check again to find out. jit's own words are below.")
+        XCTAssertFalse(outcome.detail.lowercased().contains("try again"))
+        XCTAssertEqual(outcome.verbatim, line)
+        XCTAssertTrue(outcome.offersCheck)
+        XCTAssertFalse(outcome.offersRetry)
+        XCTAssertEqual(
+            SettingsOutcome.vaultKeyMoveEnded(to: .secureEnclave, before: .keychain, now: nil, finishing: false, failure: line),
+            outcome
+        )
+        XCTAssertEqual(
+            SettingsOutcome.vaultKeyFailed(to: .keychain, now: nil, line: "").detail,
+            "jit could not say where the key is now. Check again to find out."
+        )
+        // A known place keeps Try Again.
+        XCTAssertFalse(SettingsOutcome.vaultKeyFailed(to: .secureEnclave, now: .keychain, line: line).offersCheck)
     }
 
     /// A failure after the key reached its new place ("re-run to finish")

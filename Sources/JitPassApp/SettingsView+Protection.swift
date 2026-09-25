@@ -145,23 +145,26 @@ extension SettingsView {
                 dot: Color(StatusMark.green),
                 name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
             ) {
-                Menu {
-                    Button("Move Back to Keychain…", action: actions.moveVaultKeyBack)
-                } label: {
-                    Text("···")
+                moveBackMenu
+            }
+        case .unchecked:
+            // No colour, since nothing confirmed this Mac has the key, but
+            // never a dead end: the check can run again, and the way back
+            // stays where it always is.
+            AppRow(name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last) {
+                HStack(spacing: Design.Space.three) {
+                    Button(Format.vaultKeyCheckAgain, action: actions.checkVaultKeyAgain)
+                        .buttonStyle(AppButton())
+                        .disabled(model.settingsApplying != nil)
+                    moveBackMenu
                 }
-                .menuStyle(.button)
-                .buttonStyle(AppButton())
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .disabled(model.settingsApplying != nil)
             }
         case .checking:
             // No colour and no move until doctor says this Mac has the key.
             AppRow(name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last) {
                 EmptyView()
             }
-        case .lost:
+        case .lost, .restorePending:
             AppRow(
                 dot: Color(StatusMark.red),
                 name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
@@ -178,6 +181,20 @@ extension SettingsView {
                     .disabled(model.settingsApplying != nil)
             }
         }
+    }
+
+    /// ···, holding Move Back to Keychain…
+    private var moveBackMenu: some View {
+        Menu {
+            Button("Move Back to Keychain…", action: actions.moveVaultKeyBack)
+        } label: {
+            Text("···")
+        }
+        .menuStyle(.button)
+        .buttonStyle(AppButton())
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(model.settingsApplying != nil)
     }
 
     // MARK: - Notifications

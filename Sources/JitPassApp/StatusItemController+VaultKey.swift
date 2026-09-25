@@ -12,24 +12,11 @@ import JitAgentClient
 /// card's Vault key row; success is the window's banner.
 extension StatusItemController {
     static let vaultKeyOfferDismissedKey = "vaultKeyOfferDismissed"
-    /// The move the app started and jit may not have finished: kept across
-    /// a relaunch, because jit's marker outlives the app.
-    static let vaultKeyMovePendingKey = "vaultKeyMovePending"
 
-    /// The saved preferences the row and Doctor's offer read.
+    /// The saved preference Doctor's offer reads. Nothing about a move is
+    /// saved: an unfinished one is jit's own `move_unfinished`.
     func loadVaultKeyPreferences() {
-        let defaults = UserDefaults.standard
-        model.vaultKeyOfferDismissed = defaults.bool(forKey: Self.vaultKeyOfferDismissedKey)
-        model.vaultKeyMovePending = defaults.string(forKey: Self.vaultKeyMovePendingKey).flatMap(VaultKeyPlace.init(rawValue:))
-    }
-
-    private func setVaultKeyMovePending(_ place: VaultKeyPlace?) {
-        model.vaultKeyMovePending = place
-        if let place {
-            UserDefaults.standard.set(place.rawValue, forKey: Self.vaultKeyMovePendingKey)
-        } else {
-            UserDefaults.standard.removeObject(forKey: Self.vaultKeyMovePendingKey)
-        }
+        model.vaultKeyOfferDismissed = UserDefaults.standard.bool(forKey: Self.vaultKeyOfferDismissedKey)
     }
 
     /// Sheet B or C, over Settings. Doctor's Move… comes here too, so the
@@ -126,13 +113,9 @@ extension StatusItemController {
         model.settingsApplying = .vaultKey
         model.settingsOutcome = nil
         let before = model.vaultKeyPlace
-        // A move this app started toward the same place and never saw end.
-        let finishing = model.vaultKeyMovePending == target
-        // A marker the app did not make (a move run in a terminal) is not
-        // the app's to name: jit's refusal says which way it goes.
-        if VaultKeyMove.markerPresent(model.doctor) != true || model.vaultKeyMovePending != nil {
-            setVaultKeyMovePending(target)
-        }
+        // A move jit says stopped partway toward the same place.
+        let finishing = model.vaultKeyUnfinished == target
+        model.vaultKeyAttempted = target
         Task.detached {
             let result = JitCLI.apply(target.moveArguments)
             JitCLI.forgetStatus()
@@ -152,9 +135,6 @@ extension StatusItemController {
                 model.settingsOutcome = .vaultKeyMoveEnded(
                     to: target, before: before, now: now, finishing: finishing, failure: failure
                 )
-                if failure == nil, now == target {
-                    setVaultKeyMovePending(nil)
-                }
                 settingsWindow.reclaimFocus()
                 pollStatus()
                 runDoctor()
@@ -162,17 +142,53 @@ extension StatusItemController {
         }
     }
 
-    /// A doctor report landed: the app's record of its move goes once jit
-    /// has no marker (unless a move is running now), and a Restore pressed
-    /// during the check runs now.
-    func vaultKeyDoctorLanded() {
-        if VaultKeyMove.settled(model.doctor), model.settingsApplying != .vaultKey {
-            setVaultKeyMovePending(nil)
+    /// "Check Again": after a failed move whose status read failed too,
+    /// and on an enclave row whose doctor check could not run. jit is
+    /// asked where the key is, and doctor runs again; with an answer the
+    /// row shows it in place of the unknown result, and without one the
+    /// unknown result stays.
+    func checkVaultKeyAgain() {
+        guard model.settingsApplying == nil else {
+            return
+        }
+        Task.detached {
+            JitCLI.forgetStatus()
+            let status = JitCLI.status()
+            await MainActor.run { [weak self] in
+                guard let self else {
+                    return
+                }
+                if let status {
+                    model.cli = status
+                    if model.settingsOutcome?.row == .vaultKey {
+                        model.settingsOutcome = nil
+                    }
+                }
+                runDoctor()
+            }
+        }
+    }
+
+    /// A doctor report landed: after a Doctor action on a vault key that
+    /// is not well (an unfinished move, a restore), jit's status is read
+    /// again so the Settings row follows; and a Restore pressed during the
+    /// check runs now.
+    func vaultKeyDoctorLanded(afterAction: Bool) {
+        if afterAction, vaultKeyNeedsAttention {
+            Task.detached {
+                JitCLI.forgetStatus()
+                let status = JitCLI.status()
+                await MainActor.run { [weak self] in
+                    if let self, let status {
+                        model.cli = status
+                    }
+                }
+            }
         }
         if model.vaultKeyRestoreQueued {
             model.vaultKeyRestoreQueued = false
             model.doctorMessage = nil
-            if VaultKeyRow.keyLost(model.doctor) == false {
+            if restoreKind == nil {
                 model.doctorMessage = Format.restoreNotNeeded
             } else {
                 restoreVaultKey()
@@ -180,11 +196,33 @@ extension StatusItemController {
         }
     }
 
+    /// The row is in a state a Doctor action can end.
+    private var vaultKeyNeedsAttention: Bool {
+        switch model.vaultKeyRow {
+        case .lost, .unfinished, .restorePending: true
+        default: false
+        }
+    }
+
+    /// Which restore the vault needs: the lost key's (a new key, then the
+    /// import) or a pending one's (the key exists, the import alone), or
+    /// none. The lost key comes first: the import alone cannot land
+    /// without a key.
+    private var restoreKind: (action: DoctorAction, finding: (DoctorItem) -> Bool)? {
+        if VaultKeyRow.keyLost(model.doctor) == true {
+            return (DoctorAdvice.restoreRecoveryFile, VaultKeyRow.isLostFinding)
+        }
+        let pending = model.cli?.vault?.restorePending == true
+            || (model.doctor.map { $0.problems + $0.ignored } ?? []).contains(where: VaultKeyRow.isRestoreFinding)
+        return pending ? (DoctorAdvice.importRecoveryFile, VaultKeyRow.isRestoreFinding) : nil
+    }
+
     /// The Settings row's Restore from Recovery File…: the lost key's own
-    /// restore (`DoctorAdvice.restoreRecoveryFile`), run in the Doctor
-    /// window, where its progress and how it ended are shown. It always
-    /// says something: it runs, it waits for the check running now, or it
-    /// says another action is in the way.
+    /// restore (`DoctorAdvice.restoreRecoveryFile`), or the import alone
+    /// for a restore jit still reports pending, run in the Doctor window,
+    /// where its progress and how it ended are shown. It always says
+    /// something: it runs, it waits for the check running now, or it says
+    /// another action is in the way.
     func restoreVaultKey() {
         openDoctor()
         guard doctorIdle else {
@@ -196,11 +234,15 @@ extension StatusItemController {
             }
             return
         }
+        guard let restore = restoreKind else {
+            model.doctorMessage = Format.restoreNotNeeded
+            return
+        }
         let card = model.doctor.flatMap { report in
-            DoctorBoard.make(report).cards.first { $0.items.contains(where: VaultKeyRow.isLostFinding) }
+            DoctorBoard.make(report).cards.first { $0.items.contains(where: restore.finding) }
         }
         perform(
-            [DoctorAdvice.restoreRecoveryFile],
+            [restore.action],
             target: DoctorTarget(key: card?.id ?? "vault-key-restore", card: card, button: card?.primary)
         )
     }

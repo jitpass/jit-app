@@ -160,6 +160,10 @@ struct SettingsView: View {
             if outcome.offersStart {
                 Button("Start Service", action: actions.startService).buttonStyle(AppButton())
             }
+            if outcome.offersCheck {
+                Button(Format.vaultKeyCheckAgain, action: actions.checkVaultKeyAgain)
+                    .buttonStyle(AppButton())
+            }
             if outcome.offersRetry, let retry = model.vaultKeyRetry {
                 Button(Format.vaultKeyRetryTitle(finishes: retry.finishes), action: actions.retryVaultKey)
                     .buttonStyle(AppButton())

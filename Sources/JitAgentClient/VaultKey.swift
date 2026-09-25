@@ -29,20 +29,31 @@ public enum VaultKeyRow: Equatable, Sendable {
     /// The vault says the Secure Enclave, and doctor has not answered yet
     /// whether this Mac's enclave has the key: no colour until it does.
     case checking
+    /// The vault says the Secure Enclave, and the doctor check that would
+    /// say whether this Mac's enclave has the key could not run: no colour,
+    /// a Check Again, and Move Back still in ···.
+    case unchecked
     /// The vault says the Secure Enclave, and this Mac's enclave has no
     /// such key: nothing opens until a recovery file is restored.
     case lost
-    /// A move this app started toward the place named, whose marker jit
-    /// still has: every vault write is refused until it finishes.
+    /// jit's `move_unfinished`: a move toward the place named stopped
+    /// partway, and every vault write is refused until it finishes.
     case unfinished(VaultKeyPlace)
+    /// jit's `restore_pending`: the key was lost and replaced, and secrets
+    /// sealed to the old one stay unopenable until a recovery file is
+    /// imported. The restore stays on offer until jit stops saying so.
+    case restorePending
 
     /// The row, or nil where it has nothing true to offer: a jit that is
     /// not the app's own helper cannot reach the enclave, a jit too old to
     /// report where the key is cannot move it, and a Mac with no vault has
     /// no key to move. `keyLost` is doctor's word for the enclave's half,
-    /// nil before doctor has answered; `unfinished` is `VaultKeyMove`'s.
+    /// nil before doctor has answered; `doctorFailed` says the last check
+    /// could not run (and none is running), so nil will not change by
+    /// waiting. An unfinished move and a pending restore are jit's own
+    /// status fields, never a guess of the app's.
     public static func state(
-        _ vault: CLIVaultStatus?, bundledHelper: Bool, keyLost: Bool?, unfinished: VaultKeyPlace? = nil
+        _ vault: CLIVaultStatus?, bundledHelper: Bool, keyLost: Bool?, doctorFailed: Bool = false
     ) -> VaultKeyRow? {
         guard bundledHelper, let vault, vault.initialized == "yes", let place = VaultKeyPlace.of(vault) else {
             return nil
@@ -50,12 +61,19 @@ public enum VaultKeyRow: Equatable, Sendable {
         if place == .secureEnclave, keyLost == true {
             return .lost
         }
-        if let unfinished {
+        if let unfinished = vault.moveUnfinished.flatMap(VaultKeyPlace.init(rawValue:)) {
             return .unfinished(unfinished)
+        }
+        if vault.restorePending == true {
+            return .restorePending
         }
         switch place {
         case .keychain: return .keychain
-        case .secureEnclave: return keyLost == false ? .secureEnclave : .checking
+        case .secureEnclave:
+            if let keyLost {
+                return keyLost ? .lost : .secureEnclave
+            }
+            return doctorFailed ? .unchecked : .checking
         }
     }
 
@@ -73,6 +91,13 @@ public enum VaultKeyRow: Equatable, Sendable {
 
     public static func isLostFinding(_ item: DoctorItem) -> Bool {
         item.kind == "vault_key" && (item.fixes ?? []).contains { $0.argv.starts(with: ["vault", "init"]) }
+    }
+
+    /// Doctor's `vault_restore`: secrets sealed to a lost key that no
+    /// import has brought back yet. jit leaves it out while `vault_key`
+    /// fires, so it never sits beside the lost-key finding.
+    public static func isRestoreFinding(_ item: DoctorItem) -> Bool {
+        item.kind == "vault_restore"
     }
 
     /// Whether the move in can be offered: jit reports the recovery file,
@@ -100,51 +125,42 @@ public extension VaultKeyPlace {
     static func of(_ vault: CLIVaultStatus?) -> VaultKeyPlace? {
         vault?.keyStore.flatMap(VaultKeyPlace.init(rawValue:))
     }
-}
 
-/// A move the app started, and what jit's marker says about it. jit
-/// reports the marker only as doctor's `rekey` finding, which does not
-/// tell a move from a rotation or name the move's target, so the target
-/// is the one the app itself asked for (kept until jit's marker is gone).
-public enum VaultKeyMove {
-    /// Whether jit's rekey marker is there: doctor's `rekey` finding,
-    /// ignored or not. nil when doctor has not run.
-    public static func markerPresent(_ report: DoctorReport?) -> Bool? {
-        guard let report else {
+    /// Where doctor's `vault_move` finding says the unfinished move was
+    /// going: its fix's `jit vault rekey --wrapper <target>`.
+    static func moveTarget(_ item: DoctorItem) -> VaultKeyPlace? {
+        guard item.kind == "vault_move" else {
             return nil
         }
-        return (report.problems + report.warnings + report.ignored).contains { $0.kind == "rekey" }
+        let argv = (item.fixes ?? []).map(\.argv).first { $0.starts(with: ["vault", "rekey", "--wrapper"]) && $0.count > 3 }
+        return argv.flatMap { VaultKeyPlace(rawValue: $0[3]) }
     }
+}
 
-    /// The move to finish: the app's own target, while the marker is there.
-    public static func unfinished(pending: VaultKeyPlace?, report: DoctorReport?) -> VaultKeyPlace? {
-        markerPresent(report) == true ? pending : nil
-    }
-
-    /// Whether the app's record of its move can go: doctor answered and
-    /// jit has no marker, so nothing is left to finish.
-    public static func settled(_ report: DoctorReport?) -> Bool {
-        markerPresent(report) == false
-    }
-
-    /// Where Try Again goes: the move that failed, because a half-done
-    /// move is finished by running the same one again and jit refuses the
-    /// other direction; the other place only when the app has no record.
-    /// `finishes` when that move is half done (the key already reached the
-    /// target, or jit's marker is there): it runs again as it is, with no
-    /// sheet, because the question was answered when it started and jit
-    /// skips its recovery file rule for a move it is finishing.
-    public static func retry(pending: VaultKeyPlace?, now: VaultKeyPlace?, report: DoctorReport?) -> VaultKeyRetry? {
+/// Where Try Again goes after a move failed.
+public enum VaultKeyMove {
+    /// The move to finish, when jit says one is unfinished
+    /// (`move_unfinished`); `attempted` is the move whose failure the row
+    /// is showing, kept only in memory for that row. A half-done move is
+    /// finished by running the same one again, with no sheet: the question
+    /// was answered when it started, and jit skips its recovery file rule
+    /// for a move it is finishing. So is a failure that left the key at the
+    /// target anyway. Otherwise the move that failed is asked again (sheet
+    /// in, alert back), never the opposite one; the other place only when
+    /// the app has no record of what it tried.
+    public static func retry(unfinished: VaultKeyPlace?, attempted: VaultKeyPlace?, now: VaultKeyPlace?) -> VaultKeyRetry? {
+        if let unfinished {
+            return VaultKeyRetry(target: unfinished, finishes: true)
+        }
         let target: VaultKeyPlace
-        if let pending {
-            target = pending
+        if let attempted {
+            target = attempted
         } else if let now {
             target = now == .keychain ? .secureEnclave : .keychain
         } else {
             return nil
         }
-        let finishes = pending == target && (now == target || markerPresent(report) == true)
-        return VaultKeyRetry(target: target, finishes: finishes)
+        return VaultKeyRetry(target: target, finishes: attempted == target && now == target)
     }
 }
 

@@ -66,6 +66,7 @@ extension StatusItemController {
             cancelVaultKeyMove: { [weak self] in self?.model.vaultKeySheet = false },
             moveVaultKeyBack: { [weak self] in self?.confirmMoveBack() },
             retryVaultKey: { [weak self] in self?.retryVaultKey() },
+            checkVaultKeyAgain: { [weak self] in self?.checkVaultKeyAgain() },
             restoreVaultKey: { [weak self] in self?.restoreVaultKey() },
             vaultClean: { [weak self] in self?.vaultDestructive(
                 "clean",
@@ -130,7 +131,7 @@ extension StatusItemController {
         }
         // An enclave key is not shown healthy before doctor has said this
         // Mac has it: the row reads "checking" until the report lands.
-        if model.vaultKeyRow == .checking {
+        if model.vaultKeyRow == .checking || model.vaultKeyRow == .unchecked {
             refreshDoctorIfStale()
         }
         model.updateMessage = nil

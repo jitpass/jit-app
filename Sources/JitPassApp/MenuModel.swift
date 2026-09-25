@@ -209,10 +209,10 @@ final class MenuModel: ObservableObject {
     /// words when it did not.
     @Published var recoveryFileSaving = false
     @Published var recoveryFileFailure: String?
-    /// The place the app last asked jit to move the key to, kept until
-    /// the key is there and jit's marker is gone: jit's marker does not
-    /// say which way a move was going (`VaultKeyMove`).
-    @Published var vaultKeyMovePending: VaultKeyPlace?
+    /// The place the last move this app ran was going: only for its own
+    /// failure row's Try Again, never saved. An unfinished move is jit's
+    /// word (`move_unfinished`), not this.
+    @Published var vaultKeyAttempted: VaultKeyPlace?
     /// The Settings row's Restore, waiting for the doctor check running
     /// when it was pressed.
     @Published var vaultKeyRestoreQueued = false
