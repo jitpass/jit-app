@@ -57,5 +57,9 @@ final class MCPAppTests: XCTestCase {
     func testIDsAreJitsClientValues() {
         XCTAssertEqual(MCPApp.allCases.map(\.rawValue), ["claude-desktop", "cursor"])
         XCTAssertEqual(MCPApp.cursor.arguments("install"), ["mcp", "install", "--client", "cursor"])
+        // The name the service records as a job's last caller, which the
+        // AI Agents card matches to say the last run was this app's own.
+        XCTAssertEqual(MCPApp.claudeDesktop.caller, "Claude")
+        XCTAssertEqual(MCPApp.cursor.caller, "Cursor")
     }
 }
