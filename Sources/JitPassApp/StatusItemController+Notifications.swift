@@ -76,6 +76,7 @@ extension StatusItemController {
     func allowNotifications() {
         UserDefaults.standard.set(model.notifyDecoys, forKey: Notifier.decoyPreferenceKey)
         UserDefaults.standard.set(model.notifyChanges, forKey: Notifier.changesPreferenceKey)
+        UserDefaults.standard.set(model.notifyJobs, forKey: Notifier.jobsPreferenceKey)
         Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
     }
 

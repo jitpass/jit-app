@@ -190,6 +190,9 @@ extension StatusItemController {
     /// current. Nothing is created until the human approves it.
     func receive(jobProposal event: SessionEvent) {
         reloadJobs()
+        guard model.notifyJobs else {
+            return
+        }
         let who = event.launchedBy ?? "An AI tool"
         Notifier.post(
             title: "\(who) asks to add a job",
@@ -204,7 +207,7 @@ extension StatusItemController {
     /// One notification per job and approval: a caller retrying a stopped
     /// job replaces it rather than stacking more.
     func noteJobStop(_ event: SessionEvent) {
-        guard let name = event.job, let cause = event.cause, cause.contains("refused") else {
+        guard model.notifyJobs, let name = event.job, let cause = event.cause, cause.contains("refused") else {
             return
         }
         let why = cause.components(separatedBy: "refused, ").last ?? cause
