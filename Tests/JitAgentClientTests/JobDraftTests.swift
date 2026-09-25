@@ -194,4 +194,16 @@ final class JobDraftTests: XCTestCase {
         let proposal = try JSONDecoder().decode(JobProposal.self, from: Data(json.utf8))
         XCTAssertNil(JobDraft(proposal: proposal).spec(pathEnv: "", home: "").outputs)
     }
+
+    /// A waiting proposal that names no profile takes the folder's only one;
+    /// with two, it stays for the human to choose.
+    func testAProposalWithNoProfileTakesTheFoldersOnlyOne() throws {
+        let json = #"{"id":"c-2","name":"g","spec":{"dir":"/x/notion","argv":["python3","a.py"],"path_env":"","home":""},"unix_time":1}"#
+        let proposal = try JSONDecoder().decode(JobProposal.self, from: Data(json.utf8))
+        var draft = JobDraft(proposal: proposal)
+        draft.fillProfile(from: ["notion", "other"])
+        XCTAssertNil(draft.profile)
+        draft.fillProfile(from: ["notion"])
+        XCTAssertEqual(draft.spec(pathEnv: "", home: "").profile, GrantProfile(name: "notion", root: "/x/notion"))
+    }
 }

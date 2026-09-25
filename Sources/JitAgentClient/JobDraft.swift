@@ -116,6 +116,18 @@ public struct JobDraft: Sendable, Equatable {
         }
     }
 
+    /// A proposal that names no profile takes its folder's only one, as
+    /// `jit job allow` does; with several, the human picks. `names` are the
+    /// profiles in the folder's own store.
+    public mutating func fillProfile(from names: [String]) {
+        guard profile == nil, !folder.isEmpty, names.count == 1 else {
+            return
+        }
+        profile = names[0]
+        profileRoot = folder
+        global = false
+    }
+
     /// Picks the folder the script is in, which drops the command chosen
     /// for the last one.
     public mutating func choose(folder picked: String) {
