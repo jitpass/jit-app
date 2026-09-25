@@ -21,20 +21,60 @@ final class JobDraftTests: XCTestCase {
 
     func testMissingNamesTheFirstGap() {
         var draft = JobDraft()
-        XCTAssertEqual(draft.missing, "Choose the folder the job runs in")
-        draft.folder = "/Users/x/notion"
-        XCTAssertEqual(draft.missing, "Type the command, as you would in a terminal in that folder")
-        draft.command = "python a.py"
-        XCTAssertEqual(draft.missing, "Name the job")
+        XCTAssertEqual(draft.missing, "Choose the profile whose secrets the script needs")
+        draft.choose(profile: DiscoveredProfile(name: "notion", root: "/Users/x/notion", manifestPath: "/m", keys: ["K"]))
+        XCTAssertEqual(draft.folder, "/Users/x/notion", "a project profile's folder is the job's")
+        XCTAssertEqual(draft.missing, "Choose what the AI tool may run")
+        draft.choose(script: JobScript(file: "list_guest_users.py", argv: [".venv/bin/python", "list_guest_users.py"]))
+        XCTAssertEqual(draft.name, "notion-list-guest-users", "the name follows the script")
+        XCTAssertTrue(draft.isComplete)
         draft.name = "Notion Guests"
         XCTAssertEqual(draft.missing, "Name it with lowercase letters, digits and dashes")
-        draft.name = "notion-guests"
-        XCTAssertTrue(draft.isComplete)
+    }
+
+    /// A global profile names no folder: one is chosen, and the spec sends
+    /// no root, which is how the service reads the global store.
+    func testGlobalProfileAsksForAFolderAndSendsNoRoot() {
+        var draft = JobDraft()
+        draft.choose(profile: DiscoveredProfile(name: "mcp-caido", root: nil, manifestPath: "/m", keys: ["K"]))
+        XCTAssertEqual(draft.missing, "Choose the folder the job runs in")
+        draft.folder = "/Users/x/tools"
+        draft.command = "python3 a.py"
+        XCTAssertNil(draft.spec(pathEnv: "", home: "").profile?.root)
+        draft.choose(profile: DiscoveredProfile(name: "notion", root: "/n", manifestPath: "/m2", keys: ["K"]))
+        XCTAssertEqual(draft.spec(pathEnv: "", home: "").profile?.root, "/n")
+        XCTAssertTrue(draft.command.isEmpty, "a new profile drops the last folder's command")
+    }
+
+    /// Nothing is claimed before it is chosen: blanks stay blanks.
+    func testSentenceLeavesBlanksUntilChosen() {
+        var draft = JobDraft()
+        XCTAssertEqual(draft.sentence(program: nil, secrets: nil), [
+            .text("Let AI tools run "), .blank("a script"), .text(" with "), .blank("a profile's secrets"),
+            .text(". They see what it prints, never the values.")
+        ])
+        draft.choose(profile: DiscoveredProfile(name: "notion", root: "/x/notion", manifestPath: "/m", keys: ["K"]))
+        draft.command = ".venv/bin/python list_guest_users.py"
+        XCTAssertEqual(draft.sentence(program: nil, secrets: 3)[1], .value("list_guest_users.py"))
+        XCTAssertEqual(draft.sentence(program: nil, secrets: 3)[3], .value("notion"))
+        XCTAssertEqual(draft.sentence(program: nil, secrets: 3)[5], .value("3 secrets"))
+    }
+
+    func testTypedNameStopsFollowingTheScript() {
+        var draft = JobDraft()
+        draft.choose(profile: DiscoveredProfile(name: "notion", root: "/x/notion", manifestPath: "/m", keys: []))
+        draft.name = "guests"
+        draft.nameSuggested = false
+        draft.choose(script: JobScript(file: "setup.sh", argv: ["./setup.sh"]))
+        XCTAssertEqual(draft.name, "guests")
     }
 
     func testSuggestedName() {
         XCTAssertEqual(JobDraft.suggestedName(folder: "/Users/x/custom_scripts/notion"), "notion")
         XCTAssertEqual(JobDraft.suggestedName(folder: "/Users/x/My Scripts"), "my-scripts")
+        XCTAssertEqual(JobDraft.suggestedName(folder: "/x/notion", script: "list_guest_users.py"), "notion-list-guest-users")
+        XCTAssertEqual(JobDraft.suggestedName(folder: "/x/notion", script: "notion_export.py"), "notion-export")
+        XCTAssertEqual(JobDraft.suggestedName(folder: "/x/jamf", script: "jamf.sh"), "jamf")
     }
 
     /// A proposal opens at each-time whatever the agent asked for.
@@ -49,5 +89,36 @@ final class JobDraftTests: XCTestCase {
         let spec = draft.spec(pathEnv: "/usr/bin", home: "/Users/x")
         XCTAssertEqual(spec.ask, "each-time")
         XCTAssertEqual(spec.profile, GrantProfile(name: "notion", root: "/n"))
+    }
+
+    /// The top level only, Python through the folder's own virtualenv, and
+    /// nothing that is not a script.
+    func testScriptsInAFolder() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("jobscripts-\(UUID().uuidString)")
+        let fm = FileManager.default
+        try fm.createDirectory(at: dir.appendingPathComponent(".venv/bin"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: dir.appendingPathComponent("lib"), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        func write(_ name: String, executable: Bool = false) throws {
+            let path = dir.appendingPathComponent(name).path
+            fm.createFile(atPath: path, contents: Data("x".utf8))
+            if executable {
+                try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: path)
+            }
+        }
+        try write(".venv/bin/python", executable: true)
+        try write("list_guest_users.py")
+        try write("setup.sh")
+        try write("run.sh", executable: true)
+        try write("lib/deep.py")
+        try write("requirements.txt")
+        try write(".env")
+        let scripts = JobScripts.suggest(in: dir.path)
+        XCTAssertEqual(scripts.map(\.file), ["list_guest_users.py", "run.sh", "setup.sh"])
+        XCTAssertEqual(scripts[0].argv, [".venv/bin/python", "list_guest_users.py"])
+        XCTAssertEqual(scripts[1].argv, ["./run.sh"])
+        XCTAssertEqual(scripts[2].argv, ["sh", "setup.sh"])
+        try fm.removeItem(at: dir.appendingPathComponent(".venv"))
+        XCTAssertEqual(JobScripts.suggest(in: dir.path)[0].argv, ["python3", "list_guest_users.py"], "no virtualenv, the system python")
     }
 }

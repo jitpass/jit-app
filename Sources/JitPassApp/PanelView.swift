@@ -117,7 +117,7 @@ struct PanelView: View {
                 // without me". Absent until AI Jobs is used.
                 if let jobs = model.jobsRow {
                     Button(action: actions.openAIJobs) {
-                        row("sparkles", "AI Jobs", jobs.display, dot: dot(jobs.tone))
+                        row("checklist", "AI Jobs", jobs.display, dot: dot(jobs.tone))
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(HoverRowStyle())
