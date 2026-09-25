@@ -38,9 +38,6 @@ helperinfo=$(codesign --display --verbose=2 "$HELPER" 2>&1)
 [[ "$helperinfo" == *$'\n'"Identifier=$HELPER_CODE_ID"$'\n'* ]] || die "helper's code identifier is not $HELPER_CODE_ID (see HELPER_CODE_ID in lib.sh)"
 helperents=$(codesign --display --entitlements - --xml "$HELPER" 2>/dev/null)
 [[ "$helperents" == *"$HELPER_GROUP"* && "$helperents" == *"$TEAM_ID.$HELPER_ID"* ]] || die "helper signed without the Secure Enclave entitlement"
-# The launch AMFI performs is the real test of entitlement + profile +
-# certificate; a mismatch dies here with exit 137 rather than on a user's Mac.
-"$HELPER/Contents/MacOS/jit" --version > /dev/null || die "the signed helper does not launch: its profile and entitlements disagree"
 
 codesign --force --sign "$identity" --options runtime --timestamp \
   --entitlements Resources/JitPass.entitlements "$APP"
@@ -49,4 +46,17 @@ codesign --verify --strict --verbose=2 "$APP"
 # codesign's pipe and the check fails on a perfectly good signature.
 info=$(codesign --display --verbose=2 "$APP" 2>&1)
 [[ "$info" == *"TeamIdentifier=$TEAM_ID"* ]] || die "signed, but not by team $TEAM_ID"
+
+# Launching the helper runs the jit just signed, which on CI may be a jit
+# built from source. Both signatures are done, so on CI the identity's
+# keychain is locked first: that jit never runs beside an unlocked signing
+# key. Nothing after sign.sh signs (notarize.sh, stapling and verify.sh
+# only verify). Locally ($SIGN_KEYCHAIN unset) the login keychain is left
+# alone.
+if [ -n "${SIGN_KEYCHAIN:-}" ]; then
+  security lock-keychain "$SIGN_KEYCHAIN"
+fi
+# The launch AMFI performs is the real test of entitlement + profile +
+# certificate; a mismatch dies here with exit 137 rather than on a user's Mac.
+"$HELPER/Contents/MacOS/jit" --version > /dev/null || die "the signed helper does not launch: its profile and entitlements disagree"
 echo "signed $APP as team $TEAM_ID"
