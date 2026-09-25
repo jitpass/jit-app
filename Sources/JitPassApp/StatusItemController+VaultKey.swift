@@ -199,22 +199,16 @@ extension StatusItemController {
     /// The row is in a state a Doctor action can end.
     private var vaultKeyNeedsAttention: Bool {
         switch model.vaultKeyRow {
-        case .lost, .unfinished, .restorePending: true
+        case .lost, .unfinished, .restorePending, .restoreUnchecked, .changeUnknown: true
         default: false
         }
     }
 
     /// Which restore the vault needs: the lost key's (a new key, then the
-    /// import) or a pending one's (the key exists, the import alone), or
-    /// none. The lost key comes first: the import alone cannot land
-    /// without a key.
+    /// import), a pending one's (the key exists, the import alone), what
+    /// jit names when it could not check, or none (`VaultKeyRow.restore`).
     private var restoreKind: (action: DoctorAction, finding: (DoctorItem) -> Bool)? {
-        if VaultKeyRow.keyLost(model.doctor) == true {
-            return (DoctorAdvice.restoreRecoveryFile, VaultKeyRow.isLostFinding)
-        }
-        let pending = model.cli?.vault?.restorePending == true
-            || (model.doctor.map { $0.problems + $0.ignored } ?? []).contains(where: VaultKeyRow.isRestoreFinding)
-        return pending ? (DoctorAdvice.importRecoveryFile, VaultKeyRow.isRestoreFinding) : nil
+        model.vaultKeyRestore
     }
 
     /// The Settings row's Restore from Recovery File…: the lost key's own
