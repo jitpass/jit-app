@@ -60,12 +60,19 @@ extension StatusItemController {
             },
             allowNotifications: { [weak self] in self?.allowNotifications() },
             openNotificationSettings: { Notifier.openSystemSettings() },
+            moveVaultKey: { [weak self] in self?.openVaultKeyMove() },
+            saveRecoveryFile: { [weak self] in self?.saveRecoveryFile() },
+            confirmVaultKeyMove: { [weak self] in self?.confirmVaultKeyMove() },
+            cancelVaultKeyMove: { [weak self] in self?.model.vaultKeySheet = false },
+            moveVaultKeyBack: { [weak self] in self?.confirmMoveBack() },
+            retryVaultKey: { [weak self] in self?.retryVaultKey() },
+            restoreVaultKey: { [weak self] in self?.openDoctor() },
             vaultClean: { [weak self] in self?.vaultDestructive(
                 "clean",
                 does: "deletes every secret and every backup for good; the vault and its key stay"
             ) },
             vaultDelete: { [weak self] in
-                self?.vaultDestructive("delete", does: "destroys the vault directory and its key in the keychain")
+                self?.vaultDestructive("delete", does: "destroys the vault directory and its key")
             },
             setCheckForUpdates: { [weak self] on in self?.setCheckForUpdates(on) },
             checkForUpdates: { [weak self] in self?.checkForUpdates(manual: true) },
@@ -116,6 +123,7 @@ extension StatusItemController {
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
         model.fullDiskAccess = FullDiskAccess.granted()
         model.settingsOutcome = nil
+        loadVaultKeyPreferences()
         refreshNotificationPermission()
         if model.cli == nil {
             model.cli = JitCLI.status()

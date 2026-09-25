@@ -23,6 +23,16 @@ struct SettingsActions {
     var setNotifyJobs: (Bool) -> Void = { _ in }
     var allowNotifications: () -> Void = {}
     var openNotificationSettings: () -> Void = {}
+    /// The Vault key row: the sheet that moves it into the Secure Enclave,
+    /// its recovery file and its Move Key, the alert that moves it back,
+    /// the failure's Try Again, and the lost key's restore.
+    var moveVaultKey: () -> Void = {}
+    var saveRecoveryFile: () -> Void = {}
+    var confirmVaultKeyMove: () -> Void = {}
+    var cancelVaultKeyMove: () -> Void = {}
+    var moveVaultKeyBack: () -> Void = {}
+    var retryVaultKey: () -> Void = {}
+    var restoreVaultKey: () -> Void = {}
     var vaultClean: () -> Void = {}
     var vaultDelete: () -> Void = {}
     var setCheckForUpdates: (Bool) -> Void = { _ in }

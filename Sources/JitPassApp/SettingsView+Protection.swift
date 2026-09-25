@@ -25,7 +25,8 @@ extension SettingsView {
                 lockTimerRow
                 consentRow
                 historyRow
-                if let outcome = failure(.lockTimer, .consent, .history) {
+                vaultKeyRow
+                if let outcome = failure(.lockTimer, .consent, .history, .vaultKey) {
                     failureRow(outcome)
                 }
             }
@@ -79,7 +80,7 @@ extension SettingsView {
                 mark: .busy,
                 name: "Keep typed credentials out of zsh history",
                 fact: "Changing the hook in your shell…",
-                last: failure(.lockTimer, .consent, .history) == nil
+                last: historyIsLast
             ) {
                 EmptyView()
             }
@@ -88,10 +89,72 @@ extension SettingsView {
                 name: "Keep typed credentials out of zsh history",
                 fact: "A command carrying one still runs; the history file never gets it.",
                 wraps: true,
-                last: failure(.lockTimer, .consent, .history) == nil
+                last: historyIsLast
             ) {
                 AppSwitch(isOn: guardBinding)
                     .disabled(model.settingsApplying != nil || model.guardInstalled == nil)
+            }
+        }
+    }
+
+    /// The history row is the card's last only with no Vault key row and
+    /// no failure under it.
+    private var historyIsLast: Bool {
+        !showsVaultKeyRow && failure(.lockTimer, .consent, .history, .vaultKey) == nil
+    }
+
+    /// Drawn only where the move can work (`VaultKeyRow.state`). A failure
+    /// of the move takes the row's place, as the card's failure row.
+    private var showsVaultKeyRow: Bool {
+        vaultKeyState != nil && failure(.vaultKey) == nil
+    }
+
+    /// Where the vault key is kept, and the one move from there: into the
+    /// Secure Enclave, or back to the keychain from ···.
+    @ViewBuilder private var vaultKeyRow: some View {
+        let last = failure(.lockTimer, .consent, .history, .vaultKey) == nil
+        if let state = vaultKeyState, showsVaultKeyRow {
+            if applying(.vaultKey) {
+                AppNoteRow(mark: .busy, name: Format.vaultKeyMoving, fact: Format.vaultKeyWaiting, last: last) {
+                    EmptyView()
+                }
+            } else {
+                switch state {
+                case .keychain:
+                    AppRow(
+                        name: Format.vaultKeyName, detail: Format.vaultKeyDetail(state), fact: Format.vaultKeyFact(state),
+                        wraps: true, last: last
+                    ) {
+                        Button("Move to Secure Enclave…", action: actions.moveVaultKey)
+                            .buttonStyle(AppButton())
+                            .disabled(model.settingsApplying != nil)
+                    }
+                case .secureEnclave:
+                    AppRow(
+                        dot: Color(StatusMark.green),
+                        name: Format.vaultKeyName, detail: Format.vaultKeyDetail(state), fact: Format.vaultKeyFact(state),
+                        wraps: true, last: last
+                    ) {
+                        Menu {
+                            Button("Move Back to Keychain…", action: actions.moveVaultKeyBack)
+                        } label: {
+                            Text("···")
+                        }
+                        .menuStyle(.button)
+                        .buttonStyle(AppButton())
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                        .disabled(model.settingsApplying != nil)
+                    }
+                case .lost:
+                    AppRow(
+                        dot: Color(StatusMark.red),
+                        name: Format.vaultKeyName, detail: Format.vaultKeyDetail(state), fact: Format.vaultKeyFact(state),
+                        wraps: true, last: last
+                    ) {
+                        Button("Restore from Recovery File…", action: actions.restoreVaultKey).buttonStyle(AppButton())
+                    }
+                }
             }
         }
     }
@@ -179,7 +242,7 @@ extension SettingsView {
                 }
                 AppRow(
                     name: "Destroy the vault and its key",
-                    fact: "The vault directory and its keychain item. Nothing comes back.",
+                    fact: "The vault directory and its key. Nothing comes back.",
                     wraps: true,
                     last: true
                 ) {

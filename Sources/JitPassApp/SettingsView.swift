@@ -38,6 +38,17 @@ struct SettingsView: View {
             alignment: .top
         )
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .sheet(isPresented: $model.vaultKeySheet) {
+            VaultKeySheet(model: model, actions: actions)
+        }
+        // The move is a Protection setting wherever it was asked for
+        // (Doctor's offer opens it here), and its spinner and outcome land
+        // on that card's row.
+        .onChange(of: model.vaultKeySheet) { _, open in
+            if open {
+                segment = .protection
+            }
+        }
     }
 
     // MARK: - Regions
@@ -125,6 +136,11 @@ struct SettingsView: View {
         return outcome
     }
 
+    /// Where the vault key is kept, or nil where the row is not drawn.
+    var vaultKeyState: VaultKeyRow? {
+        model.vaultKeyRow
+    }
+
     /// The row a change is being applied to, so the spinner sits on it
     /// rather than under the whole window.
     func applying(_ row: SettingsOutcome.Row) -> Bool {
@@ -143,6 +159,9 @@ struct SettingsView: View {
         ) {
             if outcome.offersStart {
                 Button("Start Service", action: actions.startService).buttonStyle(AppButton())
+            }
+            if outcome.offersRetry {
+                Button("Try Again…", action: actions.retryVaultKey).buttonStyle(AppButton())
             }
         }
     }

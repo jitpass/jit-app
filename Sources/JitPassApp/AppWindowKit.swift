@@ -228,6 +228,9 @@ struct AppCardRows<Content: View>: View {
 /// One row: the thing itself, the part that tells it from its neighbours
 /// in mono, one fact under it, and at most two verbs pushed right.
 struct AppRow<Actions: View>: View {
+    /// A state's dot before the text, where the row's state is a colour
+    /// as well as its words (the vault key in the Secure Enclave).
+    var dot: Color?
     let name: String
     var detail: String?
     /// One word after the name, in a chip: "new" on a finding the previous
@@ -259,6 +262,9 @@ struct AppRow<Actions: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: Win.s5) {
+                if let dot {
+                    StateDot(tint: dot)
+                }
                 VStack(alignment: .leading, spacing: Win.s1) {
                     HStack(spacing: Win.s3) {
                         // The name is the thing itself: the detail beside it

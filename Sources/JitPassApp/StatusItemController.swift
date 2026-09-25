@@ -153,6 +153,7 @@ final class StatusItemController {
             Task { @MainActor in self?.pollStatus() }
         }
         model.fullDiskAccess = FullDiskAccess.granted()
+        loadVaultKeyPreferences()
         refreshScanIfDue()
         scanCheck = Timer.scheduledTimer(withTimeInterval: Self.scanCheckInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refreshScanIfDue() }
