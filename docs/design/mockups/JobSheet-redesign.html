@@ -334,6 +334,91 @@ code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border
 
 </div>
 
+<h2>Editing a job</h2>
+<p>A job is changed by approving it again under the same name, which the service already does (<code>replace</code>). So Edit is the same sheet, opened filled in from the job, with one Touch ID when you approve the change. Until then the job runs as it was.</p>
+<div class="states">
+
+<figure>
+<div class="jp-window">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>AI Jobs</div>
+  <div class="jp-window__head">
+    <div><div class="jp-window__h">1 job</div>
+    <div class="jp-window__sub">Each runs only as you approved it. A changed file stops it until you look.</div></div>
+    <div class="jp-window__acts"><button class="jp-abtn jp-abtn--default">New AI Job…</button></div>
+  </div>
+  <div class="jp-window__body">
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>Ready</div>
+      <div class="jp-card__rows">
+        <div class="jp-row">
+          <div class="jp-row__text">
+            <div class="jp-row__name">notion-list-guest-users <span>· list_guest_users.py</span></div>
+            <div class="jp-row__fact">Cursor ran it 2 minutes ago · worked · Runs without asking · 3 secrets</div>
+          </div>
+          <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Edit…</button><button class="jp-abtn jp-abtn--quiet">Remove…</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<figcaption><b>E1. Edit on every job row.</b> Two verbs, the safe one first: Edit changes nothing until you approve; Remove asks. A stopped job keeps Review… on its card, which is the edit that starts from what changed.</figcaption>
+</figure>
+
+<figure>
+<div class="jp-window jp-sheet">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>AI Jobs</div>
+  <div class="jp-sheet__body">
+    <div>
+      <div class="jp-sheet__title">Edit notion-list-guest-users</div>
+      <div class="jp-say">Let AI tools run <b>list_guest_users.py</b> in <b>notion</b> with <b>3 secrets</b>. They see what it prints, never the values.</div>
+    </div>
+    <div class="jp-sheet__grid">
+      <div class="jp-sheet__k">Profile</div>
+      <div class="jp-sheet__v">
+        <div class="jp-sheet__inline"><b style="font-size:13px">notion</b><span style="margin-left:auto"><button class="jp-abtn jp-abtn--quiet">Change…</button></span></div>
+        <div class="jp-sheet__hint">In <span class="jp-mono">~/Security-Ops/custom_scripts/notion</span></div>
+      </div>
+      <div class="jp-sheet__k">Runs</div>
+      <div class="jp-sheet__v">
+        <button class="jp-popup"><span class="jp-mono">.venv/bin/python list_guest_users.py</span> <svg class="chev"><use href="#chev"/></svg></button>
+        <div class="jp-sheet__hint">Exactly this, with no arguments added.</div>
+      </div>
+      <div class="jp-sheet__k">Secrets</div>
+      <div class="jp-sheet__v">
+        <div class="jp-card"><div class="jp-card__rows">
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name jp-mono">INTERNAL_DOMAINS</div></div>
+            <span class="jp-seg"><button class="jp-seg__pill">Hidden</button><button class="jp-seg__pill jp-seg__pill--on">Shown</button></span></div>
+          <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name jp-mono">NOTION_API_KEY</div></div>
+            <span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">Hidden</button><button class="jp-seg__pill">Shown</button></span></div>
+          <div class="jp-row" style="border-bottom:0"><div class="jp-row__text"><div class="jp-row__name jp-mono">OUTPUT_FILE</div></div>
+            <span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">Hidden</button><button class="jp-seg__pill">Shown</button></span></div>
+        </div></div>
+      </div>
+      <div class="jp-sheet__k">Asks</div>
+      <div class="jp-sheet__v">
+        <span class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">Each time</button><button class="jp-seg__pill">Never, until you remove it</button></span>
+        <div class="jp-sheet__hint">Touch ID for every run, naming who asked.</div>
+      </div>
+      <div class="jp-sheet__k"></div>
+      <div class="jp-sheet__v"><span class="jp-more"><svg><use href="#disc"/></svg>More options · no output folder</span></div>
+    </div>
+    <div class="jp-sheet__notes">
+      • Changed: INTERNAL_DOMAINS and OUTPUT_FILE shown/hidden swapped · asks each time.<br>
+      • Approving fingerprints the folder as it is now, and the job's run count starts over.<br>
+      • Until you approve, it runs as it was.
+    </div>
+    <div class="jp-sheet__foot">
+      <span class="jp-window__count">Touch ID follows.</span>
+      <button class="jp-abtn">Cancel</button>
+      <button class="jp-abtn jp-abtn--default">Approve Changes with Touch ID</button>
+    </div>
+  </div>
+</div>
+<figcaption><b>E2. The same sheet, filled in from the job.</b> The title names the job, and the name is the one thing that cannot change here: renaming is a new job, so More options drops it. The first note says what differs from the approved job; with nothing changed yet the button stays off and the footer says "Nothing changed yet". Switching a never-asking job to Each time deletes its keychain key, as removing it does.</figcaption>
+</figure>
+
+</div>
+
 <h2>What changes from the build</h2>
 <p>Each line is something the sheet in your screenshot does that the design system or the approved frame C does not.</p>
 <ul class="diff">

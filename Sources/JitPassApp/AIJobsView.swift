@@ -146,6 +146,8 @@ struct AIJobsView: View {
 
     private func jobRow(_ job: JobStatus, last: Bool) -> some View {
         AppRow(name: job.name, detail: Format.jobCommand(job), fact: Format.jobFact(job), last: last) {
+            // The safe verb first: Edit changes nothing until its approval.
+            Button("Edit…") { actions.edit(job) }.buttonStyle(AppButton(kind: .quiet))
             Button("Remove…") { actions.remove(job) }.buttonStyle(AppButton(kind: .quiet))
         }
     }
@@ -209,6 +211,7 @@ struct JobsCard<Rows: View>: View {
 struct AIJobsActions {
     var reload: () -> Void = {}
     var remove: (JobStatus) -> Void = { _ in }
+    var edit: (JobStatus) -> Void = { _ in }
     var newJob: () -> Void = {}
     var review: (JobProposal) -> Void = { _ in }
     var reviewJob: (JobStatus) -> Void = { _ in }

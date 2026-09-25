@@ -121,4 +121,42 @@ final class JobDraftTests: XCTestCase {
         try fm.removeItem(at: dir.appendingPathComponent(".venv"))
         XCTAssertEqual(JobScripts.suggest(in: dir.path)[0].argv, ["python3", "list_guest_users.py"], "no virtualenv, the system python")
     }
+
+    private func approved(global: Bool = false) -> JobStatus {
+        var job = JobStatus(name: "notion-guests", dir: "/x/notion", argv: [".venv/bin/python", "list_guest_users.py"], ask: "never")
+        job.profile = "notion"
+        job.profileGlobal = global ? true : nil
+        job.secrets = [
+            JobSecretStatus(name: "INTERNAL_DOMAINS", path: "notion/INTERNAL_DOMAINS"),
+            JobSecretStatus(name: "OUTPUT_FILE", path: "notion/OUTPUT_FILE", shown: true)
+        ]
+        return job
+    }
+
+    /// Edit opens as approved, says nothing changed until something has,
+    /// and names each change; approving it replaces the job, never renames.
+    func testEditStartsAsApprovedAndNamesWhatChanged() {
+        var draft = JobDraft(editing: approved())
+        XCTAssertEqual(draft.command, ".venv/bin/python list_guest_users.py")
+        XCTAssertEqual(draft.shown, ["OUTPUT_FILE"])
+        XCTAssertEqual(draft.ask, .never)
+        XCTAssertEqual(draft.missing, "Nothing changed yet")
+        draft.shown = ["INTERNAL_DOMAINS"]
+        draft.ask = .eachTime
+        XCTAssertEqual(draft.changes, ["INTERNAL_DOMAINS shown", "OUTPUT_FILE hidden", "asks each time"])
+        XCTAssertTrue(draft.isComplete)
+        let spec = draft.spec(pathEnv: "", home: "")
+        XCTAssertEqual(spec.replace, true)
+        XCTAssertEqual(spec.profile, GrantProfile(name: "notion", root: "/x/notion"))
+        XCTAssertEqual(draft.cleared().name, "notion-guests", "changing the profile keeps the job's name")
+        XCTAssertNotNil(draft.cleared().editing)
+    }
+
+    /// A job made from ~/.jit/profiles is edited as one: no root is sent.
+    func testEditKeepsAGlobalProfileGlobal() {
+        var draft = JobDraft(editing: approved(global: true))
+        draft.ask = .eachTime
+        XCTAssertNil(draft.spec(pathEnv: "", home: "").profile?.root)
+        XCTAssertNil(JobReview(job: approved(global: true)).reapproval(pathEnv: "", home: "").profile?.root)
+    }
 }
