@@ -228,10 +228,15 @@ public enum DoctorAdvice {
             }
             return [DoctorAction("Unmount", unmountCommand(path))]
         },
-        "vault_key": { _ in [DoctorAction(
-            "Import a Backup", "jit vault import <file>", needs: .existingPath(placeholder: "<file>"),
-            argv: [["vault", "import", "<file>", "--stdin", "--yes"]], input: .passphrase(prompt: "The backup file's passphrase")
-        )] },
+        // A lost Secure Enclave key needs a new key before the import can
+        // land: jit's own fix runs `jit vault init` first, which sets the
+        // lost key's file aside (doctorsections.go).
+        "vault_key": { item in
+            VaultKeyRow.isLostFinding(item) ? [restoreRecoveryFile] : [DoctorAction(
+                "Import a Backup", "jit vault import <file>", needs: .existingPath(placeholder: "<file>"),
+                argv: [["vault", "import", "<file>", "--stdin", "--yes"]], input: .passphrase(prompt: "The backup file's passphrase")
+            )]
+        },
         "rekey": { _ in [DoctorAction("Finish Rotation", "jit vault rekey", argv: [["vault", "rekey", "--yes"]])] },
         "legacy_envelope": { _ in [DoctorAction(
             "Re-encrypt", "jit vault export <file> && jit vault import <file>", needs: .newFile(placeholder: "<file>"),

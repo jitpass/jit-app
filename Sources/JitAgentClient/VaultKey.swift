@@ -70,7 +70,7 @@ public enum VaultKeyRow: Equatable, Sendable {
         (report?.problems ?? []).contains(where: isLostFinding)
     }
 
-    static func isLostFinding(_ item: DoctorItem) -> Bool {
+    public static func isLostFinding(_ item: DoctorItem) -> Bool {
         item.kind == "vault_key" && (item.fixes ?? []).contains { $0.argv.starts(with: ["vault", "init"]) }
     }
 

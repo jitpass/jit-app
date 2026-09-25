@@ -66,7 +66,7 @@ extension StatusItemController {
             cancelVaultKeyMove: { [weak self] in self?.model.vaultKeySheet = false },
             moveVaultKeyBack: { [weak self] in self?.confirmMoveBack() },
             retryVaultKey: { [weak self] in self?.retryVaultKey() },
-            restoreVaultKey: { [weak self] in self?.openDoctor() },
+            restoreVaultKey: { [weak self] in self?.restoreVaultKey() },
             vaultClean: { [weak self] in self?.vaultDestructive(
                 "clean",
                 does: "deletes every secret and every backup for good; the vault and its key stay"
