@@ -118,13 +118,8 @@ extension StatusItemController {
     /// its own hidden field, and run only if none was cancelled.
     func runBoardButton(_ button: DoctorButton, card: DoctorCard, key: String) {
         switch button.command {
-        case let .reveal(path):
-            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
-        case let .edit(path):
-            Editor.open(path, line: nil)
-        case let .copyPath(path):
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(path, forType: .string)
+        case .reveal, .edit, .copyPath:
+            runFileButton(button.command)
         case let .terminal(command):
             runInTerminal(command)
         case .review:
@@ -138,8 +133,34 @@ extension StatusItemController {
             runIgnore(commands, key: key)
         case let .unignore(command):
             runIgnore([command], key: key)
+        case .moveVaultKey, .dismissVaultKeyOffer:
+            runVaultKeyButton(button.command)
         case let .run(steps):
             runCardAction(steps, button: button, card: card, key: key)
+        }
+    }
+
+    /// Finder, the editor and the pasteboard: a file's buttons, no question.
+    private func runFileButton(_ command: DoctorButton.Command) {
+        switch command {
+        case let .reveal(path):
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        case let .edit(path):
+            Editor.open(path, line: nil)
+        case let .copyPath(path):
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(path, forType: .string)
+        default:
+            break
+        }
+    }
+
+    /// The vault key offer's Move… and Don't Suggest Again.
+    private func runVaultKeyButton(_ command: DoctorButton.Command) {
+        if command == .moveVaultKey {
+            openVaultKeyMove()
+        } else if command == .dismissVaultKeyOffer {
+            dismissVaultKeyOffer()
         }
     }
 

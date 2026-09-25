@@ -152,6 +152,20 @@ extension StatusItemController {
         }
     }
 
+    /// The Settings row's Restore from Recovery File…: Doctor's Fix now
+    /// card's own button, run in the Doctor window, where its progress and
+    /// how it ended are shown.
+    func restoreVaultKey() {
+        openDoctor()
+        guard let report = model.doctor,
+              let card = DoctorBoard.make(report).cards.first(where: { $0.items.contains(where: VaultKeyRow.isLostFinding) }),
+              let restore = card.primary, doctorIdle
+        else {
+            return
+        }
+        runBoardButton(restore, card: card, key: card.id)
+    }
+
     /// Doctor's ··· "Don't Suggest Again". The Settings row still offers
     /// the move.
     func dismissVaultKeyOffer() {
