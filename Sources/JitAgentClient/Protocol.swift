@@ -31,6 +31,18 @@ public enum AgentOp: String, Codable, Sendable, CaseIterable {
     /// agent go on to its own Touch ID; a deny refuses without one.
     case consentList = "consent_list"
     case consentAnswer = "consent_answer"
+    /// AI Jobs (jit design/agent-jobs.md): a command the human approves, run
+    /// by the service for any caller, with the output returned and the secret
+    /// values hidden. `job_list`, `job_preview`, `job_proposals` and
+    /// `job_dismiss` never prompt; `job_allow` puts up the one Touch ID;
+    /// `job_remove` never asks. The app never sends `job_run`: running a job
+    /// is what an AI tool does, and this app only shows and approves them.
+    case jobList = "job_list"
+    case jobPreview = "job_preview"
+    case jobAllow = "job_allow"
+    case jobRemove = "job_remove"
+    case jobProposals = "job_proposals"
+    case jobDismiss = "job_dismiss"
 }
 
 /// The two answers `consent_answer` accepts.
@@ -73,13 +85,21 @@ public struct AgentRequest: Codable, Sendable {
     /// `consent_answer`: which pending request, and the answer.
     public var consentID: String?
     public var decision: ConsentDecision?
+    /// AI Jobs: which job, the proposal to approve it from (`job_allow`,
+    /// `job_preview`), and the proposal a `job_allow` or `job_dismiss`
+    /// answers. The spec is a PROPOSAL: the service resolves, fingerprints
+    /// and words the prompt itself.
+    public var jobName: String?
+    public var jobSpec: JobSpec?
+    public var proposalID: String?
 
     public init(
         op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil,
         targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil,
         grantName: String? = nil, anchorExplicit: Bool? = nil,
         grantProfileRoots: [GrantProfile]? = nil, standing: Bool? = nil,
-        broker: Bool? = nil, consentID: String? = nil, decision: ConsentDecision? = nil
+        broker: Bool? = nil, consentID: String? = nil, decision: ConsentDecision? = nil,
+        jobName: String? = nil, jobSpec: JobSpec? = nil, proposalID: String? = nil
     ) {
         self.op = op
         self.minProtocol = minProtocol
@@ -95,6 +115,9 @@ public struct AgentRequest: Codable, Sendable {
         self.broker = broker
         self.consentID = consentID
         self.decision = decision
+        self.jobName = jobName
+        self.jobSpec = jobSpec
+        self.proposalID = proposalID
     }
 
     enum CodingKeys: String, CodingKey {
@@ -112,6 +135,9 @@ public struct AgentRequest: Codable, Sendable {
         case broker
         case consentID = "consent_id"
         case decision
+        case jobName = "job_name"
+        case jobSpec = "job_spec"
+        case proposalID = "proposal_id"
     }
 }
 
@@ -137,11 +163,14 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     /// On a serve: the reader was gone before anything was written, so it
     /// received nothing. The verdict in `op` is what it would have got.
     public var undelivered: Bool?
+    /// The AI job a `job_allow`/`job_run` prompt, or a `job_proposal`, is
+    /// about, so the app can show that job's own sheet from `job_list`.
+    public var job: String?
 
     public init(
         unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, byPID: Int32? = nil, byLikely: Bool? = nil,
         launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil,
-        undelivered: Bool? = nil
+        undelivered: Bool? = nil, job: String? = nil
     ) {
         self.unixTime = unixTime
         self.kind = kind
@@ -155,6 +184,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         self.count = count
         self.consentID = consentID
         self.undelivered = undelivered
+        self.job = job
     }
 
     enum CodingKeys: String, CodingKey {
@@ -165,7 +195,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         case launchedBy = "launched_by"
         case cause, labels, count
         case consentID = "consent_id"
-        case undelivered
+        case undelivered, job
     }
 
     public var date: Date {
@@ -276,6 +306,11 @@ public struct AgentResponse: Codable, Sendable {
     public var ceilingInSeconds: Int64?
     public var ttlSeconds: Int64?
     public var consentEnabled: Bool?
+    /// AI Jobs: `job_list` (and the job `job_allow` kept), `job_preview`,
+    /// and `job_proposals`.
+    public var jobs: [JobStatus]?
+    public var preview: JobPreview?
+    public var proposals: [JobProposal]?
 
     public init(ok: Bool) {
         self.ok = ok
@@ -291,5 +326,6 @@ public struct AgentResponse: Codable, Sendable {
         case ceilingInSeconds = "ceiling_in_seconds"
         case ttlSeconds = "ttl_seconds"
         case consentEnabled = "consent_enabled"
+        case jobs, preview, proposals
     }
 }
