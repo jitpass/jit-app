@@ -19,10 +19,11 @@ struct AIJobsView: View {
     var body: some View {
         let board = model.jobsBoard
         VStack(spacing: 0) {
-            if let banner = model.jobsBanner {
-                WindowBanner(tint: Color(model.jobsBannerFailed ? StatusMark.red : StatusMark.green), text: banner)
-            }
+            // Measured with the banner, which wraps when jit's note is long.
             VStack(spacing: 0) {
+                if let banner = model.jobsBanner {
+                    WindowBanner(tint: Color(model.jobsBannerFailed ? StatusMark.red : StatusMark.green), text: banner, wraps: true)
+                }
                 header(board)
                 content(board)
             }
@@ -38,7 +39,7 @@ struct AIJobsView: View {
         )
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onPreferenceChange(WindowHeightKey.self) { height in
-            actions.fit(height + Self.chrome(banner: model.jobsBanner != nil, footer: !board.isEmpty))
+            actions.fit(height + Self.chrome(footer: !board.isEmpty))
         }
         .sheet(isPresented: $model.jobSheet) {
             JobSheetView(model: model, actions: sheetActions)
@@ -50,8 +51,8 @@ struct AIJobsView: View {
     }
 
     /// The regions outside the measured stack.
-    static func chrome(banner: Bool, footer: Bool) -> CGFloat {
-        (banner ? 39 : 0) + (footer ? 37 : 0)
+    static func chrome(footer: Bool) -> CGFloat {
+        footer ? 37 : 0
     }
 
     private func header(_ board: JobsBoard) -> some View {

@@ -42,6 +42,28 @@ final class AgentClientTests: XCTestCase {
         }
     }
 
+    /// jitpass/jit#168: a revoke or a remove whose Secure Enclave key the
+    /// service's jit could not reach answers with `key_note`, which the
+    /// banner shows instead of "its key is deleted"; none is nil.
+    func testRevokeAndRemoveReturnJitsKeyNote() throws {
+        let note = "Its Secure Enclave key couldn't be reached from this copy of jit; "
+            + "JitPass's service deletes it the next time it starts."
+        let server = try FakeAgent(path: path) { request in
+            switch request.op {
+            case .grantRevoke where request.grantID == "g-kept", .jobRemove where request.jobName == "kept":
+                #"{"ok":true,"key_note":"\#(note)"}"#
+            default:
+                #"{"ok":true}"#
+            }
+        }
+        defer { server.stop() }
+        let client = AgentClient(socketPath: path, timeout: 2)
+        XCTAssertEqual(try client.revokeGrant(id: "g-kept"), note)
+        XCTAssertNil(try client.revokeGrant(id: "g-gone"))
+        XCTAssertEqual(try client.removeJob(name: "kept"), note)
+        XCTAssertNil(try client.removeJob(name: "gone"))
+    }
+
     func testConsentListAndAnswerRoundTrip() throws {
         let seen = Locked<[AgentRequest]>([])
         let server = try FakeAgent(path: path) { request in
