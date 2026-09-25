@@ -40,6 +40,7 @@ helperid=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$helper/Conte
 [ "$helperid" = "$HELPER_ID" ] || die "helper bundle is $helperid, want $HELPER_ID"
 helperinfo=$(codesign --display --verbose=2 "$helper" 2>&1)
 [[ "$helperinfo" == *"(runtime)"* ]] || die "helper lacks the hardened runtime"
+[[ "$helperinfo" == *$'\n'"Identifier=$HELPER_CODE_ID"$'\n'* ]] || die "helper's code identifier is not $HELPER_CODE_ID: existing keychain vault keys would ask for access"
 # The old path every installed plist and PATH link names must still lead here.
 compat="$app/Contents/MacOS/jit"
 [ -L "$compat" ] || die "Contents/MacOS/jit is not the compat symlink"
