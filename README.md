@@ -92,7 +92,8 @@ Touch ID, and asks you before any program uses one.
   Findings.
 - **A vault key that never leaves your Mac.** Only the `jit` inside
   JitPass.app can keep the vault key in the Secure Enclave, the chip that
-  holds keys and never lets them out. Opt-in, and reversible.
+  holds keys and never lets them out. Opt-in from Settings › Protection, and
+  reversible.
 - **The app never sees a secret.** It is a window onto the jit service. Every
   button sends a request the `jit` CLI can also send, so the CLI keeps working
   without the app, headless and in CI.
