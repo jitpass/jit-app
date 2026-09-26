@@ -248,6 +248,8 @@ public enum DoctorAdvice {
         "vault_restore": restoreActions,
         // jit names no command for a change it doesn't understand: none.
         "rekey_unknown": { _ in [] },
+        // jit's own fix, in the terminal like the generic Run, named.
+        "vault_key_copy": removeKeychainCopy,
         "legacy_envelope": { _ in [DoctorAction(
             "Re-encrypt", "jit vault export <file> && jit vault import <file>", needs: .newFile(placeholder: "<file>"),
             argv: [["vault", "export", "<file>", "--stdin"], ["vault", "import", "<file>", "--stdin", "--yes"]],
