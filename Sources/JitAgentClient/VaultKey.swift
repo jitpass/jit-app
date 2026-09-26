@@ -29,7 +29,7 @@ public enum VaultKeyRow: Equatable, Sendable {
     /// In the Secure Enclave, this Mac's enclave has it, and jit's
     /// `keychain_copy_left` says a key is still in the login keychain
     /// under the vault key's name. The vault opens; the copy is what the
-    /// move was meant to end. Amber, and no button of its own: doctor's
+    /// move was meant to end. Red, and no button of its own: doctor's
     /// `vault_key_copy` card carries jit's fix. Move Back stays in ···.
     case copyInKeychain
     /// The vault says the Secure Enclave, and doctor has not answered yet

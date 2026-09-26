@@ -147,9 +147,9 @@ extension SettingsView {
                 }
             }
         case .secureEnclave, .copyInKeychain:
-            // A key left in the keychain is amber, as an unfinished move:
-            // the vault opens, but the move left something to do. No button
-            // for it here: the fix is jit's, on Doctor's card.
+            // A key left in the keychain is red: the vault opens, but the
+            // copy is what the move was meant to end. No button for it
+            // here: the fix is jit's, on Doctor's card.
             AppRow(
                 dot: Color(state == .copyInKeychain ? StatusMark.red : StatusMark.green),
                 name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
