@@ -24,7 +24,7 @@ final class RedactReportTests: XCTestCase {
         ))
         XCTAssertEqual(
             outcome.title,
-            "Redacted 7 tokens in 3 files · Claude Code's transcripts and Claude Code's edit history · 1 left, Claude Code is writing it"
+            "Redacted 7 tokens in 3 files · Claude Code's transcripts and edit history · 1 left, Claude Code is writing it"
         )
         XCTAssertFalse(outcome.failed)
     }

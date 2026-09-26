@@ -60,8 +60,7 @@ final class ScanWordingTests: XCTestCase {
         )
         XCTAssertEqual(
             line,
-            "Scheduled scan · ran 9 hours ago · next Sunday 03:00 · 2 new since Jan 17 · excluding 1 folder. "
-                + "jit reads your home folder, shell configs, credential files and agent caches."
+            "Scheduled scan · ran 9 hours ago · next Sunday 03:00 · 2 new since Jan 17 · excluding 1 folder"
         )
     }
 
@@ -76,14 +75,14 @@ final class ScanWordingTests: XCTestCase {
         )
         XCTAssertEqual(
             click,
-            "Scanned by hand · just now · next Monday 03:00 · nothing new since Saturday 03:00. "
-                + "Without Full Disk Access, macOS asks once per protected folder."
+            "Scanned by hand · just now · next Monday 03:00. Without Full Disk Access, macOS asks once per protected folder.",
+            "nothing new is silence; the missing access is the one limit said here"
         )
         let protect = ScanWording.wholeMacSubline(
             ScanRun(kind: .afterProtect, at: ran, schedule: .off, newCount: nil, previousAt: nil, excludes: 0, fullDiskAccess: true),
             now: now, calendar: calendar, locale: locale
         )
-        XCTAssertTrue(protect.hasPrefix("Scanned after Protect · just now · no schedule. "), protect)
+        XCTAssertEqual(protect, "Rescanned · just now · no schedule", "the banner above already names the Protect")
         XCTAssertFalse(protect.contains("new"), "no previous run, so nothing is said about what is new")
     }
 
@@ -92,7 +91,7 @@ final class ScanWordingTests: XCTestCase {
             ScanRun(kind: .scheduled, at: ran, schedule: .daily, newCount: 3, previousAt: nil, excludes: 0, fullDiskAccess: true),
             now: ran, calendar: calendar, locale: locale
         )
-        XCTAssertTrue(line.contains(" · 3 new. "), line)
+        XCTAssertTrue(line.hasSuffix(" · 3 new"), line)
     }
 
     func testFolderSublineHasNoSchedule() {
@@ -102,7 +101,7 @@ final class ScanWordingTests: XCTestCase {
         )
         XCTAssertEqual(
             line,
-            "~/proj · 2 min ago · excluding 2 folders. jit reads your home folder, shell configs, credential files and agent caches."
+            "~/proj · 2 min ago · excluding 2 folders"
         )
     }
 
@@ -136,12 +135,12 @@ final class ScanWordingTests: XCTestCase {
             now: ran.addingTimeInterval(10), calendar: calendar, locale: locale
         )
         XCTAssertTrue(
-            line.hasPrefix("Deep scan, by hand · just now · next Sunday 03:00. "),
+            line == "Deep scan, by hand · just now · next Sunday 03:00",
             line
         )
         XCTAssertTrue(
             ScanWording.folderSubline(folder: "~/proj", at: nil, excludes: 0, fullDiskAccess: true, deep: true)
-                .hasPrefix("Deep scan of ~/proj. ")
+                == "Deep scan of ~/proj"
         )
     }
 
@@ -156,13 +155,41 @@ final class ScanWordingTests: XCTestCase {
         XCTAssertTrue(ScanMode.fact(.regular, secretsStored: nil).hasSuffix("No Touch ID."))
     }
 
+    /// A vault copy names the line and the secret once; the file is the
+    /// row's name.
+    func testAVaultCopyNamesTheLineAndTheSecret() {
+        XCTAssertEqual(
+            ScanWording.vaultCopyFact(
+                line: 7,
+                secret: "notion/NOTION_TOKEN",
+                evidence: "an exact copy of the vaulted secret notion/NOTION_TOKEN"
+            ),
+            "Line 7 · notion/NOTION_TOKEN"
+        )
+        XCTAssertEqual(ScanWording.vaultCopyFact(line: nil, secret: "notion/NOTION_TOKEN", evidence: nil), "notion/NOTION_TOKEN")
+        XCTAssertEqual(ScanWording.vaultCopyFact(line: 3, secret: nil, evidence: "a copy"), "Line 3 · a copy")
+        XCTAssertEqual(ScanWording.vaultCopyFact(line: 3, secret: nil, evidence: nil), "Line 3")
+    }
+
+    /// "Claude Code's prompt history and Claude Code's transcripts" named
+    /// the agent twice: each agent once, its areas after it.
+    func testEachAgentIsNamedOnce() {
+        XCTAssertEqual(
+            ScanWording.agentPlaces([
+                (agent: "Claude Code", area: "prompt history"), (agent: "Claude Code", area: "transcripts"),
+                (agent: "Cursor", area: nil), (agent: "Claude Code", area: "transcripts")
+            ]),
+            ["Claude Code's prompt history and transcripts", "Cursor's cache"]
+        )
+    }
+
     func testRunKindLabels() {
         XCTAssertEqual(ScanRunKind.deep.label, "Deep scan, by hand")
         XCTAssertEqual(ScanRunKind.scheduled.label, "Scheduled scan")
         XCTAssertEqual(ScanRunKind.byHand.label, "Scanned by hand")
-        XCTAssertEqual(ScanRunKind.afterProtect.label, "Scanned after Protect")
+        XCTAssertEqual(ScanRunKind.afterProtect.label, "Rescanned")
         XCTAssertEqual(ScanRunKind.setup.label, "Scanned during setup")
-        XCTAssertEqual(ScanRunKind.deepAfterProtect.label, "Deep scan after Protect")
+        XCTAssertEqual(ScanRunKind.deepAfterProtect.label, "Deep rescan")
     }
 
     /// 78 findings became 25 after a Redact of 2: the rescan ran regular
@@ -213,7 +240,7 @@ final class ScanWordingTests: XCTestCase {
             now: ran.addingTimeInterval(10), calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US")
         )
         XCTAssertTrue(
-            line.hasPrefix("Deep scan after Protect · just now · no schedule. "),
+            line == "Deep rescan · just now · no schedule",
             line
         )
 
@@ -225,9 +252,7 @@ final class ScanWordingTests: XCTestCase {
             now: ran.addingTimeInterval(10), calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US")
         )
         XCTAssertTrue(
-            carried.hasPrefix(
-                "Scanned after Protect · just now · no schedule · copies of vaulted secrets from the deep scan 4 hours ago. "
-            ),
+            carried == "Rescanned · just now · no schedule · vault copies from the deep scan 4 hours ago",
             carried
         )
     }
@@ -282,31 +307,17 @@ extension ScanWordingTests {
         XCTAssertEqual(report.copies(from: ["/h/nothing"]), [])
     }
 
-    /// The copies themselves are a to-do line now; the sentence keeps the
-    /// fixtures clause and, on a regular run, where its copies came from.
-    func testTheSentenceCountsFixturesOutAndNamesNoCopies() {
+    /// The fixtures have their own tab and the copies their own to-do
+    /// line: the sentence names neither.
+    func testTheSentenceNamesNoFixturesAndNoCopies() {
         let ran = Date(timeIntervalSince1970: 1_700_000_000)
         let line = ScanWording.wholeMacSubline(
             ScanRun(
-                kind: .deep,
-                at: ran,
-                schedule: .off,
-                newCount: nil,
-                previousAt: nil,
-                excludes: 1,
-                fullDiskAccess: true,
-                vaultCopies: 35,
-                fixtures: 8
+                kind: .deep, at: ran, schedule: .off, newCount: nil, previousAt: nil, excludes: 1,
+                fullDiskAccess: true, vaultCopies: 35
             ),
             now: ran.addingTimeInterval(10), calendar: Calendar(identifier: .gregorian), locale: Locale(identifier: "en_US")
         )
-        XCTAssertTrue(
-            line.hasPrefix("Deep scan, by hand · just now · no schedule · 8 test fixtures, not counted · excluding 1 folder. "),
-            line
-        )
-        XCTAssertTrue(
-            ScanWording.folderSubline(folder: "~/proj", at: nil, excludes: 0, fullDiskAccess: true, fixtures: 1)
-                .hasPrefix("~/proj · 1 test fixture, not counted. ")
-        )
+        XCTAssertEqual(line, "Deep scan, by hand · just now · no schedule · excluding 1 folder")
     }
 }

@@ -54,14 +54,7 @@ public extension ScanWording {
             parts
                 .append("Redacted \(n) token" + (n == 1 ? "" : "s") + " in \(report.caches.removed.count) file" +
                     (report.caches.removed.count == 1 ? "" : "s"))
-            var places: [String] = []
-            for file in report.caches.removed {
-                let place = "\(file.agent)'s \(file.area)"
-                if !places.contains(place) {
-                    places.append(place)
-                }
-            }
-            parts.append(places.joined(separator: " and "))
+            parts.append(agentPlaces(report.caches.removed.map { (agent: $0.agent, area: $0.area) }).joined(separator: " and "))
         }
         if !report.caches.left.isEmpty {
             let live = report.caches.left.filter { $0.kind == "live" }

@@ -23,10 +23,11 @@ public enum ScanRunKind: String, Sendable {
         switch self {
         case .scheduled: "Scheduled scan"
         case .byHand: "Scanned by hand"
-        case .afterProtect: "Scanned after Protect"
+        // The banner above already says a Protect ran.
+        case .afterProtect: "Rescanned"
         case .setup: "Scanned during setup"
         case .deep: "Deep scan, by hand"
-        case .deepAfterProtect: "Deep scan after Protect"
+        case .deepAfterProtect: "Deep rescan"
         }
     }
 
@@ -86,12 +87,10 @@ public struct ScanRun: Sendable {
     /// When those copies were found, for a regular run that carries them
     /// from an earlier deep scan; nil when this run found them itself.
     public var vaultCopiesFrom: Date?
-    /// Real-looking values in test files and examples: reported, not counted.
-    public var fixtures = 0
 
     public init(
         kind: ScanRunKind, at: Date, schedule: ScanSchedule, newCount: Int?, previousAt: Date?,
-        excludes: Int, fullDiskAccess: Bool, vaultCopies: Int = 0, vaultCopiesFrom: Date? = nil, fixtures: Int = 0
+        excludes: Int, fullDiskAccess: Bool, vaultCopies: Int = 0, vaultCopiesFrom: Date? = nil
     ) {
         self.kind = kind
         self.at = at
@@ -102,7 +101,6 @@ public struct ScanRun: Sendable {
         self.fullDiskAccess = fullDiskAccess
         self.vaultCopies = vaultCopies
         self.vaultCopiesFrom = vaultCopiesFrom
-        self.fixtures = fixtures
     }
 }
 
@@ -110,9 +108,12 @@ public struct ScanRun: Sendable {
 /// when the next is due, what is new. Pure, so a test can hold them; the
 /// clock, calendar and locale are parameters for the same reason.
 public enum ScanWording {
-    /// The Findings header's second line for a whole-Mac report:
-    /// "Scheduled scan · ran Sunday 03:00 · next Sunday 03:00 · 2 new since
-    /// Saturday 03:00 · excluding 1 folder. jit reads your home folder, …"
+    /// The Findings header's second line for a whole-Mac report, each fact
+    /// said once: "Scheduled scan · ran Sunday 03:00 · next Sunday 03:00 ·
+    /// 2 new since Saturday 03:00 · excluding 1 folder". Nothing new is
+    /// silence, the fixtures have their own tab, and what jit reads is
+    /// Settings › Scan's; only a missing Full Disk Access, which changes
+    /// what the list can hold, is added.
     public static func wholeMacSubline(
         _ run: ScanRun,
         now: Date = Date(),
@@ -123,8 +124,8 @@ public enum ScanWording {
         let ran = when(run.at, now: now, calendar: calendar, locale: locale)
         facts.append(run.kind == .scheduled ? "ran " + ran : ran)
         facts.append(nextRunFact(schedule: run.schedule, last: run.at, now: now, calendar: calendar, locale: locale))
-        if let newCount = run.newCount {
-            var fact = newCount == 0 ? "nothing new" : "\(newCount) new"
+        if let newCount = run.newCount, newCount > 0 {
+            var fact = "\(newCount) new"
             if let previousAt = run.previousAt {
                 fact += " since " + when(previousAt, now: now, calendar: calendar, locale: locale)
             }
@@ -133,21 +134,12 @@ public enum ScanWording {
         // The copies themselves are the header's to-do line (ScanTodo); the
         // sentence keeps only where a regular run got them from.
         if run.vaultCopies > 0, let from = run.vaultCopiesFrom {
-            facts.append("copies of vaulted secrets from the deep scan " + when(from, now: now, calendar: calendar, locale: locale))
-        }
-        if run.fixtures > 0 {
-            facts.append(fixturesFact(run.fixtures))
+            facts.append("vault copies from the deep scan " + when(from, now: now, calendar: calendar, locale: locale))
         }
         if run.excludes > 0 {
             facts.append("excluding \(run.excludes) folder" + (run.excludes == 1 ? "" : "s"))
         }
-        return facts.joined(separator: " · ") + ". " + limit(fullDiskAccess: run.fullDiskAccess)
-    }
-
-    /// "8 test fixtures, not counted": a tab and a footer count that was
-    /// never a to-do, said once where the run is described.
-    static func fixturesFact(_ n: Int) -> String {
-        "\(n) test fixture" + (n == 1 ? "" : "s") + ", not counted"
+        return facts.joined(separator: " · ") + limit(fullDiskAccess: run.fullDiskAccess)
     }
 
     /// The same line for a folder scan, which has no schedule and no
@@ -158,7 +150,6 @@ public enum ScanWording {
         excludes: Int,
         fullDiskAccess: Bool,
         deep: Bool = false,
-        fixtures: Int = 0,
         now: Date = Date(),
         calendar: Calendar = .current,
         locale: Locale = .current
@@ -167,13 +158,10 @@ public enum ScanWording {
         if let at {
             facts.append(when(at, now: now, calendar: calendar, locale: locale))
         }
-        if fixtures > 0 {
-            facts.append(fixturesFact(fixtures))
-        }
         if excludes > 0 {
             facts.append("excluding \(excludes) folder" + (excludes == 1 ? "" : "s"))
         }
-        return facts.joined(separator: " · ") + ". " + limit(fullDiskAccess: fullDiskAccess)
+        return facts.joined(separator: " · ") + limit(fullDiskAccess: fullDiskAccess)
     }
 
     /// "next Sunday 03:00", "next at the first chance" when the app slept
@@ -261,10 +249,20 @@ public enum ScanWording {
         return formatter.string(from: date)
     }
 
+    /// A vault copy's second line: "Line 7 · notion/NOTION_TOKEN". The
+    /// secret by its vault name, the scanner's sentence only when jit gave
+    /// no name.
+    public static func vaultCopyFact(line: Int?, secret: String?, evidence: String?) -> String {
+        let what = secret ?? evidence ?? ""
+        guard let line else {
+            return what
+        }
+        return what.isEmpty ? "Line \(line)" : "Line \(line) · " + what
+    }
+
+    /// Said only when it changes what the list can hold.
     static func limit(fullDiskAccess: Bool) -> String {
-        fullDiskAccess
-            ? "jit reads your home folder, shell configs, credential files and agent caches."
-            : "Without Full Disk Access, macOS asks once per protected folder."
+        fullDiskAccess ? "" : ". Without Full Disk Access, macOS asks once per protected folder."
     }
 }
 
@@ -290,23 +288,28 @@ public extension ScanWording {
         guard !copies.isEmpty else {
             return nil
         }
+        let places = agentPlaces(copies.map { (agent: $0.agent ?? "an AI agent", area: $0.cacheArea) })
+        let what = copies.count == 1 ? "the copy" : "the \(copies.count) copies"
+        return "Also removes \(what) the scan found in " + places.joined(separator: ", and in ") + "."
+    }
+
+    /// Each agent named once, its areas after it, in the order met:
+    /// "Claude Code's prompt history and transcripts", "Cursor's cache".
+    static func agentPlaces(_ pairs: [(agent: String, area: String?)]) -> [String] {
         var order: [String] = []
         var areas: [String: [String]] = [:]
-        for copy in copies {
-            let agent = copy.agent ?? "an AI agent"
-            if areas[agent] == nil {
-                order.append(agent)
-                areas[agent] = []
+        for pair in pairs {
+            if areas[pair.agent] == nil {
+                order.append(pair.agent)
+                areas[pair.agent] = []
             }
-            if let area = copy.cacheArea, areas[agent]?.contains(area) == false {
-                areas[agent]?.append(area)
+            if let area = pair.area, areas[pair.agent]?.contains(area) == false {
+                areas[pair.agent]?.append(area)
             }
         }
-        let places = order.map { agent -> String in
+        return order.map { agent in
             let list = areas[agent] ?? []
             return list.isEmpty ? "\(agent)'s cache" : "\(agent)'s " + list.joined(separator: " and ")
         }
-        let what = copies.count == 1 ? "the copy" : "the \(copies.count) copies"
-        return "Also removes \(what) the scan found in " + places.joined(separator: ", and in ") + "."
     }
 }

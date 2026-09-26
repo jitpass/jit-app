@@ -194,18 +194,17 @@ struct ScanReportView: View {
         }
     }
 
-    /// A deep scan's find: the vault path first — the one card whose secret
-    /// jit knows by name — then where the copy sits, then the scanner's own
-    /// sentence. Clean Caches for a copy in an agent's cache; a copy in a
+    /// A deep scan's find: the file first, as on every other card, its
+    /// folder beside it, then the line and the vault secret it copies, each
+    /// said once. Clean Caches for a copy in an agent's cache; a copy in a
     /// plain file is the reader's to delete, after rotating.
     private func vaultCopyRow(_ group: ScanFileGroup, last: Bool) -> some View {
         let first = group.findings.first
-        let location = Format.home(group.filePath) + (group.firstLine.map { " : \($0)" } ?? "")
         return AppRow(
-            name: first?.keyName ?? Format.fileName(group.filePath),
-            detail: location,
+            name: Format.fileName(group.filePath),
+            detail: Format.parentFolder(group.filePath),
             badge: isNew(group.findings) ? "new" : nil,
-            fact: first?.evidence ?? "",
+            fact: ScanWording.vaultCopyFact(line: group.firstLine, secret: first?.keyName, evidence: first?.evidence),
             last: last
         ) {
             Button("Open") { actions.open(group.filePath, group.firstLine) }.buttonStyle(AppButton())
