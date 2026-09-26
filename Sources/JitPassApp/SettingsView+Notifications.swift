@@ -12,7 +12,7 @@ extension SettingsView {
             permissionRow
             AppRow(
                 name: "A decoy was served",
-                fact: "Something read a protected file without a run or consent, and got fake values.",
+                fact: "A read with no run or consent behind it got fake values.",
                 wraps: true
             ) {
                 AppSwitch(isOn: Binding(get: { model.notifyDecoys }, set: actions.setNotifyDecoys))
@@ -26,7 +26,7 @@ extension SettingsView {
             }
             AppRow(
                 name: "A scheduled scan finds something new",
-                fact: "A secret the last scan did not have, or tokens it redacted. Findings has the list.",
+                fact: "A secret the last scan didn't have, or tokens it redacted.",
                 wraps: true
             ) {
                 AppSwitch(isOn: Binding(get: { model.notifyScans }, set: actions.setNotifyScans))
@@ -49,16 +49,16 @@ extension SettingsView {
             if model.notificationPermission == .denied {
                 AppNoteRow(
                     mark: .dot(Color(StatusMark.amber)),
-                    name: "macOS has notifications off for JitPass",
-                    fact: "The switches stay set. Nothing arrives until macOS allows it."
+                    name: "Turned off in macOS",
+                    fact: "The switches stay set; nothing arrives until you allow it."
                 ) {
                     Button("Open System Settings…", action: actions.openNotificationSettings).buttonStyle(AppButton())
                 }
             } else {
                 AppNoteRow(
                     mark: .dot(Color(StatusMark.amber)),
-                    name: "macOS has not been asked yet",
-                    fact: "The first time one of these arrives, macOS asks. You can answer it now instead."
+                    name: "macOS has not asked yet",
+                    fact: "It asks the first time one arrives; you can answer now."
                 ) {
                     Button("Allow Notifications…", action: actions.allowNotifications).buttonStyle(AppButton())
                 }
