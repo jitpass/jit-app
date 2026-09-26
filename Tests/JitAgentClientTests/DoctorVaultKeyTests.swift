@@ -124,6 +124,43 @@ final class DoctorVaultKeyTests: XCTestCase {
         XCTAssertEqual(restore.steps.first?.input, .passphrase(prompt: "The recovery file's passphrase"))
     }
 
+    /// jit's `vault_key_copy` finding (jitpass/jit#170), as
+    /// doctorsections.go writes it; the fix is fixesFor's derivation of its
+    /// action: `vault rekey` is presence, not destructive (doctorfixes.go).
+    static let copyReport = #"""
+    {"schema_version":2,"ok":false,"problems":[{"kind":"vault_key_copy","detail":"the vault key is in the Secure \#
+    Enclave, but a key is still in your keychain under the vault key's name, where any program running as you can \#
+    read it.","action":"`jit vault rekey --wrapper secure-enclave` to remove it","fixes":[{"command":"jit vault rekey \#
+    --wrapper secure-enclave","argv":["vault","rekey","--wrapper","secure-enclave"],"destructive":false,\#
+    "presence":true}]}],"warnings":[]}
+    """#
+
+    /// A key left in the keychain of an enclave vault: a red card titled
+    /// with only what jit knows, jit's sentence under it, and jit's own fix
+    /// as written (no --yes: it runs in the terminal, where jit asks),
+    /// named for what it does rather than a bare Run.
+    func testAKeyLeftInTheKeychainIsFixNowWithJitsOwnFix() throws {
+        let board = try DoctorBoard.make(report(Self.copyReport))
+        let card = try XCTUnwrap(board.cards.first)
+        XCTAssertEqual(board.cards.count, 1)
+        XCTAssertEqual(card.tier, .broken)
+        XCTAssertEqual(card.title, "A key under the vault key's name is still in your keychain")
+        XCTAssertEqual(
+            card.reason,
+            "The vault key is in the Secure Enclave, but a key is still in your keychain under the vault key's name, "
+                + "where any program running as you can read it."
+        )
+        let remove = try XCTUnwrap(card.primary)
+        XCTAssertEqual(remove.title, "Remove from Keychain")
+        let step = try XCTUnwrap(remove.steps.first)
+        XCTAssertEqual(remove.steps.count, 1)
+        XCTAssertEqual(step.command, "jit vault rekey --wrapper secure-enclave")
+        XCTAssertNil(step.argv)
+        XCTAssertTrue(step.presence)
+        XCTAssertFalse(step.destructive)
+        XCTAssertFalse(card.primaryProminent)
+    }
+
     /// A keychain key that is gone keeps its own card: no init, no enclave.
     func testAKeyGoneFromTheKeychainIsUnchanged() throws {
         let card = try XCTUnwrap(try DoctorBoard.make(report(VaultKeyTests.goneFromKeychainReport)).cards.first)
