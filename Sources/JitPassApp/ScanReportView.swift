@@ -45,6 +45,14 @@ struct ScanReportView: View {
             switch sheet {
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
+            case let .changes(changes):
+                ChangeSheetView(
+                    sheet: changes,
+                    reveal: actions.reveal,
+                    copyPath: actions.copyPath,
+                    undo: { actions.closeSheet(); actions.undoProtect(changes.undo) },
+                    close: actions.closeSheet
+                )
             case let .scanDepth(scope):
                 ScanDepthSheet(model: model, scope: scope, start: { actions.startScan(scope, $0) }, close: actions.closeSheet)
             default:
@@ -89,7 +97,7 @@ struct ScanReportView: View {
         if let outcome = model.findingsOutcome {
             WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
                 if !outcome.text.isEmpty {
-                    Button("What jit Did…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
+                    Button("What Changed…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
                 }
                 if !outcome.undo.isEmpty {
                     Button("Undo") { actions.undoProtect(outcome.undo) }.buttonStyle(AppButton())

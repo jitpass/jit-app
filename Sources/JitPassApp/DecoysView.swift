@@ -22,7 +22,7 @@ struct DecoysView: View {
             if let outcome = model.decoysOutcome {
                 WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
                     if !outcome.text.isEmpty {
-                        Button("What jit Did…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
+                        Button("What Changed…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
                     }
                 }
             }

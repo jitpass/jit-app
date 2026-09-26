@@ -38,7 +38,9 @@ extension StatusItemController {
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
             cleanCaches: { [weak self] in self?.cleanCaches() },
             undoProtect: { [weak self] paths in self?.undoProtect(paths) },
-            showOutcome: { [weak self] outcome in self?.model.scanSheet = .result(title: outcome.title, text: outcome.text) },
+            showOutcome: { [weak self] outcome in
+                self?.model.scanSheet = outcome.changes.map { .changes($0) } ?? .result(title: outcome.title, text: outcome.text)
+            },
             redact: { [weak self] files, lines, what, place in self?.redact(files: files, lines: lines, what: what, place: place) },
             askDepth: { [weak self] scope in self?.askDepth(scope: scope) },
             startScan: { [weak self] scope, mode in self?.startScan(scope: scope, mode: mode) }
@@ -306,7 +308,7 @@ extension StatusItemController {
             }
             model.scanStale = true
             let outcome = Self.protectOutcome(run.reports, wrapped: run.wrapped, wraps: wraps)
-            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo)
+            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
             runScan(wholeMac: true, kind: .afterProtect)
         })
     }

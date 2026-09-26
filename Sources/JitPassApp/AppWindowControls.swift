@@ -211,6 +211,8 @@ struct AppNoteRow<Actions: View>: View {
         case dot(Color)
         case failed
         case busy
+        /// A promise the action kept: a tick in the healthy colour.
+        case done
     }
 
     let mark: Mark
@@ -259,6 +261,9 @@ struct AppNoteRow<Actions: View>: View {
                 .font(.system(size: 14)).foregroundStyle(Color(StatusMark.red))
         case .busy:
             ProgressView().controlSize(.small)
+        case .done:
+            Image(systemName: "checkmark")
+                .font(.system(size: 12, weight: .bold)).foregroundStyle(Color(StatusMark.green))
         }
     }
 }

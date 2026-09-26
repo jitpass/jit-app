@@ -15,6 +15,8 @@ enum ToolsSheet: Identifiable, Equatable {
     /// What a command printed, verbatim: the CLI is the one that says what
     /// it found and moved.
     case result(title: String, text: String)
+    /// What a Redact or a Protect changed, as rows (`ChangeSheet`).
+    case changes(ChangeSheet)
     /// The Findings window's question before a scan: how far to look, for
     /// this scope (nil: the whole Mac).
     case scanDepth(scope: String?)
@@ -24,6 +26,7 @@ enum ToolsSheet: Identifiable, Equatable {
         case let .wrap(tool): "wrap:" + tool
         case .handWrap: "handwrap"
         case let .result(title, _): "result:" + title
+        case let .changes(sheet): "changes:" + sheet.title
         case let .scanDepth(scope): "depth:" + (scope ?? "mac")
         }
     }

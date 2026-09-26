@@ -92,7 +92,7 @@ extension StatusItemController {
             }
             model.scanStale = true
             let outcome = Self.protectOutcome(reports, wrapped: [], wraps: [])
-            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo)
+            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
             runScan(wholeMac: true, kind: .afterProtect)
         })
     }
@@ -101,8 +101,8 @@ extension StatusItemController {
     /// Agents have a banner region, so there it is a sentence in the
     /// window with jit's own words one click away, and not a modal on top
     /// of the state it just changed.
-    func showResult(title: String, text: String, failed: Bool = false, undo: [String] = []) {
-        let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo)
+    func showResult(title: String, text: String, failed: Bool = false, undo: [String] = [], changes: ChangeSheet? = nil) {
+        let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo, changes: changes)
         if scanWindow.isKeyWindow {
             model.findingsOutcome = outcome
         } else if decoysWindow.isKeyWindow {

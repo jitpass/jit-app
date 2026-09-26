@@ -56,7 +56,8 @@ struct ToolsView: View {
                 HandWrapSheet(model: model, actions: actions)
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
-            case .scanDepth:
+            case .scanDepth, .changes:
+                // Findings' sheets; never opened here.
                 EmptyView()
             }
         }
