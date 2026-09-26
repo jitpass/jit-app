@@ -228,11 +228,28 @@ public enum DoctorAdvice {
             }
             return [DoctorAction("Unmount", unmountCommand(path))]
         },
-        "vault_key": { _ in [DoctorAction(
-            "Import a Backup", "jit vault import <file>", needs: .existingPath(placeholder: "<file>"),
-            argv: [["vault", "import", "<file>", "--stdin", "--yes"]], input: .passphrase(prompt: "The backup file's passphrase")
-        )] },
+        // A lost Secure Enclave key needs a new key before the import can
+        // land: jit's own fix runs `jit vault init` first, which sets the
+        // lost key's file aside (doctorsections.go).
+        "vault_key": { item in
+            VaultKeyRow.isLostFinding(item) ? [restoreRecoveryFile] : [DoctorAction(
+                "Import a Backup", "jit vault import <file>", needs: .existingPath(placeholder: "<file>"),
+                argv: [["vault", "import", "<file>", "--stdin", "--yes"]], input: .passphrase(prompt: "The backup file's passphrase")
+            )]
+        },
         "rekey": { _ in [DoctorAction("Finish Rotation", "jit vault rekey", argv: [["vault", "rekey", "--yes"]])] },
+        // A move of the vault key has its own kind (jitpass/jit#169): a
+        // rotation's `jit vault rekey` refuses to finish it, so the card's
+        // button is the Settings row's own Finish Move, the same command.
+        "vault_move": { item in
+            VaultKeyPlace.moveTarget(item).map { [finishMove($0)] } ?? []
+        },
+        // The import alone, and only when jit names it (`restoreActions`).
+        "vault_restore": restoreActions,
+        // jit names no command for a change it doesn't understand: none.
+        "rekey_unknown": { _ in [] },
+        // jit's own fix, in the terminal like the generic Run, named.
+        "vault_key_copy": removeKeychainCopy,
         "legacy_envelope": { _ in [DoctorAction(
             "Re-encrypt", "jit vault export <file> && jit vault import <file>", needs: .newFile(placeholder: "<file>"),
             argv: [["vault", "export", "<file>", "--stdin"], ["vault", "import", "<file>", "--stdin", "--yes"]],

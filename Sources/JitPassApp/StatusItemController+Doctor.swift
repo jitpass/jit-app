@@ -53,7 +53,7 @@ extension StatusItemController {
         guard let report = model.doctor else {
             return
         }
-        let board = DoctorBoard.make(report)
+        let board = DoctorBoard.make(report, offersVaultKeyMove: model.offersVaultKeyMove)
         let footer = Format.doctorSummary(report) + (model.doctorAt.map { " at " + Format.clock($0) } ?? "")
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(board.reportText + "\n\n" + footer, forType: .string)
@@ -307,6 +307,7 @@ extension StatusItemController {
                 doctorProgress.outcome = nil
             }
         }
+        vaultKeyDoctorLanded(afterAction: afterAction)
     }
 }
 

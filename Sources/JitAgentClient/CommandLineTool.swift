@@ -37,6 +37,24 @@ public enum CommandLineTool {
         return fileManager.isExecutableFile(atPath: path) ? path : nil
     }
 
+    /// Where a dev build, run from `.build/` with no bundled copy, finds
+    /// jit: the Homebrew prefixes a GUI app's PATH usually lacks.
+    public static let fallbackJits = ["/opt/homebrew/bin/jit", "/usr/local/bin/jit"]
+
+    /// The jit the app runs: the copy inside it first, the exact release
+    /// it was built and tested against, else the first fallback there.
+    public static func runnableJit(in bundleURL: URL, fileManager: FileManager = .default) -> String? {
+        let bundled = bundledJit(in: bundleURL, fileManager: fileManager)
+        return ([bundled].compactMap { $0 } + fallbackJits).first { fileManager.isExecutableFile(atPath: $0) }
+    }
+
+    /// Whether the jit the app runs is its own helper, the only binary a
+    /// provisioning profile lets use the Secure Enclave. `runnableJit`
+    /// picks the helper whenever it is there, so this is just that.
+    public static func runsBundledJit(in bundleURL: URL, fileManager: FileManager = .default) -> Bool {
+        bundledJit(in: bundleURL, fileManager: fileManager) != nil
+    }
+
     /// Where the `jitpass` cask keeps its bookkeeping; when it is there,
     /// updates go through `brew upgrade` and the link is Homebrew's to keep.
     public static let caskrooms = ["/opt/homebrew/Caskroom/jitpass", "/usr/local/Caskroom/jitpass"]
