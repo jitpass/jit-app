@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 
 import AppKit
+import JitAgentClient
 import UserNotifications
 
 /// What macOS allows this app, as Settings needs to say it.
@@ -16,13 +17,17 @@ enum NotificationTarget: String {
 
 /// macOS notifications: a decoy served to a reader outside any grant, a
 /// captured session expiring, a scheduled scan finding something the
-/// previous one did not. Two switches in Settings; the permission prompt
+/// previous one did not, an AI job stopping. Four switches in Settings, one
+/// per event; the permission prompt
 /// appears the first time one is turned on. Clicking one opens the window
 /// that shows the event.
 @MainActor
 enum Notifier {
     static let decoyPreferenceKey = "NotifyDecoys"
-    static let changesPreferenceKey = "NotifyChanges"
+    /// Sessions keep the key the shared switch had, so an upgrade keeps
+    /// the choice; new findings got their own key when the switch split.
+    static let sessionsPreferenceKey = "NotifyChanges"
+    static let scansPreferenceKey = "NotifyScans"
     static let jobsPreferenceKey = "NotifyJobs"
     /// The session notices already posted, so a relaunch does not repeat
     /// them (SessionNotices keys).
@@ -44,10 +49,19 @@ enum Notifier {
         UserDefaults.standard.object(forKey: decoyPreferenceKey) as? Bool ?? true
     }
 
-    /// Sessions and new findings: the panel already shows a dot for both;
-    /// this says it out loud for a user who does not open the panel.
-    static var changesEnabled: Bool {
-        UserDefaults.standard.object(forKey: changesPreferenceKey) as? Bool ?? true
+    /// A session running out: the panel already shows a dot; this says it
+    /// out loud for a user who does not open the panel.
+    static var sessionsEnabled: Bool {
+        UserDefaults.standard.object(forKey: sessionsPreferenceKey) as? Bool ?? true
+    }
+
+    /// A scheduled scan's new findings or redactions. Until the switch is
+    /// set it follows the one it was split from.
+    static var scansEnabled: Bool {
+        NotificationPreference.split(
+            own: UserDefaults.standard.object(forKey: scansPreferenceKey) as? Bool,
+            from: UserDefaults.standard.object(forKey: sessionsPreferenceKey) as? Bool
+        )
     }
 
     /// AI Jobs: a job that stopped, or a proposal waiting. On by default:
@@ -62,7 +76,8 @@ enum Notifier {
     /// setup's finish screen is where that question belongs.
     static var chosen: Bool {
         UserDefaults.standard.object(forKey: decoyPreferenceKey) != nil
-            || UserDefaults.standard.object(forKey: changesPreferenceKey) != nil
+            || UserDefaults.standard.object(forKey: sessionsPreferenceKey) != nil
+            || UserDefaults.standard.object(forKey: scansPreferenceKey) != nil
             || UserDefaults.standard.object(forKey: jobsPreferenceKey) != nil
     }
 

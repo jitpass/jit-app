@@ -89,9 +89,11 @@ extension StatusItemController {
         }
         model.launchAtLogin = SMAppService.mainApp.status == .enabled
         UserDefaults.standard.set(onboarding.notify, forKey: Notifier.decoyPreferenceKey)
-        UserDefaults.standard.set(onboarding.notify, forKey: Notifier.changesPreferenceKey)
+        UserDefaults.standard.set(onboarding.notify, forKey: Notifier.sessionsPreferenceKey)
+        UserDefaults.standard.set(onboarding.notify, forKey: Notifier.scansPreferenceKey)
         model.notifyDecoys = onboarding.notify
-        model.notifyChanges = onboarding.notify
+        model.notifySessions = onboarding.notify
+        model.notifyScans = onboarding.notify
         if onboarding.notify {
             Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
         }

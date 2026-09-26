@@ -4,8 +4,8 @@
 import JitAgentClient
 import SwiftUI
 
-/// The Protection segment: what jit hands out and when it asks, what
-/// JitPass tells you about, and emptying the vault.
+/// The Protection segment: what jit hands out and when it asks. One card,
+/// so no eyebrow; the restart each change costs is on its own row.
 extension SettingsView {
     static let ttls: [(label: String, value: String)] = [
         ("5 minutes", "5m"), ("15 minutes", "15m"), ("30 minutes", "30m"), ("1 hour", "1h"),
@@ -13,35 +13,41 @@ extension SettingsView {
     ]
 
     var protectionCard: some View {
-        AppCard(
-            eyebrow: SettingsGroup.protection.title,
-            eyebrowTint: eyebrowTint(.protection),
-            title: "What jit hands out, and when it asks",
-            note: "Changing the timer or the consent switch restarts the service. Open shells keep what they already loaded."
-        ) {
-            EmptyView()
-        } rows: {
-            AppCardRows {
-                lockTimerRow
-                consentRow
-                historyRow
-                vaultKeyRow
-                if let outcome = failure(.lockTimer, .consent, .history, .vaultKey) {
-                    failureRow(outcome)
-                }
+        AppPlainCard {
+            serviceRow
+            lockTimerRow
+            consentRow
+            historyRow
+            vaultKeyRow
+            if let outcome = failure(.lockTimer, .consent, .history, .vaultKey) {
+                failureRow(outcome)
+            }
+        }
+    }
+
+    /// What the header used to say, on the card it is about: the timer and
+    /// the consent switch are jit's, and cannot change while it is down.
+    @ViewBuilder private var serviceRow: some View {
+        if !facts.serviceRunning {
+            AppNoteRow(
+                mark: .dot(Color(StatusMark.red)),
+                name: "jit is not running",
+                fact: "The lock timer and the consent switch need it to change."
+            ) {
+                Button("Start Service", action: actions.startService).buttonStyle(AppButton())
             }
         }
     }
 
     @ViewBuilder private var lockTimerRow: some View {
         if applying(.lockTimer) {
-            AppNoteRow(mark: .busy, name: "Lock the session after", fact: "Setting the timer, then jit restarts…") {
+            AppNoteRow(mark: .busy, name: "Lock the vault after", fact: "Setting the timer, then jit restarts…") {
                 EmptyView()
             }
         } else {
             AppRow(
-                name: "Lock the session after",
-                fact: "Idle time before the vault locks. The next use asks Touch ID once.",
+                name: "Lock the vault after",
+                fact: "Idle time before it locks; the next use asks Touch ID. Changing it restarts jit.",
                 wraps: true
             ) {
                 AppPopup(
@@ -57,15 +63,15 @@ extension SettingsView {
         if applying(.consent) {
             AppNoteRow(
                 mark: .busy,
-                name: "Ask before each tool's first credential use",
+                name: "Ask before a tool's first use",
                 fact: "Waiting for Touch ID, then jit restarts…"
             ) {
                 EmptyView()
             }
         } else {
             AppRow(
-                name: "Ask before each tool's first credential use",
-                fact: "aws, git, docker — you see what asked before it gets a value.",
+                name: "Ask before a tool's first use",
+                fact: "You see which tool asked before it gets a secret. Changing it restarts jit.",
                 wraps: true
             ) {
                 AppSwitch(isOn: consentBinding)
@@ -78,7 +84,7 @@ extension SettingsView {
         if applying(.history) {
             AppNoteRow(
                 mark: .busy,
-                name: "Keep typed credentials out of zsh history",
+                name: "Keep typed secrets out of zsh history",
                 fact: "Changing the hook in your shell…",
                 last: historyIsLast
             ) {
@@ -86,8 +92,8 @@ extension SettingsView {
             }
         } else {
             AppRow(
-                name: "Keep typed credentials out of zsh history",
-                fact: "A command carrying one still runs; the history file never gets it.",
+                name: "Keep typed secrets out of zsh history",
+                fact: "The command still runs; the history file never gets the secret.",
                 wraps: true,
                 last: historyIsLast
             ) {
@@ -141,9 +147,9 @@ extension SettingsView {
                 }
             }
         case .secureEnclave, .copyInKeychain:
-            // A key left in the keychain is amber, as an unfinished move:
-            // the vault opens, but the move left something to do. No button
-            // for it here: the fix is jit's, on Doctor's card.
+            // A key left in the keychain is red: the vault opens, but the
+            // copy is what the move was meant to end. No button for it
+            // here: the fix is jit's, on Doctor's card.
             AppRow(
                 dot: Color(state == .copyInKeychain ? StatusMark.red : StatusMark.green),
                 name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
@@ -244,100 +250,6 @@ extension SettingsView {
         .disabled(model.settingsApplying != nil)
     }
 
-    // MARK: - Notifications
-
-    var notificationsCard: some View {
-        AppCard(
-            eyebrow: SettingsGroup.notifications.title,
-            eyebrowTint: eyebrowTint(.notifications),
-            title: "What JitPass tells you about"
-        ) {
-            EmptyView()
-        } rows: {
-            AppCardRows {
-                permissionRow
-                AppRow(
-                    name: "A decoy was served",
-                    fact: "Something read a protected file with no run or consent behind it, and got fake values.",
-                    wraps: true
-                ) {
-                    AppSwitch(isOn: notifyDecoysBinding)
-                }
-                AppRow(
-                    name: "A session expires, or a scheduled scan finds something new",
-                    fact: "The next aws call fails until you renew; or a scan found a secret the last one did not, and Findings has it.",
-                    wraps: true
-                ) {
-                    AppSwitch(isOn: notifyChangesBinding)
-                }
-                AppRow(
-                    name: "An AI job stops, or an AI tool proposes one",
-                    fact: "A changed file stopped a job, or an agent asks to add one. Either waits for you in AI Jobs.",
-                    wraps: true,
-                    last: true
-                ) {
-                    AppSwitch(isOn: notifyJobsBinding)
-                }
-            }
-        }
-    }
-
-    /// Said only where a switch is on: a permission nobody asked for is
-    /// not a problem the reader has to solve.
-    @ViewBuilder private var permissionRow: some View {
-        if facts.state(of: .notifications) == .needsYou {
-            if model.notificationPermission == .denied {
-                AppNoteRow(
-                    mark: .dot(Color(StatusMark.amber)),
-                    name: "macOS has notifications off for JitPass",
-                    fact: "The switches below stay set. Nothing is delivered until macOS allows it."
-                ) {
-                    Button("Open System Settings…", action: actions.openNotificationSettings).buttonStyle(AppButton())
-                }
-            } else {
-                AppNoteRow(
-                    mark: .dot(Color(StatusMark.amber)),
-                    name: "macOS has not been asked yet",
-                    fact: "The first time one of these is delivered, macOS asks. You can answer it now instead."
-                ) {
-                    Button("Allow Notifications…", action: actions.allowNotifications).buttonStyle(AppButton())
-                }
-            }
-        }
-    }
-
-    // MARK: - Vault
-
-    var vaultCard: some View {
-        AppCard(
-            eyebrow: SettingsGroup.vault.title,
-            eyebrowTint: eyebrowTint(.vault),
-            title: "Emptying the vault",
-            note: "Both hand the last word to jit, which asks again in your terminal."
-        ) {
-            EmptyView()
-        } rows: {
-            AppCardRows {
-                AppRow(
-                    name: "Delete every secret, keep the key",
-                    fact: "Every secret and every backup, gone for good. The vault stays usable.",
-                    wraps: true
-                ) {
-                    Button("Clean in Terminal…", action: actions.vaultClean).buttonStyle(AppButton())
-                }
-                AppRow(
-                    name: "Destroy the vault and its key",
-                    fact: "The vault directory and its key. Nothing comes back.",
-                    wraps: true,
-                    last: true
-                ) {
-                    Button("Delete in Terminal…", action: actions.vaultDelete)
-                        .buttonStyle(AppButton(kind: .destructive))
-                }
-            }
-        }
-    }
-
     // MARK: - Bindings
 
     private var ttlBinding: Binding<String> {
@@ -355,17 +267,5 @@ extension SettingsView {
 
     private var guardBinding: Binding<Bool> {
         Binding(get: { model.guardInstalled ?? false }, set: actions.setGuard)
-    }
-
-    private var notifyDecoysBinding: Binding<Bool> {
-        Binding(get: { model.notifyDecoys }, set: actions.setNotifyDecoys)
-    }
-
-    private var notifyChangesBinding: Binding<Bool> {
-        Binding(get: { model.notifyChanges }, set: actions.setNotifyChanges)
-    }
-
-    private var notifyJobsBinding: Binding<Bool> {
-        Binding(get: { model.notifyJobs }, set: actions.setNotifyJobs)
     }
 }

@@ -19,7 +19,8 @@ struct SettingsActions {
     var setConsent: (Bool) -> Void = { _ in }
     var setGuard: (Bool) -> Void = { _ in }
     var setNotifyDecoys: (Bool) -> Void = { _ in }
-    var setNotifyChanges: (Bool) -> Void = { _ in }
+    var setNotifySessions: (Bool) -> Void = { _ in }
+    var setNotifyScans: (Bool) -> Void = { _ in }
     var setNotifyJobs: (Bool) -> Void = { _ in }
     var allowNotifications: () -> Void = {}
     var openNotificationSettings: () -> Void = {}
