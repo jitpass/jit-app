@@ -163,8 +163,8 @@ stops at the first step that fails.
 ### Release
 
 The version is the bundled jit's: tag `v<jit.version>` (for example
-`v2.2.8`), or `v<jit.version>.N` for a release that changes only the app
-(`v2.2.8.1`). The workflow refuses a tag that disagrees with `jit.version`.
+`v2.3.0`), or `v<jit.version>.N` for a release that changes only the app
+(`v2.3.0.1`). The workflow refuses a tag that disagrees with `jit.version`.
 The bundled jit is fetched and verified at build time.
 
 Push the tag. The workflow builds, Developer ID signs, notarizes and
@@ -172,10 +172,10 @@ staples the bundle, publishes a draft, verifies the published zip the way a
 user's Mac will, undrafts, and renders the cask. The same steps run locally:
 
 ```sh
-VERSION=2.2.8 scripts/bundle.sh release   # fetches and verifies the jit in jit.version first
+VERSION=2.3.0 scripts/bundle.sh release   # fetches and verifies the jit in jit.version first
 scripts/sign.sh                           # Developer ID identity for team CZC6BH93GJ
 NOTARY_KEY_FILE=... NOTARY_KEY_ID=... NOTARY_ISSUER_ID=... scripts/notarize.sh
-scripts/verify.sh dist/JitPass-2.2.8-arm64.zip dist/checksums.txt
+scripts/verify.sh dist/JitPass-2.3.0-arm64.zip dist/checksums.txt
 ```
 
 ### Layout
