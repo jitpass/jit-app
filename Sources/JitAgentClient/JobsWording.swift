@@ -18,13 +18,38 @@ public enum JobsWording {
     /// ("claude ran it…"), which keeps its own case.
     public static func fact(_ job: JobStatus, ago: (Date) -> String) -> String {
         var parts: [String] = []
-        if job.jobState != .ready {
+        switch job.rowState {
+        case .stopped:
             if let caller = job.lastCaller, !caller.isEmpty {
                 parts.append("Refused \(caller)")
             } else {
                 parts.append("Stopped")
             }
-        } else if let last = job.lastRun {
+        case .notRunning:
+            parts.append(notRunning(job))
+        case .ready:
+            parts.append(contentsOf: ran(job, ago: ago))
+        }
+        parts.append(asks(job))
+        if let count = job.secrets?.count, count > 0 {
+            parts.append(count == 1 ? "1 secret" : "\(count) secrets")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// A job whose skipped runs went on: how many, and jit's reason for
+    /// the last, word for word. It is not stopped, so nothing here says so.
+    public static func notRunning(_ job: JobStatus) -> String {
+        let head = (job.skips ?? 0) > 1 ? "Hasn't run the last \(job.skips ?? 0) times" : "Hasn't run the last few times"
+        guard let why = job.lastRefusal, !why.isEmpty else {
+            return head
+        }
+        return head + ": " + why
+    }
+
+    private static func ran(_ job: JobStatus, ago: (Date) -> String) -> [String] {
+        var parts: [String] = []
+        if let last = job.lastRun {
             let who = job.lastCaller.map { $0.isEmpty ? "An AI tool" : $0 } ?? "An AI tool"
             parts.append("\(who) ran it \(ago(last))")
             parts.append(job.lastExit.map { $0 == 0 ? "worked" : "exit \($0)" } ?? "worked")
@@ -34,11 +59,7 @@ public enum JobsWording {
         } else {
             parts.append("Not run yet")
         }
-        parts.append(asks(job))
-        if let count = job.secrets?.count, count > 0 {
-            parts.append(count == 1 ? "1 secret" : "\(count) secrets")
-        }
-        return parts.joined(separator: " · ")
+        return parts
     }
 
     /// Mid-line on the row, so lower case.

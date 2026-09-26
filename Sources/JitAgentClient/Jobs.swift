@@ -123,6 +123,15 @@ public struct JobStatus: Codable, Sendable, Equatable, Identifiable {
     public var lastCaller: String?
     public var lastRefusal: String?
     public var lastHidden: Int?
+    /// The job won't run until it is approved again. Absent from a jit
+    /// older than the field, where `isStopped` reads `state` as before.
+    public var stopped: Bool?
+    /// Where the job stands, in `JobOutcome`'s words: absent for a job that
+    /// runs, and from a jit older than the field.
+    public var outcome: String?
+    /// How many runs in a row were skipped, and when the first of them was.
+    public var skips: Int?
+    public var skippingSinceUnix: Int64?
 
     public var id: String {
         name
@@ -147,10 +156,34 @@ public struct JobStatus: Codable, Sendable, Equatable, Identifiable {
         case lastCaller = "last_caller"
         case lastRefusal = "last_refusal"
         case lastHidden = "last_hidden"
+        case stopped, outcome, skips
+        case skippingSinceUnix = "skipping_since_unix"
     }
 
     public var jobState: JobState {
         JobState(rawValue: state ?? "") ?? .ready
+    }
+
+    /// jit's own `stopped` when it sends one, so nothing is inferred from
+    /// `state`; an older jit's `state`, as before, when it does not.
+    public var isStopped: Bool {
+        stopped ?? (jobState != .ready)
+    }
+
+    /// `outcome` as a `JobOutcome`; nil for a job that runs, for a jit
+    /// older than the field, and for a value this app does not know.
+    public var jobOutcome: JobOutcome? {
+        outcome.flatMap(JobOutcome.init(rawValue:))
+    }
+
+    /// What the job's row shows. A job whose skipped runs went on long
+    /// enough for jit to tell the owner (`persisting-skip`) is not stopped,
+    /// but it has not been running; a lone skip shows nothing new.
+    public var rowState: JobRowState {
+        if isStopped {
+            return .stopped
+        }
+        return jobOutcome == .persistingSkip ? .notRunning : .ready
     }
 
     public var asksEachTime: Bool {
@@ -164,6 +197,28 @@ public struct JobStatus: Codable, Sendable, Equatable, Identifiable {
     public var approved: Date? {
         approvedUnix.map { Date(timeIntervalSince1970: TimeInterval($0)) }
     }
+}
+
+/// What a job's row shows: stopped (its amber card), not running (an amber
+/// dot and jit's reason on its row), or ready.
+public enum JobRowState: Sendable, Equatable {
+    case ready
+    case stopped
+    case notRunning
+}
+
+/// What a run that did not happen means for its job, in jit's words
+/// (`SessionEvent.job_outcome`, `JobStatus.outcome`). The app decides from
+/// this, never from the event's cause.
+public enum JobOutcome: String, Sendable {
+    /// This run stopped the job: it won't run until approved again.
+    case stop
+    /// A run of a job already stopped: nothing new, the stop was told.
+    case stillStopped = "still-stopped"
+    /// This run was skipped for a cause outside the job; the next tries again.
+    case skip
+    /// Skipped runs that went on, told once per streak. Still not a stop.
+    case persistingSkip = "persisting-skip"
 }
 
 /// Whether a job can run. Anything but `ready` means stopped until the human

@@ -14,8 +14,8 @@ public struct JobsBoard: Sendable, Equatable {
 
     public init(jobs: [JobStatus], proposals: [JobProposal] = []) {
         let sorted = jobs.sorted { $0.name < $1.name }
-        stopped = sorted.filter { $0.jobState != .ready }
-        ready = sorted.filter { $0.jobState == .ready }
+        stopped = sorted.filter(\.isStopped)
+        ready = sorted.filter { !$0.isStopped }
         self.proposals = proposals.sorted { $0.unixTime < $1.unixTime }
     }
 
