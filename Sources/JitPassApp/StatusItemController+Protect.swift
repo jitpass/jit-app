@@ -63,7 +63,8 @@ extension StatusItemController {
             titles.append(titles.isEmpty ? word.prefix(1).uppercased() + word.dropFirst() : word)
         }
         let text = (reports.map(\.report) + wrapped).filter { !$0.isEmpty }.joined(separator: "\n\n")
-        return WindowOutcome(title: titles.joined(separator: " · "), text: text, failed: failed, undo: undo)
+        let changes = ChangeSheet.protect(reports, wrapped: wrapped.isEmpty ? [] : wraps, report: text)
+        return WindowOutcome(title: titles.joined(separator: " · "), text: text, failed: failed, undo: undo, changes: changes)
     }
 
     /// Redact… on a row, Redact All… on a sheet or the card: the tokens the
@@ -96,7 +97,7 @@ extension StatusItemController {
                 return
             }
             let outcome = ScanWording.redactOutcome(report)
-            showResult(title: outcome.title, text: report.report, failed: outcome.failed)
+            showResult(title: outcome.title, text: report.report, failed: outcome.failed, changes: .redact(report))
             settle(after: report, lines: lines)
         })
     }
@@ -142,7 +143,9 @@ extension StatusItemController {
                 return
             }
             let outcome = ScanWording.redactOutcome(result)
-            model.findingsOutcome = WindowOutcome(title: outcome.title, text: result.report, failed: outcome.failed)
+            model.findingsOutcome = WindowOutcome(
+                title: outcome.title, text: result.report, failed: outcome.failed, changes: .redact(result)
+            )
             if model.notifyScans, let notice = ScanNotices.redacted(result, at: at) {
                 Notifier.post(
                     title: notice.title,

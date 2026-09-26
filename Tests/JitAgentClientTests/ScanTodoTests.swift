@@ -82,11 +82,11 @@ final class ScanTodoTests: XCTestCase {
         let todos = try report(lines, deep: true).todos(deepAvailable: true)
 
         XCTAssertEqual(todos.map(\.text), [
-            "4 still have plaintext copies in 33 files",
+            "4 secrets still in 33 files",
             "17 flagged lines sit in 2 files of Claude Code's transcripts"
         ])
         XCTAssertEqual(todos.map(\.verb), ["clear the copies", "redact them"])
-        XCTAssertEqual(todos[0].sentence, "4 still have plaintext copies in 33 files · clear the copies")
+        XCTAssertEqual(todos[0].sentence, "4 secrets still in 33 files · clear the copies")
         XCTAssertEqual(todos.map(\.action), [.show(.vaultCopies), .show(.agentCaches)])
         XCTAssertNil(todos.first { $0.action == .deepScan }, "a deep scan looked; it is not told to look")
     }
@@ -107,9 +107,9 @@ final class ScanTodoTests: XCTestCase {
         ])
         let todos = r.todos(deepAvailable: true)
         XCTAssertEqual(todos.map(\.text), [
-            "1 file holds a secret jit can move into the vault",
-            "2 files hold secrets only you can fix",
-            "1 copy of a vaulted secret sits in Claude Code's edit history",
+            "1 file to protect",
+            "2 files only you can fix",
+            "1 copy in Claude Code's edit history",
             "Copies of your vaulted secrets are not looked for by a regular scan"
         ])
         XCTAssertEqual(todos.map(\.verb), ["protect it", "rotate or move them", "clean the caches", "run a deep scan"])

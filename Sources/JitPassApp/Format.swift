@@ -60,24 +60,17 @@ enum Format {
         }
     }
 
-    /// The footer: what the scan found, counted the way the cards count
-    /// it, and how much it read. (The header's second line is
-    /// `ScanWording`'s: it carries the schedule, not the file count.)
+    /// The footer: how much the scan read. Every count is already on its
+    /// filter pill, so the footer does not count them again. (The header's
+    /// second line is `ScanWording`'s: it carries the schedule.)
     static func scanFooter(_ report: ScanReport) -> String {
-        let files = "\(report.summary.filesScanned) files read"
-        guard !report.tiersPresent.isEmpty else {
-            return "Nothing to protect, nothing needs you · " + files
-        }
-        let parts = report.tiersPresent.map { tier in
-            "\(report.count(in: tier)) " + (tier == .vaultCopies ? "vault copies" : tierLabel(tier).lowercased())
-        }
-        return (parts + [files]).joined(separator: " · ")
+        report.summary.filesScanned.formatted(.number) + " files read"
     }
 
     /// A tier's word, for its card's eyebrow and its filter pill.
     static func tierLabel(_ tier: ScanTier) -> String {
         switch tier {
-        case .vaultCopies: "In your vault, still in the open"
+        case .vaultCopies: "Vault copies"
         case .protect: "Protect"
         case .needsYou: "Needs you"
         case .agentCaches: "Agent caches"
@@ -104,9 +97,8 @@ enum Format {
     /// What the tier is, and what the choice costs.
     static func tierNote(_ tier: ScanTier) -> String {
         switch tier {
-        case .vaultCopies: "You've protected these, but a plaintext copy still sits in a file or an agent's cache. "
-            + "Rotate, then clear the copy."
-        case .protect: "The file stays. The value moves, a decoy takes its place, and every file is backed up first."
+        case .vaultCopies: "Rotate each secret, then delete the copy."
+        case .protect: "A decoy takes each value's place. Every file is backed up first."
         case .needsYou: "jit can't rewrite these safely. Rotate each value, or move it yourself."
         case .agentCaches: ScanReportView.agentNote
         case .testFixtures: "Real-looking values in test files and examples. They don't count toward the score. Check they are not live."

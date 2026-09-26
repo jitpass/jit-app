@@ -115,13 +115,7 @@ public extension ScanWording {
             parts.append("\(removed) cached cop" + (removed == 1 ? "y" : "ies") + " removed")
         }
         if !report.caches.left.isEmpty {
-            var places: [String] = []
-            for file in report.caches.left {
-                let place = "\(file.agent)'s \(file.area)"
-                if !places.contains(place) {
-                    places.append(place)
-                }
-            }
+            let places = ScanWording.agentPlaces(report.caches.left.map { (agent: $0.agent, area: $0.area) })
             let n = report.caches.left.count
             parts.append("\(n) file" + (n == 1 ? "" : "s") + " left in " + places.joined(separator: " and "))
         }

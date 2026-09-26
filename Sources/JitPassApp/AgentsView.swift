@@ -22,7 +22,7 @@ struct AgentsView: View {
         VStack(spacing: 0) {
             if let outcome = model.agentsOutcome {
                 WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
-                    Button("What jit Did…") { actions.openSheet(.result(title: outcome.title, text: outcome.text)) }
+                    Button("What Changed…") { actions.openSheet(.result(title: outcome.title, text: outcome.text)) }
                         .buttonStyle(AppButton(kind: .plain))
                 }
             }
@@ -46,8 +46,8 @@ struct AgentsView: View {
             switch sheet {
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
-            case .wrap, .handWrap, .scanDepth:
-                // The Tools and Findings windows' questions; never opened here.
+            case .wrap, .handWrap, .scanDepth, .changes:
+                // The Tools and Findings windows' sheets; never opened here.
                 EmptyView()
             }
         }
@@ -221,11 +221,14 @@ struct AgentsActions {
 }
 
 /// What just happened in a window, for its banner: the sentence, jit's
-/// own words behind "What jit Did…", whether it failed, and the files an
+/// own words behind "What Changed…", whether it failed, and the files an
 /// Undo would restore.
 struct WindowOutcome: Equatable {
     var title: String
     var text: String
     var failed = false
     var undo: [String] = []
+    /// The rows "What Changed…" shows, where jit's report has them (Redact,
+    /// Protect); nil falls back to jit's text.
+    var changes: ChangeSheet?
 }
