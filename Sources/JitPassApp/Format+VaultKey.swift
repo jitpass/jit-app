@@ -20,7 +20,7 @@ extension Format {
     static func vaultKeyDetail(_ row: VaultKeyRow, now: VaultKeyPlace?) -> String {
         switch row {
         case .keychain: "in your login keychain"
-        case .secureEnclave, .checking, .unchecked: "in the Secure Enclave"
+        case .secureEnclave, .copyInKeychain, .checking, .unchecked: "in the Secure Enclave"
         case .lost: "missing"
         case .restorePending, .restoreUnchecked: "replaced"
         case .unfinished, .changeUnknown: now == .secureEnclave ? "in the Secure Enclave" : "in your login keychain"
@@ -35,6 +35,10 @@ extension Format {
             movable ? "JitPass asks for Touch ID. A program running as you could read it."
                 : "A program running as you could read it. It can move once the vault holds a secret."
         case .secureEnclave: "Only JitPass can use it, after Touch ID or your password."
+        // jit's `keychain_copy_left`, worded as jit words it: an item has
+        // the vault key's name, and only a read could say it is the same
+        // key, so "a key", never "a copy". Doctor's card carries the fix.
+        case .copyInKeychain: "A key is still in your keychain under its name; Doctor can remove it."
         case .checking: "Checking that this Mac's Secure Enclave has it…"
         case .unchecked: "The check that this Mac's Secure Enclave has it couldn't run."
         // Doctor's Fix now card, in its own words: it carries the restore.

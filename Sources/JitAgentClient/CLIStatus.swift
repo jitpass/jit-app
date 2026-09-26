@@ -32,6 +32,14 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     /// never reported as done; but jit names no restore for it, so the app
     /// offers none. Omitted, so nil, otherwise.
     public var restoreCheckError: String?
+    /// The key is in the Secure Enclave, and the login keychain still
+    /// holds an item under the vault key's name: usually the copy a move
+    /// could not delete, though only a read could say it is the same key
+    /// (jitpass/jit#170). jit reads it from the item's metadata, never its
+    /// bytes, so asking prompts nothing. `jit vault rekey --wrapper
+    /// secure-enclave` removes it; doctor's `vault_key_copy` names that.
+    /// Omitted, so nil, when false, and while a move is unfinished.
+    public var keychainCopyLeft: Bool?
     /// The last `jit vault export`, the recovery file: whether one is
     /// recorded, when, and whether a secret has been written since. jit
     /// reports none of them for an empty vault.
@@ -51,6 +59,7 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
         case moveUnfinished = "move_unfinished"
         case restorePending = "restore_pending"
         case restoreCheckError = "restore_check_error"
+        case keychainCopyLeft = "keychain_copy_left"
         case exportRecorded = "export_recorded"
         case exportUnixTime = "export_unix_time"
         case exportStale = "export_stale"
@@ -59,7 +68,8 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     public init(
         secretsStored: Int, initialized: String? = nil, keyStore: String? = nil,
         exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil, backupsStored: Int? = nil,
-        moveUnfinished: String? = nil, restorePending: Bool? = nil, restoreCheckError: String? = nil
+        moveUnfinished: String? = nil, restorePending: Bool? = nil, restoreCheckError: String? = nil,
+        keychainCopyLeft: Bool? = nil
     ) {
         self.secretsStored = secretsStored
         self.initialized = initialized
@@ -71,6 +81,7 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
         self.moveUnfinished = moveUnfinished
         self.restorePending = restorePending
         self.restoreCheckError = restoreCheckError
+        self.keychainCopyLeft = keychainCopyLeft
     }
 }
 
