@@ -56,6 +56,12 @@ extension StatusItemController {
             closeSheet: { [weak self] in self?.model.agentsSheet = nil },
             cleanCaches: { [weak self] in self?.cleanCaches() },
             redact: { [weak self] agent in self?.redactAgent(agent) },
+            reveal: { path in Editor.reveal(path) },
+            copyPath: { path in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(path, forType: .string)
+            },
+            undoProtect: { [weak self] paths in self?.undoProtect(paths) },
             setRedactAfterScan: { [weak self] agent, on in self?.setRedactAfterScan(agent: agent, on: on) },
             openGrants: { [weak self] in self?.openGrants() },
             openAIJobs: { [weak self] in self?.openAIJobs() },

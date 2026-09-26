@@ -62,6 +62,10 @@ extension Format {
         finishes ? "Finish Move" : "Try Again…"
     }
 
+    /// The key-left-in-the-keychain row's link to the window that removes
+    /// it, named as the AI Agents rows name theirs.
+    static let vaultKeyOpenDoctor = "Doctor…"
+
     /// Asks jit again: after a move whose result is unknown, on an enclave
     /// row whose doctor check could not run, and where jit could not check
     /// a restore or does not understand an unfinished change.

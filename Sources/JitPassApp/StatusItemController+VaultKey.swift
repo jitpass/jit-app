@@ -241,6 +241,20 @@ extension StatusItemController {
         )
     }
 
+    /// The red row's Doctor…: opens the window whose `vault_key_copy` card
+    /// carries jit's own fix, Remove from Keychain. When the last check
+    /// predates the key left behind (Settings reads it from `jit status`,
+    /// Doctor from `jit doctor`), Doctor checks again so the card is there.
+    func openDoctorForKeyCopy() {
+        openDoctor()
+        let hasCard = model.doctor.map { report in
+            DoctorBoard.make(report).cards.contains { $0.items.contains { $0.kind == "vault_key_copy" } }
+        } ?? false
+        if !hasCard, doctorIdle {
+            runDoctor()
+        }
+    }
+
     /// Doctor's ··· "Don't Suggest Again". Final: nothing brings the card
     /// back, and the Settings row still offers the move.
     func dismissVaultKeyOffer() {

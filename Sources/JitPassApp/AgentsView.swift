@@ -22,8 +22,15 @@ struct AgentsView: View {
         VStack(spacing: 0) {
             if let outcome = model.agentsOutcome {
                 WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
-                    Button("What Changed…") { actions.openSheet(.result(title: outcome.title, text: outcome.text)) }
+                    // Findings' sheet where jit's report has rows (Redact);
+                    // jit's words where they say more than the banner; no
+                    // button where they would only repeat it.
+                    if ChangeSheet.addsTo(banner: outcome.title, text: outcome.text, sheet: outcome.changes) {
+                        Button("What Changed…") {
+                            actions.openSheet(outcome.changes.map { .changes($0) } ?? .result(title: outcome.title, text: outcome.text))
+                        }
                         .buttonStyle(AppButton(kind: .plain))
+                    }
                 }
             }
             VStack(spacing: 0) {
@@ -46,7 +53,15 @@ struct AgentsView: View {
             switch sheet {
             case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
-            case .wrap, .handWrap, .scanDepth, .changes:
+            case let .changes(changes):
+                ChangeSheetView(
+                    sheet: changes,
+                    reveal: actions.reveal,
+                    copyPath: actions.copyPath,
+                    undo: { actions.closeSheet(); actions.undoProtect(changes.undo) },
+                    close: actions.closeSheet
+                )
+            case .wrap, .handWrap, .scanDepth:
                 // The Tools and Findings windows' sheets; never opened here.
                 EmptyView()
             }
@@ -206,6 +221,10 @@ struct AgentsActions {
     var cleanCaches: () -> Void = {}
     /// Redact the tokens in this agent's files: Findings' Redact, narrowed.
     var redact: (ToolRecord) -> Void = { _ in }
+    /// What Changed…'s rows: Findings' own Show in Finder, Copy Path and Undo.
+    var reveal: (String) -> Void = { _ in }
+    var copyPath: (String) -> Void = { _ in }
+    var undoProtect: ([String]) -> Void = { _ in }
     var setRedactAfterScan: (ToolRecord, Bool) -> Void = { _, _ in }
     var openGrants: () -> Void = {}
     var openAIJobs: () -> Void = {}
