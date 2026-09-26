@@ -25,7 +25,8 @@ extension SettingsView {
                 lockTimerRow
                 consentRow
                 historyRow
-                if let outcome = failure(.lockTimer, .consent, .history) {
+                vaultKeyRow
+                if let outcome = failure(.lockTimer, .consent, .history, .vaultKey) {
                     failureRow(outcome)
                 }
             }
@@ -79,7 +80,7 @@ extension SettingsView {
                 mark: .busy,
                 name: "Keep typed credentials out of zsh history",
                 fact: "Changing the hook in your shell…",
-                last: failure(.lockTimer, .consent, .history) == nil
+                last: historyIsLast
             ) {
                 EmptyView()
             }
@@ -88,12 +89,159 @@ extension SettingsView {
                 name: "Keep typed credentials out of zsh history",
                 fact: "A command carrying one still runs; the history file never gets it.",
                 wraps: true,
-                last: failure(.lockTimer, .consent, .history) == nil
+                last: historyIsLast
             ) {
                 AppSwitch(isOn: guardBinding)
                     .disabled(model.settingsApplying != nil || model.guardInstalled == nil)
             }
         }
+    }
+
+    /// The history row is the card's last only with no Vault key row and
+    /// no failure under it.
+    private var historyIsLast: Bool {
+        !showsVaultKeyRow && failure(.lockTimer, .consent, .history, .vaultKey) == nil
+    }
+
+    /// Drawn only where the move can work (`VaultKeyRow.state`). A failure
+    /// of the move takes the row's place, as the card's failure row.
+    private var showsVaultKeyRow: Bool {
+        vaultKeyState != nil && failure(.vaultKey) == nil
+    }
+
+    /// Where the vault key is kept, and the one move from there: into the
+    /// Secure Enclave, or back to the keychain from ···.
+    @ViewBuilder private var vaultKeyRow: some View {
+        let last = failure(.lockTimer, .consent, .history, .vaultKey) == nil
+        if let state = vaultKeyState, showsVaultKeyRow {
+            if applying(.vaultKey) {
+                AppNoteRow(mark: .busy, name: Format.vaultKeyMoving, fact: Format.vaultKeyWaiting, last: last) {
+                    EmptyView()
+                }
+            } else {
+                vaultKeyStateRow(state, last: last)
+            }
+        }
+    }
+
+    @ViewBuilder private func vaultKeyStateRow(_ state: VaultKeyRow, last: Bool) -> some View {
+        let detail = Format.vaultKeyDetail(state, now: model.vaultKeyPlace)
+        switch state {
+        case .keychain:
+            AppRow(
+                name: Format.vaultKeyName, detail: detail,
+                fact: Format.vaultKeyFact(state, movable: model.canMoveVaultKeyIn), wraps: true, last: last
+            ) {
+                // Not on an empty vault: jit reports no recovery file for
+                // one, so the sheet's Move Key could never open.
+                if model.canMoveVaultKeyIn {
+                    Button("Move to Secure Enclave…", action: actions.moveVaultKey)
+                        .buttonStyle(AppButton())
+                        .disabled(model.settingsApplying != nil)
+                }
+            }
+        case .secureEnclave, .copyInKeychain:
+            // A key left in the keychain is amber, as an unfinished move:
+            // the vault opens, but the move left something to do. No button
+            // for it here: the fix is jit's, on Doctor's card.
+            AppRow(
+                dot: Color(state == .copyInKeychain ? StatusMark.red : StatusMark.green),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                moveBackMenu
+            }
+        case .unchecked:
+            // No colour, since nothing confirmed this Mac has the key, but
+            // never a dead end: the check can run again, and the way back
+            // stays where it always is.
+            AppRow(name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last) {
+                HStack(spacing: Design.Space.three) {
+                    checkAgainButton
+                    moveBackMenu
+                }
+            }
+        case .checking:
+            // No colour and no move until doctor says this Mac has the key.
+            AppRow(name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last) {
+                EmptyView()
+            }
+        case .lost, .restorePending:
+            AppRow(
+                dot: Color(StatusMark.red),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                Button("Restore from Recovery File…", action: actions.restoreVaultKey).buttonStyle(AppButton())
+            }
+        case .restoreUnchecked, .changeUnknown:
+            vaultKeyBlockedRow(state, detail: detail, last: last)
+        case .unfinished:
+            AppRow(
+                dot: Color(StatusMark.amber),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                Button(Format.vaultKeyRetryTitle(finishes: true), action: actions.retryVaultKey)
+                    .buttonStyle(AppButton())
+                    .disabled(model.settingsApplying != nil)
+            }
+        }
+    }
+
+    /// The states where jit names no fix of its own, or none the row
+    /// could press: a restore jit could not check, and a change of the key
+    /// jit doesn't understand.
+    @ViewBuilder private func vaultKeyBlockedRow(_ state: VaultKeyRow, detail: String, last: Bool) -> some View {
+        switch state {
+        case .restoreUnchecked:
+            // Amber, a question: jit could not check, so it does not know
+            // whether anything is left to restore. No Restore, since jit
+            // names none; only what doctor's finding names, and Check Again.
+            AppRow(
+                dot: Color(StatusMark.amber),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                HStack(spacing: Design.Space.three) {
+                    if let restore = model.vaultKeyRestore {
+                        Button(restore.action.buttonTitle, action: actions.restoreVaultKey)
+                            .buttonStyle(AppButton())
+                            .fixedSize()
+                            .disabled(model.settingsApplying != nil)
+                    }
+                    checkAgainButton
+                }
+            }
+        case .changeUnknown:
+            // Red: every vault change is refused, a move too, and nothing
+            // this app can press ends it. jit's words say what does.
+            AppRow(
+                dot: Color(StatusMark.red),
+                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+            ) {
+                checkAgainButton
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private var checkAgainButton: some View {
+        Button(Format.vaultKeyCheckAgain, action: actions.checkVaultKeyAgain)
+            .buttonStyle(AppButton())
+            .fixedSize()
+            .disabled(model.settingsApplying != nil)
+    }
+
+    /// ···, holding Move Back to Keychain…
+    private var moveBackMenu: some View {
+        Menu {
+            Button("Move Back to Keychain…", action: actions.moveVaultKeyBack)
+        } label: {
+            Text("···")
+        }
+        .menuStyle(.button)
+        .buttonStyle(AppButton())
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(model.settingsApplying != nil)
     }
 
     // MARK: - Notifications
@@ -179,7 +327,7 @@ extension SettingsView {
                 }
                 AppRow(
                     name: "Destroy the vault and its key",
-                    fact: "The vault directory and its keychain item. Nothing comes back.",
+                    fact: "The vault directory and its key. Nothing comes back.",
                     wraps: true,
                     last: true
                 ) {

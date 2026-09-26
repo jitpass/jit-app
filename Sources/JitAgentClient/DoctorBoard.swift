@@ -206,6 +206,11 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
         case ignore([[String]])
         /// `jit doctor unignore …`.
         case unignore([String])
+        /// The move sheet, over Settings: the vault key into the Secure
+        /// Enclave. Nothing runs from the card itself.
+        case moveVaultKey
+        /// Hide the move offer for good. The Settings row still offers it.
+        case dismissVaultKeyOffer
     }
 
     public var title: String
@@ -250,6 +255,8 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
             }
         case let .ignore(commands): commands.map { "jit " + $0.joined(separator: " ") }.joined(separator: "\n")
         case let .unignore(command): "jit " + command.joined(separator: " ")
+        case .moveVaultKey: "jit " + VaultKeyPlace.secureEnclave.moveArguments.joined(separator: " ")
+        case .dismissVaultKeyOffer: ""
         }
     }
 }
@@ -261,11 +268,16 @@ public enum DoctorMenuEntry: Equatable, Sendable {
 
 public extension DoctorBoard {
     /// The board for a report. `home` shortens paths to ~.
-    static func make(_ report: DoctorReport, home: String = NSHomeDirectory()) -> DoctorBoard {
+    /// `offersVaultKeyMove` adds the Recommended offer to move the vault
+    /// key into the Secure Enclave: the app's card, not a finding, because
+    /// nothing is wrong with a keychain vault (`VaultKeyRow.offersMove`).
+    static func make(_ report: DoctorReport, home: String = NSHomeDirectory(), offersVaultKeyMove: Bool = false) -> DoctorBoard {
         let all = report.problems + report.warnings
         let context = BoardContext(all: all, home: home)
         let order = Tier.allCases
-        let cards = (context.problemCards(report.problems) + context.warningCards(report.warnings)).enumerated()
+        let built = context.problemCards(report.problems).map(vaultKeyLost) + context.warningCards(report.warnings)
+            + (offersVaultKeyMove ? [vaultKeyOffer] : [])
+        let cards = built.enumerated()
             .sorted { (order.firstIndex(of: $0.element.tier) ?? 0, $0.offset) < (order.firstIndex(of: $1.element.tier) ?? 0, $1.offset) }
             .map(\.element)
             .map { card in

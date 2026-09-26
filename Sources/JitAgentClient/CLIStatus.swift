@@ -12,15 +12,76 @@ public struct CLIVaultStatus: Codable, Sendable, Equatable {
     /// "yes", "no" or "unknown": whether the master key exists (jit 1.6.3
     /// adds it). nil from an older jit, which `VaultSetup` reads as unknown.
     public var initialized: String?
+    /// Where the master key is kept: "keychain" or "secure-enclave"
+    /// (jit's `keystore.Kind`). nil from a jit before the Secure Enclave
+    /// move, which cannot move the key either.
+    public var keyStore: String?
+    /// Where an interrupted `jit vault rekey --wrapper` was moving the key,
+    /// "secure-enclave" or "keychain" (jitpass/jit#169). Omitted when no
+    /// move is unfinished; while it is set, every vault change is refused
+    /// until `jit vault rekey --wrapper <that value>` finishes it.
+    public var moveUnfinished: String?
+    /// A lost Secure Enclave key was replaced by `jit vault init`, and
+    /// secrets sealed to the old one are still on disk, unopenable, until
+    /// `jit vault import <file>` brings them back (jitpass/jit#169).
+    /// Omitted, so nil, when false.
+    public var restorePending: Bool?
+    /// jit could not check which secrets are still sealed to the lost key
+    /// (its record unreadable, or the vault not readable): jit's own error.
+    /// `restorePending` is true with it, since an unchecked restore is
+    /// never reported as done; but jit names no restore for it, so the app
+    /// offers none. Omitted, so nil, otherwise.
+    public var restoreCheckError: String?
+    /// The key is in the Secure Enclave, and the login keychain still
+    /// holds an item under the vault key's name: usually the copy a move
+    /// could not delete, though only a read could say it is the same key
+    /// (jitpass/jit#170). jit reads it from the item's metadata, never its
+    /// bytes, so asking prompts nothing. `jit vault rekey --wrapper
+    /// secure-enclave` removes it; doctor's `vault_key_copy` names that.
+    /// Omitted, so nil, when false, and while a move is unfinished.
+    public var keychainCopyLeft: Bool?
+    /// The last `jit vault export`, the recovery file: whether one is
+    /// recorded, when, and whether a secret has been written since. jit
+    /// reports none of them for an empty vault.
+    public var exportRecorded: Bool?
+    public var exportUnixTime: Int64?
+    public var exportStale: Bool?
+    /// The `_backups/…` entries `jit migrate undo` keeps. jit reports the
+    /// recovery file only when secrets and backups together are not zero
+    /// (status.go's gatherVaultStatus), so this says whether it could.
+    public var backupsStored: Int?
 
     enum CodingKeys: String, CodingKey {
         case secretsStored = "secrets_stored"
+        case backupsStored = "backups_stored"
         case initialized
+        case keyStore = "key_store"
+        case moveUnfinished = "move_unfinished"
+        case restorePending = "restore_pending"
+        case restoreCheckError = "restore_check_error"
+        case keychainCopyLeft = "keychain_copy_left"
+        case exportRecorded = "export_recorded"
+        case exportUnixTime = "export_unix_time"
+        case exportStale = "export_stale"
     }
 
-    public init(secretsStored: Int, initialized: String? = nil) {
+    public init(
+        secretsStored: Int, initialized: String? = nil, keyStore: String? = nil,
+        exportRecorded: Bool? = nil, exportUnixTime: Int64? = nil, exportStale: Bool? = nil, backupsStored: Int? = nil,
+        moveUnfinished: String? = nil, restorePending: Bool? = nil, restoreCheckError: String? = nil,
+        keychainCopyLeft: Bool? = nil
+    ) {
         self.secretsStored = secretsStored
         self.initialized = initialized
+        self.keyStore = keyStore
+        self.exportRecorded = exportRecorded
+        self.exportUnixTime = exportUnixTime
+        self.exportStale = exportStale
+        self.backupsStored = backupsStored
+        self.moveUnfinished = moveUnfinished
+        self.restorePending = restorePending
+        self.restoreCheckError = restoreCheckError
+        self.keychainCopyLeft = keychainCopyLeft
     }
 }
 

@@ -174,12 +174,17 @@ struct AppSwitch: View {
 struct WindowBanner<Actions: View>: View {
     let tint: Color
     let text: String
+    /// Wraps rather than cutting the sentence off, in a window that
+    /// measures its banner (Grants, AI Jobs): a revoke's note from jit is
+    /// two clauses, and its end is the part that matters. The others keep
+    /// one line, because their fit adds a one-line banner's height.
+    var wraps = false
     @ViewBuilder var actions: () -> Actions
 
     var body: some View {
         HStack(spacing: Win.s3) {
             StateDot(tint: tint)
-            Text(text).font(Win.sub)
+            Text(text).font(Win.sub).fixedSize(horizontal: false, vertical: wraps)
             Spacer(minLength: Win.s5)
             HStack(spacing: Win.s3) { actions() }
         }
@@ -193,8 +198,8 @@ struct WindowBanner<Actions: View>: View {
 
 extension WindowBanner where Actions == EmptyView {
     /// A banner whose sentence is the whole of it.
-    init(tint: Color, text: String) {
-        self.init(tint: tint, text: text) { EmptyView() }
+    init(tint: Color, text: String, wraps: Bool = false) {
+        self.init(tint: tint, text: text, wraps: wraps) { EmptyView() }
     }
 }
 
