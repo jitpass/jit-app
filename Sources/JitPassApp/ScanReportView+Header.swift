@@ -20,7 +20,7 @@ extension ScanReportView {
                 if let report {
                     todoLines(report).padding(.top, Win.s2)
                 }
-                Text(subline(report))
+                Text(subline())
                     .font(Win.sub).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, Win.s3)
@@ -94,19 +94,18 @@ extension ScanReportView {
 
     /// The schedule's line for the whole Mac; a folder scan has no
     /// schedule and no previous run, so it says only where and when.
-    func subline(_ report: ScanReport?) -> String {
-        let fixtures = report?.count(in: .testFixtures) ?? 0
+    func subline() -> String {
         if let folder = model.scanScope {
             return ScanWording.folderSubline(
                 folder: Format.home(folder), at: nil,
                 excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess,
-                deep: model.scan?.summary.deep == true, fixtures: fixtures
+                deep: model.scan?.summary.deep == true
             )
         }
         guard let at = model.macScanAt, let kind = model.macScanKind else {
             return ScanWording.folderSubline(
                 folder: "Whole Mac", at: model.macScanAt,
-                excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess, fixtures: fixtures
+                excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess
             )
         }
         return ScanWording.wholeMacSubline(ScanRun(
@@ -114,8 +113,7 @@ extension ScanReportView {
             newCount: model.macScanNew?.count, previousAt: model.previousMacScanAt,
             excludes: model.scanExcludes.count, fullDiskAccess: model.fullDiskAccess,
             vaultCopies: model.macScan?.vaultCopies.count ?? 0,
-            vaultCopiesFrom: kind.isDeep ? nil : model.macDeepScanAt,
-            fixtures: fixtures
+            vaultCopiesFrom: kind.isDeep ? nil : model.macDeepScanAt
         ))
     }
 

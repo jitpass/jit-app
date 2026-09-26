@@ -54,8 +54,8 @@ public extension ScanReport {
         return lines
     }
 
-    /// "4 still have plaintext copies in 32 files": distinct vault entries,
-    /// and the card's file count.
+    /// "4 secrets still in 32 files": distinct vault entries, and the
+    /// card's file count. The verb after it says what to do.
     private var vaultCopyTodo: ScanTodo? {
         let copies = vaultCopies
         guard !copies.isEmpty else {
@@ -63,10 +63,8 @@ public extension ScanReport {
         }
         let secrets = max(1, Set(copies.compactMap(\.keyName)).count)
         let files = Set(copies.map(\.filePath)).count
-        let text = secrets == 1
-            ? "1 still has a plaintext copy in " + Self.files(files)
-            : "\(secrets) still have plaintext copies in " + Self.files(files)
-        return ScanTodo(text: text + "", verb: "clear the copies", action: .show(.vaultCopies))
+        let text = (secrets == 1 ? "1 secret" : "\(secrets) secrets") + " still in " + Self.files(files)
+        return ScanTodo(text: text, verb: "clear the copies", action: .show(.vaultCopies))
     }
 
     private var protectTodo: ScanTodo? {
@@ -74,8 +72,7 @@ public extension ScanReport {
         guard n > 0 else {
             return nil
         }
-        let text = Self
-            .files(n) + (n == 1 ? " holds a secret jit can move into the vault" : " hold secrets jit can move into the vault")
+        let text = Self.files(n) + " to protect"
         return ScanTodo(text: text, verb: n == 1 ? "protect it" : "protect them", action: .show(.protect))
     }
 
@@ -84,7 +81,7 @@ public extension ScanReport {
         guard n > 0 else {
             return nil
         }
-        let text = Self.files(n) + (n == 1 ? " holds a secret only you can fix" : " hold secrets only you can fix")
+        let text = Self.files(n) + " only you can fix"
         return ScanTodo(text: text, verb: n == 1 ? "rotate or move it" : "rotate or move them", action: .show(.needsYou))
     }
 
@@ -97,8 +94,7 @@ public extension ScanReport {
         }
         let groups = agentCacheGroups
         let place = groups.count == 1 ? "\(groups[0].agent)'s \(groups[0].area)" : "\(groups.count) agent caches"
-        let text = (copies.count == 1 ? "1 copy of a vaulted secret sits in " : "\(copies.count) copies of vaulted secrets sit in ") +
-            place + ""
+        let text = (copies.count == 1 ? "1 copy in " : "\(copies.count) copies in ") + place
         return ScanTodo(text: text, verb: "clean the caches", action: .show(.agentCaches))
     }
 
