@@ -4,24 +4,24 @@
 import JitAgentClient
 import SwiftUI
 
-/// The Scan segment: the one group that reads your disk, and the folders
-/// it is told to leave alone.
+/// The Scan segment: the one group that reads your disk, and, in a card of
+/// its own, the folders it is told to leave alone.
 extension SettingsView {
     var scanCard: some View {
-        AppCard(
-            eyebrow: SettingsGroup.scan.title,
-            eyebrowTint: eyebrowTint(.scan),
-            title: "Looking for secrets this Mac still keeps",
-            note: "jit reads your home folder, shell configs, credential files and agent caches. Nothing leaves this Mac."
-        ) {
-            Button("Exclude a Folder…", action: actions.addExclude).buttonStyle(AppButton())
+        AppPlainCard {
+            accessRow
+            scheduleRow
+            redactRow
+        }
+    }
+
+    /// The folders every scan leaves alone: a list, so it is a card with a
+    /// title of its own and the verb that adds to it.
+    var excludesCard: some View {
+        AppPlainCard(title: SettingsGroup.excludes.title) {
+            Button("Add Folder…", action: actions.addExclude).buttonStyle(AppButton())
         } rows: {
-            AppCardRows {
-                accessRow
-                scheduleRow
-                redactRow
-                excludeRows
-            }
+            excludeRows
         }
     }
 
@@ -32,7 +32,7 @@ extension SettingsView {
             AppNoteRow(
                 mark: .dot(Color(StatusMark.amber)),
                 name: "Waiting for Full Disk Access",
-                fact: "A scheduled scan skips Desktop, Documents and Downloads until macOS allows it."
+                fact: "Until then a scheduled scan skips Desktop, Documents and Downloads."
             ) {
                 Button("Open System Settings…", action: actions.grantFullDiskAccess).buttonStyle(AppButton())
             }
@@ -44,11 +44,11 @@ extension SettingsView {
     /// row carries every guard, since a switch never asks.
     private var redactRow: some View {
         AppRow(
-            name: "After a scheduled scan, redact tokens in agent caches",
-            fact: "Only AI agent caches, never your files. Each token becomes a marker that says what it was; "
-                + "there is no backup and no undo. No Touch ID: it runs after every scheduled scan and tells you what it changed.",
+            name: "Redact agent caches after a scheduled scan",
+            fact: "Only AI agent caches, never your files. Each token becomes a marker that says what it was. "
+                + "No backup, no undo, no Touch ID; you are told what changed.",
             wraps: true,
-            last: model.scanExcludes.isEmpty
+            last: true
         ) {
             AppSwitch(isOn: Binding(get: { model.redactAfterScan }, set: actions.setRedactAfterScan))
         }
@@ -69,20 +69,19 @@ extension SettingsView {
 
     private var scheduleFact: String {
         if model.scanSchedule == .off {
-            return "Every scan is a click. Nothing runs on its own."
+            return "Every scan is a click. Nothing leaves this Mac."
         }
         return model.fullDiskAccess
-            ? "Runs quietly, and again after a Protect."
-            : "Runs quietly, and again after a Protect — within what macOS allows."
+            ? "Runs quietly, and again after a Protect. Nothing leaves this Mac."
+            : "Runs quietly, within what macOS allows. Nothing leaves this Mac."
     }
 
     /// A list says what is true, not that it is empty.
     @ViewBuilder private var excludeRows: some View {
         if model.scanExcludes.isEmpty {
             AppRow(
-                name: "Every folder in your home is scanned",
-                fact: "Nothing is excluded yet.",
-                wraps: true,
+                name: "None yet",
+                fact: "Every folder in your home is scanned.",
                 last: true
             ) {
                 EmptyView()
