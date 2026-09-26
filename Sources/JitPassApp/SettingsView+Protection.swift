@@ -145,7 +145,7 @@ extension SettingsView {
             // the vault opens, but the move left something to do. No button
             // for it here: the fix is jit's, on Doctor's card.
             AppRow(
-                dot: Color(state == .copyInKeychain ? StatusMark.amber : StatusMark.green),
+                dot: Color(state == .copyInKeychain ? StatusMark.red : StatusMark.green),
                 name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
             ) {
                 moveBackMenu
