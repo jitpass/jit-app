@@ -166,11 +166,15 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     /// The AI job a `job_allow`/`job_run` prompt, or a `job_proposal`, is
     /// about, so the app can show that job's own sheet from `job_list`.
     public var job: String?
+    /// On a `job_run` event whose run did not happen, what that means for
+    /// the job (`JobOutcome`'s words). Absent on every other event, and
+    /// from a jit older than the field.
+    public var jobOutcome: String?
 
     public init(
         unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, byPID: Int32? = nil, byLikely: Bool? = nil,
         launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil,
-        undelivered: Bool? = nil, job: String? = nil
+        undelivered: Bool? = nil, job: String? = nil, jobOutcome: String? = nil
     ) {
         self.unixTime = unixTime
         self.kind = kind
@@ -185,6 +189,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         self.consentID = consentID
         self.undelivered = undelivered
         self.job = job
+        self.jobOutcome = jobOutcome
     }
 
     enum CodingKeys: String, CodingKey {
@@ -196,6 +201,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         case cause, labels, count
         case consentID = "consent_id"
         case undelivered, job
+        case jobOutcome = "job_outcome"
     }
 
     public var date: Date {

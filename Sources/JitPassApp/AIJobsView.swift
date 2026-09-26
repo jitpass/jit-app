@@ -145,12 +145,19 @@ struct AIJobsView: View {
         }
     }
 
+    /// A job whose skipped runs went on (jit's `persisting-skip`) is not
+    /// stopped, so it stays in its card, with the row's amber dot and jit's
+    /// reason on a fact line allowed to wrap, as a settings row's is.
     private func jobRow(_ job: JobStatus, last: Bool) -> some View {
-        AppRow(name: job.name, detail: Format.jobCommand(job), fact: Format.jobFact(job), last: last) {
+        let notRunning = job.rowState == .notRunning
+        return AppRow(
+            dot: notRunning ? Color(StatusMark.amber) : nil,
+            name: job.name, detail: Format.jobCommand(job), fact: Format.jobFact(job), wraps: notRunning, last: last
+        ) {
             // The safe verb first: Edit changes nothing until its approval. A
             // stopped job has none: Review… on its card is its edit, the one
             // that starts from what changed (mockup frame E1).
-            if job.jobState == .ready {
+            if !job.isStopped {
                 Button("Edit…") { actions.edit(job) }.buttonStyle(AppButton(kind: .quiet))
             }
             Button("Remove…") { actions.remove(job) }.buttonStyle(AppButton(kind: .quiet))

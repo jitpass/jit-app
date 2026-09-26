@@ -203,21 +203,16 @@ extension StatusItemController {
         )
     }
 
-    /// A job that refused to run is something only the human can answer.
-    /// One notification per job and approval: a caller retrying a stopped
-    /// job replaces it rather than stacking more.
+    /// A job that stopped is something only the human can answer, and one
+    /// whose runs keep being skipped is worth knowing. `JobNotice` decides
+    /// which runs say anything, from jit's `job_outcome`. One notification
+    /// per job and kind: a caller retrying a stopped job replaces it rather
+    /// than stacking more.
     func noteJobStop(_ event: SessionEvent) {
-        guard model.notifyJobs, let name = event.job, let cause = event.cause, cause.contains("refused") else {
+        guard model.notifyJobs, let notice = JobNotice(event: event) else {
             return
         }
-        let why = cause.components(separatedBy: "refused, ").last ?? cause
-        Notifier.post(
-            title: "\(name) stopped running",
-            body: why.prefix(1).uppercased() + why.dropFirst() + ". Click to review.",
-            id: "job-stopped-\(name)",
-            thread: "jobs",
-            target: .jobs
-        )
+        Notifier.post(title: notice.title, body: notice.body, id: notice.id, thread: "jobs", target: .jobs)
     }
 }
 
