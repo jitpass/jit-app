@@ -51,17 +51,28 @@ final class SettingsBoardTests: XCTestCase {
     }
 
     /// A vault key nothing can open, or one every change refuses, is as
-    /// red on the pill as it is on its row; a move to finish is amber.
+    /// red on the pill as it is on its row; a restore jit could not check
+    /// is amber, a question.
     func testProtectionTakesTheVaultKeyRowsColour() {
         XCTAssertEqual(SettingsFacts(vaultKey: .lost).state(of: .protection), .broken)
         XCTAssertEqual(SettingsFacts(vaultKey: .restorePending).state(of: .protection), .broken)
         XCTAssertEqual(SettingsFacts(vaultKey: .changeUnknown("x")).state(of: .protection), .broken)
         XCTAssertEqual(SettingsFacts(vaultKey: .copyInKeychain).state(of: .protection), .broken)
-        XCTAssertEqual(SettingsFacts(vaultKey: .unfinished(.secureEnclave)).state(of: .protection), .needsYou)
         XCTAssertEqual(SettingsFacts(vaultKey: .restoreUnchecked("x")).state(of: .protection), .needsYou)
         XCTAssertEqual(SettingsFacts(vaultKey: .secureEnclave).state(of: .protection), .healthy)
         XCTAssertEqual(SettingsFacts(vaultKey: .keychain).state(of: .protection), .healthy)
-        XCTAssertEqual(SettingsFacts(vaultKey: .unfinished(.secureEnclave)).worst(in: .protection), .needsYou)
+        XCTAssertEqual(SettingsFacts(vaultKey: .restoreUnchecked("x")).worst(in: .protection), .needsYou)
+    }
+
+    /// An unfinished move is red, as `jit status` shows it: doctor counts
+    /// it a problem and jit refuses every vault change until it ends. It
+    /// was amber, which read as a question the reader could leave.
+    func testAnUnfinishedMoveIsRed() {
+        for target in [VaultKeyPlace.secureEnclave, .keychain] {
+            XCTAssertEqual(VaultKeyRow.unfinished(target).settingsState, .broken)
+            XCTAssertEqual(SettingsFacts(vaultKey: .unfinished(target)).state(of: .protection), .broken)
+            XCTAssertEqual(SettingsFacts(vaultKey: .unfinished(target)).worst(in: .protection), .broken)
+        }
     }
 
     func testAPillShowsRedBeforeAmber() {

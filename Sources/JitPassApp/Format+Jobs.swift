@@ -26,7 +26,7 @@ extension Format {
             : "Each runs only as you approved it. A changed file stops it until you look."
     }
 
-    static let jobsEmptyTitle = "No AI tool can run anything with your secrets"
+    static let jobsEmptyTitle = JobsWording.emptyTitle
     static let jobsEmptyMessage = "Approve a job when you want Claude or another agent to run a script that needs a key, " +
         "without being able to read the key."
 
@@ -81,33 +81,8 @@ extension Format {
         return "· " + (script as NSString).lastPathComponent
     }
 
-    static func jobAsks(_ job: JobStatus) -> String {
-        job.asksEachTime ? "Asks each time" : "Runs without asking"
-    }
-
     static func jobFact(_ job: JobStatus, now: Date = Date()) -> String {
-        var parts: [String] = []
-        if job.jobState != .ready {
-            if let caller = job.lastCaller, !caller.isEmpty {
-                parts.append("Refused \(caller)")
-            } else {
-                parts.append("Stopped")
-            }
-        } else if let last = job.lastRun {
-            let who = job.lastCaller.map { $0.isEmpty ? "An AI tool" : $0 } ?? "An AI tool"
-            parts.append("\(who) ran it \(ago(last, now: now))")
-            parts.append(job.lastExit.map { $0 == 0 ? "worked" : "exit \($0)" } ?? "worked")
-            if let hidden = job.lastHidden, hidden > 0 {
-                parts.append(hidden == 1 ? "hid 1 value" : "hid \(hidden) values")
-            }
-        } else {
-            parts.append("Not run yet")
-        }
-        parts.append(jobAsks(job))
-        if let count = job.secrets?.count, count > 0 {
-            parts.append(count == 1 ? "1 secret" : "\(count) secrets")
-        }
-        return parts.joined(separator: " · ")
+        JobsWording.fact(job) { ago($0, now: now) }
     }
 
     // MARK: - The AI apps that can ask
@@ -115,13 +90,7 @@ extension Format {
     static let jobsAppsEyebrow = "AI apps that can ask"
 
     static func mcpFact(_ app: MCPApp, _ status: MCPStatus?) -> String {
-        guard let status else {
-            return "Checking…"
-        }
-        if status.isConnected {
-            return "Connected · " + app.via
-        }
-        return status.installed ? "Set up for a jit that is no longer there" : "Not connected"
+        JobsWording.mcpFact(app, status)
     }
 
     static let terminalAgentsFact = "Always · claude, codex and others ask with jit job run"

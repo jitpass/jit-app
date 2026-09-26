@@ -147,15 +147,7 @@ extension SettingsView {
                 }
             }
         case .secureEnclave, .copyInKeychain:
-            // A key left in the keychain is red: the vault opens, but the
-            // copy is what the move was meant to end. No button for it
-            // here: the fix is jit's, on Doctor's card.
-            AppRow(
-                dot: Color(state == .copyInKeychain ? StatusMark.red : StatusMark.green),
-                name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
-            ) {
-                moveBackMenu
-            }
+            vaultKeyEnclaveRow(state, detail: detail, last: last)
         case .unchecked:
             // No colour, since nothing confirmed this Mac has the key, but
             // never a dead end: the check can run again, and the way back
@@ -181,13 +173,38 @@ extension SettingsView {
         case .restoreUnchecked, .changeUnknown:
             vaultKeyBlockedRow(state, detail: detail, last: last)
         case .unfinished:
+            // Red, as `jit status` shows it: every vault change is refused
+            // until the move ends, and doctor counts it a problem.
             AppRow(
-                dot: Color(StatusMark.amber),
+                dot: Color(StatusMark.red),
                 name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
             ) {
                 Button(Format.vaultKeyRetryTitle(finishes: true), action: actions.retryVaultKey)
                     .buttonStyle(AppButton())
                     .disabled(model.settingsApplying != nil)
+            }
+        }
+    }
+
+    /// The key in the Secure Enclave: green, or red while a key is still
+    /// in the keychain under its name. The vault opens, but that key is
+    /// what the move was meant to end. Its fix is jit's, on Doctor's card,
+    /// so the red row links there as the AI Agents rows link to another
+    /// window ("Findings…", "Grants…"): a plain "Doctor…" beside the fact
+    /// that says Doctor can remove it. Move Back stays in ··· either way.
+    @ViewBuilder private func vaultKeyEnclaveRow(_ state: VaultKeyRow, detail: String, last: Bool) -> some View {
+        let copyLeft = state == .copyInKeychain
+        AppRow(
+            dot: Color(copyLeft ? StatusMark.red : StatusMark.green),
+            name: Format.vaultKeyName, detail: detail, fact: Format.vaultKeyFact(state), wraps: true, last: last
+        ) {
+            HStack(spacing: Design.Space.three) {
+                if copyLeft {
+                    Button(Format.vaultKeyOpenDoctor, action: actions.openDoctorForKeyCopy)
+                        .buttonStyle(AppButton(kind: .plain))
+                        .fixedSize()
+                }
+                moveBackMenu
             }
         }
     }

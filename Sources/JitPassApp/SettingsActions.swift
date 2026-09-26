@@ -36,6 +36,9 @@ struct SettingsActions {
     var retryVaultKey: () -> Void = {}
     var checkVaultKeyAgain: () -> Void = {}
     var restoreVaultKey: () -> Void = {}
+    /// The red row's Doctor…: the window whose `vault_key_copy` card
+    /// removes the key left in the keychain.
+    var openDoctorForKeyCopy: () -> Void = {}
     var vaultClean: () -> Void = {}
     var vaultDelete: () -> Void = {}
     var setCheckForUpdates: (Bool) -> Void = { _ in }

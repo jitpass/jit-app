@@ -162,13 +162,14 @@ public extension SettingsFacts {
 
 public extension VaultKeyRow {
     /// What the row's dot says, for the Protection pill: red where nothing
-    /// opens or nothing may change until you act, amber for a question or
-    /// a move to finish, and healthy otherwise. The same colours the row
-    /// draws.
+    /// opens or nothing may change until you act (an unfinished move among
+    /// them: jit refuses every vault change until it ends, `jit status`
+    /// shows it red and doctor counts it a problem), amber for a question,
+    /// and healthy otherwise. The same colours the row draws.
     var settingsState: SettingsState {
         switch self {
-        case .lost, .restorePending, .changeUnknown, .copyInKeychain: .broken
-        case .unfinished, .restoreUnchecked: .needsYou
+        case .lost, .restorePending, .changeUnknown, .copyInKeychain, .unfinished: .broken
+        case .restoreUnchecked: .needsYou
         case .keychain, .secureEnclave, .checking, .unchecked: .healthy
         }
     }
