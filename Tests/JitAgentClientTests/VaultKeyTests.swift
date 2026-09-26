@@ -57,6 +57,23 @@ final class VaultKeyTests: XCTestCase {
         XCTAssertNil(plain.restorePending)
     }
 
+    /// jitpass/jit#170's field, as status.go writes it: true only on an
+    /// enclave vault whose keychain still holds an item under the vault
+    /// key's name, and omitted otherwise.
+    func testDecodesAKeyLeftInTheKeychain() throws {
+        let json = #"""
+        {"vault":{"initialized":"yes","key_store":"secure-enclave","keychain_copy_left":true,"secrets_stored":4}}
+        """#
+        let vault = try XCTUnwrap(JSONDecoder().decode(CLIStatus.self, from: Data(json.utf8)).vault)
+        XCTAssertEqual(vault.keychainCopyLeft, true)
+        let plain = try XCTUnwrap(
+            JSONDecoder().decode(
+                CLIStatus.self, from: Data(#"{"vault":{"initialized":"yes","key_store":"secure-enclave","secrets_stored":4}}"#.utf8)
+            ).vault
+        )
+        XCTAssertNil(plain.keychainCopyLeft)
+    }
+
     /// A jit before the move says nothing about where the key is.
     func testAnOlderJitLeavesTheNewFieldsNil() throws {
         let json = #"{"vault":{"initialized":"yes","secrets_stored":3}}"#
@@ -78,6 +95,23 @@ final class VaultKeyTests: XCTestCase {
     func testTheRowSaysWhereTheKeyIs() {
         XCTAssertEqual(VaultKeyRow.state(vault("keychain"), bundledHelper: true, keyLost: false), .keychain)
         XCTAssertEqual(VaultKeyRow.state(vault("secure-enclave"), bundledHelper: true, keyLost: false), .secureEnclave)
+    }
+
+    /// An enclave key this Mac has, with a key still in the keychain under
+    /// its name: amber, not green. Only once doctor says the enclave has
+    /// the key (a lost key comes first, and "checking" stays checking);
+    /// and never for a keychain vault, where jit never reports it.
+    func testAKeyLeftInTheKeychainIsItsOwnState() {
+        var copy = vault("secure-enclave")
+        copy.keychainCopyLeft = true
+        XCTAssertEqual(VaultKeyRow.state(copy, bundledHelper: true, keyLost: false), .copyInKeychain)
+        XCTAssertEqual(VaultKeyRow.state(copy, bundledHelper: true, keyLost: true), .lost)
+        XCTAssertEqual(VaultKeyRow.state(copy, bundledHelper: true, keyLost: nil), .checking)
+        copy.keychainCopyLeft = false
+        XCTAssertEqual(VaultKeyRow.state(copy, bundledHelper: true, keyLost: false), .secureEnclave)
+        var keychain = vault("keychain")
+        keychain.keychainCopyLeft = true
+        XCTAssertEqual(VaultKeyRow.state(keychain, bundledHelper: true, keyLost: false), .keychain)
     }
 
     /// Never green before doctor has said this Mac's enclave has the key:
