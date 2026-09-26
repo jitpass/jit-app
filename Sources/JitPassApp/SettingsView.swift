@@ -91,7 +91,8 @@ struct SettingsView: View {
             scanScheduled: model.scanSchedule != .off,
             fullDiskAccess: model.fullDiskAccess,
             updateAvailable: model.updateAvailable != nil,
-            jitOnPath: jitOnPath
+            jitOnPath: jitOnPath,
+            vaultKey: vaultKeyState
         )
     }
 

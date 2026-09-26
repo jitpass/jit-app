@@ -50,6 +50,20 @@ final class SettingsBoardTests: XCTestCase {
         XCTAssertTrue(SettingsFacts(serviceRunning: false).needsYou(in: .protection))
     }
 
+    /// A vault key nothing can open, or one every change refuses, is as
+    /// red on the pill as it is on its row; a move to finish is amber.
+    func testProtectionTakesTheVaultKeyRowsColour() {
+        XCTAssertEqual(SettingsFacts(vaultKey: .lost).state(of: .protection), .broken)
+        XCTAssertEqual(SettingsFacts(vaultKey: .restorePending).state(of: .protection), .broken)
+        XCTAssertEqual(SettingsFacts(vaultKey: .changeUnknown("x")).state(of: .protection), .broken)
+        XCTAssertEqual(SettingsFacts(vaultKey: .copyInKeychain).state(of: .protection), .broken)
+        XCTAssertEqual(SettingsFacts(vaultKey: .unfinished(.secureEnclave)).state(of: .protection), .needsYou)
+        XCTAssertEqual(SettingsFacts(vaultKey: .restoreUnchecked("x")).state(of: .protection), .needsYou)
+        XCTAssertEqual(SettingsFacts(vaultKey: .secureEnclave).state(of: .protection), .healthy)
+        XCTAssertEqual(SettingsFacts(vaultKey: .keychain).state(of: .protection), .healthy)
+        XCTAssertEqual(SettingsFacts(vaultKey: .unfinished(.secureEnclave)).worst(in: .protection), .needsYou)
+    }
+
     func testAPillShowsRedBeforeAmber() {
         let facts = SettingsFacts(updateAvailable: true)
         XCTAssertEqual(facts.worst(in: .general), .needsYou)

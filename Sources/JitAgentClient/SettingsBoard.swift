@@ -97,6 +97,8 @@ public struct SettingsFacts: Equatable, Sendable {
     public var fullDiskAccess: Bool
     public var updateAvailable: Bool
     public var jitOnPath: Bool
+    /// The vault key row's state, nil where the row is not drawn.
+    public var vaultKey: VaultKeyRow?
 
     public init(
         serviceRunning: Bool = true,
@@ -105,7 +107,8 @@ public struct SettingsFacts: Equatable, Sendable {
         scanScheduled: Bool = false,
         fullDiskAccess: Bool = true,
         updateAvailable: Bool = false,
-        jitOnPath: Bool = true
+        jitOnPath: Bool = true,
+        vaultKey: VaultKeyRow? = nil
     ) {
         self.serviceRunning = serviceRunning
         self.notificationsWanted = notificationsWanted
@@ -114,6 +117,7 @@ public struct SettingsFacts: Equatable, Sendable {
         self.fullDiskAccess = fullDiskAccess
         self.updateAvailable = updateAvailable
         self.jitOnPath = jitOnPath
+        self.vaultKey = vaultKey
     }
 }
 
@@ -125,7 +129,7 @@ public extension SettingsFacts {
     /// without anyone present.
     func state(of group: SettingsGroup) -> SettingsState {
         switch group {
-        case .protection: serviceRunning ? .healthy : .broken
+        case .protection: serviceRunning ? vaultKey?.settingsState ?? .healthy : .broken
         case .notifications: notificationsWanted && notificationsBlocked ? .needsYou : .healthy
         case .scan: scanScheduled && !fullDiskAccess ? .needsYou : .healthy
         case .general: updateAvailable || !jitOnPath ? .needsYou : .healthy
@@ -153,5 +157,19 @@ public extension SettingsFacts {
     /// tiers, a settings group cannot be empty.
     var segments: [SettingsSegment] {
         SettingsSegment.allCases
+    }
+}
+
+public extension VaultKeyRow {
+    /// What the row's dot says, for the Protection pill: red where nothing
+    /// opens or nothing may change until you act, amber for a question or
+    /// a move to finish, and healthy otherwise. The same colours the row
+    /// draws.
+    var settingsState: SettingsState {
+        switch self {
+        case .lost, .restorePending, .changeUnknown, .copyInKeychain: .broken
+        case .unfinished, .restoreUnchecked: .needsYou
+        case .keychain, .secureEnclave, .checking, .unchecked: .healthy
+        }
     }
 }
