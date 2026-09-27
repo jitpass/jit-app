@@ -92,14 +92,20 @@ extension StatusItemController {
             return
         }
         model.findingsOutcome = nil
-        runTools("redact", refresh: false, work: { JitCLI.redact(files: files, lines: lines) }, then: { [weak self] report in
-            guard let self else {
-                return
+        runTools(
+            "redact",
+            refresh: false,
+            failed: "Redact",
+            work: { JitCLI.redact(files: files, lines: lines) },
+            then: { [weak self] report in
+                guard let self else {
+                    return
+                }
+                let outcome = ScanWording.redactOutcome(report)
+                showResult(title: outcome.title, text: report.report, failed: outcome.failed, changes: .redact(report))
+                settle(after: report, lines: lines)
             }
-            let outcome = ScanWording.redactOutcome(report)
-            showResult(title: outcome.title, text: report.report, failed: outcome.failed, changes: .redact(report))
-            settle(after: report, lines: lines)
-        })
+        )
     }
 
     /// A Redact changed exactly the files its report names, so the report on
@@ -138,25 +144,32 @@ extension StatusItemController {
                 return
             }
         }
-        runTools("redact", refresh: false, work: { JitCLI.redact(files: files, lines: []) }, then: { [weak self] result in
-            guard let self else {
-                return
-            }
-            let outcome = ScanWording.redactOutcome(result)
-            model.findingsOutcome = WindowOutcome(
-                title: outcome.title, text: result.report, failed: outcome.failed, changes: .redact(result)
-            )
-            if model.notifyScans, let notice = ScanNotices.redacted(result, at: at) {
-                Notifier.post(
-                    title: notice.title,
-                    body: notice.body,
-                    id: "redact-\(Int(at.timeIntervalSince1970))",
-                    thread: "findings",
-                    target: .findings
+        runTools(
+            "redact",
+            refresh: false,
+            failed: "Redact after the scheduled scan",
+            reportsTo: .findings,
+            work: { JitCLI.redact(files: files, lines: []) },
+            then: { [weak self] result in
+                guard let self else {
+                    return
+                }
+                let outcome = ScanWording.redactOutcome(result)
+                model.findingsOutcome = WindowOutcome(
+                    title: outcome.title, text: result.report, failed: outcome.failed, changes: .redact(result)
                 )
+                if model.notifyScans, let notice = ScanNotices.redacted(result, at: at) {
+                    Notifier.post(
+                        title: notice.title,
+                        body: notice.body,
+                        id: "redact-\(Int(at.timeIntervalSince1970))",
+                        thread: "findings",
+                        target: .findings
+                    )
+                }
+                settle(after: result, lines: [])
             }
-            settle(after: result, lines: [])
-        })
+        )
     }
 
     /// `jit migrate undo <file> --yes` from the Findings banner: the file
@@ -180,7 +193,7 @@ extension StatusItemController {
         }
         model.findingsOutcome = nil
         let title = paths.count == 1 ? "Restored \(Format.home(paths[0]))" : "Restored \(paths.count) files"
-        runTools("undo", work: { JitCLI.execute(["migrate", "undo"] + paths + ["--yes"]) }, then: { [weak self] output in
+        runTools("undo", failed: "Undo", work: { JitCLI.execute(["migrate", "undo"] + paths + ["--yes"]) }, then: { [weak self] output in
             self?.model.scanStale = true
             self?.showResult(title: title, text: output)
             self?.runScan(wholeMac: true, kind: .afterProtect)

@@ -71,6 +71,8 @@ final class StatusItemController {
     var vaultObservers: [NSObjectProtocol] = []
     /// When the tool listing was last read, for the panel rows.
     var toolsReadAt: Date?
+    /// Scans asked for while another ran, started when that one lands.
+    var scanQueue = ScanQueue()
     // "Settings", not "JitPass Settings": the app is already in the menu
     // bar, and the window is not a second place to say so.
     lazy var settingsWindow = ReportWindow(
