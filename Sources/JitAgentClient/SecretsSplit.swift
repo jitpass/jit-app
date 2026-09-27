@@ -329,7 +329,10 @@ public extension VaultListing {
     /// settings. What the Vault window's cleanup banner counts: it cannot
     /// know how many ARE settings without reading them.
     var uncheckedFromEnv: [VaultSecret] {
-        secrets.filter { $0.secretClass == "dotenv" && $0.scan == nil }
+        // A 1Password link is never read by the cleanup (a plain copy would
+        // cut the link), so it never gets a class: counting it would keep
+        // the banner up for good.
+        secrets.filter { $0.secretClass == "dotenv" && $0.scan == nil && !$0.isLinked }
     }
 }
 

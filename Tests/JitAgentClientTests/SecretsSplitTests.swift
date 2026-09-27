@@ -68,11 +68,12 @@ final class SecretsSplitTests: XCTestCase {
         {"secrets":[
           {"path":"a/S","class":"dotenv","scan":"secret"},
           {"path":"a/C","class":"dotenv","scan":"check"},
-          {"path":"a/U","class":"dotenv"}
+          {"path":"a/U","class":"dotenv"},
+          {"path":"a/L","class":"dotenv","storage":"op-ref"}
         ],"backups":[]}
         """
         let listing = try JSONDecoder().decode(VaultListing.self, from: Data(json.utf8))
-        XCTAssertEqual(listing.secrets.map(\.moveOutIsRisky), [true, false, true])
+        XCTAssertEqual(listing.secrets.map(\.moveOutIsRisky), [true, false, true, true])
         XCTAssertEqual(listing.uncheckedFromEnv.map(\.path), ["a/U"])
     }
 
