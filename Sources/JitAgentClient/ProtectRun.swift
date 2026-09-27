@@ -15,6 +15,10 @@ public struct ProtectRun: Sendable, Equatable {
     /// jit's text for each wrap, in the same order.
     public var wrappedText: [String]
     public var wrapFailure: WrapFailure?
+    /// What the Protect sheet showed and the user confirmed, so What
+    /// Changed can say per file what went to the vault and what stayed.
+    /// Nil after the old question (an engine without `migrate preview`).
+    public var split: ProtectSplit?
 
     /// The wrap jit refused, in its own words, and the ones after it that
     /// were not tried: a cancelled Touch ID is not asked again per tool.
@@ -85,7 +89,7 @@ public extension ProtectRun {
             text: text,
             failed: failed,
             undo: undo,
-            changes: ChangeSheet.protect(reports, wrapped: wrapped, wrapFailure: wrapFailure, report: text)
+            changes: ChangeSheet.protect(reports, wrapped: wrapped, wrapFailure: wrapFailure, report: text, split: split)
         )
     }
 }

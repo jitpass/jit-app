@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 
 import AppKit
+import SwiftUI
 
 // Every alert and file panel the app shows opens through `runFrontmost`.
 // JitPass is an accessory app, so it is usually not the active app when one
@@ -23,5 +24,37 @@ extension NSSavePanel {
     func runFrontmost() -> NSApplication.ModalResponse {
         NSApp.activate(ignoringOtherApps: true)
         return runModal()
+    }
+}
+
+/// A question drawn in SwiftUI, asked as its own modal window: for one that
+/// belongs to no single window's sheet (Protect is asked from Findings and
+/// from Decoys). Brought forward first, as every dialog here is. `make`
+/// gets the finish call; true is the question's yes.
+enum ModalHost {
+    @MainActor
+    static func ask(title: String, _ make: (_ finish: @escaping (Bool) -> Void) -> some View) -> Bool {
+        let panel = NSPanel(
+            contentRect: .zero,
+            styleMask: [.titled, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        panel.title = title
+        panel.titleVisibility = .hidden
+        panel.titlebarAppearsTransparent = true
+        panel.isMovableByWindowBackground = true
+        var answer = false
+        let finish: (Bool) -> Void = { yes in
+            answer = yes
+            NSApp.stopModal()
+        }
+        panel.contentView = NSHostingView(rootView: make(finish))
+        panel.setContentSize(panel.contentView?.fittingSize ?? .zero)
+        panel.center()
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.runModal(for: panel)
+        panel.orderOut(nil)
+        return answer
     }
 }

@@ -122,7 +122,8 @@ public extension ChangeSheet {
     /// A wrap jit refused is a cross with jit's line, after what did
     /// change, and the tools not tried after it are left for later.
     static func protect(
-        _ reports: [MigrateReport], wrapped: [String] = [], wrapFailure: ProtectRun.WrapFailure? = nil, report text: String
+        _ reports: [MigrateReport], wrapped: [String] = [], wrapFailure: ProtectRun.WrapFailure? = nil, report text: String,
+        split: ProtectSplit? = nil
     ) -> ChangeSheet {
         let applied = reports.filter(\.applied)
         let targets = applied.flatMap(\.targets)
@@ -164,8 +165,9 @@ public extension ChangeSheet {
             title: title,
             sentence: targets.isEmpty
                 ? "No file was changed."
-                : "Each file keeps its place; a decoy stands where each value was. Undo puts every file back from its backup.",
-            files: targets.map { File(path: $0, fact: "Backed up, then its secrets moved to the vault") },
+                : "Each file keeps its place and still works; a decoy stands where each secret was. "
+                + "Undo puts every file back from its backup.",
+            files: targets.map { File(path: $0, fact: protectFact($0, split: split)) },
             notes: notes,
             undo: targets,
             report: text
@@ -213,5 +215,34 @@ public extension ChangeSheet {
 
     private static func count(_ n: Int, _ one: String, plural: String? = nil) -> String {
         "\(n) " + (n == 1 ? one : plural ?? one + "s")
+    }
+}
+
+extension ChangeSheet {
+    /// One protected file's row: what went where, from the split the sheet
+    /// showed. "2 in the vault · 7 settings kept as plain text", or, for an
+    /// MCP config the same run covered, "Nothing to move · its secret came
+    /// from billing-sync/.env". Without a split, the sentence it always had.
+    static func protectFact(_ path: String, split: ProtectSplit?) -> String {
+        guard let split, let file = split.preview.files.first(where: { $0.path == path }) else {
+            return "Backed up, then its secrets moved to the vault"
+        }
+        switch file.kind {
+        case "env":
+            let counts = split.counts(file)
+            var parts = ["\(counts.vault) in the vault"]
+            if counts.settings > 0 {
+                parts.append((counts.settings == 1 ? "1 setting" : "\(counts.settings) settings") + " kept as plain text")
+            }
+            return parts.joined(separator: " · ")
+        case "mcp":
+            if let mcp = file.mcp, mcp.covered {
+                let from = mcp.reads.map { ScanWording.shortEnvName($0, home: "") }.joined(separator: ", ")
+                return "Nothing to move · its secret came from " + from
+            }
+            return "Backed up, then its secrets moved to the vault"
+        default:
+            return "Backed up, then its secrets moved to the vault"
+        }
     }
 }

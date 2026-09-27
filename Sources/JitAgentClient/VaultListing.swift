@@ -21,6 +21,11 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
     /// The profiles that reference it (jit 1.6.2 adds it); empty when
     /// nothing does, or on an older engine.
     public var usedBy: [String] = []
+    /// What the scan said of the value when it went into the vault:
+    /// "secret", "check" or "setting". Nil when unknown: vaulted before
+    /// jit kept settings out of the vault, or an older engine
+    /// (design/secrets-only-vault.md in the jit repo).
+    public var scan: String?
 
     enum CodingKeys: String, CodingKey {
         case path
@@ -34,6 +39,7 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         case createdUnix = "created_unix"
         case updatedUnix = "updated_unix"
         case usedBy = "used_by"
+        case scan
     }
 
     public init(
@@ -65,6 +71,14 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         createdUnix = try container.decodeIfPresent(Int64.self, forKey: .createdUnix)
         updatedUnix = try container.decodeIfPresent(Int64.self, forKey: .updatedUnix)
         usedBy = try container.decodeIfPresent([String].self, forKey: .usedBy) ?? []
+        scan = try container.decodeIfPresent(String.self, forKey: .scan)
+    }
+
+    /// Whether moving this value out of the vault needs the careful
+    /// question: the scan counts it as a secret, or nobody has checked. Only
+    /// a value the scan read and did not count gets the plain one.
+    public var moveOutIsRisky: Bool {
+        scan != "setting" && scan != "check"
     }
 
     public var id: String {
