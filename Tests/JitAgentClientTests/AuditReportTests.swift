@@ -87,4 +87,28 @@ extension AuditReportTests {
         let row = AuditReport(commands: [], authEvents: [event]).rows[0]
         XCTAssertEqual(row.status, "decoy")
     }
+
+    /// A run that reads four secrets records four uses in the same second.
+    /// They shared one id, and the list drew one row and blank space for
+    /// the other three (2026-09-27).
+    func testUsesInOneSecondEachHaveTheirOwnRow() {
+        let uses = ["a/ONE", "b/TWO", "c/THREE", "d/FOUR"].map {
+            SessionEvent(unixTime: 1_790_000_000, kind: "use", op: "unwrap", by: "/usr/bin/tool", labels: [$0])
+        }
+        let rows = AuditReport(commands: [], authEvents: uses).rows
+        XCTAssertEqual(Set(rows.map(\.id)).count, 4)
+    }
+
+    /// Fourteen paths made a row wider than the window, cut mid-name: past
+    /// three, the title counts them by group and the tooltip lists them.
+    func testManySecretsAreCountedWithTheListInTheTooltip() {
+        let labels = ["acme/ID", "acme/TOKEN", "globex/ID", "globex/KEY", "initech/KEY", "umbrella/URL", "hooli/KEY"]
+        let event = SessionEvent(unixTime: 0, kind: "use", op: "serve_mounts", labels: labels)
+        XCTAssertEqual(AuditReport.title(for: event), "served mounts (7 secrets from acme, globex, initech and 2 more)")
+        let row = AuditReport(commands: [], authEvents: [event]).rows[0]
+        XCTAssertEqual(row.secrets, labels.joined(separator: ", "))
+        let three = SessionEvent(unixTime: 0, kind: "use", op: "unwrap", by: "/usr/bin/tool", labels: ["x/A", "x/B", "x/C"])
+        XCTAssertEqual(AuditReport.title(for: three), "tool used x/A, x/B, x/C")
+        XCTAssertNil(AuditReport(commands: [], authEvents: [three]).rows[0].secrets)
+    }
 }
