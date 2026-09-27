@@ -345,12 +345,14 @@ extension StatusItemController {
     /// time, like the Vault window.
     ///
     /// `failed` names the action, so a failure reaches the window that
-    /// asked (`showFailure`); without it the line only goes to
-    /// `toolsMessage`, which Findings and Decoys never show.
+    /// asked (`showFailure`), recorded here, at the click; without it the
+    /// line only goes to `toolsMessage`, which Findings and Decoys never
+    /// show. `reportsTo` overrides the window for a run no click started.
     func runTools<Output: Sendable>(
         _ label: String,
         refresh: Bool = true,
         failed verb: String? = nil,
+        reportsTo: OutcomeWindow? = nil,
         work: @escaping @Sendable () -> Result<Output, Error>,
         then: @escaping @MainActor (Output) -> Void
     ) {
@@ -358,6 +360,7 @@ extension StatusItemController {
             return
         }
         model.toolsBusy = label
+        let origin = reportsTo ?? frontOutcomeWindow
         model.toolsMessage = nil
         Task.detached {
             let result = work()
@@ -378,7 +381,7 @@ extension StatusItemController {
                     let line = Self.describeTools(error)
                     model.toolsMessage = line
                     if let verb {
-                        showFailure(verb, line: line)
+                        showFailure(verb, line: line, in: origin)
                     }
                 }
             }

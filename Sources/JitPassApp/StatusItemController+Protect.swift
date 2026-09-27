@@ -148,6 +148,7 @@ extension StatusItemController {
             "redact",
             refresh: false,
             failed: "Redact after the scheduled scan",
+            reportsTo: .findings,
             work: { JitCLI.redact(files: files, lines: []) },
             then: { [weak self] result in
                 guard let self else {
