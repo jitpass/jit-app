@@ -24,12 +24,15 @@ public struct CallerCommand: Equatable, Sendable {
     /// never glues an argument onto the program (review, 2026-09-27: "node
     /// dist/server.js" was named "server.js", so the interpreter that asked
     /// was never named).
-    public init?(_ line: String?, isExecutable: (String) -> Bool = CallerCommand.isExecutableFile) {
+    /// `isExecutable` is for tests: nil, the default, is the real file
+    /// system, remembered per line (`cachedExecutableEnd`).
+    public init?(_ line: String?, isExecutable: ((String) -> Bool)? = nil) {
         let line = (line ?? "").trimmingCharacters(in: .whitespaces)
         guard !line.isEmpty else {
             return nil
         }
-        if let end = Self.executableEnd(line, isExecutable: isExecutable) {
+        let end = isExecutable.map { Self.executableEnd(line, isExecutable: $0) } ?? Self.cachedExecutableEnd(line)
+        if let end {
             let path = line[..<end]
             program = String(path.split(separator: "/").last ?? path)
             arguments = String(line[end...]).trimmingCharacters(in: .whitespaces)
@@ -82,6 +85,32 @@ public struct CallerCommand: Equatable, Sendable {
             return cut
         }
         return nil
+    }
+
+    /// executableEnd, remembered per line for the real file system: every
+    /// audit row and every AI Agents refresh names its program, on the main
+    /// thread, and a week of events repeats the same few command lines, so
+    /// each asks the disk once (review, 2026-09-27). Offsets, not indexes,
+    /// so an entry outlives the String it was computed from. Emptied past
+    /// 1,024 lines. A test's own isExecutable is never cached.
+    private nonisolated(unsafe) static var ends: [String: Int?] = [:]
+    private static let endsLock = NSLock()
+
+    static func cachedExecutableEnd(_ line: String) -> String.Index? {
+        endsLock.lock()
+        let known = ends[line]
+        endsLock.unlock()
+        if let known {
+            return known.map { line.index(line.startIndex, offsetBy: $0) }
+        }
+        let end = executableEnd(line, isExecutable: isExecutableFile)
+        endsLock.lock()
+        if ends.count >= 1024 {
+            ends.removeAll()
+        }
+        ends[line] = end.map { line.distance(from: line.startIndex, to: $0) }
+        endsLock.unlock()
+        return end
     }
 
     /// An executable regular file, not a folder (an app bundle is one).

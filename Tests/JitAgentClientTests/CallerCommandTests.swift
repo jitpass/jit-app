@@ -59,6 +59,21 @@ final class CallerCommandTests: XCTestCase {
         )
     }
 
+    /// The real file system is asked once per line: every audit row and
+    /// every AI Agents refresh names its program on the main thread, and a
+    /// week of events repeats the same lines (review, 2026-09-27).
+    func testTheDiskIsAskedOncePerLine() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + " tools")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let exe = dir.appendingPathComponent("fetch")
+        try Data("#!/bin/sh\n".utf8).write(to: exe)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exe.path)
+        let line = exe.path + " dist/run.js"
+        XCTAssertEqual(CallerCommand(line)?.shown, "fetch dist/run.js", "found on disk, spaces in its folder and all")
+        try FileManager.default.removeItem(at: dir)
+        XCTAssertEqual(CallerCommand(line)?.shown, "fetch dist/run.js", "the second answer is the remembered one")
+    }
+
     func testEmptyIsNil() {
         XCTAssertNil(CallerCommand(""))
         XCTAssertNil(CallerCommand(nil))
