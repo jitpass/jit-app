@@ -52,7 +52,7 @@ struct JobReviewSheet: View {
     }
 
     private func itemRow(_ item: JobReview.Item, last: Bool) -> some View {
-        AppRow(name: item.label, badge: item.kind, fact: Format.reviewFact(item, tracked: model.jobReviewTracked), last: last) {
+        AppRow(name: item.label, badge: item.badge, fact: Format.reviewFact(item, tracked: model.jobReviewTracked), last: last) {
             if let file = item.file {
                 if model.jobReviewTracked.contains(file) {
                     Button("Show Changes…") { actions.showChanges(file) }.buttonStyle(AppButton(kind: .quiet))

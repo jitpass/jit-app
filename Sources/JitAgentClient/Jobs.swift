@@ -94,6 +94,39 @@ public struct JobChange: Codable, Sendable, Equatable {
         self.path = path
         self.kind = kind
     }
+
+    /// jit's kinds that are phrases, not one word (`job.ChangeKind`): an
+    /// approval that predates fingerprinting what the program loads from
+    /// outside the folder, and a library folder jit can't list.
+    public static let unchecked = "not fingerprinted when you approved it"
+    public static let folderChanged = "has a file that changed"
+    public static let folderRewritten = "has a file that was written to"
+    /// The path of an `unchecked` change: not a file (`job.LibsPath`).
+    public static let libsPath = "(what the program loads from outside the folder)"
+
+    /// One short word for a chip. A phrase in a chip wrapped a letter or
+    /// two a line down the review sheet (2026-09-27).
+    public var badge: String {
+        switch kind {
+        case Self.unchecked: "not checked"
+        case Self.folderChanged: "changed"
+        case Self.folderRewritten: "rewritten"
+        default: kind
+        }
+    }
+
+    /// What happened, as a clause the stop's note ends: jit's own
+    /// `Change.Sentence`, less the "approve it again" the note says after.
+    public var sentence: String {
+        switch kind {
+        case "rewritten": "\(path) was written to since you approved it, though its content matches"
+        case Self.unchecked:
+            "It was approved by an older jit, which didn't fingerprint what the program loads from outside the folder"
+        case Self.folderChanged: "A file in \(path) changed since you approved it, and jit can't say which"
+        case Self.folderRewritten: "A file in \(path) was written to since you approved it, and jit can't say which"
+        default: "\(path) \(kind) since you approved it"
+        }
+    }
 }
 
 /// One approved job, as `job_list` reports it.

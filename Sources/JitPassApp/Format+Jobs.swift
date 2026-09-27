@@ -56,9 +56,7 @@ extension Format {
     /// What stopped it, in the service's own words, and the way back.
     static func jobStoppedNote(_ job: JobStatus) -> String {
         let why: String = if let change = job.changes?.first {
-            change.kind == "rewritten"
-                ? "\(change.path) was written to since you approved it, though its content matches"
-                : "\(change.path) \(change.kind) since you approved it"
+            change.sentence
         } else if let refusal = job.lastRefusal, !refusal.isEmpty {
             refusal
         } else {
@@ -287,6 +285,9 @@ extension Format {
     }
 
     static func reviewFact(_ item: JobReview.Item, tracked: Set<String>) -> String {
+        if let note = item.note {
+            return note
+        }
         switch item.kind {
         case "removed": return "Removed since approval"
         case "added": return "Added since approval"
