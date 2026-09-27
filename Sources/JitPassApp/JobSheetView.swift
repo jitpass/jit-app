@@ -1,6 +1,7 @@
 // Copyright 2026 Meni Tasa
 // SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 
+import AppKit
 import JitAgentClient
 import SwiftUI
 
@@ -23,19 +24,26 @@ struct JobSheetView: View {
                 WindowBanner(tint: Color(StatusMark.amber), text: Format.proposalBanner(proposal))
             }
             VStack(alignment: .leading, spacing: Win.s5) {
-                VStack(alignment: .leading, spacing: Win.s3) {
-                    Text(Format.jobSheetTitle(model.jobDraft)).font(Win.cardTitle)
-                    sentence
-                }
-                rows
-                    .opacity(model.jobBusy ? 0.55 : 1)
-                    .disabled(model.jobBusy)
-                if let refusal = model.jobPreview?.refusalText {
-                    AppNoteRow(mark: .failed, name: Format.jobRefusedName, verbatim: refusal, last: true) { EmptyView() }
-                } else if let error = model.jobError {
-                    AppNoteRow(mark: .failed, name: Format.jobFailure, verbatim: error, last: true) { EmptyView() }
-                } else if model.jobPreview != nil, model.jobDraft.isComplete {
-                    notes
+                // Everything above the buttons scrolls once the sheet would
+                // pass the screen, so Approve and Cancel stay in reach on a
+                // laptop display (2026-09-27).
+                CappedScroll(maxHeight: Self.bodyMaxHeight) {
+                    VStack(alignment: .leading, spacing: Win.s5) {
+                        VStack(alignment: .leading, spacing: Win.s3) {
+                            Text(Format.jobSheetTitle(model.jobDraft)).font(Win.cardTitle)
+                            sentence
+                        }
+                        rows
+                            .opacity(model.jobBusy ? 0.55 : 1)
+                            .disabled(model.jobBusy)
+                        if let refusal = model.jobPreview?.refusalText {
+                            AppNoteRow(mark: .failed, name: Format.jobRefusedName, verbatim: refusal, last: true) { EmptyView() }
+                        } else if let error = model.jobError {
+                            AppNoteRow(mark: .failed, name: Format.jobFailure, verbatim: error, last: true) { EmptyView() }
+                        } else if model.jobPreview != nil, model.jobDraft.isComplete {
+                            notes
+                        }
+                    }
                 }
                 footer
             }
@@ -50,6 +58,12 @@ struct JobSheetView: View {
         .onChange(of: model.jobDraft.profile) { _, _ in actions.preview() }
         .onChange(of: model.jobDraft.ask) { _, _ in actions.preview() }
         .onAppear(perform: actions.preview)
+    }
+
+    /// The sheet's body before it scrolls: the screen's usable height less
+    /// the window's title bar, the sheet's padding and its footer.
+    @MainActor static var bodyMaxHeight: CGFloat {
+        max(320, (NSScreen.main?.visibleFrame.height ?? 800) - 180)
     }
 
     // MARK: - The sentence
@@ -165,7 +179,11 @@ struct JobSheetView: View {
     /// appear in what the script prints and are not keys.
     private func secretRows(_ secrets: [JobSecretStatus]) -> some View {
         VStack(alignment: .leading, spacing: Win.s3) {
-            VStack(spacing: 0) {
+            // Capped: a profile made from a whole .env listed 14 rows, and
+            // the sheet grew past a laptop's screen with Asks, Name and the
+            // buttons below its edge, out of reach (2026-09-27). Past the
+            // cap the list scrolls and the rest of the sheet stays on screen.
+            CappedScroll(maxHeight: 240) {
                 ForEach(Array(secrets.enumerated()), id: \.element.name) { index, secret in
                     HStack(spacing: Win.s5) {
                         // A key name is mono, as the system reserves it for.
