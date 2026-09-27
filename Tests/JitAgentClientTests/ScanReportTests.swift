@@ -111,9 +111,9 @@ extension ScanReportTests {
     func testProtectAllFoldsMigratesIntoOneCommandAndKeepsWrapsOnce() throws {
         let r = try parse([
             Self.record("a", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
-            Self.record("b", path: "/Users/me/.clisso", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("b", path: "/Users/me/.clisso", remedy: "wrap", fix: "jit wrap clisso"),
             Self.record("c", path: "/Users/me/b dir/.env", remedy: "migrate", fix: "jit migrate '~/b dir/.env'"),
-            Self.record("d", path: "/Users/me/.clisso2", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("d", path: "/Users/me/.clisso2", remedy: "wrap", fix: "jit wrap clisso"),
             Self.record("e", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
             Self.record("f", path: "/Users/me/t_test.go", remedy: "migrate", fix: "jit migrate ~/t_test.go", fixture: true)
         ])
@@ -121,12 +121,35 @@ extension ScanReportTests {
         XCTAssertEqual(try parse([]).protectAllCommands, [])
     }
 
+    /// A wrappable CLI token arrives with remedy "wrap" (audit/wrapcli.go),
+    /// which jit fixes itself: it belongs in Protect, not in "Needs you".
+    func testAWrapRemedyIsFixableAndProtectAllWrapsIt() throws {
+        let r = try parse([
+            #"{"record_type":"finding","record_id":"w","finding_type":"wrappable_cli_token","severity":"high","#
+                + #""file_path":"/Users/me/.config/acme/hosts.yml","evidence":"e","remedy":"wrap","fix_command":"jit wrap acme"}"#
+        ])
+        XCTAssertTrue(r.findings[0].migratable)
+        XCTAssertEqual(r.groups(in: .protect).map(\.filePath), ["/Users/me/.config/acme/hosts.yml"])
+        XCTAssertTrue(r.groups(in: .needsYou).isEmpty)
+        XCTAssertEqual(r.protectPlan, ProtectPlan(wrap: ["acme"]))
+    }
+
+    /// An empty `cache_area` is no area: the group reads "cache", not "".
+    func testAnEmptyCacheAreaIsNone() throws {
+        let r = try parse([
+            #"{"record_type":"finding","record_id":"c","finding_type":"agent_cached_secret","severity":"high","#
+                + #""file_path":"/Users/me/.acme/c","evidence":"e","remedy":"manual","agent":"Acme Agent","cache_area":""}"#
+        ])
+        XCTAssertNil(r.findings[0].cacheArea)
+        XCTAssertEqual(r.agentCacheGroups.map(\.area), ["cache"])
+    }
+
     func testProtectPlanUsesTheFindingsOwnPathsAndEachWrapOnce() throws {
         let r = try parse([
             Self.record("a", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
-            Self.record("b", path: "/Users/me/.clisso", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("b", path: "/Users/me/.clisso", remedy: "wrap", fix: "jit wrap clisso"),
             Self.record("c", path: "/Users/me/b dir/.env", remedy: "migrate", fix: "jit migrate '~/b dir/.env'"),
-            Self.record("d", path: "/Users/me/.clisso2", remedy: "migrate", fix: "jit wrap clisso"),
+            Self.record("d", path: "/Users/me/.clisso2", remedy: "wrap", fix: "jit wrap clisso"),
             Self.record("e", path: "/Users/me/a/.env", remedy: "migrate", fix: "jit migrate ~/a/.env"),
             Self.record("f", path: "/Users/me/t_test.go", remedy: "migrate", fix: "jit migrate ~/t_test.go", fixture: true)
         ])

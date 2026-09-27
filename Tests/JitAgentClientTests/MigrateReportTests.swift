@@ -61,6 +61,16 @@ final class MigrateReportTests: XCTestCase {
         XCTAssertEqual(ScanWording.protectOutcome(report, home: home).title, "Protected 2 files · A, B are in the vault")
     }
 
+    /// `"area": ""` is what the engine sends for an agent without areas.
+    func testOutcomeNamesAnAgentWithNoAreaByItsCache() throws {
+        let report = try MigrateReport.parse(#"""
+        {"targets":["/Users/me/a/.env"],"applied":true,"vaulted":[],
+         "caches":{"removed":[],"left":[{"agent":"Globex Agent","area":"","path":"/Users/me/.globex/s","kind":"live"}]},
+         "errors":[],"report":""}
+        """#)
+        XCTAssertEqual(ScanWording.protectOutcome(report, home: home).title, "Protected ~/a/.env · 1 file left in Globex Agent's cache")
+    }
+
     func testOutcomeWhenNothingToProtectAndOnError() {
         let nothing = MigrateReport(targets: ["/Users/me/notes.txt"], applied: false, vaulted: [], caches: .init(), errors: [], report: "")
         XCTAssertEqual(ScanWording.protectOutcome(nothing, home: home).title, "Nothing to protect in ~/notes.txt")

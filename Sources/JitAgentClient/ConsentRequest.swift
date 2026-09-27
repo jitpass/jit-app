@@ -69,8 +69,20 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
         if isUnlock {
             return "unlock the vault: every secret it holds, until it locks again"
         }
+        let cause = event.cause ?? ""
         switch event.op {
+        // A standing grant (`jit grant --until-revoked`) has no deadline;
+        // the agent's sentence ends "until you revoke it" (agent/grant.go).
+        case "grant_create" where cause.contains("until you revoke it"):
+            return "create a grant: unattended access until you revoke it"
         case "grant_create": return "create a grant: unattended access until a deadline"
+        // reveal_pid carries three prompts (agent/session.go
+        // forceDisclosedChallenge): a credential's consent, which is the
+        // default below, and these two, told apart by the agent's wording.
+        case "reveal_pid" where cause.contains("and everything it launches reach your credentials"):
+            return "trust a program: it and everything it launches reach your credentials without asking, until the vault locks"
+        case "reveal_pid" where cause.hasPrefix("grant this run access to"):
+            return "give this run a machine-wide credential file, for this run only"
         case "grant_extend": return "extend a grant's deadline"
         // A job asks on every run, so "remembered until the vault locks",
         // the default below, is false for it (seen in the first Cowork run).

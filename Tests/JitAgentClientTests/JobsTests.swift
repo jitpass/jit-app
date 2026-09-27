@@ -59,6 +59,36 @@ final class JobsTests: XCTestCase {
         XCTAssertEqual(refused.refusal?.hasPrefix("job_allow: python3 -c runs a program"), true)
     }
 
+    /// The service prefixes its refusal with the op (agent/job.go
+    /// previewJob); `jit job allow --dry-run` strips it, and so does the
+    /// sheet. Only that prefix: jit's words after it stay as they are.
+    func testTheRefusalIsShownWithoutTheOpName() throws {
+        let refused = try XCTUnwrap(try decode(AgentResponse.self, JobsFixture.refused).preview)
+        XCTAssertEqual(refused.refusalText?.hasPrefix("python3 -c runs a program written into the command itself"), true)
+        XCTAssertEqual(JobPreview(refusal: "not a job_allow: prefix").refusalText, "not a job_allow: prefix")
+        XCTAssertNil(JobPreview().refusalText)
+    }
+
+    /// `libraries` and `unfingerprinted` (agent/protocol.go JobPreview):
+    /// what the CLI prints as "loads …" and under its warning mark.
+    func testWhatThePreviewLoadsAndCannotFingerprint() throws {
+        let json = #"{"ok":true,"preview":{"dir":"/Users/x/acme","exe":"/opt/acme/bin/acmerun","program":"run.py","files":4,"#
+            + #""libraries":12,"#
+            + #""unfingerprinted":"acmerun starts a Python it picks when the job starts, so jit can't fingerprint what that loads","#
+            + #""ask":"each-time","prompt":"let AI run acme/run.py"}}"#
+        let preview = try XCTUnwrap(try decode(AgentResponse.self, json).preview)
+        XCTAssertEqual(preview.libraries, 12)
+        XCTAssertEqual(
+            preview.unfingerprinted,
+            "acmerun starts a Python it picks when the job starts, so jit can't fingerprint what that loads"
+        )
+        XCTAssertEqual(preview.librariesNote, "It also loads 12 files from outside the folder, fingerprinted too.")
+        XCTAssertEqual(JobPreview(libraries: 1).librariesNote, "It also loads 1 file from outside the folder, fingerprinted too.")
+        let plain = try XCTUnwrap(try decode(AgentResponse.self, JobsFixture.preview).preview)
+        XCTAssertNil(plain.librariesNote, "omitempty: none loaded, no note")
+        XCTAssertNil(plain.unfingerprinted)
+    }
+
     func testProposalAndEventsDecode() throws {
         let proposal = try XCTUnwrap(try decode(
             AgentResponse.self,

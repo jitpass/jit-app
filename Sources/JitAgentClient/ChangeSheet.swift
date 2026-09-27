@@ -103,7 +103,10 @@ public extension ChangeSheet {
             title: title,
             sentence: sentence,
             files: report.caches.removed.map {
-                File(path: $0.path, fact: "\($0.agent) · \($0.area) · " + count($0.copies ?? 0, "token"))
+                File(
+                    path: $0.path,
+                    fact: ([$0.agent, $0.area].filter { !$0.isEmpty } + [count($0.copies ?? 0, "token")]).joined(separator: " · ")
+                )
             },
             notes: notes,
             undo: [],

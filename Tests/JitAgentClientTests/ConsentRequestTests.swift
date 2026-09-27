@@ -65,4 +65,28 @@ final class ConsentRequestTests: XCTestCase {
         event.cause = "use your aws credential for terraform"
         XCTAssertFalse(ConsentRequest(event: event)?.isUnlock ?? true)
     }
+
+    /// `jit run --trust` and `jit run --with` ask under op reveal_pid too
+    /// (agent/server.go), in the agent's own sentences (caller.go
+    /// trustReason, grantReason): neither is "use a credential once".
+    func testTrustAndAGlobalGrantSayWhatTheyGrant() throws {
+        var event = try pending()
+        event.cause = "let acmetool and everything it launches reach your credentials without further prompts"
+        XCTAssertEqual(
+            ConsentRequest(event: event)?.purpose,
+            "trust a program: it and everything it launches reach your credentials without asking, until the vault locks"
+        )
+        event.cause = "grant this run access to your acme credentials file"
+        XCTAssertEqual(ConsentRequest(event: event)?.purpose, "give this run a machine-wide credential file, for this run only")
+    }
+
+    /// `jit grant --until-revoked` has no deadline (agent/grant.go).
+    func testAStandingGrantHasNoDeadline() throws {
+        var event = try pending()
+        event.op = "grant_create"
+        event.cause = "let acmetool use 2 secrets (acme) until you revoke it"
+        XCTAssertEqual(ConsentRequest(event: event)?.purpose, "create a grant: unattended access until you revoke it")
+        event.cause = "let acmetool use 2 secrets (acme) unattended for 1h"
+        XCTAssertEqual(ConsentRequest(event: event)?.purpose, "create a grant: unattended access until a deadline")
+    }
 }

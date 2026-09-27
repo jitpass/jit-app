@@ -212,6 +212,9 @@ extension Format {
         let count = preview?.secrets?.count ?? 0
         var notes = ["jit fingerprints this folder now: \(files == 1 ? "1 file" : "\(files) files"). " +
             "Change any of them and the job stops until you approve it again."]
+        if let loads = preview?.librariesNote {
+            notes.append(loads)
+        }
         if count > 0 {
             notes
                 .append(

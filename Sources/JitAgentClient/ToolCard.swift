@@ -117,6 +117,11 @@ public struct ToolCard: Equatable, Sendable {
         if let mount = record.with {
             return "grants the " + mount + " mount"
         }
+        if record.kind == "rungrant" {
+            // `jit run --grant-only`: the mounts of the project it is run
+            // in, decided per run (wrap/manifest.go IsRunGrant).
+            return "grants the project's mounts"
+        }
         return record.kind
     }
 

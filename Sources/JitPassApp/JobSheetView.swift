@@ -30,7 +30,7 @@ struct JobSheetView: View {
                 rows
                     .opacity(model.jobBusy ? 0.55 : 1)
                     .disabled(model.jobBusy)
-                if let refusal = model.jobPreview?.refusal {
+                if let refusal = model.jobPreview?.refusalText {
                     AppNoteRow(mark: .failed, name: Format.jobRefusedName, verbatim: refusal, last: true) { EmptyView() }
                 } else if let error = model.jobError {
                     AppNoteRow(mark: .failed, name: Format.jobFailure, verbatim: error, last: true) { EmptyView() }
@@ -227,6 +227,11 @@ struct JobSheetView: View {
     private var notes: some View {
         VStack(alignment: .leading, spacing: Win.s2) {
             Rectangle().fill(WindowSurface.separator).frame(height: 1).padding(.bottom, Win.s4)
+            if let gap = model.jobPreview?.unfingerprinted, !gap.isEmpty {
+                AppNoteRow(mark: .dot(Color(StatusMark.amber)), name: JobPreview.unfingerprintedName, verbatim: gap, last: true) {
+                    EmptyView()
+                }
+            }
             ForEach(Format.jobNotes(model.jobDraft, preview: model.jobPreview), id: \.self) { line in
                 Text("• " + line).font(Win.rowFact).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

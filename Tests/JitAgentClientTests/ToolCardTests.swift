@@ -97,4 +97,11 @@ final class ToolCardTests: XCTestCase {
         XCTAssertEqual(live.tier, .working)
         XCTAssertEqual(live.fact, "aws-prod live, 5h left")
     }
+
+    /// `jit wrap list` sends kind "rungrant" for a tool run through
+    /// `jit run --grant-only` (cli/wraplist.go): words, not the kind.
+    func testARunGrantToolSaysWhatItGrants() {
+        let record = ToolRecord(tool: "acmectl", kind: "rungrant", wrapped: true, shim: "ok")
+        XCTAssertEqual(ToolCard.detail(record), "grants the project's mounts")
+    }
 }
