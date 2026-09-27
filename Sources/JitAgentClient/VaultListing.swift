@@ -209,9 +209,11 @@ public struct VaultVersion: Codable, Sendable, Equatable, Identifiable {
         stamp
     }
 
-    /// When the version was archived: the stamp is that moment in seconds.
+    /// When the version was archived: the stamp is that moment in
+    /// nanoseconds (jit's `ArchiveStamp`, also its file name). Read as
+    /// seconds it was a date billions of years out.
     public var archived: Date {
-        Date(timeIntervalSince1970: TimeInterval(stamp))
+        Date(timeIntervalSince1970: TimeInterval(stamp) / 1_000_000_000)
     }
 
     /// When the archived value itself was last set, if the envelope knew.

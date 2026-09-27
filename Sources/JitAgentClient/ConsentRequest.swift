@@ -25,11 +25,11 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
         event.cause ?? "a program asks to use a credential"
     }
 
-    /// The program's name: the basename of the command's first word, or the
-    /// pid when the agent could not name it.
+    /// The program's name (`CallerCommand`), or the pid when the agent
+    /// could not name it.
     public var program: String {
-        if let first = event.by?.split(separator: " ", maxSplits: 1).first, !first.isEmpty {
-            return String(first.split(separator: "/").last ?? first)
+        if let name = CallerCommand(event.by)?.program {
+            return name
         }
         if let pid = event.byPID {
             return "a process (pid \(pid))"

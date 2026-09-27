@@ -25,7 +25,9 @@ struct ScanLinesSheet: View {
             }
             ScrollView {
                 VStack(spacing: 0) {
-                    ForEach(Array(group.findings.enumerated()), id: \.element.id) { index, finding in
+                    // Not the record id: jit gives two exports of one key in one
+                    // shell config the same one, and they are two lines.
+                    ForEach(Array(group.findings.enumerated()), id: \.offset) { index, finding in
                         // The name is the token's (or the scanner's sentence),
                         // the detail the line, the fact where it sits: "in Claude
                         // Code's transcripts" for a cache file, the finding's

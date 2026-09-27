@@ -53,12 +53,9 @@ public extension AuditReport {
         return activity
     }
 
-    /// The program named by an audit field: the first word's last path
-    /// segment, so "/opt/homebrew/bin/claude --resume" is "claude".
+    /// The program named by an audit field, so "/opt/homebrew/bin/claude
+    /// --resume" is "claude" (`CallerCommand`).
     static func program(_ field: String?) -> String? {
-        guard let first = field?.split(separator: " ", maxSplits: 1).first, !first.isEmpty else {
-            return nil
-        }
-        return String(first.split(separator: "/").last ?? first)
+        CallerCommand(field)?.program
     }
 }

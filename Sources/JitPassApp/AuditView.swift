@@ -122,6 +122,7 @@ struct AuditView: View {
                         // The title says what happened, so the detail yields first; if the
                         // title must still be cut, cut its end, never the reader's name.
                         Text(row.title).font(.system(size: 12)).lineLimit(1).truncationMode(.tail).layoutPriority(1)
+                            .help(row.secrets ?? row.title)
                         if !row.detail.isEmpty {
                             Text(row.detail).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                         }

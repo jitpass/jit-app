@@ -56,15 +56,24 @@ public struct AuditReport: Codable, Sendable, Equatable {
                 launchedBy: cmd.launchedBy
             )
         }
+        // jit stamps auth events to the second, and a run that reads four
+        // secrets records four uses in it: the time, kind and op alone gave
+        // them one id, and the list drew one row and a blank for the rest
+        // (2026-09-27). The count of the same key before it tells them apart.
+        var seen: [String: Int] = [:]
         let fromEvents = authEvents.map { event in
-            AuditRow(
-                id: "auth:\(event.unixTime):\(event.kind):\(event.op ?? "")",
+            let key = "auth:\(event.unixTime):\(event.kind):\(event.op ?? "")"
+            let nth = seen[key, default: 0]
+            seen[key] = nth + 1
+            return AuditRow(
+                id: nth == 0 ? key : "\(key):\(nth)",
                 date: event.date,
                 kind: event.kind,
                 status: event.isDecoyServe ? "decoy" : event.kind,
                 title: Self.title(for: event),
                 detail: Self.detail(for: event),
-                launchedBy: event.launchedBy
+                launchedBy: event.launchedBy,
+                secrets: (event.labels?.count ?? 0) > Self.namedSecrets ? event.labels?.joined(separator: ", ") : nil
             )
         }
         return (fromCommands + fromEvents).sorted { $0.date > $1.date }
@@ -75,8 +84,8 @@ public struct AuditReport: Codable, Sendable, Equatable {
     /// A use with no caller is the agent serving its own mounts, and says so
     /// rather than printing a question mark.
     public static func title(for event: SessionEvent) -> String {
-        let who = event.by.map { String($0.split(separator: "/").last ?? Substring($0)) } ?? ""
-        let secrets = event.labels?.joined(separator: ", ") ?? ""
+        let who = CallerCommand(event.by)?.shown ?? ""
+        let secrets = secretsPhrase(event.labels ?? [])
         switch event.kind {
         case "unlock":
             return who.isEmpty ? "unlocked" : "unlocked by \(who)"
@@ -108,6 +117,28 @@ public struct AuditReport: Codable, Sendable, Equatable {
         default:
             return who.isEmpty ? event.kind : "\(event.kind) · \(who)"
         }
+    }
+
+    /// How many secrets a title names one by one; more are counted.
+    static let namedSecrets = 3
+
+    /// "acme/ID, acme/KEY", or past `namedSecrets`, "14 secrets from acme,
+    /// globex, initech and 2 more": fourteen paths made a row wider than any
+    /// window, cut off mid-name. The row's tooltip holds the full list.
+    static func secretsPhrase(_ labels: [String]) -> String {
+        guard labels.count > namedSecrets else {
+            return labels.joined(separator: ", ")
+        }
+        var groups: [String] = []
+        for label in labels {
+            let group = String(label.split(separator: "/").first ?? Substring(label))
+            if !groups.contains(group) {
+                groups.append(group)
+            }
+        }
+        let named = groups.prefix(namedSecrets).joined(separator: ", ")
+        let more = groups.count > namedSecrets ? " and \(groups.count - namedSecrets) more" : ""
+        return "\(labels.count) secrets from \(named)\(more)"
     }
 
     /// A read that rode a process grant is a different fact from one that
@@ -161,6 +192,8 @@ public struct AuditRow: Sendable, Equatable, Identifiable {
     public var title: String
     public var detail: String
     public var launchedBy: String?
+    /// Every secret, for the tooltip, when the title counts them.
+    public var secrets: String?
 }
 
 /// The filters `jit audit` accepts, rendered to its flags. Empty means
