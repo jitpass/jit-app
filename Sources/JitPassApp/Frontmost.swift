@@ -39,9 +39,9 @@ extension NSSavePanel {
 /// An NSAlert there is fine, its buttons are AppKit's.
 enum ModalHost {
     @MainActor
-    static func ask<Content: View>(
+    static func ask(
         title: String,
-        _ make: @escaping (_ finish: @escaping (Bool) -> Void) -> Content,
+        _ make: @escaping (_ finish: @escaping (Bool) -> Void) -> some View,
         then: @escaping @MainActor (Bool) -> Void
     ) {
         RunLoop.main.perform(inModes: [.common]) {

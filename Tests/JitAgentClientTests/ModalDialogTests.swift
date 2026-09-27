@@ -40,7 +40,9 @@ final class ModalDialogTests: XCTestCase {
         }
         let body = host[ask.upperBound ..< run.lowerBound]
         XCTAssertTrue(body.contains("RunLoop.main.perform"), "ModalHost.ask must defer its modal loop past the caller")
-        for file in try FileManager.default.contentsOfDirectory(atPath: app.path) where file.hasSuffix(".swift") && file != "Frontmost.swift" {
+        let others = try FileManager.default.contentsOfDirectory(atPath: app.path)
+            .filter { $0.hasSuffix(".swift") && $0 != "Frontmost.swift" }
+        for file in others {
             let source = try String(contentsOf: app.appendingPathComponent(file), encoding: .utf8)
             XCTAssertFalse(source.contains("runModal(for:"), "\(file) starts a modal loop; ask through ModalHost")
         }
