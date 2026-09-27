@@ -105,4 +105,23 @@ final class ChangeSheetTests: XCTestCase {
         let rows = ChangeSheet.redact(RedactReport(files: [], applied: true, caches: .init(removed: []), errors: [], report: ""))
         XCTAssertTrue(ChangeSheet.addsTo(banner: rows.title, text: rows.title, sheet: rows))
     }
+
+    /// A Protect of a big .env vaults every variable, and the sheet has no
+    /// scroll area: the note names the first few and counts the rest, and
+    /// jit's failure lines are capped the same way, so Done stays on screen.
+    func testAProtectOfManyVariablesCountsPastTheFirstFew() {
+        let names = (1 ... 25).map { "ACME_VAR_\($0)" }
+        let errors = (1 ... 9).map { "globex/.env: line \($0) unreadable" }
+        let report = MigrateReport(
+            targets: ["/h/acme/.env"], applied: true, vaulted: names, caches: .init(), errors: errors, report: "text"
+        )
+        let sheet = ChangeSheet.protect([report], report: "text")
+        XCTAssertEqual(
+            sheet.notes.first { $0.name == "In the vault" }?.fact,
+            "ACME_VAR_1, ACME_VAR_2, ACME_VAR_3, ACME_VAR_4, ACME_VAR_5 and 20 more"
+        )
+        let verbatim = sheet.notes.first { $0.mark == .failed }?.verbatim ?? ""
+        XCTAssertEqual(verbatim.split(separator: "\n").count, 6)
+        XCTAssertTrue(verbatim.hasSuffix("\u{2026}and 4 more"))
+    }
 }

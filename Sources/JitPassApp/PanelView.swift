@@ -210,12 +210,15 @@ struct PanelView: View {
     private func row(_ symbol: String, _ label: String, _ value: String, dot: Color? = nil) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol).font(.system(size: 12)).imageScale(.medium).frame(width: 16, height: 16)
-            Text(label)
+            Text(label).lineLimit(1).layoutPriority(1)
             Spacer()
             if let dot {
                 Circle().fill(dot).frame(width: 8, height: 8)
             }
-            Text(value)
+            // The row is 26pt tall: a value that wrapped drew over the
+            // rows beside it. It gives way in its middle, so "· answer"
+            // stays, and the tooltip has the rest.
+            Text(value).lineLimit(1).truncationMode(.middle).help(value)
         }
         .font(.system(size: 13))
         .frame(height: 26)

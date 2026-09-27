@@ -242,9 +242,12 @@ struct JobSheetView: View {
                 ProgressView().controlSize(.small)
                 Text(Format.jobFooterWaiting).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             } else {
-                Text(model.jobCancelled ? Format.jobTouchIDCancelled
-                    : Format.jobFooter(model.jobDraft, preview: model.jobPreview, checking: model.jobPreviewBusy))
-                    .font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+                // Two lines: the hint saying why Approve is off runs to
+                // 284pt beside buttons that leave it about 228.
+                let line = model.jobCancelled ? Format.jobTouchIDCancelled
+                    : Format.jobFooter(model.jobDraft, preview: model.jobPreview, checking: model.jobPreviewBusy)
+                Text(line).font(Win.sub).foregroundStyle(.secondary)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true).help(line)
             }
             Spacer(minLength: Win.s5)
             if model.jobDraft.proposal != nil {
