@@ -309,7 +309,9 @@ public extension ScanWording {
                 order.append(pair.agent)
                 areas[pair.agent] = []
             }
-            if let area = pair.area, areas[pair.agent]?.contains(area) == false {
+            // The engine sends area "" for an agent it names no areas for
+            // (only Claude Code has them): that is no area, not a blank one.
+            if let area = pair.area, !area.isEmpty, areas[pair.agent]?.contains(area) == false {
                 areas[pair.agent]?.append(area)
             }
         }

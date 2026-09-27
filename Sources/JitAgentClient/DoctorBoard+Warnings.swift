@@ -83,14 +83,14 @@ extension BoardContext {
     /// a parameter because most of these paths ARE someone else's config,
     /// but not all: a stale pointer record is jit's own file, and calling it
     /// a config sends the reader looking for a tool that owns it.
-    func configEntries(_ config: String, label: String = "Show Config in Finder") -> [DoctorMenuEntry] {
+    /// `gone` drops the Finder entry for a path reported because it is
+    /// no longer there, as the row's own right-click menu disables it.
+    func configEntries(_ config: String, label: String = "Show Config in Finder", gone: Bool = false) -> [DoctorMenuEntry] {
         guard !config.isEmpty else {
             return []
         }
-        return [
-            .button(DoctorButton(label, .reveal(config))), .button(DoctorButton("Copy Path", .copyPath(config))),
-            .separator
-        ]
+        let reveal = gone ? [] : [DoctorMenuEntry.button(DoctorButton(label, .reveal(DoctorAdvice.finderPath(config))))]
+        return reveal + [.button(DoctorButton("Copy Path", .copyPath(config))), .separator]
     }
 
     /// What the Finder entry calls the card's file.
@@ -202,7 +202,9 @@ extension BoardContext {
     /// buttons beside it stay the two verbs the reader came for, so a
     /// mis-click can only open the file or ask a question.
     func rowMenu(_ item: DoctorItem) -> [DoctorMenuEntry] {
-        var entries = DoctorAdvice.filePath(item).map { configEntries($0, label: fileMenuLabel(item)) } ?? []
+        var entries = DoctorAdvice.filePath(item).map {
+            configEntries($0, label: fileMenuLabel(item), gone: DoctorAdvice.pathIsGone(item))
+        } ?? []
         if let ignore = item.ignore?.arguments("ignore") {
             entries.append(.button(DoctorButton("Ignore", .ignore([ignore]))))
         }
@@ -285,7 +287,8 @@ extension BoardContext {
                 card.primary = actionButtons([primary]).first
                 card.primaryProminent = tier != .tidy && primary.argv != nil
             }
-            let file = card.file.map { configEntries($0, label: fileMenuLabel(group.items[0])) } ?? []
+            let first = group.items[0]
+            let file = card.file.map { configEntries($0, label: fileMenuLabel(first), gone: DoctorAdvice.pathIsGone(first)) } ?? []
             let rest = actionButtons(edit == nil ? actions.filter { $0 != primary } : actions)
             card.menu = file + rest.map(DoctorMenuEntry.button)
             return card

@@ -32,9 +32,9 @@ extension VaultOrphansTests {
             orphans: [
                 VaultOrphan(path: "aws-prod/SESSION_TOKEN", origin: "no recorded origin (pre-provenance, or set directly)"),
                 VaultOrphan(path: "aws-prod/ACCESS_KEY_ID", origin: "no recorded origin (pre-provenance, or set directly)"),
-                VaultOrphan(path: "inventory/JAMF_URL", origin: "/Users/me/work/inventory/.env"),
-                VaultOrphan(path: "inventory/JAMF_EA_NAME", origin: "/Users/me/work/inventory/.env"),
-                VaultOrphan(path: "loose", origin: "/Users/me/other/.env")
+                VaultOrphan(path: "inventory/ACME_URL", origin: "from /Users/me/work/inventory/.env, seen 2 days ago"),
+                VaultOrphan(path: "inventory/ACME_EA_NAME", origin: "from /Users/me/work/inventory/.env, seen 5 hours ago"),
+                VaultOrphan(path: "loose", origin: "from /Users/me/other/.env")
             ],
             staleMounts: [VaultStaleMount(mountPath: "/Users/me/gone/.env", profilePath: "/Users/me/gone/.jit/profiles/env.json")]
         )
@@ -50,14 +50,29 @@ extension VaultOrphansTests {
             count: 2,
             orphans: [
                 VaultOrphan(path: "scratch/API_KEY", origin: sentinel),
-                VaultOrphan(path: "scratch/DB_URL", origin: "~/work/scratch/.env")
+                VaultOrphan(path: "scratch/DB_URL", origin: "from ~/work/scratch/.env, seen 3 days ago")
             ]
         )
+        let file = NSHomeDirectory() + "/work/scratch/.env"
         XCTAssertNil(orphans.orphans[0].originFile, "a sentence is not a path")
-        XCTAssertEqual(orphans.orphans[1].originFile, "~/work/scratch/.env")
-        XCTAssertEqual(orphans.groups[0].origins, ["~/work/scratch/.env"], "only real files are offered as origins")
+        XCTAssertEqual(orphans.orphans[1].originFile, file)
+        XCTAssertEqual(orphans.groups[0].origins, [file], "only real files are offered as origins")
         XCTAssertTrue(orphans.groups(matching: "pre-provenance").isEmpty, "the sentence is not searchable text either")
         XCTAssertEqual(orphans.groups(matching: "work/scratch").map(\.name), ["scratch"])
+    }
+
+    /// jit's origin is a sentence around a "~" path (cli/vault.go
+    /// orphanOrigin); Finder is handed the file itself, "~" expanded.
+    func testTheOriginPathIsReadOutOfJitsSentence() {
+        func file(_ origin: String) -> String? {
+            VaultOrphan(path: "a/B", origin: origin).originFile(home: "/Users/me")
+        }
+        XCTAssertEqual(file("from ~/x/.env, seen 3 days ago"), "/Users/me/x/.env")
+        XCTAssertEqual(file("from ~/x, seen/.env"), "/Users/me/x, seen/.env", "no \" ago\", so the comma is the path's own")
+        XCTAssertEqual(file("from /srv/acme/.env"), "/srv/acme/.env", "not seen since: no suffix")
+        XCTAssertEqual(file("~/old/.env"), "/Users/me/old/.env", "a bare path from an older jit")
+        XCTAssertNil(file("no recorded origin (pre-provenance, or set directly)"))
+        XCTAssertNil(file(""))
     }
 
     func testGroupsByProjectInPathOrder() {
@@ -67,14 +82,14 @@ extension VaultOrphansTests {
         XCTAssertEqual(groups[0].origins, [], "jit recorded none")
         XCTAssertEqual(groups[1].origins, ["/Users/me/work/inventory/.env"], "one origin, named once")
         XCTAssertEqual(groups[2].keys, ["loose"], "a path with no slash is its own project")
-        XCTAssertEqual(groups[1].paths, ["inventory/JAMF_EA_NAME", "inventory/JAMF_URL"])
+        XCTAssertEqual(groups[1].paths, ["inventory/ACME_EA_NAME", "inventory/ACME_URL"])
     }
 
     func testFilterMatchesProjectKeyAndOrigin() {
         XCTAssertEqual(sample.groups(matching: "AWS").map(\.name), ["aws-prod"], "the project, case-insensitively")
-        let byKey = sample.groups(matching: "jamf_url")
+        let byKey = sample.groups(matching: "acme_url")
         XCTAssertEqual(byKey.map(\.name), ["inventory"])
-        XCTAssertEqual(byKey[0].keys, ["JAMF_URL"], "only the matching secret survives inside a group that did not match")
+        XCTAssertEqual(byKey[0].keys, ["ACME_URL"], "only the matching secret survives inside a group that did not match")
         XCTAssertEqual(sample.groups(matching: "work/inventory").map(\.name), ["inventory"], "the origin counts")
         XCTAssertTrue(sample.groups(matching: "nothing").isEmpty)
         XCTAssertEqual(sample.groups(matching: "  ").count, 3, "a blank filter is no filter")

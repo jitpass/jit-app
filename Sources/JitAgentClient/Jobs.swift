@@ -271,15 +271,43 @@ public struct JobPreview: Codable, Sendable, Equatable {
     public var program: String?
     public var files: Int?
     public var extra: [String]?
+    /// Files the program loads from outside the folder, fingerprinted too.
+    public var libraries: Int?
+    /// What the program loads that jit cannot fingerprint (a launcher, or
+    /// an interpreter's own packages), in jit's words; nil when nothing.
+    public var unfingerprinted: String?
     public var secrets: [JobSecretStatus]?
     public var ask: String?
     public var exists: Bool?
     /// The Touch ID sentence approval will show, exactly.
     public var prompt: String?
 
-    public init(refusal: String? = nil) {
+    public init(refusal: String? = nil, libraries: Int? = nil, unfingerprinted: String? = nil) {
         self.refusal = refusal
+        self.libraries = libraries
+        self.unfingerprinted = unfingerprinted
     }
+}
+
+public extension JobPreview {
+    /// The refusal without the op name the service puts before it
+    /// (agent/job.go previewJob), as `jit job allow --dry-run` prints it.
+    var refusalText: String? {
+        refusal.map { $0.hasPrefix("job_allow: ") ? String($0.dropFirst("job_allow: ".count)) : $0 }
+    }
+
+    /// The CLI's "loads 3 files from outside the folder, fingerprinted
+    /// too" (cli/job.go printJobPreview), as a note's sentence.
+    var librariesNote: String? {
+        guard let n = libraries, n > 0 else {
+            return nil
+        }
+        return "It also loads \(n == 1 ? "1 file" : "\(n) files") from outside the folder, fingerprinted too."
+    }
+
+    /// The warning row's name over `unfingerprinted`, which is shown as
+    /// jit wrote it, the way the CLI prints it under a warning mark.
+    static let unfingerprintedName = "jit can't fingerprint everything it runs"
 }
 
 /// A job an agent proposed and the human has not answered. Nothing in it has

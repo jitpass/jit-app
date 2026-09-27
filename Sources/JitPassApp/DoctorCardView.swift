@@ -345,11 +345,12 @@ extension View {
     @ViewBuilder
     func doctorFileMenu(_ path: String?) -> some View {
         if let path {
+            let local = DoctorAdvice.finderPath(path)
             contextMenu {
                 Button("Show in Finder") {
-                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: local)])
                 }
-                .disabled(!FileManager.default.fileExists(atPath: path))
+                .disabled(!FileManager.default.fileExists(atPath: local))
                 Button("Copy Path") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(path, forType: .string)

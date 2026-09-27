@@ -33,6 +33,20 @@ final class ChangeSheetTests: XCTestCase {
         XCTAssertEqual(sheet.undo, [])
     }
 
+    /// The engine sends `"area": ""` for an agent it names no areas for
+    /// (cli/migratereport.go has no omitempty): no blank between the dots,
+    /// no sentence ending "Acme Agent's .".
+    func testAnEmptyAreaIsNoArea() throws {
+        let report = try RedactReport.parse(#"""
+        {"files":[],"applied":true,"caches":{"removed":[{"agent":"Acme Agent","area":"","path":"/h/a","copies":3}],
+         "left":[{"agent":"Acme Agent","area":"","path":"/h/b","kind":"binary"}]},"errors":[],"report":"x"}
+        """#)
+        let sheet = ChangeSheet.redact(report)
+        XCTAssertEqual(sheet.sentence, "All in Acme Agent's cache. Your own files were not touched.")
+        XCTAssertEqual(sheet.files.map(\.fact), ["Acme Agent · 3 tokens"])
+        XCTAssertEqual(sheet.notes.last?.name, "1 file left in Acme Agent's cache")
+    }
+
     func testAFailureLeadsWithJitsWordsAndWhatStillChanged() {
         let sheet = ChangeSheet.redact(RedactReport(
             files: [], applied: true,

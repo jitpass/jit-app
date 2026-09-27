@@ -217,6 +217,46 @@ final class DoctorFilesTests: XCTestCase {
         XCTAssertNil(DoctorAdvice.filePath(DoctorItem(kind: "mcp", path: "")))
     }
 
+    /// origin_gone, mount_stale and mount_moved report a path because it
+    /// is gone (cli/profilecheck.go, mountrelocation.go): no Finder entry
+    /// for it, on the card or on a row. A "~" path Finder is handed is
+    /// expanded first; Finder takes no "~".
+    func testAGonePathIsNotOfferedToFinder() throws {
+        func titles(_ menu: [DoctorMenuEntry]) -> [String] {
+            menu.compactMap { entry in
+                if case let .button(button) = entry {
+                    return button.title
+                }
+                return nil
+            }
+        }
+        let origin = try DoctorBoardTests.board(
+            #"{"schema_version":2,"ok":true,"problems":[],"warnings":["#
+                + #"{"kind":"origin_gone","path":"~/acme/.env","#
+                + #""detail":"acme was migrated from ~/acme/.env, which no longer exists on disk"}]}"#
+        )
+        let card = try XCTUnwrap(origin.cards.first { $0.items.first?.kind == "origin_gone" })
+        XCTAssertFalse(titles(card.menu).contains("Show Config in Finder"), "\(titles(card.menu))")
+        XCTAssertTrue(titles(card.menu).contains("Copy Path"))
+
+        let mounts = try DoctorBoardTests.board(
+            #"{"schema_version":2,"ok":true,"problems":[],"warnings":["#
+                + #"{"kind":"mount_moved","path":"/Users/me/a/.env","detail":"moved"},"#
+                + #"{"kind":"mount_moved","path":"/Users/me/b/.env","detail":"moved"}]}"#
+        )
+        let rows = try XCTUnwrap(mounts.cards.first { $0.items.first?.kind == "mount_moved" }).rows
+        XCTAssertEqual(rows.map { titles($0.menu) }, [["Copy Path"], ["Copy Path"]])
+
+        let install = try DoctorBoardTests.board(
+            #"{"schema_version":2,"ok":true,"problems":[],"warnings":["#
+                + #"{"kind":"install","path":"~/acme/bin/jit","detail":"a second jit"}]}"#
+        )
+        let reveal = try XCTUnwrap(install.cards.first { $0.items.first?.kind == "install" }).menu.first
+        XCTAssertEqual(reveal, .button(DoctorButton("Show Config in Finder", .reveal(NSHomeDirectory() + "/acme/bin/jit"))))
+        XCTAssertEqual(DoctorAdvice.finderPath("~/x", home: "/Users/me"), "/Users/me/x")
+        XCTAssertEqual(DoctorAdvice.finderPath("/srv/x", home: "/Users/me"), "/srv/x")
+    }
+
     func testProfileManifest() {
         XCTAssertEqual(ProfileFiles.directory(home: "/Users/me"), "/Users/me/.jit/profiles")
         XCTAssertEqual(ProfileFiles.manifest("token", home: "/Users/me"), "/Users/me/.jit/profiles/token.yaml")

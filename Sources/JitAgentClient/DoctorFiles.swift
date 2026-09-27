@@ -102,6 +102,22 @@ public extension DoctorAdvice {
         }
         return path?.nilIfEmpty
     }
+
+    /// The kinds whose path is reported because it is gone: a migrated
+    /// file no longer on disk (origin_gone), a mount whose project is
+    /// gone or moved (mount_stale, mount_moved). Finder has nothing to
+    /// show there, so their menus offer Copy Path alone.
+    static let goneKinds: Set<String> = ["origin_gone", "mount_stale", "mount_moved"]
+
+    static func pathIsGone(_ item: DoctorItem) -> Bool {
+        goneKinds.contains(item.kind)
+    }
+
+    /// A path Finder can open: jit reports some home-relative ("~/…",
+    /// as an origin is stored), and Finder takes no "~".
+    static func finderPath(_ path: String, home: String = NSHomeDirectory()) -> String {
+        path == "~" || path.hasPrefix("~/") ? home + path.dropFirst() : path
+    }
 }
 
 /// Where jit keeps the global profiles (jitpass/jit internal/profile): one

@@ -93,7 +93,7 @@ public struct VaultOrphanGroup: Identifiable, Sendable, Equatable {
         orphans.map(\.key)
     }
 
-    /// The distinct files these secrets were migrated from; empty when jit
+    /// The distinct files these secrets were migrated from, absolute; empty when jit
     /// recorded none, which is what a pre-provenance vault looks like.
     public var origins: [String] {
         var seen: [String] = []
@@ -105,19 +105,29 @@ public struct VaultOrphanGroup: Identifiable, Sendable, Equatable {
 }
 
 public extension VaultOrphan {
-    /// The file this secret was migrated from, when jit recorded one.
-    /// `origin` is not empty when it did not: jit fills the field with a
-    /// sentence ("no recorded origin (pre-provenance, or set directly)"),
-    /// which is what covered every line of the old listing. The app shows
-    /// an origin as a file and opens it in Finder, so only an absolute or
-    /// home-relative path counts as one; anything else is jit explaining
-    /// itself, and the row says "origin not recorded" instead.
+    /// The file this secret was migrated from, when jit recorded one, as
+    /// an absolute path Finder can open. jit sends a sentence either way
+    /// (cli/vault.go orphanOrigin): "from ~/app/.env, seen 3 days ago"
+    /// when it recorded the file, "no recorded origin (pre-provenance, or
+    /// set directly)" when it did not. The path is read out of the first;
+    /// the second is jit explaining itself, and the row says "origin not
+    /// recorded" instead. A bare path, from an older jit, still counts.
     var originFile: String? {
-        let trimmed = origin.trimmingCharacters(in: .whitespaces)
-        guard trimmed.hasPrefix("/") || trimmed.hasPrefix("~") else {
-            return nil
+        originFile(home: NSHomeDirectory())
+    }
+
+    func originFile(home: String) -> String? {
+        var text = origin.trimmingCharacters(in: .whitespaces)
+        if text.hasPrefix("from ") {
+            text = String(text.dropFirst("from ".count))
+            if text.hasSuffix(" ago"), let seen = text.range(of: ", seen ", options: .backwards) {
+                text = String(text[..<seen.lowerBound])
+            }
         }
-        return trimmed
+        if text == "~" || text.hasPrefix("~/") {
+            return home + text.dropFirst()
+        }
+        return text.hasPrefix("/") ? text : nil
     }
 
     /// The variable name: everything after the project, or the whole path

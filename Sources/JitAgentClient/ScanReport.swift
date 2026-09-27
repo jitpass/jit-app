@@ -66,7 +66,7 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         testFixture = try container.decodeIfPresent(Bool.self, forKey: .testFixture) ?? false
         sourceExample = try container.decodeIfPresent(Bool.self, forKey: .sourceExample) ?? false
         agent = try container.decodeIfPresent(String.self, forKey: .agent)
-        cacheArea = try container.decodeIfPresent(String.self, forKey: .cacheArea)
+        cacheArea = try container.decodeIfPresent(String.self, forKey: .cacheArea).flatMap { $0.isEmpty ? nil : $0 }
         originPath = try container.decodeIfPresent(String.self, forKey: .originPath)
         keyName = try container.decodeIfPresent(String.self, forKey: .keyName)
     }
@@ -88,9 +88,11 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         findingType == "exposed_secret" && agent != nil
     }
 
-    /// True when `jit migrate` can fix it; false means only the user can.
+    /// True when jit can fix it: remedy "migrate" (`jit migrate`) or
+    /// "wrap" (`jit wrap <tool>`), as the engine's hasAutoFix counts them;
+    /// "manual" means only the user can.
     public var migratable: Bool {
-        remedy == "migrate"
+        remedy == "migrate" || remedy == "wrap"
     }
 
     /// The tool a `jit wrap <tool>` fix names, if that is the fix.
