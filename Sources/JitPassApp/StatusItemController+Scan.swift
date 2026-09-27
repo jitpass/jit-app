@@ -312,7 +312,7 @@ extension StatusItemController {
         if !plan.migrate.isEmpty, case let .success(preview) = JitCLI.migratePreview(plan.migrate) {
             let home = FileManager.default.homeDirectoryForCurrentUser.path
             var chosen: ProtectSplit?
-            let yes = ModalHost.ask(title: "Protect") { finish in
+            ModalHost.ask(title: "Protect") { finish in
                 ProtectSheetView(
                     split: ProtectSplit(preview: preview),
                     wraps: plan.wrap,
@@ -324,11 +324,12 @@ extension StatusItemController {
                         finish(split != nil)
                     }
                 )
+            } then: { [weak self] yes in
+                guard yes, let split = chosen else {
+                    return
+                }
+                self?.runProtect(plan, createsVault: createsVault, flags: split.flags, split: split)
             }
-            guard yes, let split = chosen else {
-                return
-            }
-            runProtect(plan, createsVault: createsVault, flags: split.flags, split: split)
             return
         }
         let sweep = ScanWording.sweepSentence(copies: copies).map { $0 + "\n\n" } ?? ""

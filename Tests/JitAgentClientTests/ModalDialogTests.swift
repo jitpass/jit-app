@@ -25,4 +25,26 @@ final class ModalDialogTests: XCTestCase {
             }
         }
     }
+
+    /// A SwiftUI question asked as a modal from inside a SwiftUI button's
+    /// action never answers: its buttons and Return are dead, and the app
+    /// had to be killed (Protect in 2.3.1). `ModalHost.ask` starts its modal
+    /// loop on the run loop's next turn, and nothing else starts one.
+    func testTheSwiftUIModalStartsAfterTheClick() throws {
+        let app = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/JitPassApp")
+        let host = try String(contentsOf: app.appendingPathComponent("Frontmost.swift"), encoding: .utf8)
+        guard let ask = host.range(of: "static func ask"), let run = host.range(of: "runModal(for:") else {
+            return XCTFail("ModalHost.ask or its runModal(for:) is gone from Frontmost.swift")
+        }
+        let body = host[ask.upperBound ..< run.lowerBound]
+        XCTAssertTrue(body.contains("RunLoop.main.perform"), "ModalHost.ask must defer its modal loop past the caller")
+        let others = try FileManager.default.contentsOfDirectory(atPath: app.path)
+            .filter { $0.hasSuffix(".swift") && $0 != "Frontmost.swift" }
+        for file in others {
+            let source = try String(contentsOf: app.appendingPathComponent(file), encoding: .utf8)
+            XCTAssertFalse(source.contains("runModal(for:"), "\(file) starts a modal loop; ask through ModalHost")
+        }
+    }
 }
