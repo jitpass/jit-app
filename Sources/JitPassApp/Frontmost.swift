@@ -30,10 +30,29 @@ extension NSSavePanel {
 /// A question drawn in SwiftUI, asked as its own modal window: for one that
 /// belongs to no single window's sheet (Protect is asked from Findings and
 /// from Decoys). Brought forward first, as every dialog here is. `make`
-/// gets the finish call; true is the question's yes.
+/// gets the finish call; true is the question's yes, handed to `then`.
+///
+/// Asked on the run loop's next turn, never inside the caller: a modal
+/// loop started from a SwiftUI button's action leaves the panel's own
+/// SwiftUI buttons and keyboard shortcuts dead — the dialog cannot be
+/// answered and the app has to be killed (the Protect sheet in 2.3.1).
+/// An NSAlert there is fine, its buttons are AppKit's.
 enum ModalHost {
     @MainActor
-    static func ask(title: String, _ make: (_ finish: @escaping (Bool) -> Void) -> some View) -> Bool {
+    static func ask<Content: View>(
+        title: String,
+        _ make: @escaping (_ finish: @escaping (Bool) -> Void) -> Content,
+        then: @escaping @MainActor (Bool) -> Void
+    ) {
+        RunLoop.main.perform(inModes: [.common]) {
+            MainActor.assumeIsolated {
+                then(run(title: title, make))
+            }
+        }
+    }
+
+    @MainActor
+    private static func run(title: String, _ make: (_ finish: @escaping (Bool) -> Void) -> some View) -> Bool {
         let panel = NSPanel(
             contentRect: .zero,
             styleMask: [.titled, .fullSizeContentView],
