@@ -45,7 +45,7 @@ public struct JobReview: Sendable, Equatable {
             // Not a file: everything the program loads from outside the
             // folder, which an approval by an older jit never fingerprinted.
             label = "What the program loads from outside the folder"
-            note = "Approved by an older jit, which didn't fingerprint these files · approving again adds them"
+            note = "Approved before jit checked these · approving again adds them"
         } else if reported == "(the program itself)" {
             file = job.exe
             label = job.exe.map { ($0 as NSString).lastPathComponent + " (the program itself)" } ?? reported
@@ -63,8 +63,8 @@ public struct JobReview: Sendable, Equatable {
             file = nil
         }
         switch change.kind {
-        case JobChange.folderChanged: note = "A file in this folder changed · jit can't say which"
-        case JobChange.folderRewritten: note = "A file in this folder was written to, its content matching · jit can't say which"
+        case JobChange.folderChanged: note = "A file here changed · jit can't say which"
+        case JobChange.folderRewritten: note = "A file here was written to · jit can't say which"
         default: break
         }
         return Item(reported: reported, kind: change.kind, file: file, label: label, badge: change.badge, note: note)

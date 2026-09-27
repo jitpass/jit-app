@@ -291,7 +291,7 @@ extension Format {
         switch item.kind {
         case "removed": return "Removed since approval"
         case "added": return "Added since approval"
-        case "rewritten": return "Written to since approval; its content matches, but something rewrote it or swapped it back"
+        case "rewritten": return "Written to since approval · content matches"
         default:
             guard let file = item.file else {
                 return "Changed since approval"
