@@ -130,8 +130,9 @@ extension StatusItemController {
     ///
     /// `wholeMac` ignores the window's folder: a background run feeds the
     /// Findings row, and shows in the window only when the window is not
-    /// looking at a folder of its own. `kind` is who asked, for the
-    /// Findings header.
+    /// looking at a folder of its own; an action's rescan then scans that
+    /// folder too (`ScanLanding`). `kind` is who asked, for the Findings
+    /// header, and whether a failure is said.
     func runScan(wholeMac: Bool = false, kind requested: ScanRunKind, deep requestedDeep: Bool = false) {
         // Never dropped: the run in flight may have started before the
         // action that asks for this one, so its report can hold rows the
@@ -150,7 +151,11 @@ extension StatusItemController {
         model.scanChoosing = false
         model.scanning = true
         model.scanDeep = deep
-        model.scanError = nil
+        // A run that would not say its own failure does not clear the last
+        // one either: the error on screen is still the latest word.
+        if ScanLanding(wholeMac: wholeMac, kind: kind, folderOnScreen: model.scanScope != nil).saysFailure {
+            model.scanError = nil
+        }
         if !kind.isAfterProtect {
             model.findingsOutcome = nil // the banner clears on the next action; the rescan a Protect triggers is not one
         }
@@ -163,16 +168,21 @@ extension StatusItemController {
                     return
                 }
                 model.scanning = false
+                let landing = ScanLanding(wholeMac: wholeMac, kind: kind, folderOnScreen: model.scanScope != nil)
                 switch result {
                 case let .success(report):
                     let report = scope == nil ? landWholeMac(report, kind: kind) : report
-                    if !wholeMac || model.scanScope == nil {
+                    if landing.showsReport {
                         model.scan = report
+                        model.scanError = nil
                     }
                 case let .failure(error):
-                    if !wholeMac {
+                    if landing.saysFailure {
                         model.scanError = "scan failed: \(error)"
                     }
+                }
+                if landing.rescansFolder {
+                    _ = scanQueue.ask(ScanLanding.folderRescan, running: true)
                 }
                 if let next = scanQueue.next() {
                     runScan(wholeMac: next.wholeMac, kind: next.kind, deep: next.deep)
@@ -318,8 +328,9 @@ extension StatusItemController {
                     return
                 }
                 model.scanStale = true
-                let outcome = Self.protectOutcome(run.reports, wrapped: run.wrapped, wraps: wraps)
+                let outcome = Self.protectOutcome(run)
                 showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
+                vaultChanged()
                 runScan(wholeMac: true, kind: .afterProtect)
             }
         )

@@ -36,6 +36,12 @@ public enum ScanRunKind: String, Sendable {
         self == .deep || self == .deepAfterProtect
     }
 
+    /// The user started it, from the chooser, Rescan or the depth sheet:
+    /// its failure is theirs to see.
+    public var isByHand: Bool {
+        self == .byHand || self == .deep
+    }
+
     /// A Protect's own rescan: the banner it follows stays up.
     public var isAfterProtect: Bool {
         self == .afterProtect || self == .deepAfterProtect

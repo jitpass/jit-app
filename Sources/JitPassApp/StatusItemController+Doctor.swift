@@ -202,6 +202,11 @@ extension StatusItemController {
             model.doctorMessage = result.failure
         }
         runDoctor(afterAction: true)
+        // A migrate or a vault set from a card wrote the vault; an open
+        // Vault or Decoys window reads it again rather than go stale.
+        if !result.output.isEmpty {
+            vaultChanged()
+        }
         // A failure says so in the row that asked, with jit's own words
         // under it: there is no output window any more, and a black pane
         // over a window that already knows was never the answer. What

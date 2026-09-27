@@ -33,10 +33,18 @@ extension StatusItemController {
     /// Re-reads `jit audit` with the current filter, off the main thread.
     /// Called on open, on every filter change, and on every stream event
     /// while the window is showing, so the tail is never behind the CLI.
+    /// A reload asked while one runs is kept and runs when it lands
+    /// (`ReloadGate`), and a report read under a filter the user has since
+    /// changed is not shown: the next read, under the chips on screen, is
+    /// already starting.
     func reloadAudit() {
-        guard !model.auditLoading else {
+        guard auditGate.ask() else {
             return
         }
+        readAudit()
+    }
+
+    private func readAudit() {
         model.auditLoading = true
         let filter = model.auditFilter
         Task.detached {
@@ -45,8 +53,14 @@ extension StatusItemController {
                 guard let self else {
                     return
                 }
-                model.audit = report?.addingLive(liveServes, filter: filter)
-                model.auditLoading = false
+                if filter == model.auditFilter {
+                    model.audit = report?.addingLive(liveServes, filter: filter)
+                }
+                if auditGate.landed() {
+                    readAudit()
+                } else {
+                    model.auditLoading = false
+                }
             }
         }
     }

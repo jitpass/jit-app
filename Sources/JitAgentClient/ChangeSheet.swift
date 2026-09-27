@@ -115,13 +115,18 @@ public extension ChangeSheet {
     /// in the vault, the cached copies removed and left. jit reports the
     /// vaulted names for the run, not per file, so the names are one line
     /// rather than a guess on each file's row.
-    static func protect(_ reports: [MigrateReport], wrapped: [String] = [], report text: String) -> ChangeSheet {
+    ///
+    /// A wrap jit refused is a cross with jit's line, after what did
+    /// change, and the tools not tried after it are left for later.
+    static func protect(
+        _ reports: [MigrateReport], wrapped: [String] = [], wrapFailure: ProtectRun.WrapFailure? = nil, report text: String
+    ) -> ChangeSheet {
         let applied = reports.filter(\.applied)
         let targets = applied.flatMap(\.targets)
         let vaulted = reports.flatMap(\.vaulted)
         let errors = reports.flatMap(\.errors)
         var title = targets.isEmpty
-            ? (errors.isEmpty ? "Nothing to protect" : "Protect did not finish")
+            ? (errors.isEmpty && wrapFailure == nil ? "Nothing to protect" : "Protect did not finish")
             : "Protected " + count(targets.count, "file")
         if !vaulted.isEmpty {
             title += " · " + (vaulted.count == 1 ? "1 secret is" : "\(vaulted.count) secrets are") + " in the vault"
@@ -150,6 +155,7 @@ public extension ChangeSheet {
         for tool in wrapped {
             notes.append(Note(mark: .done, name: "Wrapped " + tool, fact: "It gets its key from the vault when it runs."))
         }
+        notes += wrapFailure.map { wrapNotes($0, changed: !targets.isEmpty || !wrapped.isEmpty, undo: !targets.isEmpty) } ?? []
         notes += leftNotes(reports.flatMap(\.caches.left))
         return ChangeSheet(
             title: title,
@@ -161,6 +167,26 @@ public extension ChangeSheet {
             undo: targets,
             report: text
         )
+    }
+
+    /// A wrap jit refused: a cross with jit's line, what still stands,
+    /// and the tools after it that were not tried.
+    private static func wrapNotes(_ failure: ProtectRun.WrapFailure, changed: Bool, undo: Bool) -> [Note] {
+        var notes = [Note(
+            mark: .failed,
+            name: "Wrapping \(failure.tool) failed",
+            fact: changed ? "What changed here stays changed" + (undo ? ", and Undo still restores the files." : ".") :
+                "Nothing was changed.",
+            verbatim: failure.line
+        )]
+        if !failure.notTried.isEmpty {
+            notes.append(Note(
+                mark: .left,
+                name: "Not wrapped: " + failure.notTried.joined(separator: ", "),
+                fact: "Not tried after that. Protect them again once the failure is fixed."
+            ))
+        }
+        return notes
     }
 
     /// Cache files the action could not rewrite, grouped by why: an agent
