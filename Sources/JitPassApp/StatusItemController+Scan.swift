@@ -133,7 +133,11 @@ extension StatusItemController {
     /// looking at a folder of its own. `kind` is who asked, for the
     /// Findings header.
     func runScan(wholeMac: Bool = false, kind requested: ScanRunKind, deep requestedDeep: Bool = false) {
-        guard !model.scanning else {
+        // Never dropped: the run in flight may have started before the
+        // action that asks for this one, so its report can hold rows the
+        // action just removed. Kept, and started once that run lands.
+        let request = ScanRequest(wholeMac: wholeMac, kind: requested, deep: requestedDeep)
+        guard scanQueue.ask(request, running: model.scanning) != nil else {
             return
         }
         // A Protect's rescan of the whole Mac keeps a deep report's depth
@@ -169,6 +173,9 @@ extension StatusItemController {
                     if !wholeMac {
                         model.scanError = "scan failed: \(error)"
                     }
+                }
+                if let next = scanQueue.next() {
+                    runScan(wholeMac: next.wholeMac, kind: next.kind, deep: next.deep)
                 }
             }
         }
@@ -302,14 +309,19 @@ extension StatusItemController {
         // still text (StatusItemController+Protect).
         let migrate = plan.migrate
         let wraps = plan.wrap
-        runTools("scan", work: { Self.protectWork(createsVault: createsVault, migrate: migrate, wraps: wraps) }, then: { [weak self] run in
-            guard let self else {
-                return
+        runTools(
+            "scan",
+            failed: "Protect",
+            work: { Self.protectWork(createsVault: createsVault, migrate: migrate, wraps: wraps) },
+            then: { [weak self] run in
+                guard let self else {
+                    return
+                }
+                model.scanStale = true
+                let outcome = Self.protectOutcome(run.reports, wrapped: run.wrapped, wraps: wraps)
+                showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
+                runScan(wholeMac: true, kind: .afterProtect)
             }
-            model.scanStale = true
-            let outcome = Self.protectOutcome(run.reports, wrapped: run.wrapped, wraps: wraps)
-            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
-            runScan(wholeMac: true, kind: .afterProtect)
-        })
+        )
     }
 }

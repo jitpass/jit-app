@@ -86,7 +86,7 @@ extension StatusItemController {
             return
         }
         model.findingsOutcome = nil
-        runTools(path, work: { JitCLI.migrate([path]).map { [$0] } }, then: { [weak self] reports in
+        runTools(path, failed: "Protect", work: { JitCLI.migrate([path]).map { [$0] } }, then: { [weak self] reports in
             guard let self else {
                 return
             }
@@ -95,23 +95,6 @@ extension StatusItemController {
             showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
             runScan(wholeMac: true, kind: .afterProtect)
         })
-    }
-
-    /// The result goes to whichever window is in front. Findings and AI
-    /// Agents have a banner region, so there it is a sentence in the
-    /// window with jit's own words one click away, and not a modal on top
-    /// of the state it just changed.
-    func showResult(title: String, text: String, failed: Bool = false, undo: [String] = [], changes: ChangeSheet? = nil) {
-        let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo, changes: changes)
-        if scanWindow.isKeyWindow {
-            model.findingsOutcome = outcome
-        } else if decoysWindow.isKeyWindow {
-            model.decoysOutcome = outcome
-        } else if agentsWindow.isKeyWindow || (agentsWindow.isVisible && !toolsWindow.isVisible) {
-            model.agentsOutcome = outcome
-        } else {
-            model.toolsSheet = ToolsSheet.result(title: title, text: text)
-        }
     }
 
     // The `status` poll may run while a reload is in flight; the reload's
@@ -309,11 +292,17 @@ extension StatusItemController {
             return
         }
         model.findingsOutcome = nil
-        runTools("caches", refresh: false, work: { JitCLI.execute(["migrate", "caches", "--yes"]) }, then: { [weak self] output in
-            self?.model.scanStale = true
-            self?.showResult(title: "Cleaned AI agent caches", text: output)
-            self?.runScan(wholeMac: true, kind: .afterProtect)
-        })
+        runTools(
+            "caches",
+            refresh: false,
+            failed: "Clean Caches",
+            work: { JitCLI.execute(["migrate", "caches", "--yes"]) },
+            then: { [weak self] output in
+                self?.model.scanStale = true
+                self?.showResult(title: "Cleaned AI agent caches", text: output)
+                self?.runScan(wholeMac: true, kind: .afterProtect)
+            }
+        )
     }
 
     // MARK: - Guard
@@ -354,9 +343,14 @@ extension StatusItemController {
     /// Runs one command off the main thread while the row shows who is
     /// waiting on Touch ID, then reloads the listing and status. One at a
     /// time, like the Vault window.
+    ///
+    /// `failed` names the action, so a failure reaches the window that
+    /// asked (`showFailure`); without it the line only goes to
+    /// `toolsMessage`, which Findings and Decoys never show.
     func runTools<Output: Sendable>(
         _ label: String,
         refresh: Bool = true,
+        failed verb: String? = nil,
         work: @escaping @Sendable () -> Result<Output, Error>,
         then: @escaping @MainActor (Output) -> Void
     ) {
@@ -381,7 +375,11 @@ extension StatusItemController {
                         model.cli = JitCLI.status()
                     }
                 case let .failure(error):
-                    model.toolsMessage = Self.describeTools(error)
+                    let line = Self.describeTools(error)
+                    model.toolsMessage = line
+                    if let verb {
+                        showFailure(verb, line: line)
+                    }
                 }
             }
         }
