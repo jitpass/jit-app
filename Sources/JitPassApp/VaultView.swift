@@ -234,11 +234,17 @@ struct VaultView: View {
                     revealRow(reveal)
                 } else {
                     HStack(spacing: 8) {
+                        // One line beside five buttons: a long name gives way in
+                        // its middle, never wrapping mid-word, and keeps its space
+                        // ahead of "used by", which the tooltip carries in full.
                         Text(secret.name).fontWeight(.semibold)
+                            .lineLimit(1).truncationMode(.middle).layoutPriority(1).help(secret.name)
                         if !secret.usedBy.isEmpty {
-                            Text("used by " + secret.usedBy.joined(separator: ", "))
+                            let users = secret.usedBy.joined(separator: ", ")
+                            Text("used by " + users)
                                 .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                                .help("The profiles that reference this secret: what a wrap injects or a mount serves.")
+                                .help("Used by \(users): the profiles that reference this secret, "
+                                    + "what a wrap injects or a mount serves.")
                         }
                         if let expires = secret.expires {
                             Text(Format.expiry(expires))

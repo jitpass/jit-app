@@ -33,13 +33,17 @@ struct JobRunConsent: View {
             VStack(alignment: .leading, spacing: Win.s4) {
                 if let job {
                     fact("Runs") {
-                        Text(JobDraft.join(job.argv)).font(Win.command).textSelection(.enabled)
+                        // Four lines of argv, then it scrolls: the buttons stay on screen.
+                        CappedText(text: JobDraft.join(job.argv))
                             .padding(.horizontal, Win.s4).padding(.vertical, Win.s3)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(WindowSurface.verbatim, in: RoundedRectangle(cornerRadius: Win.control, style: .continuous))
                         Text(Format.jobRunFolder(job)).font(Win.rowFact).foregroundStyle(.secondary)
                     }
-                    fact("Secrets") { Text(Format.jobRunSecrets(job)).font(Win.sub).foregroundStyle(.secondary) }
+                    fact("Secrets") {
+                        CappedText(text: Format.jobRunSecrets(job), font: Win.sub, nsFont: .systemFont(ofSize: 12), lines: 3)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 fact("Asked by") {
                     Text((request.launchedBy ?? request.program) +

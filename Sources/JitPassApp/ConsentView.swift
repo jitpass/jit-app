@@ -75,8 +75,14 @@ struct ConsentView: View {
         VStack(alignment: .leading, spacing: 6) {
             if let command = request.command {
                 fact("Command") {
-                    Text(command).font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // The reader's whole kernel command line, which can run to
+                    // a thousand characters: four lines, then it scrolls, so
+                    // Deny and Allow never leave the window.
+                    CappedText(
+                        text: command,
+                        font: .system(size: 12, design: .monospaced),
+                        nsFont: .monospacedSystemFont(ofSize: 12, weight: .regular)
+                    )
                 }
             }
             if let launchedBy = request.launchedBy {

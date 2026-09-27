@@ -31,9 +31,11 @@ struct DuplicatesSheet: View {
                     .frame(maxHeight: 320)
                 }
                 if !report.sharedCredentials.isEmpty {
-                    Text(sharedLine(report)).font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text(report.sharedLine()).font(.system(size: 11)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                         .help(
-                            "The same value under the same names from different files: not a copy, but every place a rotation must reach."
+                            report.sharedLine(limit: nil) + ". The same value under the same names from different files: "
+                                + "not a copy, but every place a rotation must reach."
                         )
                 }
             }
@@ -62,12 +64,6 @@ struct DuplicatesSheet: View {
         }
         let n = report.findings.count
         return "\(report.secretsCompared) secrets compared · \(n) look-alike pair\(n == 1 ? "" : "s")"
-    }
-
-    private func sharedLine(_ report: VaultDuplicates) -> String {
-        let n = report.sharedCredentials.count
-        let names = report.sharedCredentials.map { $0.groups.joined(separator: " = ") }.joined(separator: "; ")
-        return "\(n) shared credential\(n == 1 ? "" : "s"), not copies: " + names
     }
 
     private func block(_ finding: VaultDuplicate) -> some View {

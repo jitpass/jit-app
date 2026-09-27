@@ -69,4 +69,20 @@ extension VaultDuplicatesTests {
         XCTAssertEqual(dialog.arguments, ["vault", "duplicates", "--prune", "--yes"])
         XCTAssertTrue(dialog.message.contains("a-copy/KEY"), dialog.message)
     }
+
+    /// The shared-credentials line sits outside the sheet's scroll area:
+    /// three groups, then a count, and the tooltip's version names them all.
+    func testTheSharedLineCountsPastThreeGroups() {
+        let shared = (1 ... 8).map { VaultSharedCredential(keys: ["TOKEN"], groups: ["acme\($0)", "globex\($0)"]) }
+        let report = VaultDuplicates(sharedCredentials: shared)
+        XCTAssertEqual(
+            report.sharedLine(),
+            "8 shared credentials, not copies: acme1 = globex1; acme2 = globex2; acme3 = globex3 and 5 more"
+        )
+        XCTAssertTrue(report.sharedLine(limit: nil).hasSuffix("acme8 = globex8"))
+        XCTAssertEqual(
+            VaultDuplicates(sharedCredentials: Array(shared.prefix(1))).sharedLine(),
+            "1 shared credential, not copies: acme1 = globex1"
+        )
+    }
 }

@@ -83,7 +83,7 @@ public extension ChangeSheet {
                 mark: .failed,
                 name: "Redact did not finish",
                 fact: tokens > 0 ? "What changed below stays changed." : "Nothing was changed.",
-                verbatim: report.errors.joined(separator: "\n")
+                verbatim: VaultOrphans.capped(report.errors, NameList.shown)
             ))
         }
         if tokens > 0 {
@@ -132,11 +132,11 @@ public extension ChangeSheet {
                 mark: .failed,
                 name: "Protect did not finish",
                 fact: targets.isEmpty ? "Nothing was changed." : "What changed below stays changed, and Undo still restores it.",
-                verbatim: errors.joined(separator: "\n")
+                verbatim: VaultOrphans.capped(errors, NameList.shown)
             ))
         }
         if !vaulted.isEmpty {
-            notes.append(Note(mark: .done, name: "In the vault", fact: vaulted.joined(separator: ", ")))
+            notes.append(Note(mark: .done, name: "In the vault", fact: NameList.capped(vaulted)))
         }
         let removed = reports.flatMap(\.caches.removed)
         let copies = removed.reduce(0) { $0 + ($1.copies ?? 0) }

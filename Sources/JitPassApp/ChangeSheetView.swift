@@ -29,7 +29,9 @@ struct ChangeSheetView: View {
                 AppPlainCard { note(failure, last: true) }
             }
             if !sheet.files.isEmpty {
-                AppPlainCard { files }
+                // Show All can list dozens of transcripts: past 280pt they
+                // scroll, as the Lines sheet's do, and Done stays on screen.
+                AppPlainCard { CappedScroll(maxHeight: 280) { files } }
             }
             let rest = sheet.notes.filter { $0.mark != .failed }
             if !rest.isEmpty {

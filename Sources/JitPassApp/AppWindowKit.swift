@@ -320,7 +320,7 @@ struct AppRow<Actions: View>: View {
                     if let fact {
                         Text(fact).font(Win.rowFact).foregroundStyle(.secondary)
                             .lineLimit(wraps ? nil : 1)
-                            .fixedSize(horizontal: false, vertical: wraps)
+                            .fixedSize(horizontal: false, vertical: wraps).help(fact)
                     }
                 }
                 Spacer(minLength: Win.s5)

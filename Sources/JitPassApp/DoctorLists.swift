@@ -28,7 +28,22 @@ struct DoctorReviewSheet: View {
                 .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             if items.isEmpty {
                 Text("None left.").font(.system(size: 12)).foregroundStyle(.secondary)
+            } else {
+                // Every profile no tool uses can be dozens: past 320pt they
+                // scroll, and Done stays on screen.
+                CappedScroll(maxHeight: 320) { reviewRows }
             }
+            HStack {
+                Spacer()
+                Button("Done", action: done).keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 480)
+    }
+
+    private var reviewRows: some View {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(items) { item in
                 HStack(spacing: 10) {
                     Text(DoctorAdvice.rowText(item)).font(.system(size: 12)).lineLimit(1).truncationMode(.middle)
@@ -45,13 +60,7 @@ struct DoctorReviewSheet: View {
                 .contentShape(Rectangle())
                 .doctorFileMenu(DoctorAdvice.filePath(item))
             }
-            HStack {
-                Spacer()
-                Button("Done", action: done).keyboardShortcut(.defaultAction)
-            }
         }
-        .padding(20)
-        .frame(width: 480)
     }
 }
 

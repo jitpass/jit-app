@@ -37,6 +37,17 @@ public struct VaultDuplicates: Codable, Sendable, Equatable {
     public var prunablePaths: [String] {
         findings.filter { $0.prunable && $0.inUseGroup == nil }.flatMap(\.removePaths)
     }
+
+    /// The line under the pairs, outside their scroll area: the shared
+    /// credentials by their groups, the first few and a count of the rest,
+    /// so a vault with dozens of them keeps Close on screen. Nil `limit`
+    /// names them all, for the line's tooltip.
+    public func sharedLine(limit: Int? = 3) -> String {
+        let n = sharedCredentials.count
+        let all = sharedCredentials.map { $0.groups.joined(separator: " = ") }
+        let names = NameList.capped(all, limit: limit ?? all.count, separator: "; ")
+        return "\(n) shared credential\(n == 1 ? "" : "s"), not copies: " + names
+    }
 }
 
 public struct VaultDuplicate: Codable, Sendable, Equatable, Identifiable {

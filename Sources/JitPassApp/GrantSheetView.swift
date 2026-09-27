@@ -175,9 +175,9 @@ struct GrantSheetView: View {
         return HStack(spacing: Win.s4) {
             if model.grantBusy {
                 ProgressView().controlSize(.small)
-                Text(Format.grantFooterWaiting).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+                footerLine(Format.grantFooterWaiting)
             } else {
-                Text(draft.missing ?? Format.grantFooterReady).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+                footerLine(draft.missing ?? Format.grantFooterReady)
             }
             Spacer(minLength: Win.s5)
             Button("Cancel", action: actions.cancel).buttonStyle(AppButton(kind: .secondary))
@@ -187,6 +187,15 @@ struct GrantSheetView: View {
                 .disabled(!ready)
                 .opacity(ready ? 1 : 0.45)
         }
+    }
+}
+
+extension GrantSheetView {
+    /// Two lines: both footer sentences run past the 245pt the buttons
+    /// leave (221 beside the spinner), so one line cut them every time.
+    private func footerLine(_ text: String) -> some View {
+        Text(text).font(Win.sub).foregroundStyle(.secondary)
+            .lineLimit(2).fixedSize(horizontal: false, vertical: true).help(text)
     }
 }
 
