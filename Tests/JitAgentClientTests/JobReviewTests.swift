@@ -44,4 +44,45 @@ final class JobReviewTests: XCTestCase {
         XCTAssertEqual(spec.description, "Inventory")
         XCTAssertEqual(spec.replace, true)
     }
+
+    /// An approval by an older jit reports a pseudo-path and a phrase for a
+    /// kind. The phrase was the row's chip and wrapped a letter or two a
+    /// line; the pseudo-path offered Open File on a file that isn't there
+    /// (2026-09-27).
+    func testUncheckedIsNotAFileAndHasAShortChip() {
+        var job = job
+        job.changes = [JobChange(path: JobChange.libsPath, kind: JobChange.unchecked)]
+        let item = JobReview(job: job).items[0]
+        XCTAssertNil(item.file)
+        XCTAssertEqual(item.label, "What the program loads from outside the folder")
+        XCTAssertEqual(item.badge, "not checked")
+        XCTAssertNotNil(item.note)
+    }
+
+    /// A library outside the folder is reported by its absolute path, not
+    /// under the job's folder.
+    func testLibraryChangesOpenTheirOwnPath() {
+        var job = job
+        job.changes = [
+            JobChange(path: "/opt/py/lib/os.py", kind: "changed"),
+            JobChange(path: "/opt/py/lib", kind: JobChange.folderChanged)
+        ]
+        let items = JobReview(job: job).items
+        XCTAssertEqual(items.map(\.file), ["/opt/py/lib/os.py", "/opt/py/lib"])
+        XCTAssertEqual(items.map(\.badge), ["changed", "changed"])
+        XCTAssertNil(items[0].note)
+        XCTAssertNotNil(items[1].note)
+    }
+
+    /// Every chip is one word or two, whatever jit's kind; and the stop's
+    /// clause says "since you approved it" once.
+    func testChipsAreShortAndSentencesSayItOnce() {
+        let kinds = ["changed", "added", "removed", "rewritten", JobChange.unchecked, JobChange.folderChanged, JobChange.folderRewritten]
+        for kind in kinds {
+            let change = JobChange(path: JobChange.libsPath, kind: kind)
+            XCTAssertLessThanOrEqual(change.badge.split(separator: " ").count, 2, kind)
+            XCTAssertLessThanOrEqual(change.sentence.components(separatedBy: "since you approved it").count, 2, kind)
+        }
+        XCTAssertFalse(JobChange(path: JobChange.libsPath, kind: JobChange.unchecked).sentence.contains(JobChange.libsPath))
+    }
 }

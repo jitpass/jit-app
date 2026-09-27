@@ -310,8 +310,9 @@ struct AppRow<Actions: View>: View {
                                 .lineLimit(1).truncationMode(.head)
                         }
                         if let badge {
+                            // Never wrapped: the name beside it truncates first.
                             Text(badge).font(Win.eyebrow).foregroundStyle(Color(StatusMark.accent))
-                                .textCase(.uppercase)
+                                .textCase(.uppercase).lineLimit(1).fixedSize()
                                 .padding(.horizontal, Win.s2).padding(.vertical, Win.s1)
                                 .background(Design.Surface.field)
                                 .clipShape(RoundedRectangle(cornerRadius: Design.Radius.box, style: .continuous))

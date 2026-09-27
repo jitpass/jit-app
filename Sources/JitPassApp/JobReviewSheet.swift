@@ -23,12 +23,18 @@ struct JobReviewSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if !review.items.isEmpty {
-                    AppCardRows {
-                        ForEach(Array(review.items.enumerated()), id: \.element.id) { index, item in
-                            itemRow(item, last: index == review.items.count - 1)
+                    // jit doesn't cap the changes: a pull that touched 30
+                    // files pushed Approve Again off the screen.
+                    ScrollView {
+                        AppCardRows {
+                            ForEach(Array(review.items.enumerated()), id: \.element.id) { index, item in
+                                itemRow(item, last: index == review.items.count - 1)
+                            }
                         }
+                        .padding(.horizontal, Win.s4)
                     }
-                    .padding(.horizontal, Win.s4)
+                    .frame(maxHeight: 320)
+                    .fixedSize(horizontal: false, vertical: true)
                     .background(WindowSurface.card, in: RoundedRectangle(cornerRadius: Win.card, style: .continuous))
                 }
                 if let diff = model.jobReviewDiff {
@@ -52,7 +58,7 @@ struct JobReviewSheet: View {
     }
 
     private func itemRow(_ item: JobReview.Item, last: Bool) -> some View {
-        AppRow(name: item.label, badge: item.kind, fact: Format.reviewFact(item, tracked: model.jobReviewTracked), last: last) {
+        AppRow(name: item.label, badge: item.badge, fact: Format.reviewFact(item, tracked: model.jobReviewTracked), last: last) {
             if let file = item.file {
                 if model.jobReviewTracked.contains(file) {
                     Button("Show Changes…") { actions.showChanges(file) }.buttonStyle(AppButton(kind: .quiet))
@@ -63,16 +69,28 @@ struct JobReviewSheet: View {
         }
     }
 
+    /// What happened goes on its own line above the buttons: beside three
+    /// of them it had about 80pt, and "Touch ID was cancelled" read "Touch…".
     private var footer: some View {
-        HStack(spacing: Win.s4) {
-            if model.jobBusy {
+        VStack(alignment: .trailing, spacing: Win.s3) {
+            footerNote
+            buttons
+        }
+    }
+
+    @ViewBuilder private var footerNote: some View {
+        if model.jobBusy {
+            HStack(spacing: Win.s3) {
                 ProgressView().controlSize(.small)
-                Text(Format.jobFooterWaiting).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
-            } else if model.jobCancelled {
-                // The approve button already says Touch ID follows; with three
-                // buttons the footer keeps its words for what happened.
-                Text(Format.jobTouchIDCancelled).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
+                Text(Format.jobFooterWaiting).font(Win.sub).foregroundStyle(.secondary)
             }
+        } else if model.jobCancelled {
+            Text(Format.jobTouchIDCancelled).font(Win.sub).foregroundStyle(.secondary)
+        }
+    }
+
+    private var buttons: some View {
+        HStack(spacing: Win.s4) {
             Spacer(minLength: Win.s5)
             // A stopped job you no longer want is removed from here, not
             // approved first: the same confirmation as the row's Remove….
