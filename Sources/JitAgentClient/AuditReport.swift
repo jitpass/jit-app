@@ -84,7 +84,7 @@ public struct AuditReport: Codable, Sendable, Equatable {
     /// A use with no caller is the agent serving its own mounts, and says so
     /// rather than printing a question mark.
     public static func title(for event: SessionEvent) -> String {
-        let who = event.by.map { String($0.split(separator: "/").last ?? Substring($0)) } ?? ""
+        let who = CallerCommand(event.by)?.shown ?? ""
         let secrets = secretsPhrase(event.labels ?? [])
         switch event.kind {
         case "unlock":

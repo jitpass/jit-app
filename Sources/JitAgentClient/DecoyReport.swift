@@ -42,7 +42,9 @@ public struct DecoyReport: Equatable, Sendable {
         public var why: String
 
         public var id: String {
-            "\(Int(at.timeIntervalSince1970)):\(why):\(real)"
+            // The reader too, as `make` groups by it: two programs that
+            // first read in the same second are two rows, not one id.
+            "\(Int(at.timeIntervalSince1970)):\(why):\(real):\(reader ?? "")"
         }
     }
 

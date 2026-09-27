@@ -76,11 +76,12 @@ final class VaultListingTests: XCTestCase {
     func testHistoryVersionsCarryTheStampRestoreTakes() throws {
         let json = #"""
         {"path":"stripe/dev-key","versions":[
-          {"stamp":1787041732,"created_unix":1786000000,"updated_unix":1786500000},{"stamp":1786000000}]}
+          {"stamp":1787041732123456789,"created_unix":1786000000,"updated_unix":1786500000},{"stamp":1786000000000000000}]}
         """#
         let history = try JSONDecoder().decode(VaultHistory.self, from: Data(json.utf8))
-        XCTAssertEqual(history.versions.map(\.stamp), [1_787_041_732, 1_786_000_000])
-        XCTAssertEqual(history.versions[0].archived.timeIntervalSince1970, 1_787_041_732)
+        XCTAssertEqual(history.versions.map(\.stamp), [1_787_041_732_123_456_789, 1_786_000_000_000_000_000])
+        // jit's stamp is nanoseconds (vault.HistoryVersion.ArchiveStamp).
+        XCTAssertEqual(history.versions[0].archived.timeIntervalSince1970, 1_787_041_732.123, accuracy: 0.001)
         XCTAssertEqual(history.versions[0].valueFrom?.timeIntervalSince1970, 1_786_500_000)
         XCTAssertNil(history.versions[1].valueFrom)
     }
