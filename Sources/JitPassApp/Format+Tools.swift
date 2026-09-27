@@ -6,6 +6,12 @@ import JitAgentClient
 
 /// Every sentence the Tools window says.
 extension Format {
+    /// What a `jit vault set` before a wrap did, for the result when the
+    /// wrap after it failed: the key stays stored.
+    static func keyStored(_ path: String) -> String {
+        "Your key is in the vault as \(path)"
+    }
+
     static func toolsHeadline(_ board: ToolsBoard) -> String {
         guard board.hasWraps else {
             return "Nothing runs through jit yet"

@@ -73,6 +73,8 @@ final class StatusItemController {
     var toolsReadAt: Date?
     /// Scans asked for while another ran, started when that one lands.
     var scanQueue = ScanQueue()
+    /// The audit read in flight, and a reload asked during it.
+    var auditGate = ReloadGate()
     // "Settings", not "JitPass Settings": the app is already in the menu
     // bar, and the window is not a second place to say so.
     lazy var settingsWindow = ReportWindow(

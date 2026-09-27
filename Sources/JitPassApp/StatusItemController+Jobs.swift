@@ -19,8 +19,8 @@ extension StatusItemController {
             newJob: { [weak self] in self?.openJobSheet() },
             review: { [weak self] proposal in self?.openProposal(proposal) },
             reviewJob: { [weak self] job in self?.openJobReview(job) },
-            connect: { [weak self] app in self?.setMCP(app, connected: true) },
-            disconnect: { [weak self] app in self?.confirmDisconnect(app) },
+            connect: { [weak self] app in self?.setMCP(app, connected: true, from: .aiJobs) },
+            disconnect: { [weak self] app in self?.confirmDisconnect(app, from: .aiJobs) },
             fit: { [weak self] height in self?.aiJobsWindow.fit(to: height) }
         )
     }
@@ -93,7 +93,7 @@ extension StatusItemController {
         reloadJobs()
     }
 
-    func confirmDisconnect(_ app: MCPApp) {
+    func confirmDisconnect(_ app: MCPApp, from origin: MCPOrigin) {
         let alert = NSAlert()
         alert.messageText = "Disconnect \(app.name)?"
         alert.informativeText = Format.disconnectMessage(app)
@@ -103,13 +103,16 @@ extension StatusItemController {
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
-        setMCP(app, connected: false)
+        setMCP(app, connected: false, from: origin)
     }
 
     /// `jit mcp install` / `uninstall --client <app>`: one entry in the app's
     /// config, after a backup, and nothing else in it. Connecting approves
-    /// nothing; it only lets the app's agent ask.
-    func setMCP(_ app: MCPApp, connected: Bool) {
+    /// nothing; it only lets the app's agent ask. The result is said in
+    /// `origin`, the window the button was pressed in: with AI Agents and
+    /// AI Jobs both open, guessing from which was visible put a click in
+    /// AI Agents' result in AI Jobs.
+    func setMCP(_ app: MCPApp, connected: Bool, from origin: MCPOrigin) {
         let arguments = app.arguments(connected ? "install" : "uninstall")
         Task.detached {
             let result = JitCLI.execute(arguments)
@@ -127,10 +130,10 @@ extension StatusItemController {
                     text = "Could not \(connected ? "connect" : "disconnect") \(app.name): " + Self.describeTools(error)
                     failed = true
                 }
-                // Said in the window the button was pressed in.
-                if agentsWindow.isVisible, !aiJobsWindow.isVisible {
+                switch origin {
+                case .agents:
                     model.agentsOutcome = WindowOutcome(title: text, text: text, failed: failed)
-                } else {
+                case .aiJobs:
                     model.jobsBanner = text
                     model.jobsBannerFailed = failed
                 }
@@ -138,4 +141,10 @@ extension StatusItemController {
             }
         }
     }
+}
+
+/// The window a Connect or Disconnect was clicked in: its result is said
+/// there.
+enum MCPOrigin {
+    case agents, aiJobs
 }

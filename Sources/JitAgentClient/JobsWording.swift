@@ -12,6 +12,14 @@ public enum JobsWording {
     /// so it never says no tool can.
     public static let emptyTitle = "No AI jobs yet"
 
+    /// The AI Jobs banner when the service refused a Dismiss: the sheet
+    /// closes, and without this the proposal came back in the list with
+    /// nothing said (2026-09-27).
+    public static func dismissFailed(_ name: String, line: String) -> String {
+        let why = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        return "Could not dismiss \(name), so it is still waiting: " + (why.isEmpty ? "jit did not say why" : why)
+    }
+
     /// A job's row under its name: what last happened, whether it asks,
     /// how many secrets. Sentence case: only the line's first word is
     /// capitalised, and the first word may be a program's name

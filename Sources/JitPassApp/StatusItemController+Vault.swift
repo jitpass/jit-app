@@ -82,6 +82,27 @@ extension StatusItemController {
         }
     }
 
+    /// After an action outside this window wrote the vault: the listing
+    /// again, off the main thread, for whatever shows it now
+    /// (`VaultRefresh`).
+    func vaultChanged() {
+        switch VaultRefresh.after(decoysOpen: decoysWindow.isVisible, vaultOpen: vaultWindow.isVisible, listed: model.vaultListing != nil) {
+        case .none:
+            return
+        case .decoys:
+            reloadDecoys()
+        case .listing:
+            Task.detached {
+                let listing = try? JitCLI.vaultList()
+                await MainActor.run { [weak self] in
+                    if let listing {
+                        self?.model.vaultListing = listing
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Reveal
 
     /// `jit vault get` after its own Touch ID; the bytes land in one

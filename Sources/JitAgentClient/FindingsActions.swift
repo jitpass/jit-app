@@ -82,6 +82,35 @@ public struct ScanQueue: Equatable, Sendable {
     }
 }
 
+/// What a landed scan does to the Findings window, decided from the run
+/// and what the window shows (`folderOnScreen`: the window is on a folder
+/// of the user's choosing).
+public struct ScanLanding: Equatable, Sendable {
+    /// The report replaces the one on screen. A whole-Mac run never
+    /// replaces a folder: it still feeds the panel and the other windows.
+    public var showsReport: Bool
+    /// A failure is said in the window. A scan the user started always is
+    /// (a folder, or the whole Mac by hand or deep); a scheduled or
+    /// follow-up run keeps the report it could not replace.
+    public var saysFailure: Bool
+    /// The folder on screen is scanned again: an action (Protect, Clean
+    /// Caches, Undo) asked for this rescan, and a whole-Mac report does
+    /// not replace the folder's, which would keep the rows the action just
+    /// removed — and a second Protect would migrate them again
+    /// (2026-09-27).
+    public var rescansFolder: Bool
+
+    public init(wholeMac: Bool, kind: ScanRunKind, folderOnScreen: Bool) {
+        showsReport = !wholeMac || !folderOnScreen
+        saysFailure = !wholeMac || kind.isByHand
+        rescansFolder = wholeMac && folderOnScreen && kind.isAfterProtect
+    }
+
+    /// The folder's rescan: regular, and the kind that keeps the action's
+    /// banner up.
+    public static let folderRescan = ScanRequest(wholeMac: false, kind: .afterProtect, deep: false)
+}
+
 /// The window an action's result is said in. Decided when the action
 /// starts, from the window the click came from: by the time jit answers,
 /// the user may be in another window, or another app, after Touch ID.

@@ -176,11 +176,22 @@ extension StatusItemController {
         }
     }
 
+    /// `job_dismiss`. A refusal is said in the window's banner once the
+    /// sheet closes, since the proposal stays in the list.
     func dismissJobProposal() {
-        if let id = model.jobDraft.proposal?.id {
-            try? client.dismissProposal(id: id)
+        var failure: String?
+        if let proposal = model.jobDraft.proposal {
+            do {
+                try client.dismissProposal(id: proposal.id)
+            } catch {
+                failure = JobsWording.dismissFailed(proposal.name, line: Format.error(error))
+            }
         }
         closeJobSheet()
+        if let failure {
+            model.jobsBanner = failure
+            model.jobsBannerFailed = true
+        }
         reloadJobs()
     }
 

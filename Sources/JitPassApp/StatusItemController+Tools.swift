@@ -91,8 +91,9 @@ extension StatusItemController {
                 return
             }
             model.scanStale = true
-            let outcome = Self.protectOutcome(reports, wrapped: [], wraps: [])
+            let outcome = Self.protectOutcome(ProtectRun(reports: reports))
             showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
+            vaultChanged()
             runScan(wholeMac: true, kind: .afterProtect)
         })
     }
@@ -143,81 +144,6 @@ extension StatusItemController {
 
     // MARK: - Wrap, protect, unwrap
 
-    /// `jit wrap <tool>`, after the sheet said what it does. With a value,
-    /// `jit vault set <path> --stdin` runs first: the CLI cannot take the
-    /// key in the same step, and that one field is the reason wrapping is
-    /// in-app at all. Two Touch IDs then, and the sheet said so.
-    func wrapTool(_ tool: String, value: String?) {
-        let record = model.toolListing?.tool(named: tool)
-        if value == nil, let key = record?.shellConfigKey(scan: model.macScan) {
-            wrapFromShellConfig(tool, key: key)
-            return
-        }
-        let path = record?.injects.first?.vaultPath
-        let work: @Sendable () -> Result<String, Error> = {
-            var log: [String] = []
-            if let value, !value.isEmpty, let path {
-                switch JitCLI.execute(["vault", "set", path, "--stdin", "--yes"], stdin: value) {
-                case let .success(text): log.append(text)
-                case let .failure(error): return .failure(error)
-                }
-            }
-            return JitCLI.execute(["wrap", tool]).map { (log + [$0]).joined(separator: "\n\n") }
-        }
-        runTools(tool, work: work, then: { [weak self] output in
-            self?.model.scanStale = true
-            self?.model.toolsSheet = nil
-            self?.model.agentsSheet = nil
-            self?.showResult(title: "Wrapped \(tool)", text: output)
-        })
-    }
-
-    /// A tool outside the catalog: `jit vault set wrap-<tool>/VAR --stdin`
-    /// with the key from the sheet, then `jit wrap add <tool> --env
-    /// VAR=wrap-<tool>/VAR`, the same shape `jit wrap` gives a catalog
-    /// tool, so Unwrap and the listing treat it like one.
-    private func handWrap(_ tool: String, name: String, value: String) {
-        let path = "wrap-\(tool)/\(name)"
-        let work: @Sendable () -> Result<String, Error> = {
-            var log: [String] = []
-            switch JitCLI.execute(["vault", "set", path, "--stdin", "--yes"], stdin: value) {
-            case let .success(text): log.append(text)
-            case let .failure(error): return .failure(error)
-            }
-            return JitCLI.execute(["wrap", "add", tool, "--env", name + "=" + path])
-                .map { (log + [$0]).joined(separator: "\n\n") }
-        }
-        runTools(tool, work: work, then: { [weak self] output in
-            self?.model.toolsSheet = nil
-            self?.model.toolsSelected = tool
-            self?.showResult(title: "Wrapped \(tool)", text: output)
-        })
-    }
-
-    /// The key is an `export` in a shell config, which `jit wrap` does not
-    /// read: `jit migrate <rc> --yes` moves it (the export line becomes a
-    /// `jit export` of the same profile, so every shell keeps the var),
-    /// then `jit wrap add <tool> --env VAR=<rc name>/VAR` points the shim
-    /// at that copy. One Touch ID: the wrap only checks the path exists.
-    private func wrapFromShellConfig(_ tool: String, key: ShellConfigKey) {
-        let work: @Sendable () -> Result<String, Error> = {
-            var log: [String] = []
-            switch JitCLI.execute(["migrate", key.file, "--yes"]) {
-            case let .success(text): log.append(text)
-            case let .failure(error): return .failure(error)
-            }
-            return JitCLI.execute(["wrap", "add", tool, "--env", key.name + "=" + key.vaultPath])
-                .map { (log + [$0]).joined(separator: "\n\n") }
-        }
-        runTools(tool, work: work, then: { [weak self] output in
-            self?.model.scanStale = true
-            self?.model.toolsSheet = nil
-            self?.model.agentsSheet = nil
-            self?.showResult(title: "Protected \(Format.home(key.file)), wrapped \(tool)", text: output)
-            self?.runScan(wholeMac: true, kind: .afterProtect)
-        })
-    }
-
     /// A native tool: `jit migrate ~ --only <category> --yes`, the migration
     /// `jit wrap <tool>` delegates to, after a dialog that names what
     /// migrate does and that it backs up first. The home path is passed
@@ -240,6 +166,7 @@ extension StatusItemController {
         runTools(tool, work: { JitCLI.execute(["migrate", home, "--only", category, "--yes"]) }, then: { [weak self] output in
             self?.model.scanStale = true
             self?.showResult(title: "Protected \(tool)", text: output)
+            self?.vaultChanged()
         })
     }
 
