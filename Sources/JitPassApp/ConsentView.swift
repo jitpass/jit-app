@@ -77,11 +77,14 @@ struct ConsentView: View {
                 fact("Command") {
                     // The reader's whole kernel command line, which can run to
                     // a thousand characters: four lines, then it scrolls, so
-                    // Deny and Allow never leave the window.
+                    // Deny and Allow never leave the window. Past four lines
+                    // it says so: padding could push the part that matters
+                    // out of view behind a scrollbar that stays hidden.
                     CappedText(
                         text: command,
                         font: .system(size: 12, design: .monospaced),
-                        nsFont: .monospacedSystemFont(ofSize: 12, weight: .regular)
+                        nsFont: .monospacedSystemFont(ofSize: 12, weight: .regular),
+                        saysMore: true
                     )
                 }
             }

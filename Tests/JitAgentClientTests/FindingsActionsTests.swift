@@ -61,8 +61,32 @@ final class FindingsActionsTests: XCTestCase {
     func testADeepRequestKeepsItsKindWhenARegularOneFollows() {
         let deep = ScanRequest(wholeMac: true, kind: .deep, deep: true)
         let regular = ScanRequest(wholeMac: true, kind: .afterProtect, deep: false)
-        XCTAssertEqual(deep.merged(with: regular), deep)
-        XCTAssertEqual(regular.merged(with: deep), deep)
+        for merged in [deep.merged(with: regular), regular.merged(with: deep)] {
+            XCTAssertEqual(merged.kind, .deep)
+            XCTAssertTrue(merged.deep)
+            XCTAssertEqual(merged.kinds, [.deep, .afterProtect], "the Protect's rescan is still answered")
+        }
+    }
+
+    /// Review of #63-#70: "the later kind wins" dropped what the earlier
+    /// request meant. A merged run answers every request folded into it.
+    func testAMergedRunAnswersEveryRequestInIt() {
+        func landing(_ first: ScanRunKind, _ second: ScanRunKind, folder: Bool = false) -> (ScanLanding, Set<ScanRunKind>) {
+            let merged = ScanRequest(wholeMac: true, kind: first, deep: false)
+                .merged(with: ScanRequest(wholeMac: true, kind: second, deep: false))
+            return (ScanLanding(wholeMac: true, kinds: merged.kinds, folderOnScreen: folder), merged.kinds)
+        }
+        // Scheduled, then a Protect's rescan: still the schedule's run, so
+        // its new findings are announced.
+        XCTAssertTrue(landing(.scheduled, .afterProtect).1.contains(.scheduled))
+        // A Protect's rescan, then a scheduled one: the folder on screen is
+        // still rescanned, and the banner kept.
+        let (afterThenScheduled, kinds) = landing(.afterProtect, .scheduled, folder: true)
+        XCTAssertTrue(afterThenScheduled.rescansFolder)
+        XCTAssertTrue(kinds.contains(where: \.isAfterProtect))
+        // By hand, then a Protect's rescan: the user's scan still says its
+        // failure.
+        XCTAssertTrue(landing(.byHand, .afterProtect).0.saysFailure)
     }
 
     private func front(

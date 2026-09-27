@@ -133,11 +133,13 @@ extension StatusItemController {
     /// looking at a folder of its own; an action's rescan then scans that
     /// folder too (`ScanLanding`). `kind` is who asked, for the Findings
     /// header, and whether a failure is said.
-    func runScan(wholeMac: Bool = false, kind requested: ScanRunKind, deep requestedDeep: Bool = false) {
+    func runScan(
+        wholeMac: Bool = false, kind requested: ScanRunKind, deep requestedDeep: Bool = false, also: Set<ScanRunKind> = []
+    ) {
         // Never dropped: the run in flight may have started before the
         // action that asks for this one, so its report can hold rows the
         // action just removed. Kept, and started once that run lands.
-        let request = ScanRequest(wholeMac: wholeMac, kind: requested, deep: requestedDeep)
+        let request = ScanRequest(wholeMac: wholeMac, kind: requested, deep: requestedDeep, also: also)
         guard scanQueue.ask(request, running: model.scanning) != nil else {
             return
         }
@@ -153,10 +155,11 @@ extension StatusItemController {
         model.scanDeep = deep
         // A run that would not say its own failure does not clear the last
         // one either: the error on screen is still the latest word.
-        if ScanLanding(wholeMac: wholeMac, kind: kind, folderOnScreen: model.scanScope != nil).saysFailure {
+        let kinds = also.union([kind])
+        if ScanLanding(wholeMac: wholeMac, kinds: kinds, folderOnScreen: model.scanScope != nil).saysFailure {
             model.scanError = nil
         }
-        if !kind.isAfterProtect {
+        if !kinds.contains(where: \.isAfterProtect) {
             model.findingsOutcome = nil // the banner clears on the next action; the rescan a Protect triggers is not one
         }
         let scope = wholeMac ? nil : model.scanScope
@@ -168,10 +171,10 @@ extension StatusItemController {
                     return
                 }
                 model.scanning = false
-                let landing = ScanLanding(wholeMac: wholeMac, kind: kind, folderOnScreen: model.scanScope != nil)
+                let landing = ScanLanding(wholeMac: wholeMac, kinds: kinds, folderOnScreen: model.scanScope != nil)
                 switch result {
                 case let .success(report):
-                    let report = scope == nil ? landWholeMac(report, kind: kind) : report
+                    let report = scope == nil ? landWholeMac(report, kind: kind, announces: kinds.contains(.scheduled)) : report
                     if landing.showsReport {
                         model.scan = report
                         model.scanError = nil
@@ -185,7 +188,7 @@ extension StatusItemController {
                     _ = scanQueue.ask(ScanLanding.folderRescan, running: true)
                 }
                 if let next = scanQueue.next() {
-                    runScan(wholeMac: next.wholeMac, kind: next.kind, deep: next.deep)
+                    runScan(wholeMac: next.wholeMac, kind: next.kind, deep: next.deep, also: next.also)
                 }
             }
         }
@@ -214,7 +217,7 @@ extension StatusItemController {
     /// comparison, and speaks up on the schedule's behalf. A regular run
     /// takes the last deep scan's vault copies with it, each while its file
     /// is unchanged since that scan; a deep run's are its own.
-    private func landWholeMac(_ scanned: ScanReport, kind: ScanRunKind) -> ScanReport {
+    private func landWholeMac(_ scanned: ScanReport, kind: ScanRunKind, announces: Bool) -> ScanReport {
         let at = Date()
         var report = scanned
         if kind.isDeep {
@@ -228,7 +231,10 @@ extension StatusItemController {
         model.macScanKind = kind
         model.scanStale = false
         LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
-        if kind == .scheduled {
+        // Any scheduled request folded into this run, not only the last one
+        // to ask: the new findings are remembered either way, so a merge
+        // that dropped the schedule's word never announced them.
+        if announces {
             announceNewFindings(fresh, at: at)
             autoRedact(after: report, at: at)
         }

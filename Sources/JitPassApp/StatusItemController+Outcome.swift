@@ -4,7 +4,8 @@
 import AppKit
 import JitAgentClient
 
-/// Where an action's result, or its failure, is said: the window in front.
+/// Where an action's result, or its failure, is said: the window it was
+/// asked from.
 extension StatusItemController {
     /// The window in front now, by `OutcomeWindow.front`'s rule.
     var frontOutcomeWindow: OutcomeWindow {
@@ -17,13 +18,17 @@ extension StatusItemController {
         )
     }
 
-    /// The result goes to whichever window is in front. Findings and AI
+    /// The result goes to the window its action was asked from while a
+    /// tools action lands (`outcomeWindowOverride`), else to whichever
+    /// window is in front. Findings and AI
     /// Agents have a banner region, so there it is a sentence in the
     /// window with jit's own words one click away, and not a modal on top
     /// of the state it just changed.
     func showResult(title: String, text: String, failed: Bool = false, undo: [String] = [], changes: ChangeSheet? = nil) {
         let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo, changes: changes)
-        switch frontOutcomeWindow {
+        // Inside a tools action's landing, the window it was asked from
+        // (runTools); otherwise the window in front.
+        switch outcomeWindowOverride ?? frontOutcomeWindow {
         case .findings: model.findingsOutcome = outcome
         case .decoys: model.decoysOutcome = outcome
         case .agents: model.agentsOutcome = outcome

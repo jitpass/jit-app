@@ -23,11 +23,23 @@ public struct ScanRequest: Equatable, Sendable {
     public var wholeMac: Bool
     public var kind: ScanRunKind
     public var deep: Bool
+    /// The kinds of the requests folded into this one besides `kind`. A
+    /// merged run answers every one of them: it announces if any was
+    /// scheduled, keeps the Protect banner if any followed a Protect, says
+    /// its failure if any was by hand (review, 2026-09-27: "the later kind
+    /// wins" dropped the others' meaning).
+    public var also: Set<ScanRunKind>
 
-    public init(wholeMac: Bool, kind: ScanRunKind, deep: Bool) {
+    public init(wholeMac: Bool, kind: ScanRunKind, deep: Bool, also: Set<ScanRunKind> = []) {
         self.wholeMac = wholeMac
         self.kind = kind
         self.deep = deep
+        self.also = also
+    }
+
+    /// Every kind this run answers.
+    public var kinds: Set<ScanRunKind> {
+        also.union([kind])
     }
 
     /// Two requests of the same scope waiting become one run that answers
@@ -36,10 +48,12 @@ public struct ScanRequest: Equatable, Sendable {
     /// kind is what makes the run read the vault's report as its own.
     /// A folder and the whole Mac never merge (`ScanQueue`).
     public func merged(with later: ScanRequest) -> ScanRequest {
-        ScanRequest(
+        let kind = deep && !later.deep ? kind : later.kind
+        return ScanRequest(
             wholeMac: wholeMac,
-            kind: deep && !later.deep ? kind : later.kind,
-            deep: deep || later.deep
+            kind: kind,
+            deep: deep || later.deep,
+            also: kinds.union(later.kinds).subtracting([kind])
         )
     }
 }
@@ -101,9 +115,14 @@ public struct ScanLanding: Equatable, Sendable {
     public var rescansFolder: Bool
 
     public init(wholeMac: Bool, kind: ScanRunKind, folderOnScreen: Bool) {
+        self.init(wholeMac: wholeMac, kinds: [kind], folderOnScreen: folderOnScreen)
+    }
+
+    /// For a merged run: each meaning holds if any of its kinds has it.
+    public init(wholeMac: Bool, kinds: Set<ScanRunKind>, folderOnScreen: Bool) {
         showsReport = !wholeMac || !folderOnScreen
-        saysFailure = !wholeMac || kind.isByHand
-        rescansFolder = wholeMac && folderOnScreen && kind.isAfterProtect
+        saysFailure = !wholeMac || kinds.contains(where: \.isByHand)
+        rescansFolder = wholeMac && folderOnScreen && kinds.contains(where: \.isAfterProtect)
     }
 
     /// The folder's rescan: regular, and the kind that keeps the action's
