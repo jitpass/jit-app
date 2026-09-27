@@ -15,33 +15,80 @@ public struct CallerCommand: Equatable, Sendable {
     public var arguments: String
 
     /// Nil for an empty line.
-    public init?(_ line: String?) {
+    ///
+    /// A line is ambiguous on its own: "/usr/local/bin/node dist/server.js"
+    /// and "/Users/x/My Tools/bin/fetch" both look like a path with a space
+    /// in it. The Mac is not ambiguous: the program is the longest prefix of
+    /// the line that is an executable file, so that is asked first. Only a
+    /// program no longer on disk falls back to reading the text, and that
+    /// never glues an argument onto the program (review, 2026-09-27: "node
+    /// dist/server.js" was named "server.js", so the interpreter that asked
+    /// was never named).
+    public init?(_ line: String?, isExecutable: (String) -> Bool = CallerCommand.isExecutableFile) {
         let line = (line ?? "").trimmingCharacters(in: .whitespaces)
         guard !line.isEmpty else {
             return nil
         }
-        // An app's executable sits in Contents/MacOS, and its name may
-        // hold spaces ("Acme Helper"): it runs to the first argument.
-        if let macOS = line.range(of: "/Contents/MacOS/", options: .backwards) {
+        if let end = Self.executableEnd(line, isExecutable: isExecutable) {
+            let path = line[..<end]
+            program = String(path.split(separator: "/").last ?? path)
+            arguments = String(line[end...]).trimmingCharacters(in: .whitespaces)
+            return
+        }
+        // Fallback, from the text. An app's executable sits in the FIRST
+        // Contents/MacOS of the line (a later one is an argument's), and is
+        // usually named for its bundle ("Acme Helper.app/…/Acme Helper"),
+        // which may hold spaces; otherwise it ends at the first space.
+        if let macOS = line.range(of: "/Contents/MacOS/"), line.hasPrefix("/") {
             let rest = line[macOS.upperBound...]
-            let cut = [" -", " /"].compactMap { rest.range(of: $0)?.lowerBound }.min() ?? rest.endIndex
-            program = String(rest[..<cut])
-            arguments = String(rest[cut...]).trimmingCharacters(in: .whitespaces)
+            let bundle = line[..<macOS.lowerBound].split(separator: "/").last
+                .map { $0.hasSuffix(".app") ? String($0.dropLast(4)) : String($0) } ?? ""
+            let end = Self.nameEnd(rest, bundle: bundle)
+            program = String(rest[..<end])
+            arguments = String(rest[end...]).trimmingCharacters(in: .whitespaces)
             if !program.isEmpty {
                 return
             }
         }
         var words = line.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
-        var path = words.removeFirst()
-        // A path with a space goes on in words that hold a "/" and are
-        // not an argument of their own ("-x", "/other/path").
-        if path.hasPrefix("/") {
-            while let next = words.first, next.contains("/"), !next.hasPrefix("/"), !next.hasPrefix("-") {
-                path += " " + words.removeFirst()
-            }
-        }
+        let path = words.removeFirst()
         program = String(path.split(separator: "/").last ?? Substring(path))
         arguments = words.joined(separator: " ")
+    }
+
+    /// Where an app executable's name ends in rest (the text after
+    /// Contents/MacOS/): after the bundle's own name when rest starts with it
+    /// as a whole word, else at the first space.
+    static func nameEnd(_ rest: Substring, bundle: String) -> Substring.Index {
+        if !bundle.isEmpty, rest.hasPrefix(bundle) {
+            let after = rest.index(rest.startIndex, offsetBy: bundle.count)
+            if after == rest.endIndex || rest[after] == " " {
+                return after
+            }
+        }
+        return rest.firstIndex(of: " ") ?? rest.endIndex
+    }
+
+    /// Where the executable's path ends in line: after the longest prefix,
+    /// cut at a space or the end, that is an executable file. Nil when none
+    /// is, or the line is not an absolute path.
+    static func executableEnd(_ line: String, isExecutable: (String) -> Bool) -> String.Index? {
+        guard line.hasPrefix("/") else {
+            return nil
+        }
+        var cuts = line.indices.filter { line[$0] == " " }
+        cuts.append(line.endIndex)
+        for cut in cuts.reversed() where isExecutable(String(line[..<cut])) {
+            return cut
+        }
+        return nil
+    }
+
+    /// An executable regular file, not a folder (an app bundle is one).
+    public static func isExecutableFile(_ path: String) -> Bool {
+        var isDir: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDir) && !isDir.boolValue
+            && FileManager.default.isExecutableFile(atPath: path)
     }
 
     /// The program and its arguments, the path cut to the name:

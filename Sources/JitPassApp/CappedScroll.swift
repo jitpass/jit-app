@@ -12,6 +12,10 @@ import SwiftUI
 /// for one short line.
 struct CappedScroll<Content: View>: View {
     let maxHeight: CGFloat
+    /// Told whether the content runs past `maxHeight`, for a caller that
+    /// must say so (a security question cannot rely on an overlay scrollbar
+    /// that stays hidden until someone scrolls).
+    var overflows: ((Bool) -> Void)?
     @ViewBuilder var content: () -> Content
 
     @State private var height: CGFloat = 0
@@ -24,9 +28,12 @@ struct CappedScroll<Content: View>: View {
                     Color.clear.preference(key: ContentHeight.self, value: proxy.size.height)
                 })
         }
-        .scrollIndicators(height > maxHeight ? .automatic : .never)
+        .scrollIndicators(height > maxHeight ? (overflows == nil ? .automatic : .visible) : .never)
         .frame(height: min(height, maxHeight))
-        .onPreferenceChange(ContentHeight.self) { height = $0 }
+        .onPreferenceChange(ContentHeight.self) { new in
+            height = new
+            overflows?(new > maxHeight)
+        }
     }
 }
 
@@ -38,10 +45,25 @@ struct CappedText: View {
     /// The NSFont `font` is drawn in, for its line height.
     var nsFont = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
     var lines = 4
+    /// Say under the text when it runs past `lines`: on a question the user
+    /// answers (consent), padding that pushes the part that matters out of
+    /// view must not be invisible.
+    var saysMore = false
+
+    @State private var more = false
 
     var body: some View {
-        CappedScroll(maxHeight: ceil(NSLayoutManager().defaultLineHeight(for: nsFont)) * CGFloat(lines)) {
-            Text(text).font(font).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 2) {
+            CappedScroll(
+                maxHeight: ceil(NSLayoutManager().defaultLineHeight(for: nsFont)) * CGFloat(lines),
+                overflows: saysMore ? { more = $0 } : nil
+            ) {
+                Text(text).font(font).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            }
+            if saysMore, more {
+                Text("Longer than shown (\(text.count) characters): scroll to read all of it.")
+                    .font(.caption).foregroundStyle(Color(StatusMark.amber))
+            }
         }
     }
 }

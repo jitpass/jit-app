@@ -73,6 +73,14 @@ final class StatusItemController {
     var toolsReadAt: Date?
     /// Scans asked for while another ran, started when that one lands.
     var scanQueue = ScanQueue()
+    /// Tools actions confirmed while another one ran, in order: each starts
+    /// when the one before it lands, so a confirmed Redact or Clean Caches
+    /// is never dropped without a word (review, 2026-09-27).
+    var toolsQueue: [@MainActor () -> Void] = []
+    /// The window the landing action was asked from, while its `then`
+    /// runs: `showResult` says a success there, as `showFailure` always said
+    /// a failure, not in whichever window is in front by then.
+    var outcomeWindowOverride: OutcomeWindow?
     /// The audit read in flight, and a reload asked during it.
     var auditGate = ReloadGate()
     // "Settings", not "JitPass Settings": the app is already in the menu

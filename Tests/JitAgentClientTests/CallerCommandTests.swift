@@ -24,7 +24,39 @@ final class CallerCommandTests: XCTestCase {
             name("/Applications/Acme.app/Contents/Frameworks/Acme Helper.app/Contents/MacOS/Acme Helper --type=utility"),
             "Acme Helper"
         )
-        XCTAssertEqual(name("/Users/x/My Tools/bin/fetch --all"), "fetch")
+        let mac: Set = ["/Users/x/My Tools/bin/fetch"]
+        XCTAssertEqual(CallerCommand("/Users/x/My Tools/bin/fetch --all", isExecutable: mac.contains)?.shown, "fetch --all")
+    }
+
+    /// The program is what is on disk, so a relative-path argument is never
+    /// glued onto it: "node dist/server.js" names node, the interpreter that
+    /// asked (review, 2026-09-27).
+    func testARelativeArgumentIsNotTheProgram() {
+        let mac: Set = ["/usr/local/bin/node", "/usr/bin/python3", "/bin/zsh"]
+        for (line, shown) in [
+            ("/usr/local/bin/node dist/server.js", "node dist/server.js"),
+            ("/usr/bin/python3 scripts/fetch.py", "python3 scripts/fetch.py"),
+            ("/bin/zsh ./run.sh", "zsh ./run.sh")
+        ] {
+            XCTAssertEqual(CallerCommand(line, isExecutable: mac.contains)?.shown, shown)
+        }
+        // Not on disk any more: still the first word, never the argument.
+        XCTAssertEqual(CallerCommand("/gone/bin/node dist/server.js", isExecutable: { _ in false })?.program, "node")
+    }
+
+    /// An app's executable ends where its name does, not at the next dash;
+    /// and a Contents/MacOS that belongs to an argument names nothing.
+    func testAppBundleProgramsAndTheirArguments() {
+        let mac: Set = ["/Applications/Acme.app/Contents/MacOS/acme", "/usr/bin/open"]
+        XCTAssertEqual(CallerCommand("/Applications/Acme.app/Contents/MacOS/acme serve", isExecutable: mac.contains)?.shown, "acme serve")
+        XCTAssertEqual(CallerCommand("/usr/bin/open /Applications/X.app/Contents/MacOS/x", isExecutable: mac.contains)?.program, "open")
+        // Off disk, from the text: the bundle's own name, then the first space.
+        let gone: (String) -> Bool = { _ in false }
+        XCTAssertEqual(CallerCommand("/Applications/Acme.app/Contents/MacOS/acme run x.py", isExecutable: gone)?.shown, "acme run x.py")
+        XCTAssertEqual(
+            CallerCommand("/Applications/Acme Helper.app/Contents/MacOS/Acme Helper -x", isExecutable: gone)?.program,
+            "Acme Helper"
+        )
     }
 
     func testEmptyIsNil() {
@@ -42,7 +74,10 @@ final class CallerCommandTests: XCTestCase {
             ConsentRequest(event: SessionEvent(
                 unixTime: 0,
                 kind: "pending",
-                by: "/Applications/Acme.app/Contents/MacOS/Acme Helper --type=x",
+                // A helper in its own bundle, as Electron and Chrome lay them
+                // out. Off disk, a spaced name sitting straight in another
+                // bundle's MacOS cannot be told from "acme serve" by the text.
+                by: "/Applications/Acme.app/Contents/Frameworks/Acme Helper.app/Contents/MacOS/Acme Helper --type=x",
                 consentID: "c1"
             ))?.program,
             "Acme Helper"

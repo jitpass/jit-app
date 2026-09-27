@@ -283,11 +283,16 @@ extension StatusItemController {
         work: @escaping @Sendable () -> Result<Output, Error>,
         then: @escaping @MainActor (Output) -> Void
     ) {
+        let origin = reportsTo ?? frontOutcomeWindow
         guard model.toolsBusy == nil else {
+            // Queued with the window it was asked from, never dropped: the
+            // caller has already cleared its banner and asked its question.
+            toolsQueue.append { [weak self] in
+                self?.runTools(label, refresh: refresh, failed: verb, reportsTo: origin, work: work, then: then)
+            }
             return
         }
         model.toolsBusy = label
-        let origin = reportsTo ?? frontOutcomeWindow
         model.toolsMessage = nil
         Task.detached {
             let result = work()
@@ -296,9 +301,16 @@ extension StatusItemController {
                     return
                 }
                 model.toolsBusy = nil
+                defer {
+                    if !toolsQueue.isEmpty {
+                        toolsQueue.removeFirst()()
+                    }
+                }
                 switch result {
                 case let .success(output):
+                    outcomeWindowOverride = origin
                     then(output)
+                    outcomeWindowOverride = nil
                     if refresh {
                         reloadTools()
                         JitCLI.forgetStatus()
