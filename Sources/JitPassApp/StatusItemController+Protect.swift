@@ -16,13 +16,15 @@ extension StatusItemController {
     /// result, which is what the banner must show; so does a wrap that
     /// failed once something had changed (`ProtectRun.changedSomething`),
     /// with jit's line recorded and the wraps after it not tried.
-    nonisolated static func protectWork(createsVault: Bool, migrate: [String], wraps: [String]) -> Result<ProtectRun, Error> {
+    nonisolated static func protectWork(
+        createsVault: Bool, migrate: [String], flags: [String] = [], wraps: [String]
+    ) -> Result<ProtectRun, Error> {
         if createsVault, case let .failure(error) = JitCLI.execute(["vault", "init"]) {
             return .failure(error)
         }
         var run = ProtectRun()
         if !migrate.isEmpty {
-            switch JitCLI.migrate(migrate) {
+            switch JitCLI.migrate(migrate, flags: flags) {
             case let .success(report): run.reports.append(report)
             case let .failure(error): return .failure(error)
             }

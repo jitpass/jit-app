@@ -43,6 +43,10 @@ struct VaultView: View {
                 VaultOrphansSheet(model: model, actions: actions)
             case .duplicates:
                 DuplicatesSheet(model: model, actions: actions)
+            case let .moveOut(paths):
+                MoveOutSheet(model: model, actions: actions, paths: paths)
+            case .checkSettings:
+                CheckSettingsSheet(model: model, actions: actions)
             }
         }
         .onAppear(perform: actions.reload)
@@ -59,7 +63,7 @@ struct VaultView: View {
     }
 
     private var groups: [VaultGroup] {
-        model.vaultListing?.groups(matching: filter) ?? []
+        model.vaultListing?.groups(matching: filter, settings: model.vaultSettings) ?? []
     }
 
     private var selected: VaultGroup? {
@@ -151,6 +155,7 @@ struct VaultView: View {
     @ViewBuilder private var detail: some View {
         if let group = selected {
             VStack(alignment: .leading, spacing: 0) {
+                cleanupBanner
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(group.name).font(.title3).fontWeight(.semibold)
@@ -189,6 +194,12 @@ struct VaultView: View {
                 }
                 .scrollContentBackground(.hidden)
 
+                let kept = settings(group)
+                if !kept.isEmpty {
+                    Divider()
+                    settingsSection(kept)
+                }
+
                 Divider()
                 selectionBar(group)
             }
@@ -200,20 +211,6 @@ struct VaultView: View {
             }
             .frame(maxWidth: .infinity)
         }
-    }
-
-    /// "4 secrets · from ~/.clisso.yaml", with "(file gone)" when the
-    /// origin no longer exists; "set by hand" when nothing was recorded.
-    private func profileLine(_ group: VaultGroup) -> String {
-        var parts = ["\(group.secrets.count) secret\(group.secrets.count == 1 ? "" : "s")"]
-        if let origin = group.origin {
-            parts.append("from " + origin + (VaultOrigin.exists(origin) ? "" : " (file gone)"))
-        } else if group.secrets.allSatisfy({ $0.origin == nil }) {
-            parts.append("set by hand")
-        } else {
-            parts.append("from several files")
-        }
-        return parts.joined(separator: " · ")
     }
 
     // MARK: - Selection bar
@@ -254,18 +251,14 @@ struct VaultView: View {
                             Text("Touch ID…").foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Reveal") { actions.reveal(secret.path) }
-                        Button("Copy") { actions.copy(secret.path) }
-                        Button("Replace…") { actions.openSheet(replaceSheet(secret)) }
-                        Button("History…") { actions.openSheet(.history(path: secret.path)) }
-                        Button("Delete…") { actions.delete([secret.path]) }
+                        secretButtons(secret)
                     }
                     .disabled(model.vaultBusy != nil)
                 }
             } else if let busy = model.vaultBusy {
                 Text("Touch ID for \(busy)…").foregroundStyle(.secondary)
             } else {
-                Text("Select a secret. Every read or change is its own Touch ID; nothing here rides the service session.")
+                Text(Format.vaultSelectHint)
                     .font(.subheadline).foregroundStyle(.secondary)
             }
         }
@@ -288,21 +281,6 @@ struct VaultView: View {
             Spacer()
             Button("Hide", action: actions.hideReveal)
         }
-    }
-
-    @ViewBuilder private func rowMenu(_ secret: VaultSecret) -> some View {
-        Button("Reveal for \(StatusItemController.revealSeconds)s") { actions.reveal(secret.path) }
-        Button("Copy to Clipboard") { actions.copy(secret.path) }
-        Divider()
-        Button("Replace…") { actions.openSheet(replaceSheet(secret)) }
-        Button("History…") { actions.openSheet(.history(path: secret.path)) }
-        Divider()
-        Button("Delete…") { actions.delete([secret.path]) }
-    }
-
-    /// A linked secret is replaced with another link; a value with a value.
-    private func replaceSheet(_ secret: VaultSecret) -> VaultSheet {
-        secret.isLinked ? .link(group: secret.group, replacing: secret.path) : .add(group: secret.group, replacing: secret.path)
     }
 }
 
@@ -343,4 +321,10 @@ struct VaultActions {
     var rekey: () -> Void = {}
     var compareDuplicates: () -> Void = {}
     var pruneDuplicates: () -> Void = {}
+    /// Values out of the vault into plain settings, after the sheet asked.
+    var moveOut: ([String]) -> Void = { _ in }
+    /// A setting into the vault: its Touch ID is the question.
+    var moveIn: (String) -> Void = { _ in }
+    /// `jit migrate settings`, after the sheet asked.
+    var checkSettings: () -> Void = {}
 }

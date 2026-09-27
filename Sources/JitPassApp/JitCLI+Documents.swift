@@ -14,8 +14,17 @@ extension JitCLI {
     /// that failed but still wrote its document returns it — the partial
     /// result is real, and its errors are in the report; only a run that
     /// wrote no document is a failure here.
-    static func migrate(_ paths: [String]) -> Result<MigrateReport, Error> {
-        document(["migrate"] + paths + ["--yes", "--format", "json"], parse: MigrateReport.parse)
+    /// `flags` carry the lines the user moved on the Protect sheet
+    /// (`ProtectSplit.flags`): `--secret FILE:NAME`, `--setting FILE:NAME`.
+    static func migrate(_ paths: [String], flags: [String] = []) -> Result<MigrateReport, Error> {
+        document(["migrate"] + paths + flags + ["--yes", "--format", "json"], parse: MigrateReport.parse)
+    }
+
+    /// `jit migrate preview <paths> --format json`: jit's split before
+    /// anything moves. Reads files only, never the vault, never prompts. An
+    /// engine without it fails here, and Protect asks the old question.
+    static func migratePreview(_ paths: [String]) -> Result<MigratePreview, Error> {
+        dryRun(MigratePreview.arguments(for: paths), parse: MigratePreview.parse)
     }
 
     /// `jit migrate redact <files> --line N --yes --format json`: tokens the

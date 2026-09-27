@@ -12,6 +12,9 @@ public struct MigrateReport: Codable, Sendable, Equatable {
     public var applied: Bool
     /// Variable names this run stored, once each: "NOTION_TOKEN".
     public var vaulted: [String]
+    /// The .env variables kept as plain settings beside the vault, as
+    /// "profile/NAME". Empty from an engine older than the split.
+    public var settings: [String] = []
     public var caches: Caches
     public var errors: [String]
     /// The text output the run would have printed.
@@ -47,13 +50,37 @@ public struct MigrateReport: Codable, Sendable, Equatable {
         }
     }
 
-    public init(targets: [String], applied: Bool, vaulted: [String], caches: Caches, errors: [String], report: String) {
+    enum CodingKeys: String, CodingKey {
+        case targets, applied, vaulted, settings, caches, errors, report
+    }
+
+    public init(
+        targets: [String],
+        applied: Bool,
+        vaulted: [String],
+        settings: [String] = [],
+        caches: Caches,
+        errors: [String],
+        report: String
+    ) {
         self.targets = targets
         self.applied = applied
         self.vaulted = vaulted
+        self.settings = settings
         self.caches = caches
         self.errors = errors
         self.report = report
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        targets = try container.decode([String].self, forKey: .targets)
+        applied = try container.decode(Bool.self, forKey: .applied)
+        vaulted = try container.decode([String].self, forKey: .vaulted)
+        settings = try container.decodeIfPresent([String].self, forKey: .settings) ?? []
+        caches = try container.decode(Caches.self, forKey: .caches)
+        errors = try container.decode([String].self, forKey: .errors)
+        report = try container.decode(String.self, forKey: .report)
     }
 
     /// Parses the document out of what the command printed. Anything

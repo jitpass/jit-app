@@ -166,6 +166,9 @@ final class MenuModel: ObservableObject {
     /// A one-line confirmation ("copied, clears in 45s") that clears itself.
     @Published var vaultNotice: String?
     @Published var vaultSheet: VaultSheet?
+    /// `jit vault settings`: the plain settings beside the vault. Nil from
+    /// an engine without them.
+    @Published var vaultSettings: VaultSettingsListing?
     /// The one value on screen, while it is. The String here is the copy the
     /// app cannot wipe (see docs/design/vault-window.md §3a); it exists for
     /// the countdown and is dropped with the reveal. The bytes behind it are
@@ -336,6 +339,10 @@ enum VaultSheet: Identifiable, Equatable {
     case orphans
     /// The duplicates comparison, after its Touch IDs.
     case duplicates
+    /// Move Out of Vault's question: these values become plain settings.
+    case moveOut(paths: [String])
+    /// The cleanup for profiles protected before settings stayed plain.
+    case checkSettings
 
     var id: String {
         switch self {
@@ -345,6 +352,8 @@ enum VaultSheet: Identifiable, Equatable {
         case .maintenance: "maintenance"
         case .orphans: "orphans"
         case .duplicates: "duplicates"
+        case let .moveOut(paths): "moveout:" + paths.joined(separator: ",")
+        case .checkSettings: "checksettings"
         }
     }
 }

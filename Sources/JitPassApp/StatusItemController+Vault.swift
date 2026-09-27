@@ -48,7 +48,10 @@ extension StatusItemController {
             importVault: { [weak self] in self?.importVault() },
             rekey: { [weak self] in self?.rekeyVault() },
             compareDuplicates: { [weak self] in self?.compareDuplicates() },
-            pruneDuplicates: { [weak self] in self?.pruneDuplicates() }
+            pruneDuplicates: { [weak self] in self?.pruneDuplicates() },
+            moveOut: { [weak self] paths in self?.moveSettings(out: true, paths) },
+            moveIn: { [weak self] path in self?.moveSettings(out: false, [path]) },
+            checkSettings: { [weak self] in self?.checkSettings() }
         )
     }
 
@@ -80,6 +83,33 @@ extension StatusItemController {
         } catch {
             model.vaultMessage = Format.error(error)
         }
+        // An engine without settings answers with an error: no section.
+        model.vaultSettings = try? JitCLI.vaultSettings().get()
+    }
+
+    /// Move Out of Vault / Move to Vault (design/secrets-only-vault.md).
+    /// jit asks its own Touch ID, naming the value; the value never passes
+    /// through here, only where it is kept changes.
+    private func moveSettings(out: Bool, _ paths: [String]) {
+        guard !paths.isEmpty else {
+            return
+        }
+        hideReveal()
+        let label = paths.count == 1 ? paths[0] : "\(paths.count) values"
+        runVault(label, work: { JitCLI.moveSettings(out: out, paths) }, then: { [weak self] result in
+            self?.model.vaultSheet = nil
+            self?.model.scanStale = true
+            self?.notice(Format.moved(result, out: out))
+        })
+    }
+
+    /// The cleanup: every entry protected before settings stayed plain,
+    /// read with one Touch ID, and the settings among them moved out.
+    private func checkSettings() {
+        runVault("the old profiles", work: { JitCLI.migrateSettings() }, then: { [weak self] result in
+            self?.model.vaultSheet = nil
+            self?.notice(Format.checkedSettings(result))
+        })
     }
 
     /// After an action outside this window wrote the vault: the listing

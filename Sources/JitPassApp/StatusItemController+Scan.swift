@@ -299,6 +299,32 @@ extension StatusItemController {
         // before Touch ID — the fix for "Protect cleared my AI-cache
         // alerts" (design/scan-and-protect.md D7). No scan runs here.
         let copies = (model.scan ?? model.macScan)?.copies(from: plan.migrate) ?? []
+        // jit's split first (design/secrets-only-vault.md): the sheet shows
+        // what goes to the vault and what stays, and a line the user moves
+        // goes to migrate as a flag. An engine without `migrate preview`
+        // gets the question it always had.
+        if !plan.migrate.isEmpty, case let .success(preview) = JitCLI.migratePreview(plan.migrate) {
+            let home = FileManager.default.homeDirectoryForCurrentUser.path
+            var chosen: ProtectSplit?
+            let yes = ModalHost.ask(title: "Protect") { finish in
+                ProtectSheetView(
+                    split: ProtectSplit(preview: preview),
+                    wraps: plan.wrap,
+                    home: home,
+                    lead: createsVault ? "This Mac has no vault yet, so this creates one first." : nil,
+                    sweep: ScanWording.sweepSentence(copies: copies),
+                    finish: { split in
+                        chosen = split
+                        finish(split != nil)
+                    }
+                )
+            }
+            guard yes, let split = chosen else {
+                return
+            }
+            runProtect(plan, createsVault: createsVault, flags: split.flags, split: split)
+            return
+        }
         let sweep = ScanWording.sweepSentence(copies: copies).map { $0 + "\n\n" } ?? ""
         let alert = NSAlert()
         alert.messageText = plan.count == 1
@@ -313,6 +339,13 @@ extension StatusItemController {
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
+        runProtect(plan, createsVault: createsVault, flags: [], split: nil)
+    }
+
+    /// The confirmed Protect: one migrate for every file, then each wrap, and
+    /// the result as rows. `split` is what the sheet showed, so What Changed
+    /// can say per file what went where.
+    func runProtect(_ plan: ProtectPlan, createsVault: Bool, flags: [String], split: ProtectSplit?) {
         model.findingsOutcome = nil
         // One migrate for every file (one plan, one Touch ID), as a report
         // the banner reads by its fields; then each wrap, whose output is
@@ -322,7 +355,13 @@ extension StatusItemController {
         runTools(
             "scan",
             failed: "Protect",
-            work: { Self.protectWork(createsVault: createsVault, migrate: migrate, wraps: wraps) },
+            work: {
+                Self.protectWork(createsVault: createsVault, migrate: migrate, flags: flags, wraps: wraps).map { run in
+                    var run = run
+                    run.split = split
+                    return run
+                }
+            },
             then: { [weak self] run in
                 guard let self else {
                     return

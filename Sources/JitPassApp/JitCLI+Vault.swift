@@ -30,6 +30,25 @@ extension JitCLI {
         }
     }
 
+    /// `jit vault settings --format json`: the plain settings beside the
+    /// vault, values included (they are plain text, D3). Prompt-free.
+    static func vaultSettings() -> Result<VaultSettingsListing, Error> {
+        dryRun(VaultSettingsListing.arguments, parse: VaultSettingsListing.parse)
+    }
+
+    /// `jit vault move-out|move-in <paths> --yes --format json`: its own
+    /// Touch ID, asked by jit, naming the value. `--yes` only after the
+    /// window has asked the same question.
+    static func moveSettings(out: Bool, _ paths: [String]) -> Result<SettingMoveResult, Error> {
+        document(SettingMoveResult.arguments(out: out, paths: paths), parse: SettingMoveResult.parse)
+    }
+
+    /// `jit migrate settings --yes --format json`: one Touch ID, the old
+    /// profiles read and their settings moved out.
+    static func migrateSettings() -> Result<MigrateSettingsResult, Error> {
+        document(MigrateSettingsResult.arguments, parse: MigrateSettingsResult.parse)
+    }
+
     /// `jit profile attach --dry-run --format json <config>` (jit 2.0+).
     static func profileAttachPlan(_ config: String) -> Result<ProfileAttachPlan, Error> {
         dryRun(ProfileAttachPlan.arguments(for: config), parse: ProfileAttachPlan.parse)
