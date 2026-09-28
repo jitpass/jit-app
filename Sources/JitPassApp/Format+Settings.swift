@@ -97,6 +97,15 @@ extension Format {
         return "Waiting for Touch ID to \(verb) \(name)…"
     }
 
+    /// A cancelled Touch ID, under its row: what did not happen, in grey.
+    static func vaultCancelled(_ verb: String) -> String {
+        switch verb {
+        case "reveal": "Not revealed"
+        case "copy": "Not copied"
+        default: "Nothing changed"
+        }
+    }
+
     static let vaultSettingsOnlyDeleteHelp = "This profile holds only plain settings. They are removed with their project, "
         + "or one at a time with Move to Vault; jit has no command yet to delete them on their own."
 

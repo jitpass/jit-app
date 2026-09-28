@@ -336,6 +336,7 @@ extension StatusItemController {
         model.vaultBusyVerb = verb
         model.vaultMessage = nil
         model.vaultFailedFor = nil
+        model.vaultCancelled = nil
         model.vaultNotice = nil
         Task.detached {
             let result = work()
@@ -354,9 +355,15 @@ extension StatusItemController {
                         model.cli = JitCLI.status()
                     }
                 case let .failure(error):
-                    vaultLog.error("vault op failed for \(label, privacy: .public): \(Self.describeVault(error), privacy: .public)")
-                    model.vaultMessage = Self.describeVault(error)
+                    let said = Self.describeVault(error)
                     model.vaultFailedFor = label
+                    if TouchIDAnswer.wasCancelled(said) {
+                        // The person said no: nothing failed.
+                        model.vaultCancelled = verb ?? ""
+                    } else {
+                        vaultLog.error("vault op failed for \(label, privacy: .public): \(said, privacy: .public)")
+                        model.vaultMessage = said
+                    }
                 }
             }
         }

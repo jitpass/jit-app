@@ -58,6 +58,8 @@ extension VaultView {
             RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: path)).padding(.top, Win.s2)
         } else if let message = model.vaultMessage, model.vaultFailedFor == path {
             RowState.failure(message).padding(.top, Win.s2)
+        } else if let verb = model.vaultCancelled, model.vaultFailedFor == path {
+            RowState.note(Format.vaultCancelled(verb)).padding(.top, Win.s2)
         }
     }
 
@@ -241,6 +243,11 @@ enum RowState {
             Text(text).font(Win.rowFact).foregroundStyle(.primary)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true).help(text)
         }
+    }
+
+    /// A plain word under the row, no dot: nothing went wrong.
+    static func note(_ text: String) -> some View {
+        Text(text).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1)
     }
 
     static func done(_ text: String) -> some View {

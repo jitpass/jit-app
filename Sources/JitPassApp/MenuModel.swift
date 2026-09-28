@@ -169,6 +169,9 @@ final class MenuModel: ObservableObject {
     @Published var vaultMessage: String?
     /// The path (or action) the failure in `vaultMessage` was for.
     @Published var vaultFailedFor: String?
+    /// The verb whose Touch ID the person cancelled on `vaultFailedFor`'s
+    /// row: said there in grey ("Not revealed"), never as a failure.
+    @Published var vaultCancelled: String?
     /// A one-line confirmation ("copied, clears in 45s") that clears itself.
     @Published var vaultNotice: String?
     @Published var vaultSheet: VaultSheet?
