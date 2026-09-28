@@ -181,8 +181,22 @@ extension Format {
         "Named like settings · \(n)"
     }
 
-    static func settingsCheckTitle(moves: Int) -> String {
-        moves == 0 ? "Every one is a secret: nothing to move" : "\(moves) of them are settings"
+    /// After the check. Nothing to move says how many stay, not that
+    /// every one is a secret: some are settings jit kept for a reason.
+    static func settingsCheckTitle(moves: Int, stays: Int) -> String {
+        moves == 0 ? "Nothing to move: all \(stays) stay in the vault" : "\(moves) of them are settings"
+    }
+
+    /// Why an entry stays, beside its name.
+    static func settingStay(_ reason: SettingStayReason) -> String {
+        switch reason {
+        case .secret: "a secret"
+        case .looksSecret: "looks like a secret"
+        case .pointerFile: "a setting, but a pointer file names it"
+        case .noProfile: "a setting no profile uses"
+        case .unreadable: "couldn't be read"
+        case let .other(words): words
+        }
     }
 
     static let settingsCheckNote = "This is what jit read. Settings leave the vault and become plain; files keep working. "

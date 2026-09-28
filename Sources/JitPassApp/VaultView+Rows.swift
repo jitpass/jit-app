@@ -246,17 +246,23 @@ enum RowState {
         }
     }
 
+    /// jit's words, or the plain sentence for a refusal only the installed
+    /// JitPass can get past (VaultFailure); jit's own words in the tooltip.
     static func failure(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: Win.s3) {
             StateDot(tint: Color(StatusMark.red))
-            Text(text).font(Win.rowFact).foregroundStyle(.primary)
+            Text(VaultFailure.plain(text)).font(Win.rowFact).foregroundStyle(.primary)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true).help(text)
         }
     }
 
-    /// A plain word under the row, no dot: nothing went wrong.
+    /// A plain word under the row, with a grey dot that ties it to the
+    /// row: nothing went wrong.
     static func note(_ text: String) -> some View {
-        Text(text).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1)
+        HStack(alignment: .firstTextBaseline, spacing: Win.s3) {
+            StateDot(tint: Color.secondary)
+            Text(text).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1)
+        }
     }
 
     static func done(_ text: String) -> some View {

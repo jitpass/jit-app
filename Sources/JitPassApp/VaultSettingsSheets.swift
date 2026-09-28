@@ -48,9 +48,11 @@ struct MoveOutSheet: View {
                     Button("Cancel", action: actions.closeSheet).buttonStyle(AppButton(kind: .primary))
                         .keyboardShortcut(.defaultAction)
                     Button("Move Out") { actions.moveOut(paths) }.buttonStyle(AppButton())
+                        .disabled(SheetState.blocked(model, owner: VaultCommandLabel.move(paths)))
                 } else {
                     Button("Cancel", action: actions.closeSheet).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
                     Button("Move Out") { actions.moveOut(paths) }.buttonStyle(AppButton(kind: .primary))
+                        .disabled(SheetState.blocked(model, owner: VaultCommandLabel.move(paths)))
                         .keyboardShortcut(.defaultAction)
                 }
             }
@@ -150,11 +152,18 @@ struct CheckSettingsSheet: View {
     @ViewBuilder private func checked(_ check: MigrateSettingsResult) -> some View {
         let verdict = check.verdict(unchecked: unchecked.map(\.path))
         let moves = MigrateSettingsResult.byProfile(verdict.moves)
-        let stays = MigrateSettingsResult.byProfile(verdict.stays)
+        // Each staying name with why it stays, one per line.
+        let stays = MigrateSettingsResult.byProfile(verdict.stays).map { profile, names in
+            (profile, names.map { name in
+                name + " · " + Format.settingStay(check.stayReason(profile + "/" + name))
+            })
+        }
         VStack(alignment: .leading, spacing: Win.s1) {
-            Text(Format.settingsCheckTitle(moves: verdict.moves.count)).font(Win.cardTitle)
-            Text(Format.settingsCheckNote).font(Win.sub).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(Format.settingsCheckTitle(moves: verdict.moves.count, stays: verdict.stays.count)).font(Win.cardTitle)
+            if !verdict.moves.isEmpty {
+                Text(Format.settingsCheckNote).font(Win.sub).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         if !moves.isEmpty {
             Text(Format.settingsMovesHeading(verdict.moves.count)).font(Win.eyebrow).foregroundStyle(.secondary)
@@ -162,17 +171,17 @@ struct CheckSettingsSheet: View {
         }
         if !stays.isEmpty {
             Text(Format.settingsStaysHeading(verdict.stays.count)).font(Win.eyebrow).foregroundStyle(.secondary)
-            list(stays)
+            list(stays, separator: "\n")
         }
     }
 
     /// Up to five profiles show in full (about 50pt a row): a list this
     /// short never hides its last row behind a scroll. More scroll.
-    private func list(_ groups: [(String, [String])]) -> some View {
+    private func list(_ groups: [(String, [String])], separator: String = ", ") -> some View {
         AppPlainCard {
             CappedScroll(maxHeight: Design.Sheet.listMax) {
                 ForEach(Array(groups.enumerated()), id: \.element.0) { index, item in
-                    AppRow(name: item.0, fact: item.1.joined(separator: ", "), wraps: true, last: index == groups.count - 1) {}
+                    AppRow(name: item.0, fact: item.1.joined(separator: separator), wraps: true, last: index == groups.count - 1) {}
                 }
             }
         }
@@ -186,9 +195,11 @@ struct CheckSettingsSheet: View {
             Button("Cancel", action: close).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
             if let check = model.settingsCheck {
                 Button(check.moved.isEmpty ? "Keep Them All" : "Move These \(check.moved.count)", action: actions.checkSettings)
+                    .disabled(SheetState.blocked(model, owner: VaultCommandLabel.settingsCheck))
                     .buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
             } else {
                 Button("Check Which Move…", action: actions.previewSettings)
+                    .disabled(SheetState.blocked(model, owner: VaultCommandLabel.settingsCheck))
                     .buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
             }
         }
@@ -206,6 +217,13 @@ struct CheckSettingsSheet: View {
 /// up on a failure, and the row it was for is behind it, so the sheet has
 /// to say it; saying nothing read as a button that does nothing.
 struct SheetState: View {
+    /// This sheet's command failed in a way pressing it again cannot fix:
+    /// only the installed JitPass's jit can reach the vault's key.
+    static func blocked(_ model: MenuModel, owner: String) -> Bool {
+        VaultCommandLabel.belongs(busy: model.vaultBusy, endedFor: model.vaultFailedFor, to: owner)
+            && model.vaultBusy == nil && model.vaultMessage.map(VaultFailure.needsInstalledApp) == true
+    }
+
     @ObservedObject var model: MenuModel
     /// The label the sheet's command runs under (VaultCommandLabel): what
     /// another command left behind, a reveal's cancel, is not this sheet's.
