@@ -112,7 +112,7 @@ struct VaultView: View {
                     }
                     // The dot's colour is a fact about the profile's file;
                     // the tooltip says which, in words.
-                    .help(Format.vaultOriginHelp(group, exists: group.origin.map(VaultOrigin.exists)))
+                    .help(Format.vaultOriginHelp(group, exists: group.origin.map(VaultOrigin.exists), users: profileUsers(group)))
                     .tag(group.name)
                 }
                 .listStyle(.sidebar)

@@ -85,6 +85,7 @@ extension StatusItemController {
         }
         // An engine without settings answers with an error: no section.
         model.vaultSettings = try? JitCLI.vaultSettings().get()
+        refreshVaultUsers()
     }
 
     /// Move Out of Vault / Move to Vault (design/secrets-only-vault.md).
@@ -133,6 +134,7 @@ extension StatusItemController {
                     if let listing {
                         self?.model.vaultListing = listing
                     }
+                    self?.refreshVaultUsers()
                 }
             }
         }

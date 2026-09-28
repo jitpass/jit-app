@@ -178,6 +178,9 @@ final class MenuModel: ObservableObject {
     /// `jit vault settings`: the plain settings beside the vault. Nil from
     /// an engine without them.
     @Published var vaultSettings: VaultSettingsListing?
+    /// Who uses each secret, from any project folder (`vault list --users`),
+    /// kept apart from the listing so a quick reload does not drop it.
+    @Published var vaultUsers: VaultUsersListing?
     /// The one value on screen, while it is. The String here is the copy the
     /// app cannot wipe (see docs/design/vault-window.md §3a); it exists for
     /// the countdown and is dropped with the reveal. The bytes behind it are

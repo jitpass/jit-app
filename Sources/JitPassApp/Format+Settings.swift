@@ -118,7 +118,20 @@ extension Format {
 extension Format {
     /// Green: from a file still on disk. Amber: that file is gone, the one
     /// state to act on. Grey: no file on record, so nothing to check.
-    static func vaultOriginHelp(_ group: VaultGroup, exists: Bool?) -> String {
+    /// "used by the mcp-tickets profile in ~/work/ops", or several by name;
+    /// nil when no profile names them.
+    static func vaultUsedBy(_ users: [VaultSecretUser]) -> String? {
+        let named = users.compactMap(\.profile)
+        guard let first = users.first, let name = first.profile else {
+            return nil
+        }
+        if named.count == 1 {
+            return "used by the \(name) profile" + (first.project.map { " in " + home($0) } ?? "")
+        }
+        return "used by the " + named.joined(separator: ", ") + " profiles"
+    }
+
+    static func vaultOriginHelp(_ group: VaultGroup, exists: Bool?, users: [VaultSecretUser] = []) -> String {
         if let origin = group.origin {
             return exists == true
                 ? "From \(origin), still on this Mac."
@@ -126,6 +139,9 @@ extension Format {
         }
         if group.secrets.isEmpty {
             return "Plain settings only: no file on record to check."
+        }
+        if let used = vaultUsedBy(users) {
+            return "No file on record to check; " + used + "."
         }
         if group.secrets.allSatisfy({ $0.origin == nil }) {
             return "Set by hand: no file on record to check."

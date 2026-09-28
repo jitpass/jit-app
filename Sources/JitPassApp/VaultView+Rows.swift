@@ -156,12 +156,21 @@ extension VaultView {
             if !users.isEmpty {
                 parts.append("used by " + users.joined(separator: ", "))
             }
+        } else if let used = Format.vaultUsedBy(profileUsers(group)) {
+            // No file on record, but a profile names them: that is where
+            // they are used, which is what "set by hand" failed to say.
+            parts.append(used)
         } else if group.secrets.allSatisfy({ $0.origin == nil }) {
             parts.append("set by hand")
         } else {
             parts.append("from several files")
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// The profiles, in any project folder, that name this profile's secrets.
+    func profileUsers(_ group: VaultGroup) -> [VaultSecretUser] {
+        model.vaultUsers?.profiles(for: group.secrets.map(\.path)) ?? []
     }
 
     /// The selected profile's plain settings, beside the vault.
