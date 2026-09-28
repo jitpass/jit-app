@@ -39,8 +39,16 @@ public enum JobsWording {
             parts.append(contentsOf: ran(job, ago: ago))
         }
         parts.append(asks(job))
-        if let count = job.secrets?.count, count > 0 {
+        let secrets = job.secrets ?? []
+        let gone = secrets.filter { $0.gone == true }.map(\.name)
+        let count = secrets.count - gone.count
+        if count > 0 {
             parts.append(count == 1 ? "1 secret" : "\(count) secrets")
+        }
+        // A secret removed from the vault no longer stops a job: it runs
+        // without it, and the row says so.
+        if !gone.isEmpty {
+            parts.append(gone.joined(separator: ", ") + " left out, no longer in the vault")
         }
         return parts.joined(separator: " · ")
     }
