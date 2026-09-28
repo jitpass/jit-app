@@ -151,6 +151,7 @@ extension StatusItemController {
         doctorProgress.presence = (target.button?.presence ?? false) || action.presence
         Task.detached {
             var failure: String?
+            var failedOutput: String?
             var output: [String] = []
             var completed = 0
             for step in steps {
@@ -159,9 +160,11 @@ extension StatusItemController {
                     output.append(outcome.output)
                     if outcome.status != 0 {
                         failure = DoctorFailureLine.make(output: outcome.output, argv: step.argv, status: outcome.status)
+                        failedOutput = outcome.output
                     }
                 case let .failure(error):
                     failure = "jit \(step.argv.joined(separator: " ")): \(Self.describe(error))"
+                    failedOutput = failure
                 }
                 if failure != nil {
                     break
@@ -170,7 +173,7 @@ extension StatusItemController {
                     completed += 1
                 }
             }
-            let result = DoctorRunResult(failure: failure, output: output, completed: completed)
+            let result = DoctorRunResult(failure: failure, output: output, completed: completed, failedOutput: failedOutput)
             await MainActor.run { [weak self] in
                 self?.finishAction(result, action: action, target: target)
             }
@@ -189,7 +192,7 @@ extension StatusItemController {
             let said = result.failure == nil || !text.isEmpty ? text : (result.failure ?? "")
             let outcome = card.outcome(
                 key: target.key, button: button, completed: result.completed, output: said, failed: result.failure != nil,
-                subject: target.subject
+                subject: target.subject, failedOutput: result.failedOutput
             )
             doctorProgress.outcome = outcome
             if outcome.state == .done {
@@ -321,4 +324,6 @@ struct DoctorRunResult: Sendable {
     var failure: String?
     var output: [String]
     var completed: Int
+    /// What the failing step alone printed, nil when none failed.
+    var failedOutput: String?
 }

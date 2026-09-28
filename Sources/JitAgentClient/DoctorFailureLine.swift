@@ -9,16 +9,29 @@ public enum DoctorFailureLine {
     /// last line alone was often only the end of a sentence (a bare
     /// command path). Named after the step unless jit already named it.
     public static func make(output: String, argv: [String], status: Int32) -> String {
-        let text = output.split(whereSeparator: \.isNewline)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
+        // jit's sentence, not the usage block cobra prints after it, nor
+        // its "Run 'jit … --help'" hint.
+        var lines: [String] = []
+        for raw in output.split(whereSeparator: \.isNewline) {
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            if line.hasPrefix("Usage:") || line.hasPrefix("Run 'jit") {
+                break
+            }
+            if !line.isEmpty {
+                lines.append(line)
+            }
+        }
+        let text = lines.joined(separator: " ")
         let command = "jit " + argv.joined(separator: " ")
         guard !text.isEmpty else {
             return command + ": exit \(status)"
         }
-        return text.hasPrefix("jit ") ? text : command + ": " + text
+        let line = text.hasPrefix("jit ") ? text : command + ": " + text
+        return line.count > maxLength ? String(line.prefix(maxLength - 1)) + "…" : line
     }
+
+    /// The header holds one sentence or two, not a log.
+    public static let maxLength = 300
 
     /// jit refused because only the signed jit inside JitPass.app can reach
     /// the Secure Enclave: running the same step again cannot change that.
