@@ -113,3 +113,23 @@ extension Format {
         count(n, "setting") + ", no secrets"
     }
 }
+
+/// The Vault sidebar's dot, in words (its tooltip).
+extension Format {
+    /// Green: from a file still on disk. Amber: that file is gone, the one
+    /// state to act on. Grey: no file on record, so nothing to check.
+    static func vaultOriginHelp(_ group: VaultGroup, exists: Bool?) -> String {
+        if let origin = group.origin {
+            return exists == true
+                ? "From \(origin), still on this Mac."
+                : "From \(origin), which is gone. Maintenance… finds profiles left from deleted files."
+        }
+        if group.secrets.isEmpty {
+            return "Plain settings only: no file on record to check."
+        }
+        if group.secrets.allSatisfy({ $0.origin == nil }) {
+            return "Set by hand: no file on record to check."
+        }
+        return "From several files: no one file to check."
+    }
+}

@@ -101,7 +101,7 @@ struct VaultView: View {
             } else {
                 List(groups, selection: $selectedGroup) { group in
                     HStack(spacing: Win.s4) {
-                        Circle().fill(dotColor(group)).frame(width: 7, height: 7)
+                        Circle().fill(dotColor(group)).frame(width: Design.Size.dot, height: Design.Size.dot)
                         Text(group.name).lineLimit(1).truncationMode(.middle)
                         Spacer()
                         if group.hasLink {
@@ -110,6 +110,9 @@ struct VaultView: View {
                         }
                         sidebarCount(group)
                     }
+                    // The dot's colour is a fact about the profile's file;
+                    // the tooltip says which, in words.
+                    .help(Format.vaultOriginHelp(group, exists: group.origin.map(VaultOrigin.exists)))
                     .tag(group.name)
                 }
                 .listStyle(.sidebar)
