@@ -303,6 +303,7 @@ extension StatusItemController {
         if let report {
             model.doctor = report
             model.doctorAt = Date()
+            model.brokenProfiles = report.brokenProfiles
         }
         // Only the check requested after an action ends its busy state:
         // one that started earlier (a panel refresh) may land while the

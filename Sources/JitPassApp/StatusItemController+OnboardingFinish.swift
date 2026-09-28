@@ -230,9 +230,7 @@ extension StatusItemController {
                 onboardingWindow.reclaimFocus()
                 switch outcome {
                 case .success:
-                    JitCLI.forgetStatus()
-                    model.cli = JitCLI.status()
-                    render()
+                    refreshCLI()
                     onboardingRescanAfterUndo()
                 case let .failure(error):
                     onboarding.restoreError = Self.describeTools(error)

@@ -129,6 +129,8 @@ final class StatusItemController {
     }()
 
     private var tick: Timer?
+    var lastPoll = Date.distantPast
+    var profilesGeneration = 0
     private var scanCheck: Timer?
     var updateCheck: Timer?
     /// The minute timer behind the session notifications.
@@ -162,7 +164,7 @@ final class StatusItemController {
         resync()
         openStream()
         tick = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.pollStatus() }
+            Task { @MainActor in self?.tickStatus() }
         }
         model.fullDiskAccess = FullDiskAccess.granted()
         loadVaultKeyPreferences()
@@ -183,7 +185,7 @@ final class StatusItemController {
     /// only ever as fresh as its last run.
     func resync() {
         pollStatus()
-        model.cli = JitCLI.status()
+        refreshCLI(fresh: false)
         reloadToolsIfStale()
         guard case .notRunning = model.state else {
             model.grants = (try? client.grants()) ?? []
@@ -197,22 +199,6 @@ final class StatusItemController {
         model.consentRequests = []
         model.jobs = []
         model.jobProposals = []
-        render()
-    }
-
-    func pollStatus() {
-        do {
-            let status = try client.status()
-            model.state = SessionState(response: status)
-            model.consentEnabled = status.consentEnabled
-            model.ttlSeconds = status.ttlSeconds
-            model.serviceExecutable = status.executablePath
-        } catch AgentClientError.notRunning {
-            model.state = .notRunning
-            model.grants = []
-        } catch {
-            // Keep the last known state on a transient error; the next tick retries.
-        }
         render()
     }
 

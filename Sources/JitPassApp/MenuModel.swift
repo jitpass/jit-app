@@ -339,6 +339,18 @@ final class MenuModel: ObservableObject {
 
     // The Findings row, named for the window it opens (a list of what needs you, not a report of what is
     // protected): the count, and the day the schedule last ran. Never a folder's number, never the ledger.
+
+    /// Writes only a changed value. A @Published write redraws every view
+    /// watching this model, changed or not, and the status poll writes
+    /// every second. Returns whether it wrote.
+    @discardableResult
+    func set<Value: Equatable>(_ path: ReferenceWritableKeyPath<MenuModel, Value>, _ value: Value) -> Bool {
+        guard self[keyPath: path] != value else {
+            return false
+        }
+        self[keyPath: path] = value
+        return true
+    }
 }
 
 /// The sheet the Vault window has open, if any.

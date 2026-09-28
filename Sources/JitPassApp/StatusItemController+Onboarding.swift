@@ -242,8 +242,7 @@ extension StatusItemController {
             return
         }
         onboarding.tasks[index].state = .done
-        JitCLI.forgetStatus()
-        model.cli = JitCLI.status()
+        refreshCLI()
         model.scanStale = true
         reloadTools()
         render()
