@@ -115,6 +115,22 @@ final class ScanTiersTests: XCTestCase {
         XCTAssertEqual(r.removingCacheShapes(in: ["/elsewhere"], lines: []).findings.count, 3)
     }
 
+    /// A Protect's rows leave the window when it finishes, not when its
+    /// rescan lands: the file's migrate findings in either spelling, and a
+    /// wrapped tool's. A manual finding in the same file stays.
+    func testAProtectRemovesItsRowsBeforeTheRescan() throws {
+        let home = NSHomeDirectory()
+        let env = finding("e1", type: "env_file_present", path: home + "/billing/.env", remedy: "migrate")
+        let mcp = finding("m1", type: "mcp_config", path: home + "/billing/.env", line: 3, remedy: "manual")
+        let other = finding("o1", type: "env_file_present", path: home + "/notes/.env", remedy: "migrate")
+        let tool = finding("t1", type: "cli_credential", path: home + "/.config/gh/hosts.yml", remedy: "wrap")
+            .replacingOccurrences(of: #""remedy":"wrap""#, with: #""remedy":"wrap","fix_command":"jit wrap gh""#)
+        let r = try report([env, mcp, other, tool])
+        XCTAssertEqual(r.removingProtected(files: ["~/billing/.env"], tools: []).findings.map(\.id), ["m1", "o1", "t1"])
+        XCTAssertEqual(r.removingProtected(files: [home + "/billing/.env"], tools: ["gh"]).findings.map(\.id), ["m1", "o1"])
+        XCTAssertEqual(r.removingProtected(files: [], tools: []).findings.count, 4)
+    }
+
     /// A regular scan finds no vault copies — it does not read the vault —
     /// so the deep scan's stay on the report until the user handles them:
     /// a row goes when its file changed or went, or when a deep scan

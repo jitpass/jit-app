@@ -87,9 +87,14 @@ public enum PanelValue {
 
     /// The lock state lives in the panel's head; the row says whether the
     /// service is there at all — a state word, so it carries the mark:
-    /// green up, red down, since only the user can start it.
-    public static func service(running: Bool) -> Row {
-        running ? Row("running", .green) : Row("not running", .red)
+    /// green up, red down, since only the user can start it. Amber when
+    /// it answers but Doctor says a restart would fix it: an old build,
+    /// a deleted binary.
+    public static func service(running: Bool, needsRestart: Bool = false) -> Row {
+        guard running else {
+            return Row("not running", .red)
+        }
+        return needsRestart ? Row("needs restart", .amber) : Row("running", .green)
     }
 
     public static func grants(active: Int) -> Row {

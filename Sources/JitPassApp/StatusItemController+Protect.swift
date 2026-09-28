@@ -110,6 +110,30 @@ extension StatusItemController {
         }
     }
 
+    /// A Protect moved these files into the vault and wrapped these tools,
+    /// so their rows leave the report on screen now, not when the rescan
+    /// lands a minute later. The rescan confirms.
+    /// Only files the migrate vouches for: one that failed keeps its rows.
+    func settle(after run: ProtectRun) {
+        let files = run.protectedFiles
+        let tools = run.wrapped
+        guard !files.isEmpty || !tools.isEmpty else {
+            return
+        }
+        model.protectedSinceScan.add(files: files, tools: tools, at: Date())
+        model.scan = model.scan?.removingProtected(files: files, tools: tools)
+        model.macScan = model.macScan?.removingProtected(files: files, tools: tools)
+        if let report = model.macScan, let at = model.macScanAt, let kind = model.macScanKind {
+            LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
+        }
+    }
+
+    /// A scan landing: its word stands on what was protected before it
+    /// started, not on what was protected while it ran.
+    func unprotected(_ scanned: ScanReport, startedAt started: Date) -> ScanReport {
+        model.protectedSinceScan.land(scanned, startedAt: started)
+    }
+
     /// After a scheduled scan, under the Settings switch: the same command,
     /// no dialog, its result said once in a notification and in the
     /// Findings banner. Agent caches only, and nothing here ever prompts —

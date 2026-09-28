@@ -27,6 +27,9 @@ public struct DoctorOutcome: Equatable, Sendable {
     /// they used to go: a black pane over a window that already knew.
     public var said: String?
     public var at: Date
+    /// Whether Try Again could help. Not when jit said only the jit inside
+    /// the installed JitPass can do this: the same step fails the same way.
+    public var retryable = true
 
     public init(
         key: String, card: DoctorCard, button: DoctorButton, state: State, title: String, line: String?,
@@ -49,10 +52,12 @@ public struct DoctorOutcome: Equatable, Sendable {
 public extension DoctorCard {
     /// The outcome of `button` on this card (or on its row `key`): how
     /// many of its steps finished, everything jit printed, and whether it
-    /// failed. `subject` names a row instead of the card.
+    /// failed. `subject` names a row instead of the card. `failedOutput` is
+    /// what the failing step alone printed: whether trying again can help
+    /// is decided from it, not from a step before it that succeeded.
     func outcome(
         key: String, button: DoctorButton, completed: Int, output: String, failed: Bool, subject: String? = nil,
-        at: Date = Date()
+        failedOutput: String? = nil, at: Date = Date()
     ) -> DoctorOutcome {
         let total = button.steps.count
         let values = total > 0 && button.steps.allSatisfy {
@@ -94,6 +99,12 @@ public extension DoctorCard {
             let done = values ? "\(completed) of \(total) values set." : "\(completed) of \(total) steps done."
             line = done + (cancelled ? " Touch ID was cancelled for the rest." : "")
         }
-        return DoctorOutcome(key: key, card: self, button: button, state: .failed, title: title, line: line, said: said, at: at)
+        var outcome = DoctorOutcome(key: key, card: self, button: button, state: .failed, title: title, line: line, said: said, at: at)
+        if DoctorFailureLine.needsTheInstalledApp(failedOutput ?? output) {
+            outcome.title = "\(what): not from this copy"
+            outcome.line = "Only the jit inside the installed JitPass can reach this vault's key. Do it from there."
+            outcome.retryable = false
+        }
+        return outcome
     }
 }

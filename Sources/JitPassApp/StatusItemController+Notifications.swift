@@ -29,7 +29,7 @@ extension StatusItemController {
         Notifier.install()
         Notifier.onActivate = { [weak self] target in
             switch target {
-            case .audit: self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "7d"))
+            case .audit: self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "24h", limit: 0))
             case .agents: self?.openAgents()
             case .tools: self?.openTools()
             case .findings: self?.openScan()
@@ -81,14 +81,14 @@ extension StatusItemController {
         Notifier.requestPermission { [weak self] in self?.refreshNotificationPermission() }
     }
 
-    /// `jit audit --kind serve --since 24h`, prompt-free, off the main
-    /// thread: the Mounts row's count, with the live notices whose record
+    /// `jit audit --kind serve --since 7d`, prompt-free, off the main
+    /// thread: the Decoys row's count of the last 24 hours, with the live notices whose record
     /// has not landed yet. The stream keeps it current between reads.
     func refreshDecoyReads() {
         // The week, not the day: the Decoys row and window read the same
         // events, and a file naming a missing secret is a week-old fact.
         let filter = AuditFilter(kinds: ["serve"], since: "7d", limit: 0)
-        let dayAgo = Int64(Date().timeIntervalSince1970) - 86400
+        let dayAgo = Int64(Date().timeIntervalSince1970 - DecoyReport.readWindow)
         Task.detached {
             let report = JitCLI.audit(filter)
             await MainActor.run { [weak self] in

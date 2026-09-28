@@ -20,6 +20,7 @@ final class PanelValueTests: XCTestCase {
             PanelValue.tools(broken: 0, expired: 0, toProtect: 0, wrapped: 3),
             PanelValue.tools(broken: 0, expired: 0, toProtect: 0, wrapped: 0),
             PanelValue.service(running: true), PanelValue.service(running: false),
+            PanelValue.service(running: true, needsRestart: true),
             PanelValue.grants(active: 0), PanelValue.grants(active: 1),
             XCTUnwrap(PanelValue.decoys(files: 3, broken: 1, readsToday: 3)),
             XCTUnwrap(PanelValue.decoys(files: 3, broken: 0, readsToday: 3)),

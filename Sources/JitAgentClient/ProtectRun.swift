@@ -52,6 +52,21 @@ public struct ProtectRun: Sendable, Equatable {
     public var undo: [String] {
         reports.filter(\.applied).flatMap(\.targets)
     }
+
+    /// The files known to be in the vault now, so their rows may leave the
+    /// report before the rescan. A report names its errors for the whole
+    /// run, never per file, so one with any error beyond the agent-cache
+    /// sweep (which leaves the files alone) vouches for none of its
+    /// targets: the rescan decides those.
+    public var protectedFiles: [String] {
+        reports.filter { report in
+            report.applied && report.errors.allSatisfy { $0.hasPrefix(Self.cacheSweepError) }
+        }
+        .flatMap(\.targets)
+    }
+
+    /// How jit words a failure of the sweep that runs after the files moved.
+    static let cacheSweepError = "clearing AI agent caches: "
 }
 
 /// The banner after a Protect, from the run's fields.

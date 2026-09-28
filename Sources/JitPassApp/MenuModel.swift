@@ -37,6 +37,12 @@ final class MenuModel: ObservableObject {
     @Published var previousMacScanAt: Date?
     /// Set when jit changed something (a Protect ran) so the next chance rescans even before the schedule says so.
     @Published var scanStale = false
+    /// The jit the background service runs, from its status: a restart
+    /// from here is offered only when it is the app's own.
+    @Published var serviceExecutable: String?
+    /// What Protects handled that a scan may not have seen yet: a scan
+    /// already running when one finished lands without those rows.
+    var protectedSinceScan = ProtectedSinceScan()
     @Published var scanChoosing = false // New Scan…: the window shows the chooser over its report, which stays
     @Published var scanSchedule: ScanSchedule = .init(
         rawValue: UserDefaults.standard.string(forKey: ScanSchedule.preferenceKey) ?? ""

@@ -80,10 +80,24 @@ public struct DecoyReport: Equatable, Sendable {
 
     public static let lockedWhy = "the vault was locked"
 
+    /// How far back every read count looks: the last 24 hours. The events
+    /// themselves go back a week, because a file naming a missing secret
+    /// is still broken after a day; only the counting is this short.
+    public static let readWindow: TimeInterval = 86400
+
     /// `home` is the user's home directory: serve events name files with
-    /// "~", the registry with the full path.
-    public static func make(mounts: [CLIMount], secrets: [VaultSecret], events: [SessionEvent], home: String) -> DecoyReport {
+    /// "~", the registry with the full path. `readsSince` bounds the read
+    /// counts and the reads list, never the missing-secret check or the
+    /// last real read: those are facts about the whole span given.
+    public static func make(
+        mounts: [CLIMount],
+        secrets: [VaultSecret],
+        events: [SessionEvent],
+        home: String,
+        readsSince: Date? = nil
+    ) -> DecoyReport {
         let serves = events.filter { $0.kind == "serve" }
+        let counted = { (event: SessionEvent) in readsSince.map { event.date >= $0 } ?? true }
         var files = mounts.map { mount -> File in
             let path = mount.path
             let short = abbreviate(path, home: home)
@@ -92,7 +106,7 @@ public struct DecoyReport: Equatable, Sendable {
             let origins = secrets.filter { $0.origin == path || $0.origin == short }.count
             var file = File(path: path, secrets: origins, decoyReads: 0, realReads: 0, lastRead: mount.lastServe?.date)
             for event in serves where (event.labels ?? []).contains(short) {
-                let n = event.count ?? 1
+                let n = counted(event) ? (event.count ?? 1) : 0
                 if event.op == "real" {
                     file.realReads += n
                     if file.lastRealRead.map({ event.date > $0 }) ?? true {
@@ -111,7 +125,7 @@ public struct DecoyReport: Equatable, Sendable {
         files.sort { ($0.missing == nil ? 1 : 0, $0.path) < ($1.missing == nil ? 1 : 0, $1.path) }
 
         var reads: [Read] = []
-        for event in serves.sorted(by: { $0.unixTime > $1.unixTime }) {
+        for event in serves.filter(counted).sorted(by: { $0.unixTime > $1.unixTime }) {
             let real = event.op == "real"
             let why = reason(event)
             let reader = event.by.flatMap { AuditReport.program($0) }

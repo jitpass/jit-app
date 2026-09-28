@@ -25,7 +25,9 @@ struct DoctorView: View {
     @State private var tab = DoctorTab.all
 
     var body: some View {
-        let board = model.doctor.map { DoctorBoard.make($0, offersVaultKeyMove: model.offersVaultKeyMove) }
+        let board = model.doctor.map {
+            DoctorBoard.make($0, offersVaultKeyMove: model.offersVaultKeyMove).restartingElsewhere(model.serviceElsewhere)
+        }
         VStack(alignment: .leading, spacing: 0) {
             header(board)
             if let board, board.isEmpty, progress.outcome == nil, board.showing(tab) != .ignored {
@@ -203,7 +205,7 @@ struct DoctorView: View {
         if let outcome = progress.outcome, outcome.key == key {
             return outcome.state == .done
                 ? .done(title: outcome.title, line: outcome.line)
-                : .failed(title: outcome.title, line: outcome.line, said: outcome.said, retry: outcome.button)
+                : .failed(title: outcome.title, line: outcome.line, said: outcome.said, retry: outcome.retryable ? outcome.button : nil)
         }
         if model.doctorBusy == key {
             return .working(presence: progress.presence)

@@ -66,7 +66,8 @@ struct DecoysView: View {
             mounts: model.cli?.protectedFiles ?? [],
             secrets: model.vaultListing?.secrets ?? [],
             events: model.decoyEvents,
-            home: FileManager.default.homeDirectoryForCurrentUser.path
+            home: FileManager.default.homeDirectoryForCurrentUser.path,
+            readsSince: Date().addingTimeInterval(-DecoyReport.readWindow)
         )
     }
 
@@ -225,7 +226,7 @@ struct DecoysView: View {
     private func readsCard(_ report: DecoyReport) -> some View {
         AppCard(
             eyebrow: "Reads", eyebrowTint: Color(report.decoyReads > 0 ? StatusMark.amber : StatusMark.green),
-            title: Format.count(report.decoyReads, "decoy read") + " in 7 days · " + Format.count(
+            title: Format.count(report.decoyReads, "decoy read") + " in the last 24 hours · " + Format.count(
                 report.realReads,
                 "real read",
                 plural: "real reads"

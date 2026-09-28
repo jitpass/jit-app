@@ -322,6 +322,9 @@ public struct AgentResponse: Codable, Sendable {
     /// jit (a Secure Enclave key it cannot reach): jit's sentence, shown
     /// in place of "its key is deleted". nil otherwise (jitpass/jit#168).
     public var keyNote: String?
+    /// The service's own executable, on `status` (jit 0.82+): which copy
+    /// of jit it runs. Nil from an older service.
+    public var executablePath: String?
 
     public init(ok: Bool) {
         self.ok = ok
@@ -339,5 +342,6 @@ public struct AgentResponse: Codable, Sendable {
         case consentEnabled = "consent_enabled"
         case jobs, preview, proposals
         case keyNote = "key_note"
+        case executablePath = "executable_path"
     }
 }

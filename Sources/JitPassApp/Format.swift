@@ -196,4 +196,12 @@ enum Format {
     static func event(_ event: SessionEvent) -> String {
         AuditReport.title(for: event) + " · " + clock(event.date)
     }
+
+    /// The panel's Restart Service, asked before it runs: the cost first.
+    static let restartServiceQuestion = (
+        title: "Restart the service?",
+        message: "The vault locks when the service restarts. Unlock it again afterwards."
+    )
+
+    static let restartServiceBusy = "Doctor is still checking. Press Restart Service again when it finishes."
 }

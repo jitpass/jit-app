@@ -245,6 +245,16 @@ public struct DoctorReport: Codable, Sendable, Equatable {
     /// so they count toward nothing; empty from an older jit.
     public var ignored: [DoctorItem]
 
+    /// The service finding a restart fixes: a build the CLI moved past,
+    /// a binary an upgrade deleted, a service that stopped answering.
+    /// Never a socket a sandbox blocks, whose fix is not a restart and
+    /// whose action names none.
+    public var serviceRestart: DoctorItem? {
+        (problems + warnings).first { item in
+            item.kind == "service" && item.commands.contains { $0.hasPrefix("jit service restart") }
+        }
+    }
+
     enum CodingKeys: String, CodingKey {
         case ok, tool, problems, warnings, ignored
         case schemaVersion = "schema_version"
