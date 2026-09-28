@@ -52,6 +52,14 @@ public struct ScanReviewResult: Decodable, Sendable, Equatable {
 }
 
 public enum ScanReview {
+    /// The findings a review run marked: those whose file and line jit
+    /// names in its answer. jit echoes the path it was given.
+    public static func marked(_ findings: [ScanFinding], by result: ScanReviewResult) -> [ScanFinding] {
+        let key = { (path: String, line: Int?) in path + ":" + String(line ?? 0) }
+        let done = Set((result.reviewed ?? []).map { key($0.path, $0.line) })
+        return findings.filter { done.contains(key($0.filePath, $0.line)) }
+    }
+
     /// The `FILE[:LINE]` arguments that mark exactly these findings: one per
     /// line, and the bare file once for a finding with no line.
     public static func targets(_ findings: [ScanFinding]) -> [String] {

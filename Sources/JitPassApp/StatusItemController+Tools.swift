@@ -260,8 +260,7 @@ extension StatusItemController {
                 case .failure:
                     model.settingsOutcome = .failed(.history, line: "jit is not installed where the app can find it.")
                 }
-                JitCLI.forgetStatus()
-                model.cli = JitCLI.status()
+                refreshCLI()
             }
         }
     }
@@ -314,8 +313,7 @@ extension StatusItemController {
                     outcomeWindowOverride = nil
                     if refresh {
                         reloadTools()
-                        JitCLI.forgetStatus()
-                        model.cli = JitCLI.status()
+                        refreshCLI()
                     }
                 case let .failure(error):
                     let line = Self.describeTools(error)

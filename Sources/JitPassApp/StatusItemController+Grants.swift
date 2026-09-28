@@ -65,38 +65,67 @@ extension StatusItemController {
     /// the apps to anchor under, and every profile jit can find from the
     /// registry, the programs' folders and the global store.
     func reloadGrantSheet() {
-        model.grantProcesses = RunningProcesses.list(all: false)
-        model.grantAllProcesses = RunningProcesses.list(all: true)
-        model.grantSessionRoots = RunningProcesses.sessionRoots()
-        reloadProfiles()
+        loadProfiles(listProcesses: true)
     }
 
     /// Every profile jit can find from the registry, the running programs'
     /// folders and the global store, and which of them the service would
     /// refuse. New Grant and New AI Job list the same profiles.
     func reloadProfiles() {
-        if model.grantAllProcesses.isEmpty {
-            model.grantAllProcesses = RunningProcesses.list(all: true)
+        loadProfiles(listProcesses: model.grantAllProcesses.isEmpty)
+    }
+
+    /// ps, lsof over every process, a profile walk and `jit vault list`:
+    /// about a second, so off the main thread; the sheet shows what it had
+    /// until this lands. Broken profiles come from the doctor report on
+    /// hand, never from a doctor run here (7 s), and fill in when the
+    /// running one lands.
+    private func loadProfiles(listProcesses: Bool) {
+        profilesGeneration += 1
+        let generation = profilesGeneration
+        let extraRoots = model.grantExtraRoots
+        let known = model.grantAllProcesses
+        if let report = model.doctor {
+            model.brokenProfiles = report.brokenProfiles
+        } else {
+            refreshDoctorIfStale()
         }
-        let folders = model.grantAllProcesses.map { Format.expandHome($0.folder) }.filter { !$0.isEmpty }
-        model.grantProfiles = ProfileStore.discover(workingDirectories: folders, extraRoots: model.grantExtraRoots)
-        model.brokenProfiles = model.doctor?.brokenProfiles ?? JitCLI.doctor()?.brokenProfiles ?? [:]
-        // The service refuses a grant naming any secret the vault lacks, so
-        // every listed profile is checked against the vault's paths here,
-        // prompt-free, and shown dimmed with the count rather than ticked
-        // into a create that can only fail after Touch ID.
-        if let listing = try? JitCLI.vaultList() {
-            let held = Set(listing.secrets.map(\.path))
-            var missing: [String: String] = [:]
-            for profile in model.grantProfiles {
-                let gone = profile.missing(from: held).count
-                if gone > 0 {
-                    missing[profile.manifestPath] = gone == 1
-                        ? "1 of its secrets is not in the vault"
-                        : "\(gone) of its secrets are not in the vault"
+        Task.detached {
+            let usual = listProcesses ? RunningProcesses.list(all: false) : nil
+            let all = listProcesses ? RunningProcesses.list(all: true) : known
+            let roots = listProcesses ? RunningProcesses.sessionRoots() : nil
+            let folders = all.map { Format.expandHome($0.folder) }.filter { !$0.isEmpty }
+            let profiles = ProfileStore.discover(workingDirectories: folders, extraRoots: extraRoots)
+            let held = (try? JitCLI.vaultList()).map { Set($0.secrets.map(\.path)) }
+            await MainActor.run { [weak self] in
+                guard let self, generation == profilesGeneration else {
+                    return
                 }
+                if let usual, let roots {
+                    model.grantProcesses = usual
+                    model.grantSessionRoots = roots
+                }
+                model.grantAllProcesses = all
+                model.grantProfiles = profiles
+                // The service refuses a grant naming any secret the vault
+                // lacks, so every listed profile is checked against the
+                // vault's paths, prompt-free, and shown dimmed with the count
+                // rather than ticked into a create that can only fail after
+                // Touch ID.
+                guard let held else {
+                    return
+                }
+                var missing: [String: String] = [:]
+                for profile in profiles {
+                    let gone = profile.missing(from: held).count
+                    if gone > 0 {
+                        missing[profile.manifestPath] = gone == 1
+                            ? "1 of its secrets is not in the vault"
+                            : "\(gone) of its secrets are not in the vault"
+                    }
+                }
+                model.grantMissing = missing
             }
-            model.grantMissing = missing
         }
     }
 

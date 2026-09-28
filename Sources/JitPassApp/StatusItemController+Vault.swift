@@ -347,8 +347,7 @@ extension StatusItemController {
                     then(value)
                     if refresh {
                         reloadVault()
-                        JitCLI.forgetStatus()
-                        model.cli = JitCLI.status()
+                        refreshCLI()
                     }
                 case let .failure(error):
                     let said = Self.describeVault(error)

@@ -61,7 +61,7 @@ extension ScanReportView {
     }
 
     /// One cache file holding tokens found by format: the file, the lines,
-    /// Redact… for the whole file (the lines sheet redacts one at a time).
+    /// Redact… for the whole file (the lines sheet redacts one line at a time).
     private func shapeRow(_ group: ScanFileGroup, last: Bool) -> some View {
         AppRow(
             name: Format.fileName(group.filePath),
@@ -75,11 +75,14 @@ extension ScanReportView {
             }
             Button("Open") { actions.open(group.filePath, group.firstLine) }.buttonStyle(AppButton())
             Button("Redact…") {
+                // The whole file, never the row's line: a finding is one per
+                // vendor with the first line it appears on, so a narrowed run
+                // left every later copy behind while the row went.
                 let n = group.findings.count
                 actions.redact(
                     [group.filePath],
-                    n == 1 ? group.findings[0].line.map { [$0] } ?? [] : [],
-                    n == 1 ? "the " + group.findings[0].shortEvidence + " on line \(group.firstLine ?? 0)" : "\(n) tokens in this file",
+                    [],
+                    n == 1 ? "the " + group.findings[0].shortEvidence + " in this file" : "\(n) kinds of token in this file",
                     group.findings.first?.foundIn
                 )
             }

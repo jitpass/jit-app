@@ -42,6 +42,19 @@ final class ScanReviewTests: XCTestCase {
         XCTAssertEqual(after.summary.reviewed, 3)
     }
 
+    /// jit skipped one of the three: only the two it names leave.
+    func testOnlyTheFindingsJitMarkedLeave() throws {
+        let r = try report([
+            line("a", path: "/u/x.go", line: 1),
+            line("b", path: "/u/x.go", line: 2),
+            line("c", path: "/u/y.go", line: nil)
+        ])
+        let answer = #"{"reviewed":[{"id":"m1","path":"/u/x.go","line":2,"finding_type":"exposed_secret","label":"k","reviewed_at":1},"#
+            + #"{"id":"m2","path":"/u/y.go","finding_type":"exposed_secret","label":"k","reviewed_at":1}],"skipped":1}"#
+        let result = try JSONDecoder().decode(ScanReviewResult.self, from: Data(answer.utf8))
+        XCTAssertEqual(ScanReview.marked(r.findings, by: result).map(\.id), ["b", "c"])
+    }
+
     func testOnlyFixturesAndFindingsOnlyYouCanFixAreReviewable() throws {
         let r = try report([
             line("fixture", path: "/u/x_test.go", line: 1),

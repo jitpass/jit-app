@@ -174,8 +174,9 @@ enum JitCLI {
         }
         spawned.insert(process.processIdentifier)
         defer { spawned.remove(process.processIdentifier) }
+        let collected = collect(err)
         var data = out.fileHandleForReading.readDataToEndOfFile()
-        let stderr = err.fileHandleForReading.readDataToEndOfFile()
+        let stderr = collected()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             data.resetBytes(in: 0 ..< data.count)

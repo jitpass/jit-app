@@ -39,6 +39,33 @@ final class ProtectedSinceScanTests: XCTestCase {
         XCTAssertTrue(pending.entries.isEmpty)
     }
 
+    private func cacheReport(lines: [Int]) throws -> ScanReport {
+        let rows = lines.enumerated().map { index, line in
+            #"{"record_type":"finding","record_id":"c\#(index)","finding_type":"exposed_secret","severity":"high","#
+                + #""file_path":"/Users/me/.claude/a.jsonl","line":\#(line),"evidence":"value matches a known vendor credential format","#
+                + #""remedy":"manual","agent":"Claude Code","archived":false,"test_fixture":false}"#
+        }
+        let summary = #"{"record_type":"scan_summary","total_findings":\#(lines.count),"risk_level":"high","exposure_score":40,"#
+            + #""secrets_total":2,"secrets_protected":0,"secrets_migratable":0,"files_scanned":9}"#
+        return try ScanReport.parse(Data((rows + [summary]).joined(separator: "\n").utf8))
+    }
+
+    /// A scheduled scan was already running when the user redacted one line
+    /// and marked another reviewed: it lands with both rows, and neither
+    /// comes back. A scan that started afterwards is the word again.
+    func testAScanRunningDuringARedactOrReviewDoesNotBringTheRowsBack() throws {
+        var pending = ProtectedSinceScan()
+        let started = Date(timeIntervalSince1970: 1_790_000_000)
+        let before = try cacheReport(lines: [10, 20, 30])
+        pending.add(redacted: ["/Users/me/.claude/a.jsonl"], lines: [10], at: started.addingTimeInterval(1))
+        pending.add(reviewed: [before.findings[1]], at: started.addingTimeInterval(2))
+
+        XCTAssertEqual(pending.land(before, startedAt: started).findings.map(\.line), [30])
+        let after = try cacheReport(lines: [30])
+        XCTAssertEqual(pending.land(after, startedAt: started.addingTimeInterval(3)).findings.map(\.line), [30])
+        XCTAssertTrue(pending.entries.isEmpty)
+    }
+
     private func migrate(_ targets: [String], errors: [String] = []) -> MigrateReport {
         MigrateReport(targets: targets, applied: true, vaulted: ["TOKEN"], caches: .init(), errors: errors, report: "")
     }
