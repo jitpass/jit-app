@@ -96,45 +96,90 @@ struct CheckSettingsSheet: View {
         model.vaultListing?.uncheckedFromEnv ?? []
     }
 
-    /// Each profile and the names it holds that nobody has checked.
-    private var byGroup: [(String, [String])] {
-        Dictionary(grouping: unchecked, by: \.group).map { ($0.key, $0.value.map(\.name).sorted()) }.sorted { $0.0 < $1.0 }
+    /// Each profile and the names in `paths`, by profile.
+    private func byGroup(_ paths: Set<String>) -> [(String, [String])] {
+        Dictionary(grouping: unchecked.filter { paths.contains($0.path) }, by: \.group)
+            .map { ($0.key, $0.value.map(\.name).sorted()) }
+            .sorted { $0.0 < $1.0 }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Win.s5) {
-            VStack(alignment: .leading, spacing: Win.s1) {
-                Text("Move the settings out of these profiles?").font(Win.cardTitle)
-                Text(Format.checkSettingsNote(unchecked.count))
-                    .font(Win.sub).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            }
-            AppPlainCard {
-                CappedScroll(maxHeight: 240) {
-                    ForEach(Array(byGroup.enumerated()), id: \.element.0) { index, item in
-                        // The names, not a count: what the question is about.
-                        AppRow(
-                            name: item.0,
-                            fact: item.1.joined(separator: ", "),
-                            wraps: true,
-                            last: index == byGroup.count - 1
-                        ) {}
-                    }
-                }
+            if let check = model.settingsCheck {
+                checked(check)
+            } else {
+                unread
             }
             SheetState(model: model)
-            HStack(spacing: Win.s4) {
-                Text("Touch ID follows, once.").font(Win.sub).foregroundStyle(.secondary)
-                Spacer(minLength: Win.s5)
-                Button("Cancel", action: actions.closeSheet).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
-                Button("Move Out", action: actions.checkSettings).buttonStyle(AppButton(kind: .primary))
-                    .keyboardShortcut(.defaultAction)
-            }
-            .disabled(model.vaultBusy != nil)
+            footer
         }
         .padding(Win.s6)
         .frame(width: Win.sheetWide)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
-        .onExitCommand(perform: actions.closeSheet)
+        .onExitCommand(perform: close)
+        .onAppear { model.settingsCheck = nil }
+    }
+
+    /// Before the check: what will be read, and that nothing moves yet.
+    @ViewBuilder private var unread: some View {
+        VStack(alignment: .leading, spacing: Win.s1) {
+            Text("Check these profiles for settings?").font(Win.cardTitle)
+            Text(Format.checkSettingsNote(unchecked.count))
+                .font(Win.sub).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        list(byGroup(Set(unchecked.map(\.path))))
+    }
+
+    /// After it: jit's own verdict, two lists, before anything moves.
+    @ViewBuilder private func checked(_ check: MigrateSettingsResult) -> some View {
+        let all = unchecked.map(\.path)
+        let moves = byGroup(Set(check.moved))
+        let stays = byGroup(Set(check.stays(of: all)))
+        VStack(alignment: .leading, spacing: Win.s1) {
+            Text(Format.settingsCheckTitle(moves: check.moved.count)).font(Win.cardTitle)
+            Text(Format.settingsCheckNote).font(Win.sub).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        if !moves.isEmpty {
+            Text(Format.settingsMovesHeading(check.moved.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+            list(moves)
+        }
+        if !stays.isEmpty {
+            Text(Format.settingsStaysHeading(all.count - check.moved.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+            list(stays)
+        }
+    }
+
+    private func list(_ groups: [(String, [String])]) -> some View {
+        AppPlainCard {
+            CappedScroll(maxHeight: 160) {
+                ForEach(Array(groups.enumerated()), id: \.element.0) { index, item in
+                    AppRow(name: item.0, fact: item.1.joined(separator: ", "), wraps: true, last: index == groups.count - 1) {}
+                }
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: Win.s4) {
+            Text(model.settingsCheck == nil ? Format.settingsCheckFirstFoot : Format.settingsCheckThenFoot)
+                .font(Win.sub).foregroundStyle(.secondary)
+            Spacer(minLength: Win.s5)
+            Button("Cancel", action: close).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
+            if let check = model.settingsCheck {
+                Button(check.moved.isEmpty ? "Keep Them All" : "Move These \(check.moved.count)", action: actions.checkSettings)
+                    .buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
+            } else {
+                Button("Check Which Move…", action: actions.previewSettings)
+                    .buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
+            }
+        }
+        .disabled(model.vaultBusy != nil)
+    }
+
+    private func close() {
+        model.settingsCheck = nil
+        actions.closeSheet()
     }
 }
 

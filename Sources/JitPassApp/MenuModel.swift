@@ -181,6 +181,9 @@ final class MenuModel: ObservableObject {
     /// Who uses each secret, from any project folder (`vault list --users`),
     /// kept apart from the listing so a quick reload does not drop it.
     @Published var vaultUsers: VaultUsersListing?
+    /// Move Them Out…'s first step: what a dry run said would move. Nil
+    /// until checked; the sheet then shows the two lists.
+    @Published var settingsCheck: MigrateSettingsResult?
     /// The one value on screen, while it is. The String here is the copy the
     /// app cannot wipe (see docs/design/vault-window.md §3a); it exists for
     /// the countdown and is dropped with the reveal. The bytes behind it are

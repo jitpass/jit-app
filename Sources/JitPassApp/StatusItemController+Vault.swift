@@ -51,7 +51,8 @@ extension StatusItemController {
             pruneDuplicates: { [weak self] in self?.pruneDuplicates() },
             moveOut: { [weak self] paths in self?.moveSettings(out: true, paths) },
             moveIn: { [weak self] path in self?.moveSettings(out: false, [path]) },
-            checkSettings: { [weak self] in self?.checkSettings() }
+            checkSettings: { [weak self] in self?.checkSettings() },
+            previewSettings: { [weak self] in self?.previewSettings() }
         )
     }
 
@@ -107,15 +108,6 @@ extension StatusItemController {
                 self?.notice(Format.moved(result, out: out))
             }
         )
-    }
-
-    /// The cleanup: every entry protected before settings stayed plain,
-    /// read with one Touch ID, and the settings among them moved out.
-    private func checkSettings() {
-        runVault("the old profiles", work: { JitCLI.migrateSettings() }, then: { [weak self] result in
-            self?.model.vaultSheet = nil
-            self?.notice(Format.checkedSettings(result))
-        })
     }
 
     /// After an action outside this window wrote the vault: the listing

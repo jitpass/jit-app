@@ -317,6 +317,15 @@ public struct MigrateSettingsResult: Codable, Sendable, Equatable {
     }
 
     public static let arguments = ["migrate", "settings", "--yes", "--format", "json"]
+    /// The same read, moving nothing: which entries would move.
+    public static let dryRunArguments = ["migrate", "settings", "--dry-run", "--yes", "--format", "json"]
+
+    /// Of these vault paths, the ones the check would leave in the vault:
+    /// every one it read and did not move (secrets, names that look like
+    /// one, settings it left for a reason).
+    public func stays(of paths: [String]) -> [String] {
+        paths.filter { !moved.contains($0) }
+    }
 
     public static func parse(_ output: String) throws -> MigrateSettingsResult {
         try JSONDecoder().decode(MigrateSettingsResult.self, from: Data(output.utf8))

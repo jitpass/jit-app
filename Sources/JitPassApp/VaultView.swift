@@ -279,4 +279,6 @@ struct VaultActions {
     var moveIn: (String) -> Void = { _ in }
     /// `jit migrate settings`, after the sheet asked.
     var checkSettings: () -> Void = {}
+    /// Its dry run, first: which entries would move.
+    var previewSettings: () -> Void = {}
 }

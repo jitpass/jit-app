@@ -156,11 +156,28 @@ extension Format {
 }
 
 extension Format {
-    /// Move Them Out…: which entries, and why the list cannot say yet which
-    /// of them will move.
+    /// Move Them Out…, before the check: what will be read, and that
+    /// nothing moves until the next step.
     static func checkSettingsNote(_ n: Int) -> String {
-        "jit reads these \(n) \(n == 1 ? "entry" : "entries") and moves the ones that aren't secrets out of the vault, "
-            + "into plain settings. The secrets, and names that look like one, stay. Which ones move depends on their "
-            + "values, so it shows once they are read. Files keep working."
+        "jit reads these \(n) \(n == 1 ? "entry" : "entries") and says which are settings: URLs, IDs, lists. "
+            + "Secrets, and names that look like one, stay in the vault. Nothing moves until you see the list."
     }
+
+    static func settingsCheckTitle(moves: Int) -> String {
+        moves == 0 ? "Every one is a secret: nothing to move" : "\(moves) of them are settings"
+    }
+
+    static let settingsCheckNote = "This is what jit read. Settings leave the vault and become plain; files keep working. "
+        + "Move to Vault puts any of them back."
+
+    static func settingsMovesHeading(_ n: Int) -> String {
+        "Moves out of the vault · \(n)"
+    }
+
+    static func settingsStaysHeading(_ n: Int) -> String {
+        "Stays in the vault · \(n)"
+    }
+
+    static let settingsCheckFirstFoot = "Touch ID follows. Nothing moves yet."
+    static let settingsCheckThenFoot = "Touch ID follows once more."
 }

@@ -16,4 +16,22 @@ extension StatusItemController {
             }
         }
     }
+
+    /// The cleanup: every entry protected before settings stayed plain,
+    /// read with one Touch ID, and the settings among them moved out.
+    func checkSettings() {
+        runVault("the old profiles", work: { JitCLI.migrateSettings() }, then: { [weak self] result in
+            self?.model.vaultSheet = nil
+            self?.model.settingsCheck = nil
+            self?.notice(Format.checkedSettings(result))
+        })
+    }
+
+    /// The first step: read every entry, move nothing, and let the sheet
+    /// say which would move before anything does.
+    func previewSettings() {
+        runVault("the old profiles", refresh: false, work: { JitCLI.migrateSettings(dryRun: true) }, then: { [weak self] result in
+            self?.model.settingsCheck = result
+        })
+    }
 }
