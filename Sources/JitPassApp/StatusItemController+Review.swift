@@ -4,14 +4,14 @@
 import AppKit
 import JitAgentClient
 
-/// Findings' review marks: `jit scan review` for a finding the user checked
-/// and says is not live, `jit scan unreview` to take a mark back. The app
+/// Findings' review marks: `jit review` for a finding the user checked and
+/// says is not live, `jit unreview` to take a mark back by its id. The app
 /// never sees a value; jit rescans the named lines itself.
 extension StatusItemController {
-    /// Everything `jit scan review|unreview` printed, as a failure when it
-    /// did not exit 0.
+    /// Everything `jit review|unreview` printed, as a failure when it did
+    /// not exit 0.
     nonisolated static func review(_ arguments: [String]) -> Result<String, Error> {
-        JitCLI.invoke(["scan"] + arguments + ["--format", "json"]).flatMap { outcome in
+        JitCLI.invoke(arguments).flatMap { outcome in
             outcome.status == 0 ? .success(outcome.output) : .failure(JitCLI.CLIError.failed(outcome.output))
         }
     }
@@ -32,41 +32,44 @@ extension StatusItemController {
             }
         }
         model.findingsOutcome = nil
-        let targets = ScanReview.targets(findings)
+        let arguments = ScanReview.arguments(for: findings)
         runTools(
             "review",
             refresh: false,
             failed: "Mark Reviewed",
             reportsTo: .findings,
-            work: { Self.review(["review"] + targets) },
-            then: { [weak self] _ in
+            work: { Self.review(arguments) },
+            then: { [weak self] output in
                 guard let self else {
                     return
                 }
+                // Undo removes exactly the marks this run made, by id.
+                let result = try? JSONDecoder().decode(ScanReviewResult.self, from: Data(output.utf8))
+                let marks = (result?.reviewed ?? []).compactMap(\.markID)
                 model.scanLines = nil
                 model.scan = model.scan?.removingReviewed(findings)
                 model.macScan = model.macScan?.removingReviewed(findings)
                 if let report = model.macScan, let at = model.macScanAt, let kind = model.macScanKind {
                     LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
                 }
-                model.findingsOutcome = WindowOutcome(title: Format.reviewedBanner(findings), text: "", unreview: targets)
+                model.findingsOutcome = WindowOutcome(title: Format.reviewedBanner(findings), text: "", unreview: marks)
             }
         )
     }
 
     /// The banner's Undo: the marks go, and the rescan brings the findings back.
-    func unreview(_ targets: [String]) {
+    func unreview(_ markIDs: [String]) {
         model.findingsOutcome = nil
         runTools(
             "review",
             refresh: false,
             failed: "Undo",
             reportsTo: .findings,
-            work: { Self.review(["unreview"] + targets) },
+            work: { Self.review(ScanReview.unreviewArguments(markIDs)) },
             then: { [weak self] output in
                 let result = try? JSONDecoder().decode(ScanReviewResult.self, from: Data(output.utf8))
                 self?.model.findingsOutcome = WindowOutcome(
-                    title: Format.unreviewedBanner(result?.unreviewed?.count ?? targets.count),
+                    title: Format.unreviewedBanner(result?.unreviewed?.count ?? markIDs.count),
                     text: ""
                 )
                 self?.runScan(wholeMac: true, kind: .afterProtect)
@@ -80,7 +83,7 @@ extension StatusItemController {
             refresh: false,
             failed: "Show Reviewed",
             reportsTo: .findings,
-            work: { Self.review(["review", "--list"]) },
+            work: { Self.review(ScanReview.listArguments) },
             then: { [weak self] output in
                 let result = try? JSONDecoder().decode(ScanReviewResult.self, from: Data(output.utf8))
                 self?.model.scanReviewed = ReviewedList(entries: result?.reviewed ?? [])
@@ -89,12 +92,15 @@ extension StatusItemController {
     }
 
     func unmarkFromList(_ entry: ScanReviewEntry) {
+        guard let markID = entry.markID else {
+            return
+        }
         runTools(
             "review",
             refresh: false,
             failed: "Unmark",
             reportsTo: .findings,
-            work: { Self.review(["unreview", entry.target]) },
+            work: { Self.review(ScanReview.unreviewArguments([markID])) },
             then: { [weak self] _ in
                 guard let self, var list = model.scanReviewed else {
                     return

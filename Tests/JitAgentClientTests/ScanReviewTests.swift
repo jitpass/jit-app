@@ -59,10 +59,38 @@ final class ScanReviewTests: XCTestCase {
         XCTAssertFalse(try ScanReview.supported(report([], schema: "0.9.0").summary))
     }
 
-    func testTheListDecodesWithoutAValue() throws {
-        let json = #"{"reviewed":[{"path":"/u/x_test.go","line":40,"finding_type":"exposed_secret","#
-            + #""label":"value matches GitHub Personal Access Token's known token format","reviewed_at":1790576144}]}"#
+    func testTheListDecodesEachMarksOwnIDWithoutAValue() throws {
+        let json = #"{"reviewed":["#
+            + #"{"id":"9f1c","path":"/u/x_test.go","line":40,"finding_type":"exposed_secret","#
+            + #""label":"value matches GitHub Personal Access Token's known token format","reviewed_at":1790576144},"#
+            + #"{"id":"a07e","path":"/u/x_test.go","line":40,"finding_type":"exposed_secret","#
+            + #""label":"value matches AWS Access Key ID's known token format","reviewed_at":1790576144}],"skipped":1}"#
         let result = try JSONDecoder().decode(ScanReviewResult.self, from: Data(json.utf8))
-        XCTAssertEqual(result.reviewed?.first?.target, "/u/x_test.go:40")
+        let entries = try XCTUnwrap(result.reviewed)
+        XCTAssertEqual(entries.map(\.id), ["9f1c", "a07e"], "two marks on one line are two rows")
+        XCTAssertEqual(result.skipped, 1)
+    }
+
+    /// Only the picked findings are marked: `--only` names each record
+    /// once, and a lineless finding sends its bare file, safe beside it.
+    func testArgumentsMarkOnlyThePickedFindings() throws {
+        let r = try report([
+            line("a", path: "/u/t/p_test.go", line: 10),
+            line("a", path: "/u/t/p_test.go", line: 11),
+            line("c", path: "/u/docs/README.md", line: nil)
+        ])
+        XCTAssertEqual(ScanReview.arguments(for: r.findings), [
+            "review", "--only", "a", "--only", "c",
+            "/u/t/p_test.go:10", "/u/t/p_test.go:11", "/u/docs/README.md",
+            "--format", "json"
+        ])
+        XCTAssertEqual(ScanReview.unreviewArguments(["9f1c", "a07e"]), ["unreview", "--id", "9f1c", "--id", "a07e", "--format", "json"])
+        XCTAssertEqual(ScanReview.listArguments, ["review", "--list", "--format", "json"])
+    }
+
+    func testAnEntryWithoutAnIDStillHasADistinctRow() {
+        let first = ScanReviewEntry(path: "/u/x", line: nil, findingType: "exposed_secret", label: "A", reviewedAt: 1)
+        let second = ScanReviewEntry(path: "/u/x", line: nil, findingType: "exposed_secret", label: "B", reviewedAt: 1)
+        XCTAssertNotEqual(first.id, second.id)
     }
 }

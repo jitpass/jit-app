@@ -247,8 +247,8 @@ struct WindowOutcome: Equatable {
     var text: String
     var failed = false
     var undo: [String] = []
-    /// Review marks Undo removes (`jit scan unreview` targets), after a
-    /// Mark Reviewed.
+    /// The ids of the review marks Undo removes (`jit unreview --id`),
+    /// after a Mark Reviewed.
     var unreview: [String] = []
     /// The rows "What Changed…" shows, where jit's report has them (Redact,
     /// Protect); nil falls back to jit's text.

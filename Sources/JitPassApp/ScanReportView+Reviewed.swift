@@ -22,7 +22,7 @@ struct ReviewedList: Identifiable, Equatable {
 }
 
 extension ScanReportView {
-    /// Marks exist only on an engine that has `jit scan review`; an older
+    /// Marks exist only on an engine that has `jit review`; an older
     /// one shows none of this.
     var canReview: Bool {
         model.scan.map { ScanReview.supported($0.summary) } ?? false
@@ -71,7 +71,7 @@ struct ReviewedSheet: View {
                         ) {
                             Button("Unmark") { unmark(entry) }
                                 .buttonStyle(AppButton(kind: .quiet))
-                                .disabled(model.toolsBusy != nil)
+                                .disabled(model.toolsBusy != nil || entry.markID == nil)
                         }
                     }
                 }
