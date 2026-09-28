@@ -14,7 +14,7 @@ extension StatusItemController {
     /// the panel has no second way to restart that could drift from it.
     /// The vault locks with it, as it does from Doctor.
     func restartService() {
-        guard let item = model.doctor?.serviceRestart,
+        guard model.offersRestart, let item = model.doctor?.serviceRestart,
               let restart = DoctorAdvice.actions(for: item).first(where: { $0.argv == [["service", "restart"]] })
         else {
             return
