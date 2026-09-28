@@ -166,9 +166,11 @@ struct CheckSettingsSheet: View {
         }
     }
 
+    /// Up to five profiles show in full (about 50pt a row): a list this
+    /// short never hides its last row behind a scroll. More scroll.
     private func list(_ groups: [(String, [String])]) -> some View {
         AppPlainCard {
-            CappedScroll(maxHeight: 160) {
+            CappedScroll(maxHeight: 260) {
                 ForEach(Array(groups.enumerated()), id: \.element.0) { index, item in
                     AppRow(name: item.0, fact: item.1.joined(separator: ", "), wraps: true, last: index == groups.count - 1) {}
                 }
