@@ -164,6 +164,11 @@ public struct DecoyReport: Equatable, Sendable {
         if let name = missingVariable(cause) {
             return "a run asked for \(name) · not in the vault · nothing was served"
         }
+        // jit's words: "no jit run grant or consent approval covered the
+        // reader". The row already names the reader.
+        if cause.contains("grant"), cause.contains("covered") {
+            return "no grant covers it"
+        }
         return cause
     }
 

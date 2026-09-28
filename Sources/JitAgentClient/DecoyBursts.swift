@@ -52,7 +52,9 @@ public struct ExpectedReaders: Codable, Sendable, Equatable {
     }
 
     /// The reader's executable within `by`: the expected entry that matches
-    /// it, else `by` up to its first space (the audit's usual shape).
+    /// it, else `by` whole. A decoy read's `by` is the reader's executable
+    /// path alone (jit's serve auditor records the path, never arguments),
+    /// and a path may hold spaces, so it is never cut at one.
     public static func program(of by: String?, known: [ExpectedReader] = []) -> String? {
         guard let by, !by.isEmpty else {
             return nil
@@ -60,7 +62,7 @@ public struct ExpectedReaders: Codable, Sendable, Equatable {
         if let match = known.first(where: { by == $0.program || by.hasPrefix($0.program + " ") }) {
             return match.program
         }
-        return by.split(separator: " ", maxSplits: 1).first.map(String.init)
+        return by
     }
 }
 
@@ -83,13 +85,20 @@ public struct DecoyBurst: Equatable, Sendable, Identifiable {
     public var why: String
     /// A reader the user marked expected for this file.
     public var expected: Bool
+    /// How many bursts this row stands for: one program reading one file
+    /// several times a day (a server started now and then) is one row.
+    public var bursts = 1
 
     public var id: String {
         "\(by ?? ""):\(file):\(Int(first.timeIntervalSince1970))"
     }
 
-    /// How long the burst lasted, for "in 2 minutes"; nil for a moment.
+    /// How long the burst lasted, for "in 2 minutes"; nil for a moment,
+    /// and for a row of several bursts, whose first and last are apart.
     public var span: TimeInterval? {
+        guard bursts == 1 else {
+            return nil
+        }
         let s = last.timeIntervalSince(first)
         return s >= 60 ? s : nil
     }
@@ -126,7 +135,31 @@ public struct DecoyBurst: Equatable, Sendable, Identifiable {
             }
         }
         done.append(contentsOf: open.values)
-        return done.sorted { ($0.expected ? 1 : 0, -$0.last.timeIntervalSince1970) < ($1.expected ? 1 : 0, -$1.last.timeIntervalSince1970) }
+        return merged(done).sorted { ($0.expected ? 1 : 0, -$0.last.timeIntervalSince1970) < (
+            $1.expected ? 1 : 0,
+            -$1.last.timeIntervalSince1970
+        ) }
+    }
+
+    /// One row per program and file: its bursts added up, the latest one's
+    /// time and reason, the span only when there was one burst.
+    static func merged(_ bursts: [DecoyBurst]) -> [DecoyBurst] {
+        var rows: [String: DecoyBurst] = [:]
+        for burst in bursts.sorted(by: { $0.last < $1.last }) {
+            let key = (burst.by ?? "") + "\n" + burst.file
+            guard var row = rows[key] else {
+                rows[key] = burst
+                continue
+            }
+            row.reads += burst.reads
+            row.bursts += 1
+            row.first = burst.first
+            row.last = burst.last
+            row.why = burst.why
+            row.expected = row.expected && burst.expected
+            rows[key] = row
+        }
+        return Array(rows.values)
     }
 
     /// The programs that read a decoy and are not expected: the menu's

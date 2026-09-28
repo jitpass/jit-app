@@ -22,11 +22,30 @@ final class DecoyBurstsTests: XCTestCase {
             read(t0 + 60 + 301, "~/work/billing/.env", by: editor + " --type=indexer", count: 3),
             read(t0 + 90, "~/work/reports/.env", by: "/usr/bin/python3 sync.py", count: 7)
         ]
-        let bursts = DecoyBurst.make(events, since: nil, expected: nil)
-        XCTAssertEqual(bursts.map(\.reads).sorted(), [3, 7, 1712])
-        let big = bursts.first { $0.reads == 1712 }
-        XCTAssertEqual(big?.span, 60)
-        XCTAssertEqual(DecoyBurst.unexpectedPrograms(bursts), 2, "one editor, one script: programs, not bursts")
+        let rows = DecoyBurst.make(events, since: nil, expected: nil)
+        // The editor came back after a pause: two bursts, one row for it and
+        // its file, not a row each (a server started now and then made seven).
+        XCTAssertEqual(rows.map(\.reads).sorted(), [7, 1715])
+        let editorRow = rows.first { $0.reads == 1715 }
+        XCTAssertEqual(editorRow?.bursts, 2)
+        XCTAssertNil(editorRow?.span, "a row of several bursts has no single span")
+        XCTAssertEqual(DecoyBurst.unexpectedPrograms(rows), 2, "one editor, one script: programs, not bursts")
+
+        let one = DecoyBurst.make(Array(events.prefix(2)), since: nil, expected: nil)
+        XCTAssertEqual(one.first?.span, 60, "one burst keeps its span")
+    }
+
+    /// A decoy read's `by` is the executable path alone, and a path may hold
+    /// spaces: the program is all of it.
+    func testTheProgramIsTheWholeExecutablePath() {
+        let path = "/Applications/Some Editor.app/Contents/MacOS/Some Editor"
+        XCTAssertEqual(ExpectedReaders.program(of: path), path)
+    }
+
+    func testJitsGrantWordingReadsPlainly() {
+        let event = SessionEvent(unixTime: t0, kind: "serve", op: "decoy", by: "/usr/bin/uv",
+                                 cause: "no jit run grant or consent approval covered the reader", labels: ["~/work/tickets/.env"])
+        XCTAssertEqual(DecoyReport.reason(event), "no grant covers it")
     }
 
     func testAnExpectedReaderGoesLastAndStopsCounting() {
