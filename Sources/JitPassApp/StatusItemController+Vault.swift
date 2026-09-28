@@ -96,11 +96,16 @@ extension StatusItemController {
         }
         hideReveal()
         let label = paths.count == 1 ? paths[0] : "\(paths.count) values"
-        runVault(label, work: { JitCLI.moveSettings(out: out, paths) }, then: { [weak self] result in
-            self?.model.vaultSheet = nil
-            self?.model.scanStale = true
-            self?.notice(Format.moved(result, out: out))
-        })
+        runVault(
+            label,
+            verb: out ? "move out of the vault" : "move into the vault",
+            work: { JitCLI.moveSettings(out: out, paths) },
+            then: { [weak self] result in
+                self?.model.vaultSheet = nil
+                self?.model.scanStale = true
+                self?.notice(Format.moved(result, out: out))
+            }
+        )
     }
 
     /// The cleanup: every entry protected before settings stayed plain,
@@ -142,7 +147,7 @@ extension StatusItemController {
     func reveal(_ path: String) {
         hideReveal(reason: "new reveal")
         vaultLog.notice("reveal start \(path, privacy: .public)")
-        runVault(path, refresh: false, work: { JitCLI.reveal(path) }, then: { [weak self] buffer in
+        runVault(path, verb: "reveal", refresh: false, work: { JitCLI.reveal(path) }, then: { [weak self] buffer in
             guard let self else {
                 buffer.wipe()
                 return
@@ -211,7 +216,7 @@ extension StatusItemController {
     /// its one confirmation line, never the value.
     private func copySecret(_ path: String) {
         hideReveal()
-        runVault(path, work: { JitCLI.execute(["vault", "get", path, "--copy"]) }, then: { [weak self] output in
+        runVault(path, verb: "copy", work: { JitCLI.execute(["vault", "get", path, "--copy"]) }, then: { [weak self] output in
             let line = output.split(separator: "\n").last.map(String.init) ?? "Copied"
             let copied = line.hasPrefix("Copied to clipboard, clears in")
             self?.notice(copied ? "Copied · clears in 45s unless something else is copied first" : line)
@@ -319,6 +324,7 @@ extension StatusItemController {
     /// One at a time: two Touch ID prompts at once is a mess.
     func runVault<T: Sendable>(
         _ label: String,
+        verb: String? = nil,
         refresh: Bool = true,
         work: @escaping @Sendable () -> Result<T, Error>,
         then: @escaping @MainActor (T) -> Void
@@ -327,7 +333,9 @@ extension StatusItemController {
             return
         }
         model.vaultBusy = label
+        model.vaultBusyVerb = verb
         model.vaultMessage = nil
+        model.vaultFailedFor = nil
         model.vaultNotice = nil
         Task.detached {
             let result = work()
@@ -336,6 +344,7 @@ extension StatusItemController {
                     return
                 }
                 model.vaultBusy = nil
+                model.vaultBusyVerb = nil
                 switch result {
                 case let .success(value):
                     then(value)
@@ -347,6 +356,7 @@ extension StatusItemController {
                 case let .failure(error):
                     vaultLog.error("vault op failed for \(label, privacy: .public): \(Self.describeVault(error), privacy: .public)")
                     model.vaultMessage = Self.describeVault(error)
+                    model.vaultFailedFor = label
                 }
             }
         }

@@ -83,3 +83,24 @@ extension Format {
         return parts.joined(separator: " · ")
     }
 }
+
+/// The Vault window's row states: the Touch ID being waited on, and why a
+/// settings-only profile cannot be deleted from here.
+extension Format {
+    /// "Waiting for Touch ID to reveal BILLING_CLIENT_SECRET…": the verb and
+    /// the variable, never the vault path.
+    static func vaultWaiting(_ verb: String?, path: String) -> String {
+        let name = path.split(separator: "/").last.map(String.init) ?? path
+        guard let verb else {
+            return "Waiting for Touch ID…"
+        }
+        return "Waiting for Touch ID to \(verb) \(name)…"
+    }
+
+    static let vaultSettingsOnlyDeleteHelp = "This profile holds only plain settings. They are removed with their project, "
+        + "or one at a time with Move to Vault; jit has no command yet to delete them on their own."
+
+    static func vaultSettingsOnlyCountHelp(_ n: Int) -> String {
+        count(n, "setting") + ", no secrets"
+    }
+}

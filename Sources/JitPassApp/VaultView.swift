@@ -13,9 +13,9 @@ private let vaultViewLog = Logger(subsystem: "com.jitpass.app", category: "vault
 /// as one card, its plain settings as another, each row carrying its own
 /// verbs (docs/design/mockups/Vault-v2.html). A value appears only under
 /// its own row, after its own Touch ID, for
-/// `StatusItemController.revealSeconds`. The footer holds the vault's
-/// counts, and in their place the latest word: a failure, a success, or
-/// the Touch ID being waited on.
+/// `StatusItemController.revealSeconds`. A Touch ID being waited on and a
+/// failure show under the row they are for (or under the header when they
+/// are for no row); the footer holds only the vault's counts.
 struct VaultView: View {
     @ObservedObject var model: MenuModel
     let actions: VaultActions
@@ -108,13 +108,25 @@ struct VaultView: View {
                             Image(systemName: "link").font(.system(size: 10)).foregroundStyle(.secondary)
                                 .help("Holds a 1Password link")
                         }
-                        Text("\(group.secrets.count)").foregroundStyle(.secondary).monospacedDigit()
+                        sidebarCount(group)
                     }
                     .tag(group.name)
                 }
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
             }
+        }
+    }
+
+    /// The profile's secrets; a profile of settings only counts those,
+    /// quieter, so it does not read as empty.
+    @ViewBuilder private func sidebarCount(_ group: VaultGroup) -> some View {
+        let kept = settings(group).count
+        if group.secrets.isEmpty, kept > 0 {
+            Text("\(kept)").foregroundStyle(.tertiary).monospacedDigit()
+                .help(Format.vaultSettingsOnlyCountHelp(kept))
+        } else {
+            Text("\(group.secrets.count)").foregroundStyle(.secondary).monospacedDigit()
         }
     }
 
@@ -164,8 +176,10 @@ struct VaultView: View {
         HStack(alignment: .center, spacing: Win.s5) {
             VStack(alignment: .leading, spacing: Win.s1) {
                 Text(group.name).font(Win.head)
+                // The file name is what tells two origins apart: cut from the front.
                 Text(profileLine(group)).font(Win.sub).foregroundStyle(.secondary)
-                    .lineLimit(1).truncationMode(.middle)
+                    .lineLimit(1).truncationMode(.head).help(profileLine(group))
+                headerState(group)
             }
             Spacer(minLength: Win.s5)
             Button("Add…") { actions.openSheet(.add(group: group.name, replacing: nil)) }
@@ -176,23 +190,34 @@ struct VaultView: View {
         .padding(.horizontal, Win.s6).padding(.vertical, Win.s5)
     }
 
+    /// Whether the latest word belongs on one of this profile's rows; if
+    /// not, the header says it.
+    private func onARow(_ label: String?, _ group: VaultGroup) -> Bool {
+        guard let label else {
+            return false
+        }
+        return group.secrets.contains { $0.path == label } || settings(group).contains { $0.path == label }
+    }
+
+    /// Under the profile's line: a success, or a wait or failure no row owns.
+    @ViewBuilder private func headerState(_ group: VaultGroup) -> some View {
+        if let message = model.vaultMessage, !onARow(model.vaultFailedFor, group) {
+            RowState.failure(message)
+        } else if let busy = model.vaultBusy, !onARow(busy, group) {
+            RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: busy))
+        } else if let notice = model.vaultNotice {
+            RowState.done(notice)
+        }
+    }
+
     // MARK: - Footer
 
-    /// The vault's counts; a failure, a success or a Touch ID being waited
-    /// on takes their place until the next action.
+    /// The vault's counts, always: what happened is said where it happened.
     private var footer: some View {
         HStack(spacing: Win.s4) {
-            if let message = model.vaultMessage {
-                Text(message).foregroundStyle(Color(StatusMark.red)).lineLimit(2).help(message)
-            } else if let busy = model.vaultBusy {
-                Text("Touch ID for \(busy)…").foregroundStyle(.secondary).lineLimit(1)
-            } else if let notice = model.vaultNotice {
-                Text(notice).foregroundStyle(Color(StatusMark.green)).lineLimit(1)
-            } else {
-                Text(Format.vaultFooter(model.vaultListing, settings: model.vaultSettings?.settings.count ?? 0))
-                    .foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
-                    .help("Linked: stored as a 1Password reference, resolved through the 1Password CLI at each use.")
-            }
+            Text(Format.vaultFooter(model.vaultListing, settings: model.vaultSettings?.settings.count ?? 0))
+                .foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
+                .help("Linked: stored as a 1Password reference, resolved through the 1Password CLI at each use.")
             Spacer(minLength: Win.s5)
             Button("Maintenance…") { actions.openSheet(.maintenance) }
                 .buttonStyle(AppButton(kind: .quiet))

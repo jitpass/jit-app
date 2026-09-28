@@ -20,7 +20,11 @@ extension VaultView {
         } rows: {
             AppCardRows {
                 ForEach(Array(kept.enumerated()), id: \.element.path) { index, setting in
-                    VaultRow(name: setting.name, fact: setting.value, factMono: true, last: index == kept.count - 1) {
+                    VaultRow(
+                        name: setting.name, fact: setting.value, factMono: true, factTint: nil, last: index == kept.count - 1
+                    ) {
+                        rowState(setting.path)
+                    } actions: {
                         Button("Move to Vault") { actions.moveIn(setting.path) }
                             .buttonStyle(AppButton(kind: .quiet))
                             .disabled(model.vaultBusy != nil)

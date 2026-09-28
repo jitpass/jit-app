@@ -121,6 +121,7 @@ struct AppButton: ButtonStyle {
             .background(fill, in: RoundedRectangle(cornerRadius: Win.control, style: .continuous))
             .offset(y: configuration.isPressed ? 1 : 0)
             .opacity(configuration.isPressed ? 0.85 : 1)
+            .modifier(DimWhenDisabled())
             .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
     }
 

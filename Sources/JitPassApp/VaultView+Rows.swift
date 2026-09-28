@@ -25,6 +25,7 @@ extension VaultView {
                         if let reveal = model.vaultReveal, reveal.path == secret.path {
                             revealLine(reveal)
                         }
+                        rowState(secret.path)
                     } actions: {
                         secretButtons(secret)
                     }
@@ -50,14 +51,29 @@ extension VaultView {
         .padding(.top, Win.s2)
     }
 
+    /// What a row is waiting on, or why its last action failed: under the
+    /// row, where the eye already is.
+    @ViewBuilder func rowState(_ path: String) -> some View {
+        if model.vaultBusy == path {
+            RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: path)).padding(.top, Win.s2)
+        } else if let message = model.vaultMessage, model.vaultFailedFor == path {
+            RowState.failure(message).padding(.top, Win.s2)
+        }
+    }
+
     /// A row's everyday verbs, then the rest behind its ⋯. Reveal is Hide
-    /// on the row whose value is showing.
+    /// on the row whose value is showing, at the same width so the row's
+    /// buttons do not jog.
     @ViewBuilder func secretButtons(_ secret: VaultSecret) -> some View {
         Group {
-            if model.vaultReveal?.path == secret.path {
-                Button("Hide", action: actions.hideReveal)
-            } else {
-                Button("Reveal") { actions.reveal(secret.path) }
+            let shown = model.vaultReveal?.path == secret.path
+            Button {
+                shown ? actions.hideReveal() : actions.reveal(secret.path)
+            } label: {
+                ZStack {
+                    Text("Reveal").hidden()
+                    Text(shown ? "Hide" : "Reveal")
+                }
             }
             Button("Copy") { actions.copy(secret.path) }
         }
@@ -88,7 +104,11 @@ extension VaultView {
 
     /// Right-click: the row's two buttons, then its ⋯.
     @ViewBuilder func rowMenu(_ secret: VaultSecret) -> some View {
-        Button("Reveal for \(StatusItemController.revealSeconds)s") { actions.reveal(secret.path) }
+        if model.vaultReveal?.path == secret.path {
+            Button("Hide", action: actions.hideReveal)
+        } else {
+            Button("Reveal for \(StatusItemController.revealSeconds)s") { actions.reveal(secret.path) }
+        }
         Button("Copy to Clipboard") { actions.copy(secret.path) }
         Divider()
         secretMenu(secret)
@@ -99,8 +119,14 @@ extension VaultView {
         Menu {
             Button("Link 1Password…") { actions.openSheet(.link(group: group.name, replacing: nil)) }
             Divider()
-            Button("Delete Profile…") { actions.delete(group.secrets.map(\.path)) }
-                .disabled(group.secrets.isEmpty)
+            if group.secrets.isEmpty {
+                // Disabled items drop their tooltip in a menu: the reason is
+                // the item's own line.
+                Button("Delete Profile…") {}.disabled(true)
+                Text(Format.vaultSettingsOnlyDeleteHelp)
+            } else {
+                Button("Delete Profile…") { actions.delete(group.secrets.map(\.path)) }
+            }
         } label: {
             Text("···")
         }
@@ -122,7 +148,12 @@ extension VaultView {
         if let origin = group.origin {
             parts.append("from " + origin + (VaultOrigin.exists(origin) ? "" : " (file gone)"))
         } else if group.secrets.isEmpty {
-            // All settings: nothing in the vault to have come from anywhere.
+            // All settings: they keep no origin, only who names them.
+            // Other profiles only: a profile naming its own settings says nothing.
+            let users = Set(settings(group).flatMap(\.usedBy)).subtracting([group.name]).sorted()
+            if !users.isEmpty {
+                parts.append("used by " + users.joined(separator: ", "))
+            }
         } else if group.secrets.allSatisfy({ $0.origin == nil }) {
             parts.append("set by hand")
         } else {
@@ -159,9 +190,12 @@ struct VaultRow<Below: View, Actions: View>: View {
                     Text(name).font(Design.Text.command.weight(.medium))
                         .lineLimit(1).truncationMode(.middle).help(name)
                     if let fact, !fact.isEmpty {
+                        // A value stays one line; a secret's facts may take
+                        // two, so "used by" is never cut at the window's size.
                         Text(fact).font(factMono ? Win.command : Win.rowFact)
                             .foregroundStyle(factTint ?? .secondary)
-                            .lineLimit(1).truncationMode(.tail).help(fact)
+                            .lineLimit(factMono ? 1 : 2).truncationMode(.tail)
+                            .fixedSize(horizontal: false, vertical: true).help(fact)
                     }
                     below()
                 }
@@ -186,5 +220,33 @@ extension VaultRow where Below == EmptyView {
         @ViewBuilder actions: @escaping () -> Actions
     ) {
         self.init(name: name, fact: fact, factMono: factMono, factTint: nil, last: last, below: { EmptyView() }, actions: actions)
+    }
+}
+
+/// A row's (or the header's) one line of state: a spinner for a Touch ID
+/// being waited on, a red dot beside a failure in the label colour, a
+/// green dot beside a success.
+enum RowState {
+    static func waiting(_ text: String) -> some View {
+        HStack(spacing: Win.s3) {
+            ProgressView().controlSize(.mini)
+            Text(text).font(Win.rowFact).foregroundStyle(.secondary)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    static func failure(_ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: Win.s3) {
+            StateDot(tint: Color(StatusMark.red))
+            Text(text).font(Win.rowFact).foregroundStyle(.primary)
+                .lineLimit(3).fixedSize(horizontal: false, vertical: true).help(text)
+        }
+    }
+
+    static func done(_ text: String) -> some View {
+        HStack(spacing: Win.s3) {
+            StateDot(tint: Color(StatusMark.green))
+            Text(text).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1)
+        }
     }
 }

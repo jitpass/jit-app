@@ -161,8 +161,14 @@ final class MenuModel: ObservableObject {
     /// The path (or action) a vault command is running for; one at a time,
     /// because most of them put a Touch ID prompt on screen.
     @Published var vaultBusy: String?
-    /// Why the last vault operation failed, under the header until the next one.
+    /// What the Touch ID being waited on is for ("reveal", "copy"), so the
+    /// row can say it; nil for a command that is not one row's.
+    @Published var vaultBusyVerb: String?
+    /// Why the last vault operation failed, under the row it was for (or
+    /// the header) until the next one.
     @Published var vaultMessage: String?
+    /// The path (or action) the failure in `vaultMessage` was for.
+    @Published var vaultFailedFor: String?
     /// A one-line confirmation ("copied, clears in 45s") that clears itself.
     @Published var vaultNotice: String?
     @Published var vaultSheet: VaultSheet?
