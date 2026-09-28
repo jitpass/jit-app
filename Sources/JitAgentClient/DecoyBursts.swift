@@ -51,6 +51,27 @@ public struct ExpectedReaders: Codable, Sendable, Equatable {
         expected.contains { $0.covers(by: by, label: label) }
     }
 
+    /// Programs that run whatever they are given: marking one expected
+    /// would silence every script it runs, `python3 exfil.py` included.
+    /// jit refuses `jit decoys expect` for these (by executable basename,
+    /// case-insensitive, a version suffix allowed); the app mirrors the
+    /// set so it never offers the mark.
+    static let runsAnything: Set<String> = [
+        "python", "node", "nodejs", "deno", "bun", "ruby", "perl", "php", "java", "osascript",
+        "sh", "bash", "zsh", "fish", "dash", "ksh", "tcsh", "csh", "env",
+        "uv", "uvx", "npx", "npm", "pnpm", "yarn", "pipx", "pip", "bundle", "rake"
+    ]
+
+    /// Whether this program may be marked expected: not an interpreter,
+    /// shell or launcher ("python3.14" is python).
+    public static func canBeExpected(program: String) -> Bool {
+        var name = (program as NSString).lastPathComponent.lowercased()
+        while let last = name.last, last.isNumber || last == "." || last == "-" {
+            name.removeLast()
+        }
+        return !name.isEmpty && !runsAnything.contains(name)
+    }
+
     /// The reader's executable within `by`: the expected entry that matches
     /// it, else `by` whole. A decoy read's `by` is the reader's executable
     /// path alone (jit's serve auditor records the path, never arguments),
@@ -104,9 +125,11 @@ public struct DecoyBurst: Equatable, Sendable, Identifiable {
     }
 
     /// Decoy reads (never real ones) of protected files, as bursts, newest
-    /// first with expected ones after the rest. An event is expected when
-    /// jit said so, or, for a live event jit has not labelled yet, when the
-    /// expected list covers it.
+    /// first with expected ones after the rest. With the expected list in
+    /// hand, it alone decides, per reader and file: a tag jit wrote before
+    /// a mark was taken back is stale. Without it, jit's tag is trusted only
+    /// on a read of one file, since it tags the whole read. A reader jit
+    /// only guessed at (by_likely) is never expected.
     public static func make(_ events: [SessionEvent], since: Date?, expected: ExpectedReaders?) -> [DecoyBurst] {
         let decoys = events.filter { event in
             event.readDecoy && (since.map { event.date >= $0 } ?? true)
@@ -116,7 +139,7 @@ public struct DecoyBurst: Equatable, Sendable, Identifiable {
         for event in decoys {
             for file in event.labels ?? [] {
                 let key = (event.by ?? "") + "\n" + file
-                let isExpected = event.expected == true || (expected?.covers(by: event.by, label: file) ?? false)
+                let isExpected = Self.isExpected(event, file: file, list: expected)
                 if var burst = open[key], event.date.timeIntervalSince(burst.last) <= gap {
                     burst.reads += event.count ?? 1
                     burst.last = event.date
@@ -139,6 +162,16 @@ public struct DecoyBurst: Equatable, Sendable, Identifiable {
             $1.expected ? 1 : 0,
             -$1.last.timeIntervalSince1970
         ) }
+    }
+
+    static func isExpected(_ event: SessionEvent, file: String, list: ExpectedReaders?) -> Bool {
+        if event.byLikely == true {
+            return false
+        }
+        if let list {
+            return list.covers(by: event.by, label: file)
+        }
+        return event.expected == true && (event.labels ?? []).count == 1
     }
 
     /// One row per program and file: its bursts added up, the latest one's

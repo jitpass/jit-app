@@ -29,6 +29,9 @@ extension StatusItemController {
                 switch result {
                 case let .success(list):
                     model.decoyExpected = list
+                    // The loaded reads carry jit's tags from before the
+                    // change: read them again so the audit agrees too.
+                    reloadDecoys()
                     model.decoysOutcome = WindowOutcome(
                         title: Format.decoyExpectedBanner(reader, remove: remove), text: "", unexpect: remove ? nil : reader
                     )

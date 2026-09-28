@@ -97,3 +97,60 @@ final class DecoyBurstsTests: XCTestCase {
         XCTAssertEqual(list.expected.map(\.file), ["~/work/billing/.env", nil])
     }
 }
+
+final class DecoyExpectedDecisionTests: XCTestCase {
+    private let editor = "/Applications/Editor.app/Contents/MacOS/Editor"
+
+    private func read(labels: [String], expected: Bool?, byLikely: Bool? = nil) -> SessionEvent {
+        SessionEvent(
+            unixTime: 1_790_000_000,
+            kind: "serve",
+            op: "decoy",
+            by: editor,
+            byLikely: byLikely,
+            labels: labels,
+            expected: expected
+        )
+    }
+
+    /// A mark taken back: jit's old tag on a loaded read no longer counts.
+    func testTheCurrentListDecidesNotAStaleTag() {
+        let rows = DecoyBurst.make([read(labels: ["~/work/a/.env"], expected: true)], since: nil, expected: ExpectedReaders(expected: []))
+        XCTAssertEqual(rows.map(\.expected), [false])
+        XCTAssertEqual(DecoyBurst.unexpectedPrograms(rows), 1)
+    }
+
+    /// jit tags a whole read; without a list the tag is trusted only when
+    /// the read names one file.
+    func testWithoutAListATagCoversOnlyAOneFileRead() {
+        XCTAssertTrue(DecoyBurst.isExpected(read(labels: ["~/work/a/.env"], expected: true), file: "~/work/a/.env", list: nil))
+        let two = read(labels: ["~/work/a/.env", "~/work/b/.env"], expected: true)
+        XCTAssertFalse(DecoyBurst.isExpected(two, file: "~/work/b/.env", list: nil))
+        let list = ExpectedReaders(expected: [ExpectedReader(program: editor, file: "~/work/a/.env")])
+        XCTAssertTrue(DecoyBurst.isExpected(two, file: "~/work/a/.env", list: list))
+        XCTAssertFalse(DecoyBurst.isExpected(two, file: "~/work/b/.env", list: list))
+    }
+
+    func testAGuessedReaderIsNeverExpected() {
+        let list = ExpectedReaders(expected: [ExpectedReader(program: editor)])
+        XCTAssertFalse(DecoyBurst.isExpected(
+            read(labels: ["~/work/a/.env"], expected: nil, byLikely: true),
+            file: "~/work/a/.env",
+            list: list
+        ))
+    }
+
+    /// Interpreters, shells and launchers run anything: never offered.
+    func testProgramsThatRunAnythingCannotBeExpected() {
+        let runsAnything = [
+            "/usr/bin/python3", "/opt/homebrew/bin/python3.14", "/usr/local/bin/node", "/bin/zsh", "/bin/sh",
+            "/usr/bin/env", "/opt/homebrew/Cellar/uv/0.12.18/bin/uv", "/usr/bin/Ruby", "/usr/bin/osascript"
+        ]
+        for program in runsAnything {
+            XCTAssertFalse(ExpectedReaders.canBeExpected(program: program), program)
+        }
+        for program in [editor, "/usr/bin/backupd", "/Applications/Some Editor.app/Contents/MacOS/Some Editor", "/usr/bin/head"] {
+            XCTAssertTrue(ExpectedReaders.canBeExpected(program: program), program)
+        }
+    }
+}

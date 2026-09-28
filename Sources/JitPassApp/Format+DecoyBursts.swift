@@ -34,13 +34,13 @@ extension Format {
     /// "Read it 1,712 times in 2 minutes · 15 hours ago · no grant covers it";
     /// for a reader that came back several times, "Read it 13 times · last
     /// 2 hours ago · …".
-    static func decoyBurstFact(_ burst: DecoyBurst) -> String {
+    static func decoyBurstFact(_ burst: DecoyBurst, cannotExpect: Bool = false) -> String {
         var first = burst.reads == 1 ? "Read it once" : "Read it \(burst.reads.formatted(.number)) times"
         if let span = burst.span {
             first += " in " + spanWords(span)
         }
         let when = burst.bursts > 1 ? "last " + ScanWording.when(burst.last) : ScanWording.when(burst.last)
-        return [first, when, burst.why].joined(separator: " · ")
+        return ([first, when, burst.why] + (cannotExpect ? [decoyCannotExpect] : [])).joined(separator: " · ")
     }
 
     static func spanWords(_ seconds: TimeInterval) -> String {
@@ -91,4 +91,8 @@ extension Format {
     static func decoyExpectFailed(remove: Bool, _ why: String) -> String {
         (remove ? "Nothing changed: " : "Not marked expected: ") + why
     }
+
+    /// Why a shell or an interpreter's row has no Expected…: it runs any
+    /// script, so the mark would silence every one (jit refuses it too).
+    static let decoyCannotExpect = "runs any script, so it can't be marked expected"
 }

@@ -25,14 +25,21 @@ extension DecoysView {
                         name: burst.reader ?? "Reader not recorded",
                         detail: Format.decoyFileName(burst.file),
                         badge: burst.expected ? "expected" : nil,
-                        fact: Format.decoyBurstFact(burst),
+                        fact: Format.decoyBurstFact(
+                            burst,
+                            cannotExpect: !burst.expected && !(burst.by.map(ExpectedReaders.canBeExpected) ?? true)
+                        ),
                         last: index == shown.count - 1
                     ) {
-                        if model.decoyExpected != nil, !burst.expected, burst.by != nil {
-                            Button("Expected…") { actions.askExpected(burst) }.buttonStyle(AppButton(kind: .quiet))
+                        if model.decoyExpected != nil, !burst.expected, let by = burst.by {
+                            // A shell or an interpreter runs any script, so it
+                            // is never offered: the fact line says why.
+                            if ExpectedReaders.canBeExpected(program: by) {
+                                Button("Expected…") { actions.askExpected(burst) }.buttonStyle(AppButton(kind: .quiet))
+                            }
                         }
                     }
-                    .opacity(burst.expected ? 0.6 : 1)
+                    .opacity(burst.expected ? Design.Opacity.muted : 1)
                 }
             }
         }
