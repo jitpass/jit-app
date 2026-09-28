@@ -105,8 +105,7 @@ public extension ProfileAttachPlan {
         }
         parts.append(recording + ".")
         let arguments = ["profile", "attach", "--yes", config] + names
-        parts.append("It changes which configs the "
-            + (one ? "profile records" : "profiles record") + ": no secret is read or changed.")
+        parts.append("No secret is read or changed.")
         let target = DoctorAdvice.configShortName(config, home: home)
         return DeleteConfirmation(
             title: one ? "Record \(target) on \(names[0])?" : "Record \(target) on \(names.count) profiles?",
@@ -184,10 +183,10 @@ public extension DeleteConfirmation {
     /// When a `jit profile` dry run failed: a jit older than 2.0 (no
     /// `jit profile` at all), or one that printed no plan. Nothing runs.
     static func profileUnavailable(_ title: String, command: String, reason: String) -> DeleteConfirmation {
-        var message = "Nothing was changed. Before it runs \(command), JitPass asks jit what it would do, and jit did not answer:\n\n"
+        var message = "Nothing was changed: jit didn't say what \(command) would do.\n\n"
             + (reason.isEmpty ? "(no output)" : reason)
         if reason.contains("unknown flag") || reason.contains("unknown command") || reason.contains("--dry-run") {
-            message += "\n\nThat jit is older than 2.0, the first with jit profile. Update it."
+            message += "\n\nThat jit is older than 2.0. Update it."
         }
         return DeleteConfirmation(title: title, message: message, button: nil, breaks: false, arguments: [])
     }

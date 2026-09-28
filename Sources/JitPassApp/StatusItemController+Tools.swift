@@ -157,7 +157,7 @@ extension StatusItemController {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         let alert = NSAlert()
         alert.messageText = "Protect \(tool)?"
-        alert.informativeText = "\(record.doc ?? "The credential") moves into the vault; \(tool) keeps working through jit's hook."
+        alert.informativeText = "\(record.doc ?? "The credential") moves into the vault; \(tool) keeps working."
             + "\n\nA backup restores the file. Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
@@ -176,7 +176,7 @@ extension StatusItemController {
     func unwrapTool(_ tool: String) {
         let alert = NSAlert()
         alert.messageText = "Unwrap \(tool)?"
-        alert.informativeText = "The shim comes out; \(tool) runs without jit from its next call. The secret stays in the vault."
+        alert.informativeText = "\(tool) runs without jit from its next run. Its key stays in the vault."
         alert.addButton(withTitle: "Unwrap")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -213,7 +213,7 @@ extension StatusItemController {
         alert.messageText = "Clean AI agent caches?"
         alert.informativeText = "Copies of your vaulted secrets in every AI agent's cache"
             + (copies > 0 ? " (the last scan found \(copies))" : "") + " become markers."
-            + "\n\nFiles are backed up first; one an agent is writing is left alone. Touch ID follows."
+            + "\n\nEach file is backed up first. Touch ID follows."
         alert.addButton(withTitle: "Clean")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {

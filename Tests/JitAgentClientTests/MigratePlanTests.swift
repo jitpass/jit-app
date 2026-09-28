@@ -8,22 +8,22 @@ import XCTest
 /// first and shown, and the dialog's button runs exactly the command it
 /// names.
 final class MigratePlanTests: XCTestCase {
-    private let config = "/Users/me/Security-Ops/.mcp.json"
+    private let config = "/Users/me/billing-sync/.mcp.json"
 
-    /// `jit migrate undo ~/Security-Ops/.mcp.json --dry-run` from jit 2.0.0,
+    /// `jit migrate undo ~/billing-sync/.mcp.json --dry-run` from jit 2.0.0,
     /// home renamed; the colour codes a terminal would get added back.
     private let undoOutput = """
     \u{1B}[1m[DRY RUN] Preview, this run changes nothing; the plan below is what a real run would do.\u{1B}[0m
 
     Restoring 1 file from encrypted backups:
-      • ~/Security-Ops/.mcp.json (backed up 2m ago)
+      • ~/billing-sync/.mcp.json (backed up 2m ago)
 
     Each file is restored EXACTLY as backed up, edits made since are replaced
     (the replaced content is snapshotted into the vault first, so this is itself
     undoable), and real secret values return to disk in PLAINTEXT.
     Vault secrets and profile manifests are left in place, this reverses files, never the vault.
 
-    [DRY RUN] Apply this plan: jit migrate undo /Users/me/Security-Ops/.mcp.json
+    [DRY RUN] Apply this plan: jit migrate undo /Users/me/billing-sync/.mcp.json
     """
 
     /// A migrate plan's shape (jitpass/jit internal/cli/migrate.go): the
@@ -32,18 +32,18 @@ final class MigratePlanTests: XCTestCase {
     [DRY RUN] Preview, this run changes nothing; the plan below is what a real run would do.
 
     [mcp] 1
-      ~/Security-Ops/.mcp.json
+      ~/billing-sync/.mcp.json
         note: collapsed 2 nested wrappers into one
 
-    [DRY RUN] Apply this plan: `jit migrate /Users/me/Security-Ops/.mcp.json`
+    [DRY RUN] Apply this plan: `jit migrate /Users/me/billing-sync/.mcp.json`
     This only covers what jit migrate can act on; run `jit scan` for the complete picture,
     including findings it can never auto-fix, like private keys.
     """
 
     func testDoctorsMigrateFixesRunInTheApp() {
         let nested = DoctorItem(
-            kind: "mcp_nested", profile: "mcp-caido", path: config, detail: "\"caido\" in ~/Security-Ops/.mcp.json runs jit inside jit",
-            fixes: [DoctorFix(command: "jit migrate ~/Security-Ops/.mcp.json", argv: ["migrate", config], destructive: false)]
+            kind: "mcp_nested", profile: "mcp-ledger", path: config, detail: "\"ledger\" in ~/billing-sync/.mcp.json runs jit inside jit",
+            fixes: [DoctorFix(command: "jit migrate ~/billing-sync/.mcp.json", argv: ["migrate", config], destructive: false)]
         )
         let migrate = DoctorAdvice.actions(for: nested)
         XCTAssertEqual(migrate.map(\.title), ["Migrate"])
@@ -55,7 +55,7 @@ final class MigratePlanTests: XCTestCase {
         let gone = DoctorItem(
             kind: "mcp", profile: "mcp-x", path: config,
             fixes: [DoctorFix(
-                command: "jit migrate undo ~/Security-Ops/.mcp.json", argv: ["migrate", "undo", config], destructive: true, presence: true
+                command: "jit migrate undo ~/billing-sync/.mcp.json", argv: ["migrate", "undo", config], destructive: true, presence: true
             )]
         )
         let undo = DoctorAdvice.actions(for: gone)
@@ -74,7 +74,7 @@ final class MigratePlanTests: XCTestCase {
 
     /// A report from before `fixes` keeps the terminal, as it always did.
     func testAnOlderReportStaysInTheTerminal() {
-        let old = DoctorItem(kind: "mcp_nested", path: config, action: "`jit migrate ~/Security-Ops/.mcp.json` to collapse each")
+        let old = DoctorItem(kind: "mcp_nested", path: config, action: "`jit migrate ~/billing-sync/.mcp.json` to collapse each")
         let actions = DoctorAdvice.actions(for: old)
         XCTAssertEqual(actions.map(\.title), ["Migrate Again"])
         XCTAssertNil(actions.first?.argv)
@@ -84,7 +84,7 @@ final class MigratePlanTests: XCTestCase {
     func testParseDropsTheDryRunFrame() {
         let plan = MigratePlan.parse(migrateOutput, mode: .migrate, targets: [config])
         XCTAssertTrue(plan.hasWork)
-        XCTAssertEqual(plan.text, "[mcp] 1\n  ~/Security-Ops/.mcp.json\n    note: collapsed 2 nested wrappers into one")
+        XCTAssertEqual(plan.text, "[mcp] 1\n  ~/billing-sync/.mcp.json\n    note: collapsed 2 nested wrappers into one")
         XCTAssertEqual(MigratePlan.dryRunArguments(.migrate, [config]), ["migrate", config, "--dry-run"])
         XCTAssertEqual(MigratePlan.dryRunArguments(.undo, [config]), ["migrate", "undo", config, "--dry-run"])
         XCTAssertEqual(plan.arguments, ["migrate", "--yes", config])
@@ -99,14 +99,13 @@ final class MigratePlanTests: XCTestCase {
 
     func testMigrateConfirmation() {
         let dialog = MigratePlan.parse(migrateOutput, mode: .migrate, targets: [config]).confirmation(home: "/Users/me")
-        XCTAssertEqual(dialog.title, "Migrate Security-Ops/.mcp.json?")
+        XCTAssertEqual(dialog.title, "Migrate billing-sync/.mcp.json?")
         XCTAssertEqual(dialog.message, """
-        jit rewrites what the plan below lists. Every file is backed up, encrypted, before it is touched; \
-        jit migrate undo restores it.
+        jit rewrites what the plan below lists, backing up each file first.
 
         Touch ID follows if jit needs the vault.
 
-        jit's plan, from a dry run that changed nothing:
+        jit's plan:
         """)
         XCTAssertEqual(dialog.button, "Migrate")
         XCTAssertFalse(dialog.breaks)
@@ -118,15 +117,14 @@ final class MigratePlanTests: XCTestCase {
     /// button is the red one Return does not press.
     func testUndoConfirmation() {
         let dialog = MigratePlan.parse(undoOutput, mode: .undo, targets: [config]).confirmation(home: "/Users/me")
-        XCTAssertEqual(dialog.title, "Undo the migration of Security-Ops/.mcp.json?")
+        XCTAssertEqual(dialog.title, "Undo the migration of billing-sync/.mcp.json?")
         XCTAssertEqual(dialog.message, """
-        This puts the original ~/Security-Ops/.mcp.json back on disk, and jit writes real secret values back to disk \
-        in plaintext. The vault keeps its copies and the profiles stay. Edits made since the migration are replaced; \
-        jit keeps a copy of them in the vault first.
+        This puts the original ~/billing-sync/.mcp.json back, with real secret values in plain text. \
+        Edits since the migration are replaced, and kept in the vault first.
 
         Touch ID follows.
 
-        jit's plan, from a dry run that changed nothing:
+        jit's plan:
         """)
         XCTAssertEqual(dialog.button, "Undo Migration")
         XCTAssertTrue(dialog.breaks, "red, and not the Return default")
@@ -149,6 +147,7 @@ final class MigratePlanTests: XCTestCase {
         let unavailable = MigratePlan.unavailable(.undo, targets: [config], reason: "no recorded backup for it", home: "/Users/me")
         XCTAssertEqual(unavailable.title, "Can't check what undoing would restore")
         XCTAssertNil(unavailable.button)
-        XCTAssertTrue(unavailable.message.hasPrefix("Nothing was changed. Before it runs jit migrate undo ~/Security-Ops/.mcp.json,"))
+        XCTAssertTrue(unavailable.message
+            .hasPrefix("Nothing was changed: jit didn't say what jit migrate undo ~/billing-sync/.mcp.json would do."))
     }
 }

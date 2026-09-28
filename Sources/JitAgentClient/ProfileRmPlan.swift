@@ -28,9 +28,12 @@ public struct ProfileRmPlan: Decodable, Sendable, Equatable {
     public var refused: Bool
     /// jit could not read a config; it then refuses too.
     public var error: String?
+    /// The folder of a project profile (scope "project", jit 2.3.4+): it
+    /// goes with its project, through `jit migrate remove`.
+    public var project: String?
 
     enum CodingKeys: String, CodingKey {
-        case profile, scope, launchers, refused, error
+        case profile, scope, launchers, refused, error, project
         case deleteSecrets = "delete_secrets"
         case keepSecrets = "keep_secrets"
         case missingSecrets = "missing_secrets"
@@ -64,6 +67,7 @@ public struct ProfileRmPlan: Decodable, Sendable, Equatable {
         refused = try box.decodeIfPresent(Bool.self, forKey: .refused) ?? false
         let error = try box.decodeIfPresent(String.self, forKey: .error)
         self.error = error?.isEmpty == true ? nil : error
+        project = try box.decodeIfPresent(String.self, forKey: .project)
     }
 
     public static func parse(_ data: Data) throws -> ProfileRmPlan {
@@ -82,11 +86,17 @@ public extension ProfileRmPlan {
     /// button when jit would refuse (a tool uses it, or it can't tell):
     /// nothing the app could run would delete anything.
     func confirmation(home: String = NSHomeDirectory()) -> DeleteConfirmation {
+        if scope == "project", let project {
+            return DeleteConfirmation(
+                title: "Remove \(profile)?",
+                message: "Its values go back into the project's files as plain text, and the profile is deleted.\n\nTouch ID follows.",
+                button: "Remove Profile", breaks: true, arguments: ["migrate", "remove", project, "--yes"]
+            )
+        }
         if let error {
             return DeleteConfirmation(
                 title: "Can't tell whether \(profile) is in use",
-                message: "jit could not read everything that might use it:\n\n\(error)\n\n"
-                    + "It won't remove a profile it can't check, so nothing was deleted.",
+                message: "jit couldn't read everything that might use it, so nothing was deleted.\n\n\(error)",
                 button: nil, breaks: false, arguments: []
             )
         }
@@ -102,14 +112,13 @@ public extension ProfileRmPlan {
             )
         }
         var parts = [coverageComplete
-            ? "No tool jit can see uses \(profile). It can't see scripts or aliases: if one still runs it, that stops working."
-            : "jit could not see all of your home folder, so a tool there may still use \(profile), "
-            + "and it never sees scripts or aliases. Whatever runs it stops working."]
+            ? "No tool jit can see uses \(profile); a script or alias that runs it stops working."
+            : "jit couldn't see all of your home folder, so a tool there may still use \(profile)."]
         parts += secretsParts
         let arguments = ["profile", "rm", "--yes", profile]
-        parts.append(deleteSecrets.isEmpty
-            ? "No secret is deleted, so nothing asks for Touch ID."
-            : "Touch ID follows.")
+        if !deleteSecrets.isEmpty {
+            parts.append("Touch ID follows.")
+        }
         return DeleteConfirmation(
             title: coverageComplete ? "Remove profile \(profile)?" : "jit can't see every tool that might use \(profile)",
             message: parts.joined(separator: "\n\n"), button: coverageComplete ? "Remove Profile" : "Remove Anyway",

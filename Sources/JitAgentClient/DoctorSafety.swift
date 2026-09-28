@@ -57,10 +57,8 @@ extension DoctorAdvice {
                 let variables = drop.dropFirst(3).filter { !$0.hasPrefix("-") }
                 let named = BoardText.list(Array(variables))
                 let them = variables.count == 1 ? "it" : "them"
-                return "Profile \(profile) stops passing \(named) to the tools it "
-                    + "starts. If one of them does need \(them), it will fail with nothing to say why, and Doctor "
-                    + "won't flag it again. No stored secret is deleted, and jit refuses to run this if the vault "
-                    + "holds a value for \(them)."
+                return "Profile \(profile) stops passing \(named) to its tools. "
+                    + "A tool that needs \(them) fails without saying why, and Doctor won't flag it again."
             }
             // The only in-app case with nothing else to name it by: an
             // unknown destructive command keeps its line rather than

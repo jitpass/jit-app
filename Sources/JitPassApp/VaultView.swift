@@ -260,6 +260,7 @@ struct VaultActions {
     /// path, stamp
     var restore: (String, Int64) -> Void = { _, _ in }
     var delete: ([String]) -> Void = { _ in }
+    var deleteProfile: (String) -> Void = { _ in }
     var openInTerminal: () -> Void = {}
     var loadOrphans: () -> Void = {}
     /// `jit vault orphans --prune`: the stale mount registrations, and

@@ -111,9 +111,6 @@ extension Format {
         }
     }
 
-    static let vaultSettingsOnlyDeleteHelp = "This profile holds only plain settings. They are removed with their project, "
-        + "or one at a time with Move to Vault; jit has no command yet to delete them on their own."
-
     static func vaultSettingsOnlyCountHelp(_ n: Int) -> String {
         count(n, "setting") + ", no secrets"
     }

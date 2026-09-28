@@ -59,12 +59,10 @@ public extension VaultRmPlan {
     /// could not check.
     static func unavailable(_ paths: [String], reason: String) -> DeleteConfirmation {
         let subject = paths.count == 1 ? paths[0] : "\(paths.count) secrets"
-        var message = "Nothing was deleted. Before deleting, JitPass asks jit what still uses "
-            + (paths.count == 1 ? "the secret" : "them") + ", and jit did not answer:\n\n"
+        var message = "Nothing was deleted: jit didn't say what still uses " + (paths.count == 1 ? "it" : "them") + ".\n\n"
             + (reason.isEmpty ? "(no output)" : reason)
         if reason.contains("unknown flag") || reason.contains("--dry-run") {
-            message += "\n\nThat jit is older than 1.9, the first that can say. Update it, "
-                + "or delete in the terminal, where jit runs its own check."
+            message += "\n\nThat jit is older than 1.9. Update it, or delete in the terminal."
         }
         return DeleteConfirmation(title: "Can't check what uses \(subject)", message: message, button: nil, breaks: false, arguments: [])
     }
@@ -92,8 +90,8 @@ public extension VaultRmPlan {
     }
 
     private var deletes: String {
-        paths.count == 1 ? "It deletes the secret and its history for good"
-            : "It deletes all \(paths.count) secrets and their history for good"
+        paths.count == 1 ? "The secret and its history go for good"
+            : "These \(paths.count) secrets and their history go for good"
     }
 
     private var missingNote: String {
@@ -119,8 +117,8 @@ public extension VaultRmPlan {
         // line, however few. The old text carried them inside the command
         // it quoted, so dropping the command must not drop the paths.
         let listed = paths.count == 1 ? ". " : ":\n\n" + paths.joined(separator: "\n") + "\n\n"
-        let message = "\(deletes), with no archive and no undo\(listed)"
-            + "No profile, mount or pointer file jit can find uses \(pronoun)." + missingNote
+        let message = "\(deletes)\(listed)"
+            + "Nothing jit can find uses \(pronoun)." + missingNote
             + " Touch ID follows."
         return DeleteConfirmation(
             title: "Delete \(subject)?", message: message,
@@ -142,7 +140,7 @@ public extension VaultRmPlan {
         } else if users.isEmpty {
             parts.append("jit would refuse this delete without --break-profiles.")
         }
-        parts.append("This runs:\n\n\(command(["vault", "rm", "--break-profiles", "--yes"]))\n\n\(deletes), and nothing asks again."
+        parts.append("This runs:\n\n\(command(["vault", "rm", "--break-profiles", "--yes"]))\n\n\(deletes)."
             + missingNote + (users.isEmpty ? " Touch ID follows." : " Touch ID follows, naming what breaks."))
         let inUse = Set(inUse.map(\.path)).count
         let title = if error != nil, users.isEmpty {

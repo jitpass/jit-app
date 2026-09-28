@@ -156,8 +156,8 @@ extension StatusItemController {
         }
         let alert = NSAlert()
         alert.messageText = files.count == 1 ? "Put 1 file back as it was?" : "Put \(files.count) files back as they were?"
-        alert.informativeText = "This runs jit migrate undo: each file gets its original bytes back, plaintext secrets included. "
-            + "The vault keeps its copies, and tools that were wrapped stay wrapped. Touch ID follows."
+        alert.informativeText = "Each file gets its original contents back, secrets in plain text. "
+            + "The vault keeps its copies. Touch ID follows."
         alert.addButton(withTitle: "Undo")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
