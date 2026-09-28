@@ -88,11 +88,9 @@ public extension ProfileRmPlan {
     func confirmation(home: String = NSHomeDirectory()) -> DeleteConfirmation {
         if scope == "project", let project {
             return DeleteConfirmation(
-                title: "Remove \(profile) from its project?",
-                message: "\(profile) belongs to the project in \(VaultRmPlan.short(project, home)), so it goes with that project. "
-                    + "jit steps out of the project: its values go back into the project's files as plain text, "
-                    + "then its profiles, secrets and settings are deleted.\n\nTouch ID follows.",
-                button: "Remove from Project", breaks: true, arguments: ["migrate", "remove", project, "--yes"]
+                title: "Remove \(profile)?",
+                message: "Its values go back into the project's files as plain text, and the profile is deleted.\n\nTouch ID follows.",
+                button: "Remove Profile", breaks: true, arguments: ["migrate", "remove", project, "--yes"]
             )
         }
         if let error {

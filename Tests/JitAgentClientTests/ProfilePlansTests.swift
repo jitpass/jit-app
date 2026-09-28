@@ -149,12 +149,11 @@ final class ProfilePlansTests: XCTestCase {
         let json = #"{"profile":"billing-sync","scope":"project","project":"/Users/me/code/billing-sync","refused":true,"#
             + #""launchers":[],"delete_secrets":[],"keep_secrets":[],"missing_secrets":[],"coverage_complete":false}"#
         let dialog = try ProfileRmPlan.parse(Data(json.utf8)).confirmation(home: home)
-        XCTAssertEqual(dialog.title, "Remove billing-sync from its project?")
-        XCTAssertEqual(dialog.button, "Remove from Project")
+        XCTAssertEqual(dialog.title, "Remove billing-sync?")
+        XCTAssertEqual(dialog.button, "Remove Profile")
         XCTAssertTrue(dialog.breaks, "destructive: Cancel stays the default")
         XCTAssertEqual(dialog.arguments, ["migrate", "remove", "/Users/me/code/billing-sync", "--yes"])
-        XCTAssertTrue(dialog.message.contains("~/code/billing-sync"))
-        XCTAssertTrue(dialog.message.contains("plain text"))
+        XCTAssertTrue(dialog.message.hasPrefix("Its values go back into the project's files as plain text"))
     }
 
     func testDecodesRm() throws {
