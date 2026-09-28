@@ -8,36 +8,32 @@ import JitAgentClient
 /// starts in (docs/design/onboarding.md). Every step is a jit command the
 /// CLI's own first run uses.
 extension StatusItemController {
+    /// "Restart Service", offered when Doctor says a restart fixes the
+    /// service: Doctor opens and runs its own Restart Service on that row,
+    /// so the spinner, the failure line and the recheck are Doctor's, and
+    /// the panel has no second way to restart that could drift from it.
+    /// The vault locks with it, as it does from Doctor.
+    func restartService() {
+        guard let item = model.doctor?.serviceRestart,
+              let restart = DoctorAdvice.actions(for: item).first(where: { $0.argv == [["service", "restart"]] })
+        else {
+            return
+        }
+        openDoctor()
+        // Doctor runs one thing at a time and ignores a press while busy;
+        // from the panel that would read as a button doing nothing.
+        guard doctorIdle else {
+            model.doctorMessage = "Doctor is still checking. Press Restart Service again when it finishes."
+            return
+        }
+        perform([restart], target: DoctorTarget(key: item.id))
+    }
+
     /// "Start Service" with no service answering. The `unlock` op has no
     /// socket to go to; the panel used to send it anyway and drop the
     /// error, so on a Mac whose service was never installed the button did
     /// nothing. `jit unlock` is the CLI's "get me a session": it installs
     /// and starts the service first, then unlocks.
-    /// "Restart Service", offered when Doctor says a restart fixes the
-    /// service: the same `jit service restart` Doctor's own button runs.
-    /// The vault locks with it, as it does from Doctor.
-    func restartService() {
-        panel.dismiss()
-        Task.detached {
-            let result = JitCLI.invoke(["service", "restart"])
-            await MainActor.run { [weak self] in
-                let failure: String? = switch result {
-                case let .failure(error): Self.describeTools(error)
-                case let .success(outcome) where outcome.status != 0: outcome.output
-                default: nil
-                }
-                if let failure {
-                    let alert = NSAlert()
-                    alert.messageText = "The service did not restart"
-                    alert.informativeText = failure
-                    alert.runFrontmost()
-                }
-                self?.pollStatus()
-                self?.runDoctor(afterAction: true)
-            }
-        }
-    }
-
     func startService() {
         Task.detached {
             let result = JitCLI.execute(["unlock"])
