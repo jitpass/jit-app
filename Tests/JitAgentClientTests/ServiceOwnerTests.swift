@@ -50,4 +50,31 @@ final class ServiceOwnerTests: XCTestCase {
         XCTAssertTrue(elsewhere.reason?.hasSuffix("The service runs the jit in /Applications/JitPass.app; restart it from there.") == true)
         XCTAssertEqual(board.restartingElsewhere(nil), board, "unknown: as before")
     }
+
+    /// Restart Service anywhere on a service card: its ⋯ when Show Log is
+    /// the primary, and each row's buttons and menu on a card of several
+    /// service findings. None is left for a service jit won't restart.
+    func testRestartIsGoneFromTheMenuAndEveryRow() throws {
+        let restart = DoctorButton(
+            "Restart Service",
+            .run([DoctorAction("Restart Service", "jit service restart", argv: [["service", "restart"]])])
+        )
+        let log = DoctorButton("Show Log", .run([DoctorAction("Show Log", "jit service log", argv: [["service", "log"]])]))
+        var card = DoctorCard(id: "service", tier: .recommended, title: "Background service", items: [
+            DoctorItem(kind: "service", detail: "a different build"), DoctorItem(kind: "service", detail: "the binary is gone")
+        ])
+        card.primary = log
+        card.menu = [.button(restart), .separator, .button(log)]
+        card.rows = [
+            DoctorCardRow(id: "a", text: "a different build", mono: false, buttons: [restart, log], menu: [.button(restart)]),
+            DoctorCardRow(id: "b", text: "the binary is gone", mono: false, buttons: [restart])
+        ]
+        let board = DoctorBoard(headline: "1 warning", mark: .amber, cards: [card])
+        let out = try XCTUnwrap(board.restartingElsewhere(installed, home: "/Users/me").cards.first)
+        XCTAssertEqual(out.primary, log, "Show Log stays")
+        XCTAssertEqual(out.menu, [.button(log)], "no restart, and no separator left leading")
+        XCTAssertEqual(out.rows.map(\.buttons), [[log], []])
+        XCTAssertEqual(out.rows[0].menu, [])
+        XCTAssertTrue(out.reason?.contains("restart it from there") == true)
+    }
 }
