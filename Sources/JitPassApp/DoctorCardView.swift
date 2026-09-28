@@ -12,7 +12,8 @@ enum DoctorCardState: Equatable {
     case done(title: String, line: String?)
     /// `said` is jit's own last words, shown under the line in the app's
     /// type. They used to open a terminal window over the app.
-    case failed(title: String, line: String?, said: String?, retry: DoctorButton)
+    /// `retry` is nil when trying again cannot help.
+    case failed(title: String, line: String?, said: String?, retry: DoctorButton?)
 
     var enabled: Bool {
         self == .idle(enabled: true)
@@ -44,7 +45,9 @@ struct DoctorCardView: View {
                 DoctorEndedLine(done: true, title: title, line: line, said: nil)
             case let .failed(title, line, said, retry):
                 DoctorEndedLine(done: false, title: title, line: line, said: said) {
-                    Button("Try Again") { onButton(retry, card, card.id) }
+                    if let retry {
+                        Button("Try Again") { onButton(retry, card, card.id) }
+                    }
                 }
             default:
                 eyebrow
@@ -161,7 +164,9 @@ struct DoctorRowView: View {
                 DoctorEndedLine(done: true, title: title, line: line, said: nil)
             case let .failed(title, line, said, retry):
                 DoctorEndedLine(done: false, title: title, line: line, said: said) {
-                    Button("Try Again") { onButton(retry, card, row.id) }
+                    if let retry {
+                        Button("Try Again") { onButton(retry, card, row.id) }
+                    }
                 }
             case let .working(presence):
                 text

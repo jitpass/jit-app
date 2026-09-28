@@ -158,8 +158,7 @@ extension StatusItemController {
                 case let .success(outcome):
                     output.append(outcome.output)
                     if outcome.status != 0 {
-                        let line = outcome.output.split(separator: "\n").last.map(String.init) ?? "exit \(outcome.status)"
-                        failure = "jit \(step.argv.joined(separator: " ")): \(line)"
+                        failure = DoctorFailureLine.make(output: outcome.output, argv: step.argv, status: outcome.status)
                     }
                 case let .failure(error):
                     failure = "jit \(step.argv.joined(separator: " ")): \(Self.describe(error))"

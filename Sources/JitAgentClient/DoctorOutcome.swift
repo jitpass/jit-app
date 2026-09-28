@@ -27,6 +27,9 @@ public struct DoctorOutcome: Equatable, Sendable {
     /// they used to go: a black pane over a window that already knew.
     public var said: String?
     public var at: Date
+    /// Whether Try Again could help. Not when jit said only the jit inside
+    /// the installed JitPass can do this: the same step fails the same way.
+    public var retryable = true
 
     public init(
         key: String, card: DoctorCard, button: DoctorButton, state: State, title: String, line: String?,
@@ -94,6 +97,12 @@ public extension DoctorCard {
             let done = values ? "\(completed) of \(total) values set." : "\(completed) of \(total) steps done."
             line = done + (cancelled ? " Touch ID was cancelled for the rest." : "")
         }
-        return DoctorOutcome(key: key, card: self, button: button, state: .failed, title: title, line: line, said: said, at: at)
+        var outcome = DoctorOutcome(key: key, card: self, button: button, state: .failed, title: title, line: line, said: said, at: at)
+        if DoctorFailureLine.needsTheInstalledApp(output) {
+            outcome.title = "\(what): not from this copy"
+            outcome.line = "Only the jit inside the installed JitPass can reach this vault's key. Do it from there."
+            outcome.retryable = false
+        }
+        return outcome
     }
 }

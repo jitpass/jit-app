@@ -203,7 +203,7 @@ struct DoctorView: View {
         if let outcome = progress.outcome, outcome.key == key {
             return outcome.state == .done
                 ? .done(title: outcome.title, line: outcome.line)
-                : .failed(title: outcome.title, line: outcome.line, said: outcome.said, retry: outcome.button)
+                : .failed(title: outcome.title, line: outcome.line, said: outcome.said, retry: outcome.retryable ? outcome.button : nil)
         }
         if model.doctorBusy == key {
             return .working(presence: progress.presence)
