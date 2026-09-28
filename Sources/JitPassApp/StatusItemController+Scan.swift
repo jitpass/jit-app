@@ -43,6 +43,11 @@ extension StatusItemController {
             },
             redact: { [weak self] files, lines, what, place in self?.redact(files: files, lines: lines, what: what, place: place) },
             askDepth: { [weak self] scope in self?.askDepth(scope: scope) },
+            markReviewed: { [weak self] findings, ask in self?.markReviewed(findings, ask: ask) },
+            unreview: { [weak self] targets in self?.unreview(targets) },
+            showReviewed: { [weak self] in self?.showReviewed() },
+            unmark: { [weak self] entry in self?.unmarkFromList(entry) },
+            closeReviewed: { [weak self] in self?.closeReviewed() },
             startScan: { [weak self] scope, mode in self?.startScan(scope: scope, mode: mode) }
         )
     }

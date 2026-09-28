@@ -11,6 +11,7 @@ import SwiftUI
 struct ScanLinesSheet: View {
     let group: ScanFileGroup
     let actions: ScanActions
+    var canReview = false
     let close: () -> Void
 
     var body: some View {
@@ -51,6 +52,12 @@ struct ScanLinesSheet: View {
                                 }
                                 .buttonStyle(AppButton())
                             }
+                            if canReview, finding.reviewable {
+                                Button("Mark Reviewed") {
+                                    actions.markReviewed([finding], finding.scaffolding ? .none : .risky)
+                                }
+                                .buttonStyle(AppButton(kind: .quiet))
+                            }
                         }
                     }
                 }
@@ -81,5 +88,6 @@ struct ScanLinesSheet: View {
         .frame(width: Win.sheetWide)
         // app-sheet-material: the window's own material, not macOS's default sheet.
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .onExitCommand(perform: close)
     }
 }
