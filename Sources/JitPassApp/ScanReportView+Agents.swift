@@ -29,7 +29,7 @@ extension ScanReportView {
             if !shapes.isEmpty {
                 Button("Redact All \(shapeCount)…") {
                     actions.redact(
-                        [],
+                        shapes.map(\.filePath),
                         [],
                         "\(shapeCount) token" + (shapeCount == 1 ? "" : "s") + " in \(shapes.count) file" + (shapes.count == 1 ? "" : "s"),
                         nil
