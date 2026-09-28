@@ -45,34 +45,32 @@ struct WrapSheet: View {
     @State private var value = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text((tool.wrapped ? "Repair " : "Wrap ") + tool.tool).font(.headline)
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(points, id: \.self) { point in
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("•").foregroundStyle(.tertiary)
-                        Text(point).fixedSize(horizontal: false, vertical: true)
-                    }
+        VStack(alignment: .leading, spacing: Design.Space.five) {
+            Text((tool.wrapped ? "Repair " : "Wrap ") + tool.tool + "?").font(Design.Text.windowHead)
+            VStack(alignment: .leading, spacing: Design.Space.three) {
+                ForEach(lines, id: \.self) { line in
+                    Text(line).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .font(.subheadline).foregroundStyle(.secondary)
+            .font(Design.Text.row)
             if let inject = tool.injects.first, !inject.stored, !tool.keyState(scan: model.macScan).found {
                 SheetField(inject.name) {
                     SecureField(fieldPrompt, text: $value).textFieldStyle(.roundedBorder)
                 }
-                Text(fieldNote).font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(fieldNote).font(Design.Text.rowFact).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            Text("Open shells keep the old PATH until you run the line below in them, or open a new one.")
-                .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            Text("export PATH=\"$HOME/.jit/shims:$PATH\"").font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+            if Self.shimsMissingFromShell {
+                Text("Terminal windows already open won't use it; open a new one.")
+                    .font(Design.Text.rowFact).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
             if let message = model.toolsMessage {
                 Text(message)
-                    .font(.subheadline)
+                    .font(Design.Text.row)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(10)
+                    .padding(Design.Space.five)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(StatusMark.red).opacity(0.12))
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Design.Radius.control, style: .continuous))
             }
             HStack {
                 Spacer()
@@ -84,8 +82,19 @@ struct WrapSheet: View {
                 .disabled(!canSubmit || model.toolsBusy != nil)
             }
         }
-        .padding(20)
-        .frame(width: 480)
+        .padding(Design.Space.six)
+        .frame(width: Design.Sheet.alert)
+    }
+
+    /// The shell a new terminal starts does not have jit's shims on its
+    /// PATH yet: the first wrap adds the rc line, and only windows opened
+    /// after it pick it up. Otherwise open windows already have it.
+    static var shimsMissingFromShell: Bool {
+        let shims = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".jit/shims").path
+        guard let path = LoginShell.path else {
+            return true
+        }
+        return !path.split(separator: ":").contains(Substring(shims))
     }
 
     private var busy: Bool {
@@ -109,57 +118,47 @@ struct WrapSheet: View {
         return true
     }
 
-    /// Three lines, not a paragraph: where the key comes from, who gets
-    /// it, what it costs. The row already said what the tool is.
-    private var points: [String] {
-        let target = tool.injects.first?.vaultPath ?? "wrap-\(tool.tool)/…"
+    /// Two short sentences at most: what changes for the tool, and where
+    /// its key comes from; then the cost. The row already said what the
+    /// tool is.
+    private var lines: [String] {
+        let name = tool.tool
+        var lines: [String]
         switch tool.kind {
         case "capture":
-            return [
-                "Every `\(tool.tool) get` login goes into the vault, not ~/.aws/credentials",
-                "aws and the SDKs read it from there through credential_process",
-                "A client secret in its config moves to the vault too · Touch ID once"
+            lines = [
+                "Each \(name) login is kept in the vault instead of ~/.aws/credentials, and the AWS tools read it from there.",
+                "A client secret in its config moves to the vault too."
             ]
         case "grant":
-            return [
-                "Every run is granted the \(tool.with ?? "") mount under its own Touch ID",
-                "The file on disk keeps serving decoys to everything else",
-                "No token is moved"
-            ]
+            lines = ["Each run of \(name) gets the \(tool.with ?? "") file after its own Touch ID. Everything else keeps getting decoys."]
         case "rungrant":
-            return [
-                "Every run happens inside a jit grant",
-                "Migrated Secret manifests apply with real values; nothing else sees them",
-                "No token, nothing to store"
-            ]
+            lines = ["Each run of \(name) happens inside a jit grant. Nothing is stored."]
         default:
+            lines = ["\(name) gets its key from the vault, only while it runs."]
             if let key = tool.shellConfigKey(scan: model.macScan) {
-                return [
-                    "Key: exported in \(Format.home(key.file)) · moves to \(key.vaultPath), the export line becomes jit's",
-                    "\(tool.tool) gets it through the shim; your shell keeps it through jit export",
-                    "Touch ID once"
-                ]
+                lines.append("The key moves out of \(Format.home(key.file)); your shell still gets it through jit.")
+            } else {
+                switch tool.keyState(scan: model.macScan) {
+                case let .found(source) where source.hasPrefix("~") || source.hasPrefix("/"):
+                    lines.append("The key moves out of \(Format.home(source)), which is backed up and emptied.")
+                case .found:
+                    lines.append("The key is copied from \(name)'s login, which stays as it is.")
+                case .none, .unknown, .protected:
+                    if discoverable {
+                        lines.append("jit looks for the key in \(placesText).")
+                    }
+                }
             }
-            var lines: [String] = switch tool.keyState(scan: model.macScan) {
-            case let .found(source) where source.hasPrefix("~") || source.hasPrefix("/"):
-                ["Key: found in \(Format.home(source)) · moves to \(target), file blanked (backed up)"]
-            case let .found(source):
-                ["Key: from \(tool.tool)'s login (`\(source)`) · copied to \(target), login untouched"]
-            case .none, .unknown, .protected:
-                [discoverable
-                    ? "Key: jit looks in \(placesText) · stored at \(target)"
-                    : "Key: the one you paste below · stored at \(target)"]
-            }
-            lines.append("Only \(tool.tool)'s own process gets it, one run at a time")
-            lines.append("Touch ID once" + (needsField ? " to store it, once to wrap" : ""))
-            return lines
         }
+        lines.append(needsField ? "Touch ID follows, once to store the key and once to wrap." : "Touch ID follows.")
+        return lines
     }
 
     private var placesText: String {
         var places = tool.sources.map(Format.home)
         if let command = tool.tokenCommand {
-            places.append("`\(command)`")
+            places.append(command)
         }
         return places.joined(separator: " or ")
     }
