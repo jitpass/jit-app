@@ -25,9 +25,13 @@ extension StatusItemController {
             let alert = NSAlert()
             alert.messageText = question.title
             alert.informativeText = question.message
-            alert.addButton(withTitle: "Mark Reviewed")
-            alert.addButton(withTitle: "Cancel")
-            guard alert.runFrontmost() == .alertFirstButtonReturn else {
+            // A likely live key: Return cancels. Mark All keeps Return on
+            // Mark Reviewed; its question already counts what goes.
+            let risky = ask == .risky
+            alert.addButton(withTitle: risky ? "Cancel" : "Mark Reviewed")
+            alert.addButton(withTitle: risky ? "Mark Reviewed" : "Cancel")
+            let marked: NSApplication.ModalResponse = risky ? .alertSecondButtonReturn : .alertFirstButtonReturn
+            guard alert.runFrontmost() == marked else {
                 return
             }
         }

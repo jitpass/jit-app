@@ -57,29 +57,19 @@ struct ReviewedSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Win.s5) {
             VStack(alignment: .leading, spacing: Win.s1) {
-                Text(Format.reviewedSheetTitle(list.entries.count)).font(Win.cardTitle)
-                Text(Format.reviewedSheetNote).font(Win.sub).foregroundStyle(.secondary)
-            }
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(Array(list.entries.enumerated()), id: \.element.id) { index, entry in
-                        AppRow(
-                            name: Format.fileName(entry.path),
-                            detail: entry.line.map { "line \($0)" },
-                            fact: Format.reviewedFact(entry),
-                            last: index == list.entries.count - 1
-                        ) {
-                            Button("Unmark") { unmark(entry) }
-                                .buttonStyle(AppButton(kind: .quiet))
-                                .disabled(model.toolsBusy != nil || entry.markID == nil)
-                        }
-                    }
+                Text(list.entries.isEmpty ? Format.reviewedSheetEmptyTitle : Format.reviewedSheetTitle(list.entries.count))
+                    .font(Win.cardTitle)
+                if !list.entries.isEmpty {
+                    Text(Format.reviewedSheetNote).font(Win.sub).foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, Win.s5)
-                .padding(.vertical, Win.s2)
             }
-            .frame(maxHeight: 280)
-            .background(WindowSurface.card, in: RoundedRectangle(cornerRadius: Win.card, style: .continuous))
+            if list.entries.isEmpty {
+                Text(list.removed > 0 ? Format.reviewedSheetEmptyAfterUnmark : Format.reviewedSheetEmpty)
+                    .font(Win.sub)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                rows
+            }
             HStack {
                 Spacer()
                 Button("Done", action: close).buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
@@ -89,5 +79,29 @@ struct ReviewedSheet: View {
         .frame(width: Win.sheetWide)
         // app-sheet-material: the window's own material, not macOS's default sheet.
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .onExitCommand(perform: close)
+    }
+
+    private var rows: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ForEach(Array(list.entries.enumerated()), id: \.element.id) { index, entry in
+                    AppRow(
+                        name: Format.fileName(entry.path),
+                        detail: Format.parentFolder(entry.path),
+                        fact: Format.reviewedFact(entry),
+                        last: index == list.entries.count - 1
+                    ) {
+                        Button("Unmark") { unmark(entry) }
+                            .buttonStyle(AppButton(kind: .quiet))
+                            .disabled(model.toolsBusy != nil || entry.markID == nil)
+                    }
+                }
+            }
+            .padding(.horizontal, Win.s5)
+            .padding(.vertical, Win.s2)
+        }
+        .frame(maxHeight: 280)
+        .background(WindowSurface.card, in: RoundedRectangle(cornerRadius: Win.card, style: .continuous))
     }
 }

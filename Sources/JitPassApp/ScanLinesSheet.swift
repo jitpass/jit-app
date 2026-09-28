@@ -56,7 +56,7 @@ struct ScanLinesSheet: View {
                                 Button("Mark Reviewed") {
                                     actions.markReviewed([finding], finding.scaffolding ? .none : .risky)
                                 }
-                                .buttonStyle(AppButton())
+                                .buttonStyle(AppButton(kind: .quiet))
                             }
                         }
                     }
@@ -88,5 +88,6 @@ struct ScanLinesSheet: View {
         .frame(width: Win.sheetWide)
         // app-sheet-material: the window's own material, not macOS's default sheet.
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .onExitCommand(perform: close)
     }
 }
