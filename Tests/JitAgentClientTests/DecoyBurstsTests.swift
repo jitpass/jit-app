@@ -153,4 +153,22 @@ final class DecoyExpectedDecisionTests: XCTestCase {
             XCTAssertTrue(ExpectedReaders.canBeExpected(program: program), program)
         }
     }
+
+    /// With only an untraced reader, an interpreter and an expected row,
+    /// no row can be marked, so the note must not offer it.
+    func testMarkableAndExpectedCountsPerFile() {
+        let rows = [
+            DecoyBurst(by: nil, reader: nil, file: "~/w/a/.env", reads: 1, first: Date(), last: Date(), why: "", expected: false),
+            DecoyBurst(by: "/usr/bin/python3", reader: "python3", file: "~/w/a/.env", reads: 7, first: Date(), last: Date(),
+                       why: "", expected: false),
+            DecoyBurst(by: editor, reader: "Editor", file: "~/w/a/.env", reads: 1712, first: Date(), last: Date(), why: "", expected: true)
+        ]
+        XCTAssertFalse(DecoyBurst.anyMarkable(rows))
+        let withEditor = rows + [DecoyBurst(by: editor, reader: "Editor", file: "~/w/b/.env", reads: 5, first: Date(), last: Date(),
+                                            why: "", expected: false)]
+        XCTAssertTrue(DecoyBurst.anyMarkable(withEditor))
+        XCTAssertEqual(DecoyBurst.expectedReads(withEditor, file: "~/w/a/.env"), 1712)
+        XCTAssertEqual(DecoyBurst.expectedReads(withEditor, file: "~/w/b/.env"), 0)
+        XCTAssertEqual(DecoyReport.abbreviate("/Users/me/w/a/.env", home: "/Users/me"), "~/w/a/.env")
+    }
 }

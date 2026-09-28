@@ -226,7 +226,12 @@ struct DecoysView: View {
     }
 
     private func fileRow(_ file: DecoyReport.File, last: Bool) -> some View {
-        AppRow(name: Format.decoyFileName(file.path), detail: Format.decoyFolder(file.path), fact: Format.decoyFileFact(file), last: last) {
+        AppRow(name: Format.decoyFileName(file.path), detail: Format.decoyFolder(file.path), fact: Format.decoyFileFact(
+            file,
+            expected: DecoyBurst.expectedReads(
+                model.decoyBursts, file: DecoyReport.abbreviate(file.path, home: FileManager.default.homeDirectoryForCurrentUser.path)
+            )
+        ), last: last) {
             // A protected file is a pipe: an editor cannot open it, and
             // reading it would itself be a decoy read. Finder only.
             Button("Show in Finder") { actions.reveal(file.path) }.buttonStyle(AppButton())

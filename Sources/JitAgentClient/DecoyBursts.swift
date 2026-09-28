@@ -208,6 +208,24 @@ public struct DecoyBurst: Equatable, Sendable, Identifiable {
         bursts.contains { !$0.expected && ($0.by ?? "").isEmpty }
     }
 
+    /// Whether any row can be marked expected: a named reader, not yet
+    /// expected, that is not an interpreter or a shell. With none, the
+    /// Reads note does not offer what no row can do.
+    public static func anyMarkable(_ bursts: [DecoyBurst]) -> Bool {
+        bursts.contains { burst in
+            guard !burst.expected, let by = burst.by, !by.isEmpty else {
+                return false
+            }
+            return ExpectedReaders.canBeExpected(program: by)
+        }
+    }
+
+    /// The expected reads of one protected file (its label, "~/…"), for
+    /// its row in the Protected card: "1,719 decoy reads · 1,712 expected".
+    public static func expectedReads(_ bursts: [DecoyBurst], file label: String) -> Int {
+        bursts.filter { $0.expected && $0.file == label }.reduce(0) { $0 + $1.reads }
+    }
+
     /// Whether anything unexpected read a decoy: the amber.
     public static func anyUnexpected(_ bursts: [DecoyBurst]) -> Bool {
         unexpectedPrograms(bursts) > 0 || untraced(bursts)

@@ -52,7 +52,7 @@ extension Format {
         home(((path as NSString).deletingLastPathComponent as NSString).deletingLastPathComponent)
     }
 
-    static func decoyFileFact(_ file: DecoyReport.File) -> String {
+    static func decoyFileFact(_ file: DecoyReport.File, expected: Int = 0) -> String {
         var parts =
             [file.secrets == 0 ? "no vault entry names this file as its origin" : count(file.secrets, "secret") + " from it in the vault"]
         if let missing = file.missing {
@@ -64,14 +64,14 @@ extension Format {
         }
         // The window is said once, above the rows: a row repeating it ran
         // out of width before its last clause.
-        parts.append(count(file.decoyReads, "decoy read"))
+        parts.append(count(file.decoyReads, "decoy read") + (expected > 0 ? " · \(expected.formatted(.number)) expected" : ""))
         if let read = file.lastRead {
             parts.append("last opened " + ScanWording.when(read))
         }
         if let real = file.lastRealRead {
             parts.append("last real read " + ScanWording.when(real))
         } else {
-            parts.append("never read for real")
+            parts.append("no real reads")
         }
         return parts.joined(separator: " · ")
     }

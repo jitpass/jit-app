@@ -284,6 +284,7 @@ struct AppRow<Actions: View>: View {
     /// replaced was 3.72:1, so colouring it is what brings the chip above
     /// the floor at all.
     var badge: String?
+    var badgeAsWritten = false // a state word ("expected") stays lowercase, unlike "new"
     var fact: String?
     /// A settings row explains what its control costs, and that sentence
     /// is allowed the second line a list row is not.
@@ -312,7 +313,7 @@ struct AppRow<Actions: View>: View {
                         if let badge {
                             // Never wrapped: the name beside it truncates first.
                             Text(badge).font(Win.eyebrow).foregroundStyle(Color(StatusMark.accent))
-                                .textCase(.uppercase).lineLimit(1).fixedSize()
+                                .textCase(badgeAsWritten ? nil : .uppercase).lineLimit(1).fixedSize()
                                 .padding(.horizontal, Win.s2).padding(.vertical, Win.s1)
                                 .background(Design.Surface.field)
                                 .clipShape(RoundedRectangle(cornerRadius: Design.Radius.box, style: .continuous))

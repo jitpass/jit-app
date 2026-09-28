@@ -184,7 +184,7 @@ public struct DecoyReport: Equatable, Sendable {
         return String(match.dropFirst("resolving ".count).dropLast(2))
     }
 
-    static func abbreviate(_ path: String, home: String) -> String {
+    public static func abbreviate(_ path: String, home: String) -> String {
         path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
     }
 }

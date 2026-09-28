@@ -15,7 +15,8 @@ extension DecoysView {
         return AppCard(
             eyebrow: "Reads", eyebrowTint: Color(programs > 0 || untraced ? StatusMark.amber : StatusMark.green),
             title: Format.decoysProgramsTitle(programs, untraced: untraced),
-            note: model.decoyExpected == nil ? Format.decoysReadsNote : Format.decoysReadsExpectNote
+            note: model.decoyExpected == nil ? Format.decoysReadsNote
+                : (DecoyBurst.anyMarkable(bursts) ? Format.decoysReadsExpectNote : Format.decoysReadsPlainNote)
         ) {
             Button("Audit…", action: actions.openAudit).buttonStyle(AppButton(kind: .plain))
         } rows: {
@@ -25,6 +26,7 @@ extension DecoysView {
                         name: burst.reader ?? "Reader not recorded",
                         detail: Format.decoyFileName(burst.file),
                         badge: burst.expected ? "expected" : nil,
+                        badgeAsWritten: true,
                         fact: Format.decoyBurstFact(
                             burst,
                             cannotExpect: !burst.expected && !(burst.by.map(ExpectedReaders.canBeExpected) ?? true)

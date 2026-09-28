@@ -31,17 +31,21 @@ struct ExpectedSheet: View {
                 .font(Win.sub).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             HStack(spacing: Win.s4) {
                 Spacer()
-                Button("Cancel", action: close).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
+                // Cancel is the default: Return must not silence a program.
+                Button("Cancel", action: close).buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
                 Button("Mark Expected") {
                     if let program = ExpectedReaders.program(of: burst.by) {
                         mark(ExpectedReader(program: program, file: everyFile ? nil : burst.file))
                     }
                 }
-                .buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
+                .buttonStyle(AppButton())
             }
         }
         .padding(Win.s6)
         .frame(width: Win.sheetWide)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        // Escape cancels, as Cancel's cancelAction did before it became
+        // the default button.
+        .onExitCommand(perform: close)
     }
 }
