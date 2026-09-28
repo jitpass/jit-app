@@ -19,11 +19,22 @@ extension StatusItemController {
         else {
             return
         }
+        // From the panel the click is one step from the restart, so the
+        // cost is said first: the session goes with the service.
+        panel.dismiss()
+        let alert = NSAlert()
+        alert.messageText = Format.restartServiceQuestion.title
+        alert.informativeText = Format.restartServiceQuestion.message
+        alert.addButton(withTitle: "Restart")
+        alert.addButton(withTitle: "Cancel").keyEquivalent = "\u{1b}"
+        guard alert.runFrontmost() == .alertFirstButtonReturn else {
+            return
+        }
         openDoctor()
         // Doctor runs one thing at a time and ignores a press while busy;
         // from the panel that would read as a button doing nothing.
         guard doctorIdle else {
-            model.doctorMessage = "Doctor is still checking. Press Restart Service again when it finishes."
+            model.doctorMessage = Format.restartServiceBusy
             return
         }
         perform([restart], target: DoctorTarget(key: item.id))

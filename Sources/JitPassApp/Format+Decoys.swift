@@ -70,7 +70,9 @@ extension Format {
             }
             return parts.joined(separator: " · ")
         }
-        parts.append(count(file.decoyReads, "decoy read") + " in the last 24 hours")
+        // The window is said once, above the rows: a row repeating it ran
+        // out of width before its last clause.
+        parts.append(count(file.decoyReads, "decoy read"))
         if let read = file.lastRead {
             parts.append("last opened " + ScanWording.when(read))
         }
