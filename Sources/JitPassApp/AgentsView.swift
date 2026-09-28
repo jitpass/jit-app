@@ -247,6 +247,8 @@ struct WindowOutcome: Equatable {
     var text: String
     var failed = false
     var undo: [String] = []
+    /// Decoys: the expected reader the banner's Undo takes back.
+    var unexpect: ExpectedReader?
     /// The ids of the review marks Undo removes (`jit unreview --id`),
     /// after a Mark Reviewed.
     var unreview: [String] = []

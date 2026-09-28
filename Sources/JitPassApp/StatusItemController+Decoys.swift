@@ -18,6 +18,7 @@ extension StatusItemController {
     /// Prompt-free reads, off the main thread: status for the files, the
     /// vault's names for their secret counts, the audit for the reads.
     func reloadDecoys() {
+        loadDecoyExpected()
         let filter = AuditFilter(kinds: ["serve"], since: "7d", limit: 0)
         Task.detached {
             let status = JitCLI.status()
@@ -58,7 +59,10 @@ extension StatusItemController {
                 }
             },
             protectAll: { [weak self] plan in self?.protectPlan(plan) },
-            protectAnother: { [weak self] in self?.protectAnotherFile() }
+            protectAnother: { [weak self] in self?.protectAnotherFile() },
+            askExpected: { [weak self] burst in self?.model.decoyExpectAsk = burst },
+            closeExpected: { [weak self] in self?.model.decoyExpectAsk = nil },
+            setExpected: { [weak self] reader, remove in self?.setDecoyExpected(reader, remove: remove) }
         )
     }
 

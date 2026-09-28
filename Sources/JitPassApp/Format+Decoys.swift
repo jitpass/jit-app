@@ -26,14 +26,6 @@ extension Format {
         (open == 1 ? "1 file still holds" : "\(open) files still hold") + " plaintext secrets"
     }
 
-    static func decoysReadsLine(_ report: DecoyReport) -> String {
-        var text = count(report.decoyReads, "decoy read") + " in the last 24 hours"
-        if report.allWhileLocked {
-            text += ", all while the vault was locked"
-        }
-        return text
-    }
-
     static func decoysFooter(_ report: DecoyReport, open: Int) -> String {
         var parts = [count(report.files.count, "file")]
         if open > 0 {
@@ -60,7 +52,7 @@ extension Format {
         home(((path as NSString).deletingLastPathComponent as NSString).deletingLastPathComponent)
     }
 
-    static func decoyFileFact(_ file: DecoyReport.File) -> String {
+    static func decoyFileFact(_ file: DecoyReport.File, expected: Int = 0) -> String {
         var parts =
             [file.secrets == 0 ? "no vault entry names this file as its origin" : count(file.secrets, "secret") + " from it in the vault"]
         if let missing = file.missing {
@@ -72,29 +64,14 @@ extension Format {
         }
         // The window is said once, above the rows: a row repeating it ran
         // out of width before its last clause.
-        parts.append(count(file.decoyReads, "decoy read"))
+        parts.append(count(file.decoyReads, "decoy read") + (expected > 0 ? " · \(expected.formatted(.number)) expected" : ""))
         if let read = file.lastRead {
             parts.append("last opened " + ScanWording.when(read))
         }
         if let real = file.lastRealRead {
             parts.append("last real read " + ScanWording.when(real))
         } else {
-            parts.append("never read for real")
-        }
-        return parts.joined(separator: " · ")
-    }
-
-    static func decoyReadFiles(_ read: DecoyReport.Read) -> String {
-        if read.files.count > 2 {
-            return count(read.files.count, "file") + " at once"
-        }
-        return read.files.map { decoyFileName($0) }.joined(separator: " · ")
-    }
-
-    static func decoyReadFact(_ read: DecoyReport.Read) -> String {
-        var parts = [read.reader.map { "read by " + $0 } ?? "reader not recorded", read.why]
-        if read.reads > 1 {
-            parts.append(count(read.reads, "read"))
+            parts.append("no real reads")
         }
         return parts.joined(separator: " · ")
     }

@@ -66,7 +66,7 @@ extension Format {
 
     /// "1 file" / "3 files", so no sentence has to carry its own plural.
     static func count(_ n: Int, _ singular: String, plural: String? = nil) -> String {
-        "\(n) " + (n == 1 ? singular : plural ?? singular + "s")
+        n.formatted(.number) + " " + (n == 1 ? singular : plural ?? singular + "s")
     }
 
     /// "claude", "claude and codex", "claude, codex and gemini".

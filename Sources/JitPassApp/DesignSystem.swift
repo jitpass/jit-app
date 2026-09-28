@@ -204,6 +204,10 @@ enum Design {
         /// Controls: "A disabled button is 45% opacity"). Not yet a named
         /// token in the artifact's `tokens.json`.
         static let disabled = 0.45
+        /// 60%. A row kept for the record but not in question, such as a
+        /// decoy read from an expected reader. Not yet a named token in the
+        /// artifact's `tokens.json` (unreachable from here); add it there.
+        static let muted = 0.6
     }
 
     /// The macOS accent for default buttons, switches that are on, and a

@@ -64,6 +64,11 @@ final class MenuModel: ObservableObject {
     @Published var decoysSheet: ToolsSheet?
     @Published var decoysOutcome: WindowOutcome?
     @Published var decoyReadsByProgram: [String: Int] = [:]
+    /// `jit decoys expected`: programs whose reads are routine. Nil on an
+    /// engine without it, and then the window offers no Expected.
+    @Published var decoyExpected: ExpectedReaders?
+    /// The burst whose Expected… question is up.
+    @Published var decoyExpectAsk: DecoyBurst?
     @Published var notifyDecoys = Notifier.decoysEnabled
     @Published var notifySessions = Notifier.sessionsEnabled
     @Published var notifyScans = Notifier.scansEnabled

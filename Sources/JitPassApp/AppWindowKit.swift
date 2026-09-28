@@ -285,6 +285,7 @@ struct AppRow<Actions: View>: View {
     /// replaced was 3.72:1, so colouring it is what brings the chip above
     /// the floor at all.
     var badge: String?
+    var badgeAsWritten = false // a state word ("expected") stays lowercase, unlike "new"
     var fact: String?
     /// A settings row explains what its control costs, and that sentence
     /// is allowed the second line a list row is not.
@@ -313,7 +314,7 @@ struct AppRow<Actions: View>: View {
                         if let badge {
                             // Never wrapped: the name beside it truncates first.
                             Text(badge).font(Win.eyebrow).foregroundStyle(Color(StatusMark.accent))
-                                .textCase(.uppercase).lineLimit(1).fixedSize()
+                                .textCase(badgeAsWritten ? nil : .uppercase).lineLimit(1).fixedSize()
                                 .padding(.horizontal, Win.s2).padding(.vertical, Win.s1)
                                 .background(Design.Surface.field)
                                 .clipShape(RoundedRectangle(cornerRadius: Design.Radius.box, style: .continuous))
@@ -361,40 +362,5 @@ struct WindowEmptyState<Actions: View>: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 44)
         .padding(.horizontal, Win.s6)
-    }
-}
-
-/// How tall a window's body turned out, so the window can open at the
-/// height of what it holds instead of a fixed height with nothing under
-/// the last card.
-struct WindowHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-extension View {
-    /// Report this view's height up to the window through
-    /// `WindowHeightKey`. Put it on the body's content, not on the window.
-    func measureWindowHeight() -> some View {
-        background(GeometryReader { proxy in
-            Color.clear.preference(key: WindowHeightKey.self, value: proxy.size.height)
-        })
-    }
-
-    /// A region of a window: the one inset, and the rule that divides it
-    /// from the next.
-    func windowRegion(vertical: CGFloat = Win.s5, rule: Bool = true) -> some View {
-        VStack(spacing: 0) {
-            self
-                .padding(.horizontal, Win.s6)
-                .padding(.vertical, vertical)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if rule {
-                Rectangle().fill(WindowSurface.separator).frame(height: 1)
-            }
-        }
     }
 }
