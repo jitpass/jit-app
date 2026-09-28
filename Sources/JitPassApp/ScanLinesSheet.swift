@@ -11,6 +11,7 @@ import SwiftUI
 struct ScanLinesSheet: View {
     let group: ScanFileGroup
     let actions: ScanActions
+    var canReview = false
     let close: () -> Void
 
     var body: some View {
@@ -48,6 +49,12 @@ struct ScanLinesSheet: View {
                                         "the \(finding.shortEvidence) on line \(line)",
                                         finding.foundIn
                                     )
+                                }
+                                .buttonStyle(AppButton())
+                            }
+                            if canReview, finding.reviewable {
+                                Button("Mark Reviewed") {
+                                    actions.markReviewed([finding], finding.scaffolding ? .none : .risky)
                                 }
                                 .buttonStyle(AppButton())
                             }

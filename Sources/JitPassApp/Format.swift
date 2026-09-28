@@ -64,7 +64,11 @@ enum Format {
     /// filter pill, so the footer does not count them again. (The header's
     /// second line is `ScanWording`'s: it carries the schedule.)
     static func scanFooter(_ report: ScanReport) -> String {
-        report.summary.filesScanned.formatted(.number) + " files read"
+        let read = report.summary.filesScanned.formatted(.number) + " files read"
+        guard let reviewed = report.summary.reviewed, reviewed > 0 else {
+            return read
+        }
+        return read + " · \(reviewed) reviewed"
     }
 
     /// A tier's word, for its card's eyebrow and its filter pill.
@@ -95,8 +99,11 @@ enum Format {
     }
 
     /// What the tier is, and what the choice costs.
-    static func tierNote(_ tier: ScanTier) -> String {
-        switch tier {
+    static func tierNote(_ tier: ScanTier, canReview: Bool = false) -> String {
+        if tier == .testFixtures, canReview {
+            return fixturesNoteWithReview
+        }
+        return switch tier {
         case .vaultCopies: "Rotate each secret, then delete the copy."
         case .protect: "A decoy takes each value's place. Every file is backed up first."
         case .needsYou: "jit can't rewrite these safely. Rotate each value, or move it yourself."

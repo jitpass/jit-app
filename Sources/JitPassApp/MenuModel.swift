@@ -202,6 +202,8 @@ final class MenuModel: ObservableObject {
     /// The file whose flagged lines the scan window is showing. A row
     /// carries one fact; the list of lines is a sheet on top of it.
     @Published var scanLines: ScanFileGroup?
+    /// Show Reviewed…: the marks, as `jit scan review --list` gave them.
+    @Published var scanReviewed: ReviewedList?
     /// The setting being applied, so the spinner sits on that row.
     @Published var settingsApplying: SettingsOutcome.Row?
     /// What the last change did: the banner, or a row under the control.
