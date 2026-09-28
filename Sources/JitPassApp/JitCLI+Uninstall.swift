@@ -47,6 +47,7 @@ extension JitCLI {
         spawned.insert(process.processIdentifier)
         defer { spawned.remove(process.processIdentifier) }
 
+        let collected = collect(err)
         var failures: [UninstallEvent.Failure]?
         var problems: [String]?
         eachLine(of: out.fileHandleForReading) { line in
@@ -61,7 +62,7 @@ extension JitCLI {
             }
             onEvent(event)
         }
-        let complaint = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let complaint = String(data: collected(), encoding: .utf8) ?? ""
         process.waitUntilExit()
         if let failures {
             return .couldNotRestore(failures)

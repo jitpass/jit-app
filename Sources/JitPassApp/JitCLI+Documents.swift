@@ -62,8 +62,9 @@ extension JitCLI {
         }
         spawned.insert(process.processIdentifier)
         defer { spawned.remove(process.processIdentifier) }
+        let collected = collect(err)
         let data = out.fileHandleForReading.readDataToEndOfFile()
-        let errData = err.fileHandleForReading.readDataToEndOfFile()
+        let errData = collected()
         process.waitUntilExit()
         if let report = try? parse(String(data: data, encoding: .utf8) ?? "") {
             return .success(report)

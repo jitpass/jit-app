@@ -101,8 +101,9 @@ extension JitCLI {
         } catch {
             return .failure(error)
         }
+        let collected = collect(err)
         let data = out.fileHandleForReading.readDataToEndOfFile()
-        let complaint = err.fileHandleForReading.readDataToEndOfFile()
+        let complaint = collected()
         process.waitUntilExit()
         return .success(Captured(status: process.terminationStatus, stdout: data, stderr: String(data: complaint, encoding: .utf8) ?? ""))
     }
