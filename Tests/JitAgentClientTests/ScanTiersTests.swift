@@ -113,6 +113,7 @@ final class ScanTiersTests: XCTestCase {
         XCTAssertEqual(r.removingCacheShapes(in: ["/Users/me/.claude/a.jsonl"], lines: [10]).findings.map(\.id), ["s2", "f3"])
         XCTAssertEqual(r.removingCacheShapes(in: ["/Users/me/.claude/a.jsonl"], lines: []).findings.map(\.id), ["f3"])
         XCTAssertEqual(r.removingCacheShapes(in: ["/elsewhere"], lines: []).findings.count, 3)
+        XCTAssertEqual(r.cacheShapeFiles, ["/Users/me/.claude/a.jsonl"])
     }
 
     /// A Protect's rows leave the window when it finishes, not when its

@@ -142,10 +142,10 @@ extension StatusItemController {
         guard !report.cacheShapes.isEmpty, model.toolsBusy == nil else {
             return
         }
-        // Every cache under the global switch; otherwise only the files of
+        // Every file the scan found under the global switch; otherwise only the files of
         // the agents whose own switch is on (AI Agents), and nothing when
         // none is.
-        var files: [String] = []
+        var files = report.cacheShapeFiles
         if !model.redactAfterScan {
             let labels = (model.toolListing?.agents ?? []).filter { model.redactAgents.contains($0.tool) }.compactMap(\.agentLabel)
             files = labels.flatMap { report.agentExposure($0).tokenPaths }
@@ -158,7 +158,7 @@ extension StatusItemController {
             refresh: false,
             failed: "Redact after the scheduled scan",
             reportsTo: .findings,
-            work: { JitCLI.redact(files: files, lines: []) },
+            work: { [files] in JitCLI.redact(files: files, lines: []) },
             then: { [weak self] result in
                 guard let self else {
                     return

@@ -142,6 +142,13 @@ public struct ScanReport: Codable, Sendable, Equatable {
         ScanFileGroup.group(cacheShapes)
     }
 
+    /// The files a Redact All names. Never empty for a non-empty report:
+    /// `jit migrate redact` with no file sweeps every cache on the Mac,
+    /// which took 87s where naming the one file took 0.1s.
+    public var cacheShapeFiles: [String] {
+        cacheShapeGroups.map(\.filePath)
+    }
+
     /// The report without the cache-shape findings a Redact just rewrote:
     /// every one in `paths`, or, when `lines` is given, only those on
     /// those lines. Other findings stay; the summary is left as it was,
