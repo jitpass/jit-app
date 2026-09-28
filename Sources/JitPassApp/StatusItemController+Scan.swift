@@ -164,6 +164,7 @@ extension StatusItemController {
         }
         let scope = wholeMac ? nil : model.scanScope
         let excludes = model.scanExcludes
+        let started = Date()
         Task.detached {
             let result = Result { try JitCLI.scan(path: scope, excludes: excludes, deep: deep) }
             await MainActor.run { [weak self] in
@@ -172,7 +173,7 @@ extension StatusItemController {
                 }
                 model.scanning = false
                 let landing = ScanLanding(wholeMac: wholeMac, kinds: kinds, folderOnScreen: model.scanScope != nil)
-                switch result.map({ unprotected($0, kinds: kinds) }) {
+                switch result.map({ unprotected($0, startedAt: started) }) {
                 case let .success(fresh):
                     let report = scope == nil ? landWholeMac(fresh, kind: kind, announces: kinds.contains(.scheduled)) : fresh
                     if landing.showsReport {
