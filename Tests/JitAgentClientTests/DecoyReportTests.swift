@@ -77,6 +77,19 @@ final class DecoyReportTests: XCTestCase {
         XCTAssertEqual(report.secrets, 3)
     }
 
+    /// The window counts the last 24 hours, as the menu row does; the
+    /// week of events still says a file names a missing secret.
+    func testReadCountsKeepToTheWindowTheMissingSecretDoesNot() throws {
+        let since = Date(timeIntervalSince1970: 1_790_000_000)
+        let report = DecoyReport.make(mounts: mounts, secrets: [], events: events, home: home, readsSince: since)
+        XCTAssertEqual(report.decoyReads, 3, "only the three reads at 1_790_072_636")
+        XCTAssertEqual(report.realReads, 0)
+        XCTAssertTrue(report.reads.allSatisfy { $0.at >= since })
+        let broken = try XCTUnwrap(report.broken.first, "a week-old missing secret is still missing")
+        XCTAssertEqual(broken.decoyReads, 1)
+        XCTAssertEqual(report.files.compactMap(\.lastRealRead).count, 1, "the last real read is a fact about the week")
+    }
+
     func testReadsAreOneRowPerMomentAndSayWhy() {
         let report = DecoyReport.make(mounts: mounts, secrets: [], events: events, home: home)
         XCTAssertEqual(report.decoyReads, 7)

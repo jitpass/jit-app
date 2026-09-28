@@ -27,7 +27,7 @@ extension Format {
     }
 
     static func decoysReadsLine(_ report: DecoyReport) -> String {
-        var text = count(report.decoyReads, "decoy read") + " this week"
+        var text = count(report.decoyReads, "decoy read") + " in the last 24 hours"
         if report.allWhileLocked {
             text += ", all while the vault was locked"
         }
@@ -42,7 +42,7 @@ extension Format {
         if report.secrets > 0 {
             parts.append(count(report.secrets, "secret") + " from them in the vault")
         }
-        parts.append(count(report.decoyReads, "decoy read") + " this week")
+        parts.append(count(report.decoyReads, "decoy read") + " in the last 24 hours")
         return parts.joined(separator: " · ")
     }
 
@@ -70,7 +70,7 @@ extension Format {
             }
             return parts.joined(separator: " · ")
         }
-        parts.append(count(file.decoyReads, "decoy read") + " this week")
+        parts.append(count(file.decoyReads, "decoy read") + " in the last 24 hours")
         if let read = file.lastRead {
             parts.append("last opened " + ScanWording.when(read))
         }

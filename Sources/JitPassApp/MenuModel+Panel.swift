@@ -70,7 +70,8 @@ extension MenuModel {
             mounts: cli?.protectedFiles ?? [],
             secrets: vaultListing?.secrets ?? [],
             events: decoyEvents,
-            home: FileManager.default.homeDirectoryForCurrentUser.path
+            home: FileManager.default.homeDirectoryForCurrentUser.path,
+            readsSince: Date().addingTimeInterval(-DecoyReport.readWindow)
         )
     }
 

@@ -5,8 +5,8 @@ import AppKit
 import JitAgentClient
 
 /// The Decoys window's wiring: the service's mount list (status), the
-/// vault listing (names only, no prompt), the week's serve events, and
-/// the last scan. Its verbs are Findings' Protect and a file picker.
+/// vault listing (names only, no prompt), the week's serve events (read
+/// counts look at the last 24 hours of them), and the last scan. Its verbs are Findings' Protect and a file picker.
 extension StatusItemController {
     func openDecoys() {
         panel.dismiss()
@@ -49,7 +49,7 @@ extension StatusItemController {
             reveal: { path in Editor.reveal(path) },
             openVault: { [weak self] in self?.openVault() },
             openScan: { [weak self] in self?.openScan() },
-            openAudit: { [weak self] in self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "7d")) },
+            openAudit: { [weak self] in self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "24h", limit: 0)) },
             protect: { [weak self] finding in
                 if let tool = finding.wrapTool {
                     self?.protectPlan(ProtectPlan(wrap: [tool]))
