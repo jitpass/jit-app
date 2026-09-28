@@ -201,7 +201,7 @@ public struct AgentCard: Equatable, Sendable {
     }
 
     static func count(_ n: Int, _ singular: String, plural: String? = nil) -> String {
-        "\(n) " + (n == 1 ? singular : plural ?? singular + "s")
+        n.formatted(.number) + " " + (n == 1 ? singular : plural ?? singular + "s")
     }
 }
 
