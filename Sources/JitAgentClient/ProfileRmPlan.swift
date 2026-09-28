@@ -28,9 +28,12 @@ public struct ProfileRmPlan: Decodable, Sendable, Equatable {
     public var refused: Bool
     /// jit could not read a config; it then refuses too.
     public var error: String?
+    /// The folder of a project profile (scope "project", jit 2.3.4+): it
+    /// goes with its project, through `jit migrate remove`.
+    public var project: String?
 
     enum CodingKeys: String, CodingKey {
-        case profile, scope, launchers, refused, error
+        case profile, scope, launchers, refused, error, project
         case deleteSecrets = "delete_secrets"
         case keepSecrets = "keep_secrets"
         case missingSecrets = "missing_secrets"
@@ -64,6 +67,7 @@ public struct ProfileRmPlan: Decodable, Sendable, Equatable {
         refused = try box.decodeIfPresent(Bool.self, forKey: .refused) ?? false
         let error = try box.decodeIfPresent(String.self, forKey: .error)
         self.error = error?.isEmpty == true ? nil : error
+        project = try box.decodeIfPresent(String.self, forKey: .project)
     }
 
     public static func parse(_ data: Data) throws -> ProfileRmPlan {
@@ -82,6 +86,15 @@ public extension ProfileRmPlan {
     /// button when jit would refuse (a tool uses it, or it can't tell):
     /// nothing the app could run would delete anything.
     func confirmation(home: String = NSHomeDirectory()) -> DeleteConfirmation {
+        if scope == "project", let project {
+            return DeleteConfirmation(
+                title: "Remove \(profile) from its project?",
+                message: "\(profile) belongs to the project in \(VaultRmPlan.short(project, home)), so it goes with that project. "
+                    + "jit steps out of the project: its values go back into the project's files as plain text, "
+                    + "then its profiles, secrets and settings are deleted.\n\nTouch ID follows.",
+                button: "Remove from Project", breaks: true, arguments: ["migrate", "remove", project, "--yes"]
+            )
+        }
         if let error {
             return DeleteConfirmation(
                 title: "Can't tell whether \(profile) is in use",

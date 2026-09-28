@@ -252,4 +252,29 @@ extension StatusItemController {
             self?.notice(deleted ?? "\(count) stale secret\(count == 1 ? "" : "s") pruned")
         })
     }
+
+    /// A profile holding only settings, which `vault rm` has nothing to
+    /// delete: jit's own plan for removing it (a global profile, or one
+    /// that goes with its project), then exactly the command its dialog
+    /// names.
+    func deleteProfile(_ name: String) {
+        guard model.vaultBusy == nil else {
+            return
+        }
+        model.vaultMessage = nil
+        let confirmation: DeleteConfirmation = switch JitCLI.profileRmPlan(name) {
+        case let .success(plan):
+            plan.confirmation()
+        case let .failure(error):
+            .profileUnavailable("Can't check what removing \(name) deletes", command: "jit profile rm", reason: Self.describeVault(error))
+        }
+        guard Self.confirmDeletion(confirmation) else {
+            return
+        }
+        let arguments = confirmation.arguments
+        runVault(name, work: { Self.remove(arguments) }, then: { [weak self] _ in
+            self?.model.scanStale = true
+            self?.notice("\(name) removed")
+        })
+    }
 }

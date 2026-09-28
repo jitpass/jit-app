@@ -142,6 +142,21 @@ final class ProfilePlansTests: XCTestCase {
 
     // MARK: - rm
 
+    /// A project profile (settings only, in the Vault window) goes with its
+    /// project: the dialog says the values return to its files, and runs
+    /// exactly `jit migrate remove <project> --yes`.
+    func testAProjectProfileIsRemovedWithItsProject() throws {
+        let json = #"{"profile":"billing-sync","scope":"project","project":"/Users/me/code/billing-sync","refused":true,"#
+            + #""launchers":[],"delete_secrets":[],"keep_secrets":[],"missing_secrets":[],"coverage_complete":false}"#
+        let dialog = try ProfileRmPlan.parse(Data(json.utf8)).confirmation(home: home)
+        XCTAssertEqual(dialog.title, "Remove billing-sync from its project?")
+        XCTAssertEqual(dialog.button, "Remove from Project")
+        XCTAssertTrue(dialog.breaks, "destructive: Cancel stays the default")
+        XCTAssertEqual(dialog.arguments, ["migrate", "remove", "/Users/me/code/billing-sync", "--yes"])
+        XCTAssertTrue(dialog.message.contains("~/code/billing-sync"))
+        XCTAssertTrue(dialog.message.contains("plain text"))
+    }
+
     func testDecodesRm() throws {
         let token = try ProfileRmPlan.parse(Data(tokenJSON.utf8))
         XCTAssertEqual(token.profile, "token")

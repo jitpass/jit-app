@@ -122,10 +122,9 @@ extension VaultView {
             Button("Link 1Password…") { actions.openSheet(.link(group: group.name, replacing: nil)) }
             Divider()
             if group.secrets.isEmpty {
-                // Disabled items drop their tooltip in a menu: the reason is
-                // the item's own line.
-                Button("Delete Profile…") {}.disabled(true)
-                Text(Format.vaultSettingsOnlyDeleteHelp)
+                // Settings only: `vault rm` has nothing to delete, so the
+                // profile itself goes, through jit's own plan for it.
+                Button("Delete Profile…") { actions.deleteProfile(group.name) }
             } else {
                 Button("Delete Profile…") { actions.delete(group.secrets.map(\.path)) }
             }

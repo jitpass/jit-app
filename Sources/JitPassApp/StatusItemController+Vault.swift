@@ -39,6 +39,7 @@ extension StatusItemController {
             loadHistory: { [weak self] path in self?.loadHistory(path) },
             restore: { [weak self] path, stamp in self?.restoreSecret(path, stamp: stamp) },
             delete: { [weak self] paths in self?.deleteSecrets(paths) },
+            deleteProfile: { [weak self] name in self?.deleteProfile(name) },
             openInTerminal: { [weak self] in self?.runInTerminal("jit vault list -l") },
             loadOrphans: { [weak self] in self?.loadOrphans() },
             clearStaleMounts: { [weak self] in self?.clearStaleMounts() },
@@ -303,7 +304,7 @@ extension StatusItemController {
     /// The delete itself, with every line jit printed kept: a refusal
     /// (something started using a path after the dry run) names who, and
     /// that is what the user needs to read, not a last line.
-    private nonisolated static func remove(_ arguments: [String]) -> Result<String, Error> {
+    nonisolated static func remove(_ arguments: [String]) -> Result<String, Error> {
         JitCLI.invoke(arguments).flatMap { outcome in
             if outcome.status == 0 {
                 return .success(outcome.output)
@@ -364,7 +365,7 @@ extension StatusItemController {
         }
     }
 
-    private nonisolated static func describeVault(_ error: Error) -> String {
+    nonisolated static func describeVault(_ error: Error) -> String {
         if case let JitCLI.CLIError.failed(line) = error {
             return line.isEmpty ? "jit did not say why" : line
         }
