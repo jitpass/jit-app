@@ -120,14 +120,30 @@ struct CheckSettingsSheet: View {
         .onAppear { model.settingsCheck = nil }
     }
 
-    /// Before the check: what will be read, and that nothing moves yet.
+    /// Before the check: the entries named like settings, which jit reads
+    /// to decide, apart from the ones named like secrets, which stay. An
+    /// older engine says nothing about names: one list, as before.
     @ViewBuilder private var unread: some View {
+        let known = unchecked.allSatisfy { $0.nameLooksSecret != nil }
+        let secrets = Set(unchecked.filter { $0.nameLooksSecret == true }.map(\.path))
+        let candidates = Set(unchecked.map(\.path)).subtracting(secrets)
         VStack(alignment: .leading, spacing: Win.s1) {
-            Text("Check these profiles for settings?").font(Win.cardTitle)
-            Text(Format.checkSettingsNote(unchecked.count))
+            Text(Format.checkSettingsTitle(candidates.count, known: known)).font(Win.cardTitle)
+            Text(Format.checkSettingsNote(candidates.count, known: known))
                 .font(Win.sub).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
-        list(byGroup(Set(unchecked.map(\.path))))
+        if known {
+            if !candidates.isEmpty {
+                Text(Format.settingsLookHeading(candidates.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+                list(byGroup(candidates))
+            }
+            if !secrets.isEmpty {
+                Text(Format.settingsStaysHeading(secrets.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+                list(byGroup(secrets))
+            }
+        } else {
+            list(byGroup(Set(unchecked.map(\.path))))
+        }
     }
 
     /// After it: jit's own verdict, two lists, before anything moves.

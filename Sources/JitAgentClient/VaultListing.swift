@@ -26,6 +26,9 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
     /// jit kept settings out of the vault, or an older engine
     /// (design/secrets-only-vault.md in the jit repo).
     public var scan: String?
+    /// The name alone names a credential (jit 2.3.3's `name_looks_secret`):
+    /// the settings cleanup never moves it. Nil from an older engine.
+    public var nameLooksSecret: Bool?
 
     enum CodingKeys: String, CodingKey {
         case path
@@ -40,6 +43,7 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         case updatedUnix = "updated_unix"
         case usedBy = "used_by"
         case scan
+        case nameLooksSecret = "name_looks_secret"
     }
 
     public init(
@@ -71,6 +75,7 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         createdUnix = try container.decodeIfPresent(Int64.self, forKey: .createdUnix)
         updatedUnix = try container.decodeIfPresent(Int64.self, forKey: .updatedUnix)
         usedBy = try container.decodeIfPresent([String].self, forKey: .usedBy) ?? []
+        nameLooksSecret = try container.decodeIfPresent(Bool.self, forKey: .nameLooksSecret)
         scan = try container.decodeIfPresent(String.self, forKey: .scan)
     }
 

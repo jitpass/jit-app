@@ -158,9 +158,27 @@ extension Format {
 extension Format {
     /// Move Them Out…, before the check: what will be read, and that
     /// nothing moves until the next step.
-    static func checkSettingsNote(_ n: Int) -> String {
-        "jit reads these \(n) \(n == 1 ? "entry" : "entries") and says which are settings: URLs, IDs, lists. "
-            + "Secrets, and names that look like one, stay in the vault. Nothing moves until you see the list."
+    static func checkSettingsTitle(_ candidates: Int, known: Bool) -> String {
+        guard known else {
+            return "Check these profiles for settings?"
+        }
+        return candidates == 1 ? "1 entry may be a setting" : "\(candidates) entries may be settings"
+    }
+
+    /// Before the check. `known`: the engine said which names are
+    /// credentials, so only the others are in question.
+    static func checkSettingsNote(_: Int, known: Bool) -> String {
+        guard known else {
+            return "jit reads these entries and says which are settings: URLs, IDs, lists. "
+                + "Secrets, and names that look like one, stay in the vault. Nothing moves until you see the list."
+        }
+        return "Their names look like settings: URLs, IDs, lists. jit reads the values to be sure, and one "
+            + "that turns out to be a secret stays. The ones named like secrets stay in the vault either way. "
+            + "Nothing moves until you see the result."
+    }
+
+    static func settingsLookHeading(_ n: Int) -> String {
+        "Named like settings · \(n)"
     }
 
     static func settingsCheckTitle(moves: Int) -> String {
