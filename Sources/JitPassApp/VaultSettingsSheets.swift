@@ -96,24 +96,26 @@ struct CheckSettingsSheet: View {
         model.vaultListing?.uncheckedFromEnv ?? []
     }
 
-    private var byGroup: [(String, Int)] {
-        Dictionary(grouping: unchecked, by: \.group).map { ($0.key, $0.value.count) }.sorted { $0.0 < $1.0 }
+    /// Each profile and the names it holds that nobody has checked.
+    private var byGroup: [(String, [String])] {
+        Dictionary(grouping: unchecked, by: \.group).map { ($0.key, $0.value.map(\.name).sorted()) }.sorted { $0.0 < $1.0 }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Win.s5) {
             VStack(alignment: .leading, spacing: Win.s1) {
                 Text("Move the settings out of these profiles?").font(Win.cardTitle)
-                Text("jit reads the \(unchecked.count) entries below and moves the ones that aren't secrets out of the vault, "
-                    + "into plain settings. The secrets, and names that look like one, stay. Files keep working.")
+                Text(Format.checkSettingsNote(unchecked.count))
                     .font(Win.sub).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             AppPlainCard {
                 CappedScroll(maxHeight: 240) {
                     ForEach(Array(byGroup.enumerated()), id: \.element.0) { index, item in
+                        // The names, not a count: what the question is about.
                         AppRow(
                             name: item.0,
-                            fact: "\(item.1) \(item.1 == 1 ? "entry" : "entries") protected from a .env",
+                            fact: item.1.joined(separator: ", "),
+                            wraps: true,
                             last: index == byGroup.count - 1
                         ) {}
                     }

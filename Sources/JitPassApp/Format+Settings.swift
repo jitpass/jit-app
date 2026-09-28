@@ -25,7 +25,12 @@ extension Format {
         if r.moved.isEmpty {
             return "Checked \(r.read) \(r.read == 1 ? "entry" : "entries") · none were settings"
         }
-        var line = "Moved \(r.moved.count) setting\(r.moved.count == 1 ? "" : "s") out of the vault"
+        // The names, as the sheet listed them: "Moved JAMF_URL, WIZ_CLIENT_ID
+        // and 2 more out of the vault".
+        let names = r.moved.map { $0.split(separator: "/").last.map(String.init) ?? $0 }
+        let shown = names.count > 4 ? names.prefix(3).joined(separator: ", ") + " and \(names.count - 3) more" : names
+            .joined(separator: ", ")
+        var line = "Moved " + shown + " out of the vault"
         if !r.checks.isEmpty {
             line += " · \(r.checks.count) name\(r.checks.count == 1 ? "" : "s") that look like secrets stayed"
         }
@@ -147,5 +152,15 @@ extension Format {
             return "Set by hand: no file on record to check."
         }
         return "From several files: no one file to check."
+    }
+}
+
+extension Format {
+    /// Move Them Out…: which entries, and why the list cannot say yet which
+    /// of them will move.
+    static func checkSettingsNote(_ n: Int) -> String {
+        "jit reads these \(n) \(n == 1 ? "entry" : "entries") and moves the ones that aren't secrets out of the vault, "
+            + "into plain settings. The secrets, and names that look like one, stay. Which ones move depends on their "
+            + "values, so it shows once they are read. Files keep working."
     }
 }
