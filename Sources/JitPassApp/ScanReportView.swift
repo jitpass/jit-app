@@ -60,7 +60,10 @@ struct ScanReportView: View {
             }
         }
         .sheet(item: $model.scanLines) { group in
-            ScanLinesSheet(group: group, actions: actions) { model.scanLines = nil }
+            ScanLinesSheet(group: group, actions: actions, canReview: canReview) { model.scanLines = nil }
+        }
+        .sheet(item: $model.scanReviewed) { list in
+            ReviewedSheet(model: model, list: list, unmark: actions.unmark, close: actions.closeReviewed)
         }
     }
 
@@ -101,6 +104,10 @@ struct ScanReportView: View {
                 }
                 if !outcome.undo.isEmpty {
                     Button("Undo") { actions.undoProtect(outcome.undo) }.buttonStyle(AppButton())
+                        .disabled(model.toolsBusy != nil)
+                }
+                if !outcome.unreview.isEmpty {
+                    Button("Undo") { actions.unreview(outcome.unreview) }.buttonStyle(AppButton())
                         .disabled(model.toolsBusy != nil)
                 }
             }
@@ -147,12 +154,15 @@ struct ScanReportView: View {
                 eyebrow: Format.tierLabel(tier),
                 eyebrowTint: Color(Self.tierTint(tier)),
                 title: Format.tierTitle(tier, files: groups.count),
-                note: Format.tierNote(tier)
+                note: Format.tierNote(tier, canReview: canReview)
             ) {
                 if tier == .protect, report.migratable.count > 1 {
                     Button("Protect All \(groups.count)…") { actions.protectAll(report.protectPlan) }
                         .buttonStyle(AppButton(kind: .secondary))
                         .disabled(model.toolsBusy != nil)
+                }
+                if tier == .testFixtures, canReview {
+                    markAllReviewedButton(groups)
                 }
             } rows: {
                 AppCardRows {
@@ -198,7 +208,7 @@ struct ScanReportView: View {
                     .buttonStyle(AppButton(kind: .secondary))
                     .disabled(model.toolsBusy != nil)
             }
-            rowMenu(group)
+            rowMenu(group, tier: tier)
         }
     }
 
@@ -241,8 +251,11 @@ struct ScanReportView: View {
     }
 
     /// Everything cheap and reversible, where a mis-click costs nothing.
-    private func rowMenu(_ group: ScanFileGroup) -> some View {
+    private func rowMenu(_ group: ScanFileGroup, tier: ScanTier? = nil) -> some View {
         Menu {
+            if let tier {
+                markReviewedItem(group, tier: tier)
+            }
             Button("Reveal in Finder") { actions.reveal(group.filePath) }
             Button("Copy Path") { actions.copyPath(group.filePath) }
             if group.findings.count > 1 {
@@ -266,6 +279,9 @@ struct ScanReportView: View {
             StateDot(tint: Color(report.tiersPresent.isEmpty ? StatusMark.green : Self.tierTint(report.tiersPresent[0])))
             Text(Format.scanFooter(report)).font(Win.sub).foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: Win.s5)
+            if canReview, (report.summary.reviewed ?? 0) > 0 {
+                Button("Show Reviewed…", action: actions.showReviewed).buttonStyle(AppButton(kind: .quiet))
+            }
             if report.count(in: .protect) > 0 {
                 Button("Protect All \(report.groups(in: .protect).count)…") { actions.protectAll(report.protectPlan) }
                     .buttonStyle(AppButton(kind: .primary))
@@ -305,6 +321,14 @@ struct ScanActions {
     var redact: ([String], [Int], String, String?) -> Void = { _, _, _, _ in }
     /// Raise the depth sheet for a scope (nil: the whole Mac).
     var askDepth: (String?) -> Void = { _ in }
+    /// Mark these findings reviewed; `ask` says which question comes first.
+    var markReviewed: ([ScanFinding], ReviewAsk) -> Void = { _, _ in }
+    /// The banner's Undo after a Mark Reviewed: remove those marks, rescan.
+    var unreview: ([String]) -> Void = { _ in }
+    var showReviewed: () -> Void = {}
+    /// One mark, from the reviewed list; the rescan waits for the list to close.
+    var unmark: (ScanReviewEntry) -> Void = { _ in }
+    var closeReviewed: () -> Void = {}
     /// The sheet's answer: scan this scope at this depth.
     var startScan: (String?, ScanMode) -> Void = { _, _ in }
 }

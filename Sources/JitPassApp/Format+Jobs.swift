@@ -267,6 +267,12 @@ extension Format {
             // No file differs now: what stopped it was undone (a file put
             // back or deleted). The stop still holds, and says so.
             let why = review.job.lastRefusal.map(sentenceStart) ?? "It stopped"
+            // Only a file change can have been put back. A secret removed
+            // from the vault stopped jobs before jit 2.3.3; approving again
+            // lets it run without that secret.
+            if review.job.lastRefusal?.contains("no longer in the vault") == true {
+                return why + ". Approve it again to run it without that secret."
+            }
             if review.job.jobState == .changed {
                 return why + ". The folder is back as you approved it, but the job stays stopped until you approve it again."
             }

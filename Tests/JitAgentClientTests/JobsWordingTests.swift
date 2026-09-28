@@ -20,6 +20,19 @@ final class JobsWordingTests: XCTestCase {
         XCTAssertFalse(JobsWording.emptyTitle.contains("secret"))
     }
 
+    /// A secret gone from the vault no longer stops a job (jit 2.3.3): the
+    /// row counts the ones it still gets and names the one it runs without.
+    func testAJobRunningWithoutAGoneSecretSaysSo() throws {
+        let json = #"{"name":"guest-report","dir":"/d","argv":["python","a.py"],"ask":"never","state":"ready","#
+            + #""secrets":[{"var":"REPORT_API_KEY","path":"reports/REPORT_API_KEY"},"#
+            + #"{"var":"REPORT_WORKSPACE_ID","path":"reports/REPORT_WORKSPACE_ID","gone":true}]}"#
+        let job = try JSONDecoder().decode(JobStatus.self, from: Data(json.utf8))
+        XCTAssertEqual(
+            JobsWording.fact(job, ago: ago),
+            "Not run yet · runs without asking · 1 secret · REPORT_WORKSPACE_ID left out, no longer in the vault"
+        )
+    }
+
     /// Only the line's first word is capitalised: "Asks each time" in the
     /// middle of the row read as a new sentence.
     func testAJobsRowIsSentenceCase() {
