@@ -91,6 +91,7 @@ extension StatusItemController {
                 return
             }
             model.scanStale = true
+            settle(after: ProtectRun(reports: reports))
             let outcome = Self.protectOutcome(ProtectRun(reports: reports))
             showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
             vaultChanged()

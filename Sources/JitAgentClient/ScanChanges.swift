@@ -71,3 +71,27 @@ public extension ScanReport {
         return copy
     }
 }
+
+public extension ScanReport {
+    /// The report without the rows a Protect just handled: every finding
+    /// jit would migrate from one of `files`, and every finding whose fix
+    /// is wrapping one of `tools`. A spelling with "~" and one in full are
+    /// the same file. The summary is left as it was, since the rescan the
+    /// Protect starts recounts.
+    func removingProtected(files: [String], tools: [String]) -> ScanReport {
+        let paths = Set(files.map(Self.fullPath))
+        let wrapped = Set(tools)
+        var copy = self
+        copy.findings = findings.filter { f in
+            if let tool = f.wrapTool, wrapped.contains(tool) {
+                return false
+            }
+            return !(f.migratable && paths.contains(Self.fullPath(f.filePath)))
+        }
+        return copy
+    }
+
+    static func fullPath(_ path: String) -> String {
+        ((path as NSString).expandingTildeInPath as NSString).standardizingPath
+    }
+}
