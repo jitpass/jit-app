@@ -31,4 +31,34 @@ final class DoctorFailureLineTests: XCTestCase {
             .needsTheInstalledApp("nothing moved: this copy of jit can't use the Secure Enclave; use the jit in"))
         XCTAssertFalse(DoctorFailureLine.needsTheInstalledApp("jit service restart: the service did not answer"))
     }
+
+    /// cobra's usage block and help hint are not jit's reason, and the
+    /// header holds a sentence, not a log.
+    func testTheLineStopsAtUsageAndIsCapped() {
+        let usage = "jit vault prune: unknown flag: --al\nUsage:\n  jit vault prune [flags]\n\n"
+            + "Flags:\n  -h, --help\nRun 'jit vault prune --help' for usage."
+        XCTAssertEqual(DoctorFailureLine.make(output: usage, argv: ["vault", "prune"], status: 1), "jit vault prune: unknown flag: --al")
+        let long = DoctorFailureLine.make(output: String(repeating: "word ", count: 200), argv: ["x"], status: 1)
+        XCTAssertLessThanOrEqual(long.count, DoctorFailureLine.maxLength)
+        XCTAssertTrue(long.hasSuffix("…"))
+    }
+
+    /// Step 1 warned about the Secure Enclave and succeeded; step 2 failed
+    /// for another reason. Trying again can help, so Try Again stays.
+    func testOnlyTheFailingStepDecidesWhetherToRetry() {
+        let steps = [
+            DoctorAction("Set", "jit vault set a/B --stdin", argv: [["vault", "set", "a/B", "--stdin"]]),
+            DoctorAction("Restart", "jit service restart", argv: [["service", "restart"]])
+        ]
+        let button = DoctorButton("Fix", .run(steps))
+        let card = DoctorCard(id: "c", tier: .broken, title: "Service", items: [DoctorItem(kind: "service", detail: "x")])
+        let warned = "note: this copy of jit can't use the Secure Enclave; use the jit inside JitPass.app\n"
+        let failed = "jit service restart: the service did not answer\n"
+        let outcome = card.outcome(
+            key: "c", button: button, completed: 1, output: warned + failed, failed: true, failedOutput: failed
+        )
+        XCTAssertTrue(outcome.retryable, "an earlier step's warning is not why this one failed")
+        let refused = card.outcome(key: "c", button: button, completed: 1, output: warned + refusal, failed: true, failedOutput: refusal)
+        XCTAssertFalse(refused.retryable)
+    }
 }

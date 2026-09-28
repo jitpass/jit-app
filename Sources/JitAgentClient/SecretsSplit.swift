@@ -317,6 +317,29 @@ public struct MigrateSettingsResult: Codable, Sendable, Equatable {
     }
 
     public static let arguments = ["migrate", "settings", "--yes", "--format", "json"]
+    /// The same read, moving nothing: which entries would move.
+    public static let dryRunArguments = ["migrate", "settings", "--dry-run", "--yes", "--format", "json"]
+
+    /// The dry run's verdict as the sheet lists it. `moves` is jit's own
+    /// list, whole: its candidates are every entry protected from a .env,
+    /// which can include ones the app already saw checked, and the sheet
+    /// must list every path the button then moves. `stays` is what else it
+    /// is known to have looked at: its checks and the app's unchecked
+    /// entries it did not move. Both counts are the lengths of what is
+    /// listed, so neither can go negative.
+    public func verdict(unchecked: [String]) -> (moves: [String], stays: [String]) {
+        let moves = Array(Set(moved)).sorted()
+        let stays = Set(checks + unchecked).subtracting(moves).sorted()
+        return (moves, stays)
+    }
+
+    /// Vault paths as the sheet lists them: each profile (the first path
+    /// segment) with its variable names, both sorted.
+    public static func byProfile(_ paths: [String]) -> [(String, [String])] {
+        Dictionary(grouping: paths) { String($0.split(separator: "/").first ?? Substring($0)) }
+            .map { ($0.key, $0.value.map { String($0.split(separator: "/").last ?? Substring($0)) }.sorted()) }
+            .sorted { $0.0 < $1.0 }
+    }
 
     public static func parse(_ output: String) throws -> MigrateSettingsResult {
         try JSONDecoder().decode(MigrateSettingsResult.self, from: Data(output.utf8))

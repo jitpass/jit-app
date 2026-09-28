@@ -74,6 +74,16 @@ enum JitCLI {
         return try JSONDecoder().decode(VaultListing.self, from: data)
     }
 
+    /// Who uses each secret, from profiles in any project folder (`--users`,
+    /// jit 2.3.3). It searches home, so it runs off the main thread and
+    /// apart from the quick listing; nil on an older engine.
+    static func vaultUsers() -> VaultUsersListing? {
+        guard let data = run(["vault", "list", "--format", "json", "--users"]) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(VaultUsersListing.self, from: data)
+    }
+
     /// Prompt-free: the wrap manifest, profile files, symlinks and envelope
     /// headers. `--all` adds the catalog so the window can say "installed,
     /// not wrapped", and `--discover` looks for each unwrapped tool's key

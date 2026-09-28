@@ -45,8 +45,8 @@ extension JitCLI {
 
     /// `jit migrate settings --yes --format json`: one Touch ID, the old
     /// profiles read and their settings moved out.
-    static func migrateSettings() -> Result<MigrateSettingsResult, Error> {
-        document(MigrateSettingsResult.arguments, parse: MigrateSettingsResult.parse)
+    static func migrateSettings(dryRun: Bool = false) -> Result<MigrateSettingsResult, Error> {
+        document(dryRun ? MigrateSettingsResult.dryRunArguments : MigrateSettingsResult.arguments, parse: MigrateSettingsResult.parse)
     }
 
     /// `jit profile attach --dry-run --format json <config>` (jit 2.0+).

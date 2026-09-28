@@ -1,0 +1,403 @@
+<title>Vault v2 and Reviewed</title>
+<style>
+:root{
+  --app-unlocked:#3ecf8e;--app-locked:#e5484d;--app-asking:#f0b545;--app-action:#7fd4ff;
+  --app-sheet-material:#323438;--app-window:#323438;--app-card:#414347;--app-titlebar:#343536;
+  --app-label:rgba(255,255,255,.85);--app-label-2:rgba(255,255,255,.55);--app-label-3:rgba(255,255,255,.25);
+  --app-separator:rgba(255,255,255,.10);--app-row-line:rgba(255,255,255,.07);--app-hover:rgba(255,255,255,.05);
+  --app-field:rgba(255,255,255,.07);--app-btn-line:rgba(255,255,255,.16);--app-button-quiet:rgba(255,255,255,.13);
+  --app-segment-track:rgba(255,255,255,.08);--app-segment-on:rgba(255,255,255,.16);--app-verbatim:rgba(0,0,0,.20);
+  --app-window-line:rgba(255,255,255,.09);--app-control-accent:#0068dc;--app-button-2:#7e8081;
+  --accent-dim:rgba(62,207,142,.13);--accent-ink:#061a11;--app-asking-dim:rgba(240,181,69,.22);
+  --space-app-1:2px;--space-app-2:4px;--space-app-3:6px;--space-app-4:8px;--space-app-5:12px;--space-app-6:18px;
+  --radius-panel:10px;--radius-control:6px;--radius-callout:6px;--radius-segment:5px;--radius-box:4px;
+  --size-btn:22px;--size-win-s:520px;--size-sheet-wide:520px;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Monaco,monospace;
+  --page:#111314;--page-2:#17191b;--page-text:#e8efe9;--page-muted:#8c968e;--page-line:rgba(150,230,190,.10);
+  --page-accent:#3ecf8e;--page-amber:#f0a94a;
+  color-scheme:dark;
+}
+body{margin:0;background:var(--page);color:var(--page-text);font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-inline:16px;padding-block:0 64px}
+.wrap{max-width:1040px;margin:0 auto}
+header.page{padding-block:44px 28px;border-bottom:1px solid var(--page-line);margin-bottom:8px}
+header.page h1{font-size:26px;font-weight:700;letter-spacing:-.01em;margin:0 0 12px;text-wrap:balance}
+header.page p{margin:0 0 10px;max-width:66ch;color:var(--page-muted)}
+header.page p:last-child{margin-bottom:0}
+header.page b{color:var(--page-text);font-weight:600}
+.say-big{font-size:17px;line-height:1.55;color:var(--page-muted);max-width:60ch;margin:0 0 18px;text-wrap:balance}
+.say-big b{color:var(--page-text);font-weight:600}
+h2{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--page-accent);margin:52px 0 6px}
+h2+p{margin:0 0 20px;max-width:66ch;color:var(--page-muted)}
+h2+p b{color:var(--page-text);font-weight:600}
+.states{display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start}
+figure{margin:0;display:flex;flex-direction:column;gap:10px;max-width:100%}
+figcaption{font-size:12px;color:var(--page-muted);max-width:520px;line-height:1.5}
+figcaption b{color:var(--page-text);font-weight:600}
+ul.pts{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-width:800px}
+ul.pts li{display:grid;grid-template-columns:20px 1fr;gap:12px;background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;padding:12px 14px}
+ul.pts .n{font-family:var(--font-mono);font-size:12px;color:var(--page-accent);padding-top:2px}
+ul.pts b{font-weight:600}
+ul.pts span{display:block;color:var(--page-muted);margin-top:2px}
+ul.pts .warn{color:var(--page-amber)}
+code{font-family:var(--font-mono);font-size:.9em;background:var(--page-2);border:1px solid var(--page-line);border-radius:5px;padding:1px 5px}
+
+/* ---- JitPass window components, from the design system's bundle ---- */
+.jp-window{width:var(--size-win-s);max-width:100%;box-sizing:border-box;border-radius:10px;overflow:hidden;color:var(--app-label);background:var(--app-window);border:1px solid var(--app-window-line);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:13px;line-height:1.35;box-shadow:0 0 0 .5px rgba(255,255,255,.2),0 20px 50px rgba(0,0,0,.5);-webkit-font-smoothing:antialiased}
+.jp-window__bar{position:relative;height:28px;display:flex;align-items:center;justify-content:center;background:var(--app-titlebar);font-size:13px;font-weight:600;color:var(--app-label-2)}
+.jp-window__lights{position:absolute;left:10px;top:8px;display:flex;gap:8px}
+.jp-window__lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}
+.jp-window__lights i:nth-child(2){background:#febc2e}.jp-window__lights i:nth-child(3){background:#28c840}
+.jp-window__banner{display:flex;align-items:center;gap:var(--space-app-3);padding:var(--space-app-4) var(--space-app-6);background:var(--accent-dim);border-bottom:1px solid var(--app-separator);font-size:12px;color:var(--app-label)}
+.jp-window__head{display:flex;align-items:center;gap:var(--space-app-5);padding:var(--space-app-5) var(--space-app-6);border-bottom:1px solid var(--app-separator)}
+.jp-window__h{font-size:15px;font-weight:600;color:var(--app-label)}
+.jp-window__sub{font-size:12px;color:var(--app-label-2);margin-top:var(--space-app-1)}
+.jp-window__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-window__body{padding:var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-5)}
+.jp-window__foot{display:flex;align-items:center;gap:var(--space-app-4);padding:var(--space-app-4) var(--space-app-6);background:var(--app-titlebar);border-top:1px solid var(--app-separator);font-size:12px;color:var(--app-label-2)}
+.jp-window__count{flex:1;font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-window__count b{color:var(--app-label);font-weight:600}
+.jp-card{background:var(--app-card);border-radius:var(--radius-panel);padding:var(--space-app-5);display:flex;flex-direction:column;gap:var(--space-app-4)}
+.jp-card__eyebrow{display:flex;align-items:center;gap:var(--space-app-3);font-size:11px;font-weight:500;color:var(--app-label-2)}
+.jp-card__top{display:flex;align-items:flex-start;gap:var(--space-app-5)}
+.jp-card__title{font-size:13px;font-weight:600;color:var(--app-label)}
+.jp-card__note{font-size:12px;color:var(--app-label-2);max-width:62ch;margin:var(--space-app-1) 0 0;line-height:1.4}
+.jp-card__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-card__rows{display:flex;flex-direction:column;border-top:1px solid var(--app-separator)}
+.jp-row{display:flex;align-items:center;gap:var(--space-app-5);padding:var(--space-app-4) 0;border-bottom:1px solid var(--app-row-line)}
+.jp-row:last-child{border-bottom:0}
+.jp-row--top{align-items:flex-start}
+.jp-row--on{background:var(--accent-dim);margin:0 calc(-1 * var(--space-app-4));padding-inline:var(--space-app-4);border-radius:var(--radius-control)}
+.jp-row--off{opacity:.55}
+.jp-row__text{min-width:0;flex:1;display:flex;flex-direction:column;gap:var(--space-app-1)}
+.jp-row__name{font-size:13px;font-weight:600;color:var(--app-label);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jp-row__name span{font-weight:400;color:var(--app-label-2);font-family:var(--font-mono);font-size:11px}
+.jp-row__fact{font-size:11px;color:var(--app-label-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-row__fact--mono{font-family:var(--font-mono)}
+.jp-row__acts{display:flex;gap:var(--space-app-3);margin-left:auto;flex:none}
+.jp-chip{font-size:11px;font-weight:500;color:var(--app-label-2);background:var(--app-field);border-radius:var(--radius-box);padding:1px 6px;margin-left:var(--space-app-3);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.jp-abtn{font:inherit;font-size:12px;line-height:1;height:var(--size-btn);padding:0 var(--space-app-5);border:0;border-radius:var(--radius-control);white-space:nowrap;background:var(--app-button-2);color:#fff;display:inline-flex;align-items:center;gap:var(--space-app-3);cursor:default}
+.jp-abtn--default{background:var(--app-control-accent);font-weight:600}
+.jp-abtn--quiet{background:var(--app-button-quiet);color:var(--app-label)}
+.jp-abtn[disabled]{opacity:.45}
+.jp-seg{display:inline-flex;gap:2px;padding:2px;background:var(--app-segment-track);border-radius:var(--radius-callout);align-self:flex-start;max-width:100%;flex-wrap:wrap}
+.jp-seg--fill{align-self:stretch;display:flex;flex-wrap:nowrap}
+.jp-seg--fill .jp-seg__pill{flex:1;text-align:center}
+.jp-seg__pill{font-size:12px;padding:var(--space-app-2) var(--space-app-5);border-radius:var(--radius-segment);color:var(--app-label-2);white-space:nowrap;border:0;background:none;font-family:inherit;line-height:1.3}
+.jp-seg__pill b{font-weight:400;color:var(--app-label-3);margin-left:5px;font-variant-numeric:tabular-nums}
+.jp-seg__pill--on{background:var(--app-segment-on);color:var(--app-label)}
+.jp-search{flex:1;min-width:0;display:flex;align-items:center;gap:var(--space-app-3);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);padding:0 var(--space-app-4);color:var(--app-label-2);font-size:12px;height:var(--size-btn);box-sizing:border-box}
+.jp-search svg{flex:none}
+.jp-field{display:inline-flex;align-items:center;height:var(--size-btn);box-sizing:border-box;padding:0 var(--space-app-4);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);color:var(--app-label);font-size:12px;width:132px}
+.jp-popup{height:var(--size-btn);padding:0 var(--space-app-4);display:inline-flex;align-items:center;gap:var(--space-app-4);background:var(--app-field);border:1px solid var(--app-btn-line);border-radius:var(--radius-control);color:var(--app-label);font:inherit;font-size:12px;line-height:1;white-space:nowrap;box-sizing:border-box;max-width:100%;overflow:hidden}
+.jp-popup svg{flex:none;opacity:.55}
+.jp-popup span.jp-mono{font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.jp-check{width:15px;height:15px;flex:none;border-radius:var(--radius-box);border:1px solid var(--app-btn-line);background:var(--app-card);display:grid;place-items:center}
+.jp-check svg{opacity:0}
+.jp-check--on{background:var(--app-control-accent);border-color:var(--app-control-accent)}
+.jp-check--on svg{opacity:1}
+.jp-dot{width:8px;height:8px;border-radius:50%;flex:none;display:block;background:var(--app-label-2)}
+.jp-dot--ok{background:var(--app-unlocked)}.jp-dot--warn{background:var(--app-asking)}
+.jp-glyph{flex:none;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700}
+.jp-glyph--bad{background:var(--app-locked);color:#fff}
+.jp-spin{flex:none;width:14px;height:14px;border-radius:50%;border:2px solid var(--app-asking-dim);border-top-color:var(--app-asking);animation:jp-spin .9s linear infinite;box-sizing:border-box}
+@keyframes jp-spin{to{transform:rotate(360deg)}}
+.jp-verbatim{margin-top:var(--space-app-3);background:var(--app-verbatim);border-radius:var(--radius-control);padding:var(--space-app-4) var(--space-app-5);font-family:var(--font-mono);font-size:11px;color:var(--app-label-2);line-height:1.5}
+.jp-mono{font-family:var(--font-mono)}
+.jp-mark{--mark:var(--app-unlocked);position:relative;display:inline-grid;place-items:center;width:56px;height:56px;border-radius:50%;flex:none}
+.jp-mark::before{content:"";position:absolute;inset:0;border-radius:50%;background:var(--mark);opacity:.22}
+.jp-mark::after{content:"";position:absolute;inset:22%;border-radius:50%;background:var(--mark)}
+.jp-mark>svg{position:relative;z-index:1;width:30%;height:30%}
+.jp-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:var(--space-app-5);padding:44px var(--space-app-6)}
+.jp-empty__title{font-size:14px;font-weight:600;color:var(--app-label)}
+.jp-empty p{margin:0;font-size:12px;color:var(--app-label-2);max-width:400px;line-height:1.45}
+/* ---- sheet ---- */
+.jp-sheet{width:var(--size-sheet-wide);background:var(--app-sheet-material)}
+.jp-sheet__body{padding:var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-5)}
+.jp-sheet__title{font-size:13px;font-weight:600;color:var(--app-label)}
+.jp-say{font-size:13px;line-height:1.5;color:var(--app-label-2);margin-top:var(--space-app-3)}
+.jp-say b{color:#fff;font-weight:600}
+.jp-say i{font-style:normal;color:var(--app-label-3)}
+.jp-sheet__grid{display:grid;grid-template-columns:62px 1fr;column-gap:var(--space-app-5);row-gap:var(--space-app-5);align-items:start}
+.jp-sheet__k{text-align:right;color:var(--app-label-2);font-size:12px;padding-top:4px}
+.jp-sheet__v{min-width:0;display:flex;flex-direction:column;gap:var(--space-app-3)}
+.jp-sheet__hint{font-size:11px;color:var(--app-label-2);line-height:1.45}
+.jp-sheet__inline{display:flex;align-items:center;gap:var(--space-app-4);flex-wrap:wrap}
+.jp-sheet__notes{border-top:1px solid var(--app-separator);padding-top:var(--space-app-5);font-size:11px;line-height:1.6;color:var(--app-label-2)}
+.jp-sheet__foot{display:flex;align-items:center;gap:var(--space-app-4);font-size:12px;color:var(--app-label-2)}
+.jp-sheet .jp-card{padding:var(--space-app-4) var(--space-app-5)}
+.jp-sheet .jp-card__rows{border-top:0}
+.jp-fail{display:flex;gap:var(--space-app-4);align-items:flex-start;font-size:12px;color:var(--app-label);line-height:1.45}
+.jp-fail .jp-glyph{margin-top:1px}
+.jp-fail>div{flex:1;min-width:0}
+/* ---- alert ---- */
+.jp-alert{width:440px;max-width:100%;box-sizing:border-box;background:var(--app-sheet-material);border:1px solid var(--app-window-line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);padding:20px var(--space-app-6) var(--space-app-6);display:flex;gap:var(--space-app-5);color:var(--app-label);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.jp-alert__plate{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--app-asking-dim);font-size:20px}
+.jp-alert__body{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--space-app-4)}
+.jp-alert__title{font-size:13px;font-weight:600}
+.jp-alert__msg{font-size:12px;color:var(--app-label-2);line-height:1.5}
+.jp-alert__msg strong{color:var(--app-label);font-weight:600}
+.jp-alert__buttons{display:flex;gap:var(--space-app-4);justify-content:flex-end;margin-top:var(--space-app-2)}
+.chev{width:9px;height:12px}
+@media (max-width:600px){.jp-sheet__grid{grid-template-columns:1fr}.jp-sheet__k{text-align:left;padding-top:0}}
+@media (prefers-reduced-motion:reduce){.jp-spin{animation:none}}
+</style>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="search" viewBox="0 0 12 12"><circle cx="5" cy="5" r="3.5" stroke="currentColor" stroke-width="1.3" fill="none"/><path d="M7.7 7.7 10.5 10.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol></defs></svg>
+<style>
+.jp-window--wide{width:780px}
+.jp-seg--sm .jp-seg__pill{font-size:11px;padding:1px var(--space-app-4)}
+.jp-row__side{margin-left:auto;flex:none;display:flex;align-items:center;gap:var(--space-app-4)}
+.jp-group{font-size:11px;font-weight:600;color:var(--app-label-2);padding:var(--space-app-4) 0 var(--space-app-2);display:flex;align-items:center;gap:var(--space-app-3)}
+.jp-group em{font-style:normal;font-weight:400;color:var(--app-label-3)}
+.jp-row__name.jp-mono{font-weight:400;font-size:12px}
+.jp-val{font-family:var(--font-mono);font-size:11px;color:var(--app-label-2);max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-val--hidden{color:var(--app-label-3);letter-spacing:.1em}
+.jp-flag{font-size:11px;color:var(--app-asking)}
+.jp-window__banner--ask{background:var(--app-asking-dim)}
+.jp-link{color:var(--app-action);font-size:12px;margin-left:auto;white-space:nowrap}
+.vault{display:grid;grid-template-columns:190px 1fr;min-height:420px}
+.vault__side{border-right:1px solid var(--app-separator);padding:var(--space-app-5);display:flex;flex-direction:column;gap:var(--space-app-2);font-size:13px}
+.vault__side .jp-search{flex:none;margin-bottom:var(--space-app-4)}
+.vault__item{display:flex;align-items:center;gap:var(--space-app-4);padding:var(--space-app-3) var(--space-app-4);border-radius:var(--radius-control)}
+.vault__item b{font-weight:400;margin-left:auto;color:var(--app-label-2);font-variant-numeric:tabular-nums}
+.vault__item--on{background:var(--app-control-accent);color:#fff}
+.vault__item--on b{color:#fff}
+.vault__main{display:flex;flex-direction:column;min-width:0}
+.vault__head{display:flex;align-items:flex-start;gap:var(--space-app-5);padding:var(--space-app-5) var(--space-app-6);border-bottom:1px solid var(--app-separator)}
+.vault__body{padding:var(--space-app-4) var(--space-app-6) var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-2)}
+.cols{display:grid;grid-template-columns:1fr 150px 110px;gap:var(--space-app-5);align-items:center}
+.cols--head{font-size:11px;color:var(--app-label-2);padding:var(--space-app-3) 0;border-bottom:1px solid var(--app-separator)}
+.cols--row{font-size:12px;padding:var(--space-app-3) 0;border-bottom:1px solid var(--app-row-line)}
+.cols--row .jp-mono{font-size:12px}
+.cols--row span.m{color:var(--app-label-2)}
+.term{width:640px;max-width:100%;box-sizing:border-box;background:#0c0d0e;border:1px solid var(--page-line);border-radius:10px;padding:12px 14px;font-family:var(--font-mono);font-size:12px;line-height:1.6;color:#d6ddd8;overflow-x:auto;white-space:pre}
+.term .b{font-weight:700;color:#fff}.term .g{color:#3ecf8e}.term .a{color:#f0b545}.term .c{color:#7fd4ff}
+.decide{list-style:none;margin:0;padding:0;display:grid;gap:10px;max-width:820px;counter-reset:d}
+.decide li{background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;padding:12px 14px;display:grid;gap:4px}
+.decide b{font-weight:600}
+.decide span{color:var(--page-muted)}
+.decide .rec{color:var(--page-accent);font-size:12px}
+.stage{overflow-x:auto;max-width:100%;padding-bottom:4px}
+@media (max-width:820px){.vault{grid-template-columns:1fr}.vault__side{border-right:0;border-bottom:1px solid var(--app-separator)}}
+</style>
+<style>
+.jp-window--vault{width:780px}
+.vault{grid-template-columns:200px 1fr;min-height:0}
+.vault__scroll{padding:var(--space-app-5) var(--space-app-6) var(--space-app-6);display:flex;flex-direction:column;gap:var(--space-app-5);max-height:430px;overflow:hidden;position:relative}
+.vault__scroll--short{max-height:none}
+.fade{position:absolute;left:0;right:0;bottom:0;height:36px;background:linear-gradient(transparent,var(--app-window))}
+.vault__side{gap:var(--space-app-1)}
+.k{width:12px;height:12px;flex:none;opacity:.55}
+.jp-row__name.nm{font-family:var(--font-mono);font-weight:500;font-size:12px}
+.reveal{display:flex;align-items:center;gap:var(--space-app-4);margin-top:var(--space-app-2)}
+.reveal code{font-family:var(--font-mono);font-size:11px;background:var(--app-asking-dim);color:var(--app-label);border:0;border-radius:var(--radius-box);padding:2px 6px}
+.reveal span{font-size:11px;color:var(--app-label-2);font-variant-numeric:tabular-nums}
+.menu{position:absolute;right:18px;top:34px;width:196px;background:#3a3c40;border:1px solid var(--app-window-line);border-radius:8px;box-shadow:0 12px 30px rgba(0,0,0,.5);padding:4px;font-size:13px;z-index:3}
+.menu div{padding:3px 10px;border-radius:4px;color:var(--app-label)}
+.menu div.on{background:var(--app-control-accent);color:#fff}
+.menu hr{border:0;border-top:1px solid var(--app-separator);margin:4px 6px}
+.menu .dim{color:var(--app-label-2);font-size:11px;padding-top:0}
+.rel{position:relative}
+.was{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;max-width:1000px}
+.was div{background:var(--page-2);border:1px solid var(--page-line);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--page-muted)}
+.was b{display:block;color:var(--page-text);font-weight:600;margin-bottom:2px}
+.jp-foot-btn{margin-left:auto}
+.jp-window--scan{width:760px}
+.pill-new{font-size:11px;color:var(--app-action);background:var(--app-field);border-radius:var(--radius-box);padding:1px 6px}
+.cmd{font-family:var(--font-mono);font-size:12px}
+table.eng{border-collapse:collapse;font-size:13px;max-width:900px;width:100%}
+table.eng td,table.eng th{border-bottom:1px solid var(--page-line);padding:8px 10px;text-align:left;vertical-align:top}
+table.eng th{color:var(--page-muted);font-weight:500;font-size:12px}
+table.eng td:first-child{white-space:nowrap}
+.tw{overflow-x:auto;max-width:100%}
+</style>
+
+<div class="wrap">
+<header class="page">
+  <h1>Vault window v2, and Reviewed findings</h1>
+  <p class="say-big">Two of the six items from 2026-09-28 change a window, so they start here. <b>The Vault</b> loses its cramped button bar and its fixed-height Settings pane. <b>Findings</b> gets a way to say "I checked this, it's not live" so a test fixture stops coming back.</p>
+  <p>Every name, path and value below is made up. The other four items are fixes, already built and tested on branches: the Protect row leaving at once, 24-hour decoy counts, Service reading Doctor, and scan reading <code>export KEY=value</code>.</p>
+</header>
+
+<h2>1 · The Vault today</h2>
+<p>What the screenshot shows, point by point.</p>
+<div class="was">
+  <div><b>Six buttons in one bar</b>Reveal, Copy, Replace, History, Move Out and Delete share the strip under the table with the secret's name and "used by", so at 720pt they crowd and the name truncates.</div>
+  <div><b>Settings can't grow</b>The Settings pane is capped at 180pt with its own scroll, under a table that fills the rest with empty striped rows. There's no divider to drag.</div>
+  <div><b>"dotenv" says nothing</b>The Class column shows where a value came from in jit's words. The reader wants to know what the value is.</div>
+  <div><b>Backups in the sidebar</b>"601 migrate backups" and Maintenance… sit under the profile list and read as part of it.</div>
+</div>
+
+<h2>2 · Vault v2</h2>
+<p>One scroll instead of two panes. The profile's <b>secrets</b> and <b>settings</b> are two cards on the same scroll, so a long settings list makes the window scroll, not a 180pt box. Each row carries its own verbs: <b>Reveal</b> and <b>Copy</b> as buttons, the rest in the row's <b>⋯</b> menu. The bar under the table is gone. Maintenance moves to the window's footer.</p>
+<div class="states">
+<figure><div class="stage">
+<div class="jp-window jp-window--vault">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>JitPass Vault</div>
+  <div class="jp-window__banner jp-window__banner--ask"><span class="jp-dot jp-dot--warn"></span>2 profiles protected before settings stayed plain may hold settings<span class="jp-link">Move Them Out…</span></div>
+  <div class="vault">
+    <div class="vault__side">
+      <div class="jp-search"><svg width="12" height="12"><use href="#search"/></svg>Filter</div>
+      <div class="vault__item"><span class="jp-dot jp-dot--ok"></span>billing-sync<b>2</b></div>
+      <div class="vault__item vault__item--on"><span class="jp-dot jp-dot--ok"></span>crm-export<b>3</b></div>
+      <div class="vault__item"><span class="jp-dot"></span>docs-bot<b>1</b></div>
+      <div class="vault__item"><span class="jp-dot jp-dot--ok"></span>mcp-tickets<b>2</b></div>
+      <div class="vault__item"><span class="jp-dot"></span>payroll-report<b>1</b></div>
+      <div class="vault__item"><span class="jp-dot jp-dot--warn"></span>search-index<b>2</b></div>
+      <div class="vault__item"><span class="jp-dot"></span>scratch<b>2</b></div>
+    </div>
+    <div class="vault__main">
+      <div class="vault__head">
+        <div style="min-width:0"><div class="jp-window__h">crm-export</div><div class="jp-window__sub">3 secrets · 7 settings · from ~/work/crm-export/.env</div></div>
+        <div class="jp-window__acts"><button class="jp-abtn">Add…</button><button class="jp-abtn">⋯</button></div>
+      </div>
+      <div class="vault__scroll">
+        <div class="jp-card">
+          <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>In the vault</div>
+          <div><div class="jp-card__title">3 secrets</div><p class="jp-card__note">Reading one takes Touch ID or a grant.</p></div>
+          <div class="jp-card__rows">
+            <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">CRM_CLIENT_SECRET</div><div class="jp-row__fact">Generic API key · updated 15 hours ago · used by crm-export, mcp-tickets</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Reveal</button><button class="jp-abtn jp-abtn--quiet">Copy</button><button class="jp-abtn jp-abtn--quiet">⋯</button></div></div>
+            <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">CRM_REFRESH_TOKEN</div><div class="jp-row__fact">JSON Web Token · updated 15 hours ago · used by crm-export</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Reveal</button><button class="jp-abtn jp-abtn--quiet">Copy</button><button class="jp-abtn jp-abtn--quiet">⋯</button></div></div>
+            <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">CRM_WEBHOOK_KEY</div><div class="jp-row__fact">updated 3 days ago · used by crm-export</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Reveal</button><button class="jp-abtn jp-abtn--quiet">Copy</button><button class="jp-abtn jp-abtn--quiet">⋯</button></div></div>
+          </div>
+        </div>
+        <div class="jp-card">
+          <div class="jp-card__eyebrow"><span class="jp-dot"></span>Plain text</div>
+          <div><div class="jp-card__title">7 settings</div><p class="jp-card__note">Beside the vault, readable by any program. Move one in if it turns out to be a secret.</p></div>
+          <div class="jp-card__rows">
+            <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">CRM_BASE_URL</div><div class="jp-row__fact jp-row__fact--mono">https://crm.example.com/api</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Move to Vault</button></div></div>
+            <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">CRM_CLIENT_ID</div><div class="jp-row__fact jp-row__fact--mono">crm-export-prod</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Move to Vault</button></div></div>
+            <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">EXPORT_DIR</div><div class="jp-row__fact jp-row__fact--mono">exports/daily</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Move to Vault</button></div></div>
+            <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">EXPORT_FORMAT</div><div class="jp-row__fact jp-row__fact--mono">csv</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Move to Vault</button></div></div>
+          </div>
+        </div>
+        <div class="fade"></div>
+      </div>
+    </div>
+  </div>
+  <div class="jp-window__foot"><span class="jp-window__count"><b>14 secrets</b> · 22 settings · 38 backups</span><button class="jp-abtn jp-abtn--quiet">Maintenance…</button></div>
+</div></div>
+<figcaption><b>Default, 780 × 560.</b> The whole right side scrolls; the header and footer stay. The fact line leads with the value's kind when scan named it (<i>Generic API key</i>, <i>JSON Web Token</i>) and says nothing when it didn't, instead of "dotenv". Add… stays a button; Link 1Password… and Delete Profile… move into the header's ⋯.</figcaption></figure>
+</div>
+
+<h2>3 · Reveal, and the row's menu</h2>
+<p>A reveal opens under its own row, where the eye already is, with its countdown and Hide. The row's ⋯ holds everything that is not an everyday verb, with Delete last and apart.</p>
+<div class="states">
+<figure><div class="stage">
+<div class="jp-window" style="width:560px">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>JitPass Vault</div>
+  <div style="padding:var(--space-app-5) var(--space-app-6) var(--space-app-6)">
+  <div class="jp-card">
+    <div class="jp-card__eyebrow"><span class="jp-dot jp-dot--ok"></span>In the vault</div>
+    <div class="jp-card__rows">
+      <div class="jp-row jp-row--top"><div class="jp-row__text"><div class="jp-row__name nm">CRM_CLIENT_SECRET</div><div class="jp-row__fact">Generic API key · updated 15 hours ago · used by crm-export, mcp-tickets</div>
+        <div class="reveal"><code>cs_7Qm2…example…9Ld4</code><span>24s</span></div></div>
+        <div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Hide</button><button class="jp-abtn jp-abtn--quiet">Copy</button><button class="jp-abtn jp-abtn--quiet">⋯</button></div></div>
+      <div class="jp-row rel"><div class="jp-row__text"><div class="jp-row__name nm">CRM_REFRESH_TOKEN</div><div class="jp-row__fact">JSON Web Token · updated 15 hours ago · used by crm-export</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Reveal</button><button class="jp-abtn jp-abtn--quiet">Copy</button><button class="jp-abtn">⋯</button></div>
+        <div class="menu"><div>Replace…</div><div class="on">History…</div><div>Move Out of Vault…</div><hr><div>Delete…</div></div></div>
+      <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">CRM_WEBHOOK_KEY</div><div class="jp-row__fact">updated 3 days ago · used by crm-export</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Reveal</button><button class="jp-abtn jp-abtn--quiet">Copy</button><button class="jp-abtn jp-abtn--quiet">⋯</button></div></div>
+      <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">&nbsp;</div><div class="jp-row__fact">&nbsp;</div></div></div>
+    </div>
+  </div></div>
+</div></div>
+<figcaption><b>Revealed, and ⋯ open.</b> Reveal becomes Hide on that row. Only one value is shown at a time: revealing another hides the first. Right-click on a row opens the same menu with Reveal and Copy at the top.</figcaption></figure>
+
+<figure><div class="stage">
+<div class="jp-window" style="width:520px">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>JitPass Vault</div>
+  <div class="vault__head"><div><div class="jp-window__h">payroll-report</div><div class="jp-window__sub">0 secrets · 3 settings · from ~/work/payroll-report/.env</div></div><div class="jp-window__acts"><button class="jp-abtn">Add…</button><button class="jp-abtn">⋯</button></div></div>
+  <div class="vault__scroll vault__scroll--short">
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot"></span>Plain text</div>
+      <div><div class="jp-card__title">3 settings</div><p class="jp-card__note">Nothing from this file went into the vault. Scan judged every value a setting.</p></div>
+      <div class="jp-card__rows">
+        <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">REPORT_URL</div><div class="jp-row__fact jp-row__fact--mono">https://payroll.example.com</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Move to Vault</button></div></div>
+        <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">REPORT_DIR</div><div class="jp-row__fact jp-row__fact--mono">reports</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Move to Vault</button></div></div>
+        <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name nm">KEEP_REPORTS</div><div class="jp-row__fact jp-row__fact--mono">14</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Move to Vault</button></div></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<figcaption><b>A profile of settings only.</b> No empty "In the vault" card: a card with nothing in it is absent, the rule Findings already follows.</figcaption></figure>
+</div>
+
+<h2>4 · Findings: what Test fixtures is for</h2>
+<p>The tab lists real-looking keys in test files and docs. They don't count toward the score and are almost always fake, but nothing let you say so, so they came back after every scan. The new note says what the tab is for, and each row gets <b>Mark Reviewed</b>. A reviewed finding leaves Findings and comes back only if <b>the value on that line changes</b>.</p>
+<div class="states">
+<figure><div class="stage">
+<div class="jp-window jp-window--scan">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Findings</div>
+  <div class="jp-window__body">
+    <div class="jp-seg"><button class="jp-seg__pill">All<b>9</b></button><button class="jp-seg__pill">Needs you<b>3</b></button><button class="jp-seg__pill jp-seg__pill--on">Test fixtures<b>6</b></button></div>
+    <div class="jp-card">
+      <div class="jp-card__eyebrow"><span class="jp-dot"></span>Test fixtures</div>
+      <div class="jp-card__top"><div><div class="jp-card__title">4 files hold real-looking examples</div><p class="jp-card__note">Keys in tests and docs are usually fake, so they don't count toward the score. Open one to check. If it's real, rotate it. If it's fake, mark it reviewed and it won't come back unless the value changes.</p></div>
+        <div class="jp-card__acts"><button class="jp-abtn">Mark All Reviewed…</button></div></div>
+      <div class="jp-card__rows">
+        <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">patterns_test.go <span>~/code/linter/internal/rules</span></div><div class="jp-row__fact">6 flagged lines · AWS Access Key ID, SendGrid API Key, JSON Web Token and 3 more</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">6 Lines…</button><button class="jp-abtn">Open</button><button class="jp-abtn">⋯</button></div></div>
+        <div class="jp-row rel"><div class="jp-row__text"><div class="jp-row__name">client_test.py <span>~/code/billing-sync/tests</span></div><div class="jp-row__fact">line 40 · GitHub Personal Access Token</div></div><div class="jp-row__acts"><button class="jp-abtn">Open</button><button class="jp-abtn">⋯</button></div>
+          <div class="menu" style="top:30px"><div class="on">Mark Reviewed</div><hr><div>Reveal in Finder</div><div>Copy Path</div></div></div>
+        <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">README.md <span>~/code/billing-sync</span></div><div class="jp-row__fact">line 88 · Database connection string with embedded credentials</div></div><div class="jp-row__acts"><button class="jp-abtn">Open</button><button class="jp-abtn">⋯</button></div></div>
+        <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">fixtures.json <span>~/code/crm-export/testdata</span></div><div class="jp-row__fact">line 12 · Stripe Secret Key</div></div><div class="jp-row__acts"><button class="jp-abtn">Open</button><button class="jp-abtn">⋯</button></div></div>
+      </div>
+    </div>
+  </div>
+</div></div>
+<figcaption><b>The tab, with a row's ⋯ open.</b> Mark Reviewed on a file marks every flagged line in it; the Lines… sheet gets the same item per line. Needs you rows get it too, behind the stronger question in the next frame.</figcaption></figure>
+</div>
+
+<div class="states" style="margin-top:28px">
+<figure>
+<div class="jp-alert"><div class="jp-alert__plate">?</div><div class="jp-alert__body">
+  <div class="jp-alert__title">Mark 6 findings in 4 files reviewed?</div>
+  <div class="jp-alert__msg">They leave Findings. One comes back if the value on its line changes. <strong>If any of these keys is live, rotate it instead:</strong> marking it reviewed doesn't make it safe.</div>
+  <div class="jp-alert__buttons"><button class="jp-abtn">Cancel</button><button class="jp-abtn jp-abtn--default">Mark Reviewed</button></div>
+</div></div>
+<figcaption><b>Mark All Reviewed…</b> A single row asks nothing: it's undoable from the banner. On a Needs you row the question always appears, and it leads with the risk: "This looks like a live key. Mark it reviewed only if you know it's not one."</figcaption></figure>
+
+<figure><div class="stage">
+<div class="jp-window" style="width:560px">
+  <div class="jp-window__bar"><span class="jp-window__lights"><i></i><i></i><i></i></span>Findings</div>
+  <div class="jp-window__banner"><span class="jp-dot jp-dot--ok"></span>6 findings in 4 files marked reviewed<span class="jp-link">Undo</span></div>
+  <div class="jp-window__body">
+    <div class="jp-seg"><button class="jp-seg__pill jp-seg__pill--on">All<b>3</b></button><button class="jp-seg__pill">Needs you<b>3</b></button></div>
+    <div class="jp-card"><div class="jp-card__eyebrow"><span class="jp-dot" style="background:var(--app-locked)"></span>Needs you</div><div class="jp-card__title">3 files only you can fix</div></div>
+  </div>
+  <div class="jp-window__foot"><span class="jp-window__count">31,204 files read · 6 reviewed</span><button class="jp-abtn jp-abtn--quiet">Show Reviewed…</button></div>
+</div></div>
+<figcaption><b>After.</b> The Test fixtures tab is gone because it's empty. The footer keeps a count and a way back, so nothing is hidden silently.</figcaption></figure>
+</div>
+
+<div class="states" style="margin-top:28px">
+<figure><div class="jp-sheet jp-window" style="width:520px">
+  <div class="jp-sheet__body">
+    <div><div class="jp-sheet__title">6 reviewed findings</div><div class="jp-say">Hidden from Findings until the value on the line changes.</div></div>
+    <div class="jp-card"><div class="jp-card__rows">
+      <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">client_test.py <span>line 40</span></div><div class="jp-row__fact">GitHub Personal Access Token · reviewed today</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Unmark</button></div></div>
+      <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">README.md <span>line 88</span></div><div class="jp-row__fact">Database connection string · reviewed today</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Unmark</button></div></div>
+      <div class="jp-row"><div class="jp-row__text"><div class="jp-row__name">patterns_test.go <span>6 lines</span></div><div class="jp-row__fact">AWS Access Key ID and 5 more · reviewed today</div></div><div class="jp-row__acts"><button class="jp-abtn jp-abtn--quiet">Unmark</button></div></div>
+    </div></div>
+    <div class="jp-sheet__foot"><span style="flex:1"></span><button class="jp-abtn jp-abtn--default">Done</button></div>
+  </div>
+</div><figcaption><b>Show Reviewed…</b> Unmark puts a finding back on the next scan.</figcaption></figure>
+</div>
+
+<h2>5 · What the engine needs</h2>
+<p>The app is never the only way to do something, so marks are a jit command first. A mark is stored as a keyed hash of the value, never the value, so the file of marks isn't a list of secrets.</p>
+<div class="tw"><table class="eng">
+  <tr><th>Piece</th><th>What it does</th></tr>
+  <tr><td class="cmd">jit scan review FILE[:LINE]…</td><td>Marks the findings on those lines. Stores path, line, finding kind and an HMAC of the value under a key kept beside it, in <code>~/Library/Application Support/jitpass/scan-reviewed.json</code>.</td></tr>
+  <tr><td class="cmd">jit scan unreview FILE[:LINE]…</td><td>Removes marks. <code>jit scan review --list</code> prints them, no values.</td></tr>
+  <tr><td class="cmd">jit scan</td><td>Drops a finding whose path and value hash match a mark, and says so: summary <code>reviewed: N</code>, schema 0.25.0. A mark matches by value, so an edit that moves the line keeps it. A changed value does not match.</td></tr>
+  <tr><td class="cmd">--unfiltered</td><td>Shows reviewed findings again, tagged <code>[reviewed]</code>, like every other filter it already reveals.</td></tr>
+  <tr><td>Not for</td><td>Vault copies and agent-cache copies. Those are exact copies of secrets jit already holds, so the fix is Redact or rotate, never a mark.</td></tr>
+</table></div>
+
+<h2>Decisions for you</h2>
+<ul class="decide">
+  <li><b>1. Row verbs: Reveal and Copy as buttons, the rest in ⋯</b><span>The alternative is all verbs behind ⋯ and right-click, which gives a quieter table but hides the two verbs used every day.</span><span class="rec">Recommend: Reveal + Copy visible.</span></li>
+  <li><b>2. Drop the Class column</b><span>Replace "dotenv" with the scan's name for the value when there is one, in the fact line. Nothing is shown otherwise. Sorting by column goes away with the table.</span><span class="rec">Recommend: drop it.</span></li>
+  <li><b>3. Where "Mark Reviewed" is offered</b><span>Test fixtures and Needs you, with the stronger question on Needs you. Not on Protect, where the answer is to protect it, and not on vault or agent-cache copies.</span><span class="rec">Recommend: fixtures + Needs you.</span></li>
+  <li><b>4. What brings a reviewed finding back</b><span>Only a change of the value on the line. The alternative, any edit to the file, would bring test fixtures back on every commit.</span><span class="rec">Recommend: value change only.</span></li>
+  <li><b>5. Name: "Mark Reviewed" or "Not a Secret"</b><span>"Not a Secret" is a claim the user can get wrong about a real key. "Reviewed" says only what they did.</span><span class="rec">Recommend: Mark Reviewed.</span></li>
+</ul>
+</div>

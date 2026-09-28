@@ -39,6 +39,7 @@ struct MoveOutSheet: View {
                     ) {}
                 }
             }
+            SheetState(model: model, owner: VaultCommandLabel.move(paths))
             HStack(spacing: Win.s4) {
                 Text("Touch ID follows. Move to Vault puts \(paths.count == 1 ? "it" : "them") back.")
                     .font(Win.sub).foregroundStyle(.secondary)
@@ -47,9 +48,11 @@ struct MoveOutSheet: View {
                     Button("Cancel", action: actions.closeSheet).buttonStyle(AppButton(kind: .primary))
                         .keyboardShortcut(.defaultAction)
                     Button("Move Out") { actions.moveOut(paths) }.buttonStyle(AppButton())
+                        .disabled(SheetState.blocked(model, owner: VaultCommandLabel.move(paths)))
                 } else {
                     Button("Cancel", action: actions.closeSheet).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
                     Button("Move Out") { actions.moveOut(paths) }.buttonStyle(AppButton(kind: .primary))
+                        .disabled(SheetState.blocked(model, owner: VaultCommandLabel.move(paths)))
                         .keyboardShortcut(.defaultAction)
                 }
             }
@@ -95,41 +98,146 @@ struct CheckSettingsSheet: View {
         model.vaultListing?.uncheckedFromEnv ?? []
     }
 
-    private var byGroup: [(String, Int)] {
-        Dictionary(grouping: unchecked, by: \.group).map { ($0.key, $0.value.count) }.sorted { $0.0 < $1.0 }
+    /// Each profile and the names in `paths`, by profile.
+    private func byGroup(_ paths: Set<String>) -> [(String, [String])] {
+        Dictionary(grouping: unchecked.filter { paths.contains($0.path) }, by: \.group)
+            .map { ($0.key, $0.value.map(\.name).sorted()) }
+            .sorted { $0.0 < $1.0 }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Win.s5) {
-            VStack(alignment: .leading, spacing: Win.s1) {
-                Text("Move the settings out of these profiles?").font(Win.cardTitle)
-                Text("jit reads the \(unchecked.count) entries below and moves the ones that aren't secrets out of the vault, "
-                    + "into plain settings. The secrets, and names that look like one, stay. Files keep working.")
-                    .font(Win.sub).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            if let check = model.settingsCheck {
+                checked(check)
+            } else {
+                unread
             }
-            AppPlainCard {
-                CappedScroll(maxHeight: 240) {
-                    ForEach(Array(byGroup.enumerated()), id: \.element.0) { index, item in
-                        AppRow(
-                            name: item.0,
-                            fact: "\(item.1) \(item.1 == 1 ? "entry" : "entries") protected from a .env",
-                            last: index == byGroup.count - 1
-                        ) {}
-                    }
-                }
-            }
-            HStack(spacing: Win.s4) {
-                Text("Touch ID follows, once.").font(Win.sub).foregroundStyle(.secondary)
-                Spacer(minLength: Win.s5)
-                Button("Cancel", action: actions.closeSheet).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
-                Button("Move Out", action: actions.checkSettings).buttonStyle(AppButton(kind: .primary))
-                    .keyboardShortcut(.defaultAction)
-            }
-            .disabled(model.vaultBusy != nil)
+            SheetState(model: model, owner: VaultCommandLabel.settingsCheck)
+            footer
         }
         .padding(Win.s6)
         .frame(width: Win.sheetWide)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
-        .onExitCommand(perform: actions.closeSheet)
+        .onExitCommand(perform: close)
+        .onAppear { model.settingsCheck = nil }
+    }
+
+    /// Before the check: the entries named like settings, which jit reads
+    /// to decide, apart from the ones named like secrets, which stay. An
+    /// older engine says nothing about names: one list, as before.
+    @ViewBuilder private var unread: some View {
+        let known = unchecked.allSatisfy { $0.nameLooksSecret != nil }
+        let secrets = Set(unchecked.filter { $0.nameLooksSecret == true }.map(\.path))
+        let candidates = Set(unchecked.map(\.path)).subtracting(secrets)
+        VStack(alignment: .leading, spacing: Win.s1) {
+            Text(Format.checkSettingsTitle(candidates.count, known: known)).font(Win.cardTitle)
+            Text(Format.checkSettingsNote(candidates.count, known: known))
+                .font(Win.sub).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        }
+        if known {
+            if !candidates.isEmpty {
+                Text(Format.settingsLookHeading(candidates.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+                list(byGroup(candidates))
+            }
+            if !secrets.isEmpty {
+                Text(Format.settingsStaysHeading(secrets.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+                list(byGroup(secrets))
+            }
+        } else {
+            list(byGroup(Set(unchecked.map(\.path))))
+        }
+    }
+
+    /// After it: jit's own verdict, two lists, before anything moves.
+    @ViewBuilder private func checked(_ check: MigrateSettingsResult) -> some View {
+        let verdict = check.verdict(unchecked: unchecked.map(\.path))
+        let moves = MigrateSettingsResult.byProfile(verdict.moves)
+        // Each staying name with why it stays, one per line.
+        let stays = MigrateSettingsResult.byProfile(verdict.stays).map { profile, names in
+            (profile, names.map { name in
+                name + " · " + Format.settingStay(check.stayReason(profile + "/" + name))
+            })
+        }
+        VStack(alignment: .leading, spacing: Win.s1) {
+            Text(Format.settingsCheckTitle(moves: verdict.moves.count, stays: verdict.stays.count)).font(Win.cardTitle)
+            if !verdict.moves.isEmpty {
+                Text(Format.settingsCheckNote).font(Win.sub).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        if !moves.isEmpty {
+            Text(Format.settingsMovesHeading(verdict.moves.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+            list(moves)
+        }
+        if !stays.isEmpty {
+            Text(Format.settingsStaysHeading(verdict.stays.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+            list(stays, separator: "\n")
+        }
+    }
+
+    /// Up to five profiles show in full (about 50pt a row): a list this
+    /// short never hides its last row behind a scroll. More scroll.
+    private func list(_ groups: [(String, [String])], separator: String = ", ") -> some View {
+        AppPlainCard {
+            CappedScroll(maxHeight: Design.Sheet.listMax) {
+                ForEach(Array(groups.enumerated()), id: \.element.0) { index, item in
+                    AppRow(name: item.0, fact: item.1.joined(separator: separator), wraps: true, last: index == groups.count - 1) {}
+                }
+            }
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: Win.s4) {
+            Text(model.settingsCheck == nil ? Format.settingsCheckFirstFoot : Format.settingsCheckThenFoot)
+                .font(Win.sub).foregroundStyle(.secondary)
+            Spacer(minLength: Win.s5)
+            Button("Cancel", action: close).buttonStyle(AppButton()).keyboardShortcut(.cancelAction)
+            if let check = model.settingsCheck {
+                Button(check.moved.isEmpty ? "Keep Them All" : "Move These \(check.moved.count)", action: actions.checkSettings)
+                    .disabled(SheetState.blocked(model, owner: VaultCommandLabel.settingsCheck))
+                    .buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
+            } else {
+                Button("Check Which Move…", action: actions.previewSettings)
+                    .disabled(SheetState.blocked(model, owner: VaultCommandLabel.settingsCheck))
+                    .buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
+            }
+        }
+        .disabled(model.vaultBusy != nil)
+    }
+
+    private func close() {
+        model.settingsCheck = nil
+        actions.closeSheet()
+    }
+}
+
+/// What the sheet's own command is doing, above its buttons: the Touch ID
+/// wait, then why it failed, or that the person said no. The sheet stays
+/// up on a failure, and the row it was for is behind it, so the sheet has
+/// to say it; saying nothing read as a button that does nothing.
+struct SheetState: View {
+    /// This sheet's command failed in a way pressing it again cannot fix:
+    /// only the installed JitPass's jit can reach the vault's key.
+    static func blocked(_ model: MenuModel, owner: String) -> Bool {
+        VaultCommandLabel.belongs(busy: model.vaultBusy, endedFor: model.vaultFailedFor, to: owner)
+            && model.vaultBusy == nil && model.vaultMessage.map(VaultFailure.needsInstalledApp) == true
+    }
+
+    @ObservedObject var model: MenuModel
+    /// The label the sheet's command runs under (VaultCommandLabel): what
+    /// another command left behind, a reveal's cancel, is not this sheet's.
+    let owner: String
+
+    var body: some View {
+        if VaultCommandLabel.belongs(busy: model.vaultBusy, endedFor: model.vaultFailedFor, to: owner) {
+            if model.vaultBusy != nil {
+                RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: model.vaultBusy ?? ""))
+            } else if let message = model.vaultMessage {
+                RowState.failure(message)
+            } else if let verb = model.vaultCancelled {
+                RowState.note(Format.vaultCancelled(verb))
+            }
+        }
     }
 }

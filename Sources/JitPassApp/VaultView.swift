@@ -9,23 +9,29 @@ private let vaultViewLog = Logger(subsystem: "com.jitpass.app", category: "vault
 
 /// The vault as two panes: profiles (the first path segment, the unit
 /// `jit vault list` groups by and `jit vault rm <group>` deletes by) on the
-/// left, the selected profile's secrets as a table on the right, and one
-/// bar under the table for the selected secret's actions. A value appears
-/// in that bar only, after its own Touch ID, for
-/// `StatusItemController.revealSeconds`.
+/// left, and the selected profile on one scroll on the right: its secrets
+/// as one card, its plain settings as another, each row carrying its own
+/// verbs (docs/design/mockups/Vault-v2.html). A value appears only under
+/// its own row, after its own Touch ID, for
+/// `StatusItemController.revealSeconds`. A Touch ID being waited on and a
+/// failure show under the row they are for (or under the header when they
+/// are for no row); the footer holds only the vault's counts.
 struct VaultView: View {
     @ObservedObject var model: MenuModel
     let actions: VaultActions
 
     @State private var filter = ""
     @State private var selectedGroup: String?
-    @State private var selectedPath: String?
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar.frame(width: 230)
-            Divider()
-            detail.frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 0) {
+            cleanupBanner
+            HStack(spacing: 0) {
+                sidebar.frame(width: Design.Window.sidebar)
+                Divider()
+                detail.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            footer
         }
         .frame(minWidth: 720, maxWidth: .infinity, minHeight: 400, maxHeight: .infinity)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
@@ -52,13 +58,12 @@ struct VaultView: View {
         .onAppear(perform: actions.reload)
         .onChange(of: model.vaultListing) { _, _ in keepSelectionValid() }
         .onChange(of: filter) { _, _ in keepSelectionValid() }
-        .onChange(of: selectedPath) { _, _ in actions.hideReveal() }
+        .onChange(of: selectedGroup) { _, _ in actions.hideReveal() }
         .onChange(of: model.vaultReveal) { _, new in
             guard let new else {
                 return
             }
-            let selected = selectedPath ?? "nil"
-            vaultViewLog.notice("view sees reveal for \(new.path, privacy: .public); selected=\(selected, privacy: .public)")
+            vaultViewLog.notice("view sees reveal for \(new.path, privacy: .public)")
         }
     }
 
@@ -70,18 +75,11 @@ struct VaultView: View {
         groups.first { $0.name == selectedGroup }
     }
 
-    private var selectedSecret: VaultSecret? {
-        selected?.secrets.first { $0.path == selectedPath }
-    }
-
     /// The first profile is selected when nothing is, and a selection that
     /// the filter or a delete removed falls back to the first.
     private func keepSelectionValid() {
         if selected == nil {
             selectedGroup = groups.first?.name
-        }
-        if selectedSecret == nil {
-            selectedPath = nil
         }
     }
 
@@ -89,53 +87,50 @@ struct VaultView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(model.vaultSummary).font(.headline)
-                .help(
-                    "Linked: stored as a 1Password reference, resolved through the 1Password CLI at each use. Type \"linked\" to find them."
-                )
-                .padding(.horizontal, 14).padding(.top, 16)
-            TextField("filter", text: $filter)
+            TextField("Filter", text: $filter)
                 .textFieldStyle(.roundedBorder)
-                .padding(.horizontal, 14).padding(.top, 8).padding(.bottom, 6)
+                .help("Type \"linked\" to find the secrets stored as a 1Password reference.")
+                .padding(.horizontal, Win.s5).padding(.top, Win.s5).padding(.bottom, Win.s3)
             if model.vaultListing == nil {
-                Text("Reading…").foregroundStyle(.secondary).padding(14)
+                Text("Reading…").foregroundStyle(.secondary).padding(Win.s5)
                 Spacer()
             } else if groups.isEmpty {
                 Text(filter.isEmpty ? "The vault is empty." : "Nothing matches.")
-                    .foregroundStyle(.secondary).padding(14)
+                    .foregroundStyle(.secondary).padding(Win.s5)
                 Spacer()
             } else {
                 List(groups, selection: $selectedGroup) { group in
-                    HStack(spacing: 8) {
-                        Circle().fill(dotColor(group)).frame(width: 7, height: 7)
+                    HStack(spacing: Win.s4) {
+                        Circle().fill(dotColor(group)).frame(width: Design.Size.dot, height: Design.Size.dot)
                         Text(group.name).lineLimit(1).truncationMode(.middle)
                         Spacer()
                         if group.hasLink {
                             Image(systemName: "link").font(.system(size: 10)).foregroundStyle(.secondary)
                                 .help("Holds a 1Password link")
                         }
-                        Text("\(group.secrets.count)").foregroundStyle(.secondary).monospacedDigit()
+                        sidebarCount(group)
                     }
+                    // The dot's colour is a fact about the profile's file;
+                    // the tooltip says which, in words.
+                    .help(Format.vaultOriginHelp(group, exists: group.origin.map(VaultOrigin.exists), users: profileUsers(group)))
                     .tag(group.name)
                 }
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
             }
-            Divider()
-            HStack {
-                Text(backupsLine).font(.system(size: 11)).foregroundStyle(.secondary)
-                Spacer()
-                Button("Maintenance…") { actions.openSheet(.maintenance) }.controlSize(.small)
-                    .disabled(model.vaultBusy != nil)
-                    .help("Orphans, backups, export, import, rekey, duplicates")
-            }
-            .padding(.horizontal, 14).padding(.vertical, 8)
         }
     }
 
-    private var backupsLine: String {
-        let count = model.vaultListing?.backups.count ?? 0
-        return count == 0 ? "no migrate backups" : "\(count) migrate backup\(count == 1 ? "" : "s")"
+    /// The profile's secrets; a profile of settings only counts those,
+    /// quieter, so it does not read as empty.
+    @ViewBuilder private func sidebarCount(_ group: VaultGroup) -> some View {
+        let kept = settings(group).count
+        if group.secrets.isEmpty, kept > 0 {
+            Text("\(kept)").foregroundStyle(.tertiary).monospacedDigit()
+                .help(Format.vaultSettingsOnlyCountHelp(kept))
+        } else {
+            Text("\(group.secrets.count)").foregroundStyle(.secondary).monospacedDigit()
+        }
     }
 
     /// Green: migrated from a file that still exists. Amber: the origin file
@@ -155,53 +150,20 @@ struct VaultView: View {
     @ViewBuilder private var detail: some View {
         if let group = selected {
             VStack(alignment: .leading, spacing: 0) {
-                cleanupBanner
-                HStack(alignment: .firstTextBaseline) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(group.name).font(.title3).fontWeight(.semibold)
-                        Text(profileLine(group)).font(.subheadline).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
-                    }
-                    Spacer()
-                    Button("Add…") { actions.openSheet(.add(group: group.name, replacing: nil)) }
-                    Button("Link 1Password…") { actions.openSheet(.link(group: group.name, replacing: nil)) }
-                    Button("Delete Profile…") { actions.delete(group.secrets.map(\.path)) }
-                }
-                .disabled(model.vaultBusy != nil)
-                .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 10)
-
-                Table(group.secrets, selection: $selectedPath) {
-                    TableColumn("Name") { secret in
-                        HStack(spacing: 6) {
-                            Image(systemName: secret.isLinked ? "link" : "key.fill")
-                                .foregroundStyle(.secondary).font(.system(size: 10))
-                            Text(secret.name)
+                profileHeader(group)
+                Divider()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Win.s5) {
+                        if !group.secrets.isEmpty {
+                            secretsCard(group)
+                        }
+                        let kept = settings(group)
+                        if !kept.isEmpty {
+                            settingsCard(kept, onlySettings: group.secrets.isEmpty)
                         }
                     }
-                    TableColumn("Class") { secret in
-                        Text(secret.isLinked ? "1Password" : (secret.secretClass ?? "")).foregroundStyle(.secondary)
-                    }
-                    .width(min: 70, ideal: 90)
-                    TableColumn("Updated") { secret in
-                        Text(secret.updated.map { Format.ago($0) } ?? "").foregroundStyle(.secondary)
-                    }
-                    .width(min: 90, ideal: 120)
+                    .padding(.horizontal, Win.s6).padding(.vertical, Win.s5)
                 }
-                .contextMenu(forSelectionType: String.self) { paths in
-                    if let path = paths.first, paths.count == 1, let secret = group.secrets.first(where: { $0.path == path }) {
-                        rowMenu(secret)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-
-                let kept = settings(group)
-                if !kept.isEmpty {
-                    Divider()
-                    settingsSection(kept)
-                }
-
-                Divider()
-                selectionBar(group)
             }
         } else {
             VStack {
@@ -213,74 +175,64 @@ struct VaultView: View {
         }
     }
 
-    // MARK: - Selection bar
-
-    /// One place for the selected secret: its actions, or the revealed
-    /// value with its countdown, or the failure line. The table above never
-    /// reflows for any of them.
-    private func selectionBar(_: VaultGroup) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let message = model.vaultMessage {
-                Text(message).font(.subheadline).foregroundStyle(Color(StatusMark.red))
-                    .fixedSize(horizontal: false, vertical: true)
-            } else if let notice = model.vaultNotice {
-                Text(notice).font(.subheadline).foregroundStyle(Color(StatusMark.green))
+    private func profileHeader(_ group: VaultGroup) -> some View {
+        HStack(alignment: .center, spacing: Win.s5) {
+            VStack(alignment: .leading, spacing: Win.s1) {
+                Text(group.name).font(Win.head)
+                // The file name is what tells two origins apart: cut from the front.
+                Text(profileLine(group)).font(Win.sub).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.head).help(profileLine(group))
+                headerState(group)
             }
-            if let secret = selectedSecret {
-                if let reveal = model.vaultReveal, reveal.path == secret.path {
-                    revealRow(reveal)
-                } else {
-                    HStack(spacing: 8) {
-                        // One line beside five buttons: a long name gives way in
-                        // its middle, never wrapping mid-word, and keeps its space
-                        // ahead of "used by", which the tooltip carries in full.
-                        Text(secret.name).fontWeight(.semibold)
-                            .lineLimit(1).truncationMode(.middle).layoutPriority(1).help(secret.name)
-                        if !secret.usedBy.isEmpty {
-                            let users = secret.usedBy.joined(separator: ", ")
-                            Text("used by " + users)
-                                .foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-                                .help("Used by \(users): the profiles that reference this secret, "
-                                    + "what a wrap injects or a mount serves.")
-                        }
-                        if let expires = secret.expires {
-                            Text(Format.expiry(expires))
-                                .foregroundStyle(expires > Date() ? Color.secondary : Color(StatusMark.amber))
-                        }
-                        if model.vaultBusy == secret.path {
-                            Text("Touch ID…").foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        secretButtons(secret)
-                    }
-                    .disabled(model.vaultBusy != nil)
-                }
-            } else if let busy = model.vaultBusy {
-                Text("Touch ID for \(busy)…").foregroundStyle(.secondary)
-            } else {
-                Text(Format.vaultSelectHint)
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
+            Spacer(minLength: Win.s5)
+            Button("Add…") { actions.openSheet(.add(group: group.name, replacing: nil)) }
+                .buttonStyle(AppButton())
+            profileMenu(group)
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .disabled(model.vaultBusy != nil)
+        .padding(.horizontal, Win.s6).padding(.vertical, Win.s5)
     }
 
-    /// The value, its countdown, and Hide. Never selectable: the reveal is
-    /// for reading, the clipboard path is Copy.
-    private func revealRow(_ reveal: VaultReveal) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(reveal.text)
-                .font(.system(size: 12, design: .monospaced))
-                .lineLimit(6)
-                .textSelection(.disabled)
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(Color(StatusMark.amber).opacity(0.15))
-                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-            Text("\(reveal.secondsLeft)s").foregroundStyle(.secondary).monospacedDigit()
-            Spacer()
-            Button("Hide", action: actions.hideReveal)
+    /// Whether the latest word belongs on one of this profile's rows; if
+    /// not, the header says it.
+    private func onARow(_ label: String?, _ group: VaultGroup) -> Bool {
+        guard let label else {
+            return false
         }
+        return group.secrets.contains { $0.path == label } || settings(group).contains { $0.path == label }
+    }
+
+    /// Under the profile's line: a success, or a wait or failure no row owns.
+    @ViewBuilder private func headerState(_ group: VaultGroup) -> some View {
+        if let message = model.vaultMessage, !onARow(model.vaultFailedFor, group) {
+            RowState.failure(message)
+        } else if let busy = model.vaultBusy, !onARow(busy, group) {
+            RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: busy))
+        } else if let notice = model.vaultNotice {
+            RowState.done(notice)
+        }
+    }
+
+    // MARK: - Footer
+
+    /// The vault's counts, always: what happened is said where it happened.
+    private var footer: some View {
+        HStack(spacing: Win.s4) {
+            Text(Format.vaultFooter(model.vaultListing, settings: model.vaultSettings?.settings.count ?? 0))
+                .foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
+                .help("Linked: stored as a 1Password reference, resolved through the 1Password CLI at each use.")
+            Spacer(minLength: Win.s5)
+            Button("Maintenance…") { actions.openSheet(.maintenance) }
+                .buttonStyle(AppButton(kind: .quiet))
+                .disabled(model.vaultBusy != nil)
+                .help("Orphans, backups, export, import, rekey, duplicates")
+        }
+        .font(Win.sub)
+        .padding(.horizontal, Win.s6)
+        .padding(.vertical, Win.s4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(WindowSurface.hover)
+        .overlay(alignment: .top) { Rectangle().fill(WindowSurface.separator).frame(height: 1) }
     }
 }
 
@@ -327,4 +279,6 @@ struct VaultActions {
     var moveIn: (String) -> Void = { _ in }
     /// `jit migrate settings`, after the sheet asked.
     var checkSettings: () -> Void = {}
+    /// Its dry run, first: which entries would move.
+    var previewSettings: () -> Void = {}
 }

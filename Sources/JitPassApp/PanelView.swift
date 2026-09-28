@@ -109,7 +109,7 @@ struct PanelView: View {
                 }
                 // A state, not a window: it opens Doctor only when Doctor
                 // has something to say about it.
-                if model.doctor?.serviceRestart != nil {
+                if model.offersRestart {
                     Button(action: actions.openDoctor) {
                         row("play.circle", "Service", model.serviceRow.display, dot: dot(model.serviceRow.tone))
                             .contentShape(Rectangle())
@@ -167,7 +167,7 @@ struct PanelView: View {
             case .notRunning:
                 action("Start Service", key: "u", actions.unlock)
             }
-            if model.state != .notRunning, model.doctor?.serviceRestart != nil {
+            if model.state != .notRunning, model.offersRestart {
                 plainAction("Restart Service", actions.restartService)
             }
             action("New Grant…", key: "g", actions.newGrant)

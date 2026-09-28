@@ -37,6 +37,9 @@ final class MenuModel: ObservableObject {
     @Published var previousMacScanAt: Date?
     /// Set when jit changed something (a Protect ran) so the next chance rescans even before the schedule says so.
     @Published var scanStale = false
+    /// The jit the background service runs, from its status: a restart
+    /// from here is offered only when it is the app's own.
+    @Published var serviceExecutable: String?
     /// What Protects handled that a scan may not have seen yet: a scan
     /// already running when one finished lands without those rows.
     var protectedSinceScan = ProtectedSinceScan()
@@ -169,14 +172,31 @@ final class MenuModel: ObservableObject {
     /// The path (or action) a vault command is running for; one at a time,
     /// because most of them put a Touch ID prompt on screen.
     @Published var vaultBusy: String?
-    /// Why the last vault operation failed, under the header until the next one.
+    /// What the Touch ID being waited on is for ("reveal", "copy"), so the
+    /// row can say it; nil for a command that is not one row's.
+    @Published var vaultBusyVerb: String?
+    /// Why the last vault operation failed, under the row it was for (or
+    /// the header) until the next one.
     @Published var vaultMessage: String?
+    /// The path (or action) the failure in `vaultMessage` was for.
+    @Published var vaultFailedFor: String?
+    /// The verb whose Touch ID the person cancelled on `vaultFailedFor`'s
+    /// row: said there in grey ("Not revealed"), never as a failure.
+    @Published var vaultCancelled: String?
     /// A one-line confirmation ("copied, clears in 45s") that clears itself.
     @Published var vaultNotice: String?
     @Published var vaultSheet: VaultSheet?
     /// `jit vault settings`: the plain settings beside the vault. Nil from
     /// an engine without them.
     @Published var vaultSettings: VaultSettingsListing?
+    /// Who uses each secret, from any project folder (`vault list --users`),
+    /// kept apart from the listing so a quick reload does not drop it.
+    @Published var vaultUsers: VaultUsersListing?
+    /// The `--users` walk of home: one at a time, one rerun kept.
+    var vaultUsersRun = CoalescedRun()
+    /// Move Them Out…'s first step: what a dry run said would move. Nil
+    /// until checked; the sheet then shows the two lists.
+    @Published var settingsCheck: MigrateSettingsResult?
     /// The one value on screen, while it is. The String here is the copy the
     /// app cannot wipe (see docs/design/vault-window.md §3a); it exists for
     /// the countdown and is dropped with the reveal. The bytes behind it are
@@ -316,20 +336,6 @@ final class MenuModel: ObservableObject {
 
     // The last verdict stays on screen while a recheck runs; "checking…"
     // appears only before the first result exists.
-
-    var vaultSummary: String {
-        guard let listing = vaultListing else {
-            return vaultValue ?? "not read yet"
-        }
-        var parts = ["\(listing.secrets.count) secret" + (listing.secrets.count == 1 ? "" : "s")]
-        if listing.linkedCount > 0 {
-            parts.append("\(listing.linkedCount) linked")
-        }
-        if !listing.backups.isEmpty {
-            parts.append("\(listing.backups.count) backups")
-        }
-        return parts.joined(separator: " · ")
-    }
 
     // The Findings row, named for the window it opens (a list of what needs you, not a report of what is
     // protected): the count, and the day the schedule last ran. Never a folder's number, never the ledger.

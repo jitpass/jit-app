@@ -206,6 +206,7 @@ final class StatusItemController {
             model.state = SessionState(response: status)
             model.consentEnabled = status.consentEnabled
             model.ttlSeconds = status.ttlSeconds
+            model.serviceExecutable = status.executablePath
         } catch AgentClientError.notRunning {
             model.state = .notRunning
             model.grants = []

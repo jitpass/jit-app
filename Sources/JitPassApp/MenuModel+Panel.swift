@@ -41,7 +41,18 @@ extension MenuModel {
         if case .notRunning = state {
             return PanelValue.service(running: false)
         }
-        return PanelValue.service(running: true, needsRestart: doctor?.serviceRestart != nil)
+        return PanelValue.service(running: true, needsRestart: offersRestart)
+    }
+
+    /// Doctor says a restart fixes the service, and a restart from here can:
+    /// the service runs this app's own jit (or it is not saying which).
+    var offersRestart: Bool {
+        doctor?.serviceRestart != nil && serviceElsewhere == nil
+    }
+
+    /// The service's jit, when it is another copy than the app's own.
+    var serviceElsewhere: String? {
+        ServiceOwner.elsewhere(service: serviceExecutable, own: JitCLI.executable)
     }
 
     var grantsRow: PanelValue.Row {
