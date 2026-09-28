@@ -195,8 +195,7 @@ extension StatusItemController {
         let alert = NSAlert()
         alert.messageText = paths.count == 1 ? "Undo protecting \(Format.home(paths[0]))?" : "Undo protecting \(paths.count) files?"
         alert.informativeText = (paths.count == 1 ? "The file is" : "Each file is")
-            + " restored from its encrypted backup, so the secret is plaintext on disk again. "
-            + "The cached copies the Protect removed stay removed. Touch ID follows."
+            + " restored from its backup, so the secret is in plain text on disk again. Touch ID follows."
         alert.addButton(withTitle: "Restore")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {

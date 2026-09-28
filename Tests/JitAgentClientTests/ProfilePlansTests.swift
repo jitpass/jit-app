@@ -93,7 +93,7 @@ final class ProfilePlansTests: XCTestCase {
 
         Attaching records ~/Security-Ops/.mcp.json, so jit migrate remove ~/Security-Ops will then take them too.
 
-        It changes which configs the profiles record: no secret is read or changed.
+        No secret is read or changed.
         """)
     }
 
@@ -104,8 +104,7 @@ final class ProfilePlansTests: XCTestCase {
         XCTAssertEqual(dialog.button, "Attach")
         XCTAssertTrue(dialog.message.hasPrefix("~/.claude.json uses this profile, which doesn't record it:\n• p · records no config\n\n"
                 + "Attaching records ~/.claude.json.\n\n"), dialog.message)
-        XCTAssertTrue(dialog.message.hasSuffix("It changes which configs the profile records: no secret is read or changed."),
-                      dialog.message)
+        XCTAssertTrue(dialog.message.hasSuffix("No secret is read or changed."), dialog.message)
     }
 
     /// The migrate remove clause follows the engine's rule: a project
@@ -182,7 +181,7 @@ final class ProfilePlansTests: XCTestCase {
         XCTAssertTrue(dialog.destructive)
         XCTAssertEqual(dialog.arguments, ["profile", "rm", "--yes", "token"])
         XCTAssertEqual(dialog.message, """
-        No tool jit can see uses token. It can't see scripts or aliases: if one still runs it, that stops working.
+        No tool jit can see uses token; a script or alias that runs it stops working.
 
         It deletes the profile and the secret nothing else uses, history and all:
         token/JSON_WEB_TOKEN_JWT
@@ -196,14 +195,13 @@ final class ProfilePlansTests: XCTestCase {
         XCTAssertEqual(dialog.title, "Remove profile k8s-docker-desktop?")
         XCTAssertEqual(dialog.button, "Remove Profile")
         XCTAssertEqual(dialog.message, """
-        No tool jit can see uses k8s-docker-desktop. It can't see scripts or aliases: if one still runs it, that stops working.
+        No tool jit can see uses k8s-docker-desktop; a script or alias that runs it stops working.
 
         It deletes the profile; its 2 secrets are already gone:
         k8s-docker-desktop/CLIENT_CERTIFICATE_DATA
         k8s-docker-desktop/CLIENT_KEY_DATA
-
-        No secret is deleted, so nothing asks for Touch ID.
         """)
+        XCTAssertFalse(dialog.message.contains("Touch ID"), "no secret is deleted, so nothing asks")
     }
 
     /// A tool started using it between the doctor check and the click: jit
@@ -232,7 +230,7 @@ final class ProfilePlansTests: XCTestCase {
         XCTAssertEqual(dialog.button, "Remove Anyway")
         XCTAssertTrue(dialog.breaks)
         XCTAssertEqual(dialog.paths, ["dev/A", "dev/B"])
-        XCTAssertTrue(dialog.message.hasPrefix("jit could not see all of your home folder"), dialog.message)
+        XCTAssertTrue(dialog.message.hasPrefix("jit couldn't see all of your home folder"), dialog.message)
         XCTAssertTrue(dialog.message.contains("the 2 secrets nothing else uses, history and all:\ndev/A\ndev/B"), dialog.message)
         XCTAssertTrue(dialog.message.contains("Kept, because something else uses it:\nshared/C"), dialog.message)
         XCTAssertTrue(dialog.message.contains("Already gone: dev/D."), dialog.message)
@@ -282,8 +280,8 @@ final class ProfilePlansTests: XCTestCase {
         )
         XCTAssertNil(dialog.button)
         XCTAssertEqual(dialog.arguments, [])
-        XCTAssertTrue(dialog.message.hasPrefix("Nothing was changed."), dialog.message)
-        XCTAssertTrue(dialog.message.hasSuffix("That jit is older than 2.0, the first with jit profile. Update it."), dialog.message)
+        XCTAssertTrue(dialog.message.hasPrefix("Nothing was changed:"), dialog.message)
+        XCTAssertTrue(dialog.message.hasSuffix("That jit is older than 2.0. Update it."), dialog.message)
         let other = DeleteConfirmation.profileUnavailable("t", command: "jit profile attach", reason: "permission denied")
         XCTAssertFalse(other.message.contains("older"))
     }

@@ -86,8 +86,7 @@ extension StatusItemController {
         let alert = NSAlert()
         alert.messageText = "JitPass \(version) is available"
         if CommandLineTool.installedByHomebrew() {
-            alert.informativeText = "This copy was installed with Homebrew. The update runs in the terminal:\n\n"
-                + "brew upgrade jitpass\n\nThe service keeps running and restarts itself onto the new version."
+            alert.informativeText = "Homebrew installed this copy, so the update runs in the terminal:\n\nbrew upgrade jitpass"
             alert.addButton(withTitle: "Open in Terminal")
             alert.addButton(withTitle: "Later")
             guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -95,8 +94,8 @@ extension StatusItemController {
             }
             runInTerminal("brew update && brew upgrade jitpass")
         } else {
-            alert.informativeText = "The download opens in your browser. Quit JitPass, replace it in Applications, and open it again."
-                + "\n\nYour vault and settings stay."
+            alert.informativeText = "The download opens in your browser; replace JitPass in Applications with it. "
+                + "Your vault and settings stay."
             alert.addButton(withTitle: "Download")
             alert.addButton(withTitle: "Later")
             guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -145,8 +144,7 @@ extension StatusItemController {
                 UserDefaults.standard.set(true, forKey: Self.cliOfferKey)
                 let alert = NSAlert()
                 alert.messageText = "Install the jit command line tool?"
-                alert.informativeText = "The app carries the jit CLI. A link in your PATH lets a terminal run it "
-                    + "as `jit`. You can do this later from Settings › General."
+                alert.informativeText = "A link lets your terminal run jit. You can do this later in Settings › General."
                 alert.addButton(withTitle: "Install")
                 alert.addButton(withTitle: "Not Now")
                 if alert.runFrontmost() == .alertFirstButtonReturn {

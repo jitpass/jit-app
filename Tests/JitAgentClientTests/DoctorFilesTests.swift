@@ -146,14 +146,14 @@ final class DoctorFilesTests: XCTestCase {
         let paths = ["mcp-okta/OKTA_CLIENT_ID", "mcp-okta/OKTA_KEY_ID", "mcp-okta/OKTA_PRIVATE_KEY", "mcp-okta/OKTA_ORG"]
         let dialog = VaultRmPlan(paths: paths).confirmation(home: "/Users/me")
         XCTAssertEqual(dialog.arguments, ["vault", "rm", "--yes"] + paths)
-        XCTAssertTrue(dialog.message.hasPrefix("It deletes all 4 secrets and their history for good, "
-                + "with no archive and no undo:\n\n" + paths.joined(separator: "\n") + "\n\n"), dialog.message)
+        XCTAssertTrue(dialog.message.hasPrefix("These 4 secrets and their history go for good:\n\n"
+                + paths.joined(separator: "\n") + "\n\n"), dialog.message)
         XCTAssertFalse(dialog.message.contains("jit vault rm"), "the command is not the question")
         let few = try VaultRmPlan.parse(Data(#"{"paths":["gh/TOKEN","gh/OTHER"]}"#.utf8)).confirmation(home: "/Users/me")
         XCTAssertTrue(few.message.contains("\n\ngh/TOKEN\ngh/OTHER\n\n"), few.message)
         let one = try VaultRmPlan.parse(Data(#"{"paths":["gh/TOKEN"]}"#.utf8)).confirmation(home: "/Users/me")
         XCTAssertEqual(one.title, "Delete gh/TOKEN?", "one path is named by the title")
-        XCTAssertTrue(one.message.hasPrefix("It deletes the secret and its history for good, with no archive and no undo. "), one.message)
+        XCTAssertTrue(one.message.hasPrefix("The secret and its history go for good. "), one.message)
     }
 
     /// The in-app dialogs stopped quoting the command they run, and for

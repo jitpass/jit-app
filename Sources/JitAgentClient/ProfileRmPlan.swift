@@ -96,8 +96,7 @@ public extension ProfileRmPlan {
         if let error {
             return DeleteConfirmation(
                 title: "Can't tell whether \(profile) is in use",
-                message: "jit could not read everything that might use it:\n\n\(error)\n\n"
-                    + "It won't remove a profile it can't check, so nothing was deleted.",
+                message: "jit couldn't read everything that might use it, so nothing was deleted.\n\n\(error)",
                 button: nil, breaks: false, arguments: []
             )
         }
@@ -113,14 +112,13 @@ public extension ProfileRmPlan {
             )
         }
         var parts = [coverageComplete
-            ? "No tool jit can see uses \(profile). It can't see scripts or aliases: if one still runs it, that stops working."
-            : "jit could not see all of your home folder, so a tool there may still use \(profile), "
-            + "and it never sees scripts or aliases. Whatever runs it stops working."]
+            ? "No tool jit can see uses \(profile); a script or alias that runs it stops working."
+            : "jit couldn't see all of your home folder, so a tool there may still use \(profile)."]
         parts += secretsParts
         let arguments = ["profile", "rm", "--yes", profile]
-        parts.append(deleteSecrets.isEmpty
-            ? "No secret is deleted, so nothing asks for Touch ID."
-            : "Touch ID follows.")
+        if !deleteSecrets.isEmpty {
+            parts.append("Touch ID follows.")
+        }
         return DeleteConfirmation(
             title: coverageComplete ? "Remove profile \(profile)?" : "jit can't see every tool that might use \(profile)",
             message: parts.joined(separator: "\n\n"), button: coverageComplete ? "Remove Profile" : "Remove Anyway",

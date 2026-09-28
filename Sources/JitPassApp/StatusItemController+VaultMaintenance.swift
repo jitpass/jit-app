@@ -95,8 +95,8 @@ extension StatusItemController {
         let count = model.vaultListing?.backups.count ?? 0
         let alert = NSAlert()
         alert.messageText = "Prune \(count) migrate backup\(count == 1 ? "" : "s")?"
-        alert.informativeText = "Every backup but the newest per file is deleted for good; "
-            + "jit migrate undo can then only restore that one. Touch ID follows."
+        alert.informativeText = "Every backup but the newest for each file is deleted for good, "
+            + "so only that one can be restored. Touch ID follows."
         alert.alertStyle = .warning
         alert.addButton(withTitle: "Prune")
         alert.addButton(withTitle: "Cancel")
@@ -158,8 +158,8 @@ extension StatusItemController {
         let path = url.path
         let alert = NSAlert()
         alert.messageText = "Import \(url.lastPathComponent)?"
-        alert.informativeText = "Every secret in the file is stored. A secret already at the same path is overwritten, "
-            + "its current value archived first, so that much is reversible. Touch ID follows."
+        alert.informativeText = "Every secret in the file is stored; one already there is overwritten, "
+            + "its value archived first. Touch ID follows."
         alert.addButton(withTitle: "Import")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -180,8 +180,8 @@ extension StatusItemController {
     func rekeyVault() {
         let alert = NSAlert()
         alert.messageText = "Rekey the vault?"
-        alert.informativeText = "A new master key is generated and every secret is re-wrapped under it. "
-            + "Values are never decrypted to disk. Safe to interrupt: re-running finishes it. Touch ID follows."
+        alert.informativeText = "Every secret is locked again under a new master key; nothing is decrypted to disk. "
+            + "Touch ID follows."
         alert.addButton(withTitle: "Rekey")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
@@ -199,8 +199,8 @@ extension StatusItemController {
     func compareDuplicates() {
         let alert = NSAlert()
         alert.messageText = "Compare every secret?"
-        alert.informativeText = "Every stored value is decrypted in memory to find copies of the same file. Nothing is changed."
-            + "\n\nTouch ID follows, once per credential class the consent gate covers; a 1Password link asks 1Password too."
+        alert.informativeText = "Every value is decrypted in memory to find duplicates; nothing changes."
+            + "\n\nTouch ID follows, once per kind of secret. A 1Password link asks 1Password too."
         alert.addButton(withTitle: "Compare")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {

@@ -249,8 +249,7 @@ extension StatusItemController {
         let alert = NSAlert()
         alert.messageText = "Restore \(path)?"
         let archived = Format.ago(Date(timeIntervalSince1970: TimeInterval(stamp)))
-        alert.informativeText = "The value archived \(archived) becomes current. "
-            + "The current value is archived first, so this is reversible. Touch ID follows."
+        alert.informativeText = "The value archived \(archived) becomes current, and today's is archived. Touch ID follows."
         alert.addButton(withTitle: "Restore")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {

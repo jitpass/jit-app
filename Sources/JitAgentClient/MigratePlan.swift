@@ -123,21 +123,20 @@ public struct MigratePlan: Equatable, Sendable {
                 button: nil, breaks: false, arguments: [], destructive: mode == .undo
             )
         }
-        let planNote = "jit's plan, from a dry run that changed nothing:"
+        let planNote = "jit's plan:"
         if mode == .undo {
             let what = text.contains("Restoring 1 file") && shown.count == 1 ? "the original \(shown[0])" : "the original files"
             return DeleteConfirmation(
                 title: "Undo the migration of \(name)?",
-                message: "This puts \(what) back on disk, and jit writes real secret values back to disk in plaintext. "
-                    + "The vault keeps its copies and the profiles stay. Edits made since the migration are replaced; "
-                    + "jit keeps a copy of them in the vault first.\n\nTouch ID follows.\n\n\(planNote)",
+                message: "This puts \(what) back, with real secret values in plain text. "
+                    + "Edits since the migration are replaced, and kept in the vault first.\n\nTouch ID follows.\n\n\(planNote)",
                 button: "Undo Migration", breaks: true, arguments: arguments, destructive: true
             )
         }
         return DeleteConfirmation(
             title: "Migrate \(name)?",
-            message: "jit rewrites what the plan below lists. Every file is backed up, encrypted, before it is touched; "
-                + "jit migrate undo restores it.\n\nTouch ID follows if jit needs the vault.\n\n\(planNote)",
+            message: "jit rewrites what the plan below lists, backing up each file first.\n\n"
+                + "Touch ID follows if jit needs the vault.\n\n\(planNote)",
             button: "Migrate", breaks: false, arguments: arguments, destructive: false
         )
     }
@@ -151,7 +150,7 @@ public extension MigratePlan {
             .joined(separator: " ")
         return DeleteConfirmation(
             title: mode == .undo ? "Can't check what undoing would restore" : "Can't check what migrating would change",
-            message: "Nothing was changed. Before it runs \(command), JitPass asks jit what it would do, and jit did not answer:\n\n"
+            message: "Nothing was changed: jit didn't say what \(command) would do.\n\n"
                 + (reason.isEmpty ? "(no output)" : reason),
             button: nil, breaks: false, arguments: []
         )

@@ -106,7 +106,7 @@ final class VaultRmPlanTests: XCTestCase {
 
         jit vault rm --break-profiles --yes mcp-okta/OKTA_CLIENT_ID mcp-okta/OKTA_KEY_ID mcp-okta/OKTA_PRIVATE_KEY
 
-        It deletes all 3 secrets and their history for good, and nothing asks again. Touch ID follows, naming what breaks.
+        These 3 secrets and their history go for good. Touch ID follows, naming what breaks.
         """)
         XCTAssertEqual(dialog.arguments, ["vault", "rm", "--break-profiles", "--yes"] + paths)
     }
@@ -139,7 +139,7 @@ final class VaultRmPlanTests: XCTestCase {
         XCTAssertFalse(dialog.breaks)
         XCTAssertEqual(dialog.arguments, ["vault", "rm", "--yes", "gh/TOKEN"])
         XCTAssertFalse(dialog.arguments.contains("--break-profiles"))
-        XCTAssertTrue(dialog.message.contains("No profile, mount or pointer file jit can find uses it."), dialog.message)
+        XCTAssertTrue(dialog.message.contains("Nothing jit can find uses it."), dialog.message)
     }
 
     /// A group argument deletes exactly what the dry run expanded it to.
@@ -191,7 +191,7 @@ final class VaultRmPlanTests: XCTestCase {
         let dialog = VaultRmPlan.unavailable(["a/B"], reason: "unknown flag: --dry-run")
         XCTAssertNil(dialog.button)
         XCTAssertTrue(dialog.arguments.isEmpty)
-        XCTAssertTrue(dialog.message.hasPrefix("Nothing was deleted."), dialog.message)
+        XCTAssertTrue(dialog.message.hasPrefix("Nothing was deleted:"), dialog.message)
         XCTAssertTrue(dialog.message.contains("older than 1.9"), dialog.message)
         XCTAssertThrowsError(try VaultRmPlan.parse(Data("unknown flag: --dry-run".utf8)))
     }
