@@ -41,7 +41,7 @@ extension MenuModel {
         if case .notRunning = state {
             return PanelValue.service(running: false)
         }
-        return PanelValue.service(running: true)
+        return PanelValue.service(running: true, needsRestart: doctor?.serviceRestart != nil)
     }
 
     var grantsRow: PanelValue.Row {

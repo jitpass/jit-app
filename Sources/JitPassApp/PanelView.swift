@@ -107,7 +107,17 @@ struct PanelView: View {
                     }
                     .buttonStyle(HoverRowStyle())
                 }
-                row("play.circle", "Service", model.serviceRow.display, dot: dot(model.serviceRow.tone))
+                // A state, not a window: it opens Doctor only when Doctor
+                // has something to say about it.
+                if model.doctor?.serviceRestart != nil {
+                    Button(action: actions.openDoctor) {
+                        row("play.circle", "Service", model.serviceRow.display, dot: dot(model.serviceRow.tone))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(HoverRowStyle())
+                } else {
+                    row("play.circle", "Service", model.serviceRow.display, dot: dot(model.serviceRow.tone))
+                }
                 Button(action: actions.openGrants) {
                     row("key", "Grants", model.grantsRow.display, dot: dot(model.grantsRow.tone))
                         .contentShape(Rectangle())
@@ -156,6 +166,9 @@ struct PanelView: View {
                 action("Unlock with Touch ID", key: "u", actions.unlock)
             case .notRunning:
                 action("Start Service", key: "u", actions.unlock)
+            }
+            if model.state != .notRunning, model.doctor?.serviceRestart != nil {
+                plainAction("Restart Service", actions.restartService)
             }
             action("New Grant…", key: "g", actions.newGrant)
             action("New Scan…", key: "r", actions.runScan)
@@ -267,6 +280,7 @@ struct PanelView: View {
 struct PanelActions {
     var lock: () -> Void = {}
     var unlock: () -> Void = {}
+    var restartService: () -> Void = {}
     var openGrants: () -> Void = {}
     var openAIJobs: () -> Void = {}
     var openVault: () -> Void = {}

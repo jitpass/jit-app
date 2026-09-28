@@ -13,6 +13,31 @@ extension StatusItemController {
     /// error, so on a Mac whose service was never installed the button did
     /// nothing. `jit unlock` is the CLI's "get me a session": it installs
     /// and starts the service first, then unlocks.
+    /// "Restart Service", offered when Doctor says a restart fixes the
+    /// service: the same `jit service restart` Doctor's own button runs.
+    /// The vault locks with it, as it does from Doctor.
+    func restartService() {
+        panel.dismiss()
+        Task.detached {
+            let result = JitCLI.invoke(["service", "restart"])
+            await MainActor.run { [weak self] in
+                let failure: String? = switch result {
+                case let .failure(error): Self.describeTools(error)
+                case let .success(outcome) where outcome.status != 0: outcome.output
+                default: nil
+                }
+                if let failure {
+                    let alert = NSAlert()
+                    alert.messageText = "The service did not restart"
+                    alert.informativeText = failure
+                    alert.runFrontmost()
+                }
+                self?.pollStatus()
+                self?.runDoctor(afterAction: true)
+            }
+        }
+    }
+
     func startService() {
         Task.detached {
             let result = JitCLI.execute(["unlock"])

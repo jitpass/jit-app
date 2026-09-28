@@ -11,6 +11,7 @@ extension StatusItemController {
         PanelActions(
             lock: { [weak self] in self?.lockNow() },
             unlock: { [weak self] in self?.unlockNow() },
+            restartService: { [weak self] in self?.restartService() },
             openGrants: { [weak self] in self?.openGrants() },
             openAIJobs: { [weak self] in self?.openAIJobs() },
             openVault: { [weak self] in self?.openVault() },
