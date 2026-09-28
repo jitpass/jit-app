@@ -105,7 +105,7 @@ public enum PanelValue {
     /// `programs` counts the programs that read a decoy in the last 24
     /// hours and are not expected: a burst of 1,712 opens is one program,
     /// and expected readers alone leave the row at rest.
-    public static func decoys(files: Int, broken: Int, programs: Int) -> Row? {
+    public static func decoys(files: Int, broken: Int, programs: Int, untraced: Bool = false) -> Row? {
         guard files > 0 else {
             return nil
         }
@@ -114,6 +114,9 @@ public enum PanelValue {
         }
         if programs > 0 {
             return Row(count(programs, "program"), .amber)
+        }
+        if untraced {
+            return Row("unknown reader", .amber)
         }
         return Row(count(files, "file"))
     }

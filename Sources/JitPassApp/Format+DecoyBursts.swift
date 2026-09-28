@@ -8,7 +8,7 @@ import JitAgentClient
 extension Format {
     /// "2 programs read decoys in the last 24 hours · 1 expected".
     static func decoysProgramsLine(_ bursts: [DecoyBurst], allWhileLocked: Bool) -> String {
-        var text = decoysProgramsTitle(DecoyBurst.unexpectedPrograms(bursts))
+        var text = decoysProgramsTitle(DecoyBurst.unexpectedPrograms(bursts), untraced: DecoyBurst.untraced(bursts))
         if allWhileLocked {
             text += ", all while the vault was locked"
         }
@@ -19,9 +19,16 @@ extension Format {
         return text
     }
 
-    static func decoysProgramsTitle(_ programs: Int) -> String {
-        programs == 0 ? "No unexpected decoy reads in the last 24 hours"
-            : (programs == 1 ? "1 program" : "\(programs) programs") + " read decoys in the last 24 hours"
+    /// "4 programs, and a reader jit couldn't trace, read decoys…": a read
+    /// with no reader on record is said, not counted as a program.
+    static func decoysProgramsTitle(_ programs: Int, untraced: Bool = false) -> String {
+        let who = programs == 1 ? "1 program" : "\(programs) programs"
+        switch (programs, untraced) {
+        case (0, false): return "No unexpected decoy reads in the last 24 hours"
+        case (0, true): return "A reader jit couldn't trace read decoys in the last 24 hours"
+        case (_, true): return who + ", and a reader jit couldn't trace, read decoys in the last 24 hours"
+        default: return who + " read decoys in the last 24 hours"
+        }
     }
 
     /// "Read it 1,712 times in 2 minutes · 15 hours ago · no grant covers it";

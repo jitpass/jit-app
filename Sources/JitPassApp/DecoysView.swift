@@ -114,7 +114,7 @@ struct DecoysView: View {
         if !report.broken.isEmpty || !open.isEmpty {
             return Color(StatusMark.red)
         }
-        return Color(DecoyBurst.unexpectedPrograms(model.decoyBursts) > 0 ? StatusMark.amber : StatusMark.green)
+        return Color(DecoyBurst.anyUnexpected(model.decoyBursts) ? StatusMark.amber : StatusMark.green)
     }
 
     private func todos(_ report: DecoyReport, open: [ScanFileGroup]) -> [HeaderTodo] {
@@ -132,7 +132,7 @@ struct DecoysView: View {
             ))
         }
         let bursts = model.decoyBursts
-        if DecoyBurst.unexpectedPrograms(bursts) > 0 {
+        if DecoyBurst.anyUnexpected(bursts) {
             lines.append(HeaderTodo(
                 id: "reads",
                 text: Format.decoysProgramsLine(bursts, allWhileLocked: report.allWhileLocked),

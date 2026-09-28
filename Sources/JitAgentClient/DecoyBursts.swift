@@ -163,8 +163,20 @@ public struct DecoyBurst: Equatable, Sendable, Identifiable {
     }
 
     /// The programs that read a decoy and are not expected: the menu's
-    /// and the headline's number.
+    /// and the headline's number. A read jit could not trace to a program
+    /// is not one of them (`untraced`).
     public static func unexpectedPrograms(_ bursts: [DecoyBurst]) -> Int {
-        Set(bursts.filter { !$0.expected }.map { $0.by ?? "" }).count
+        Set(bursts.filter { !$0.expected }.compactMap { $0.by.flatMap { $0.isEmpty ? nil : $0 } }).count
+    }
+
+    /// Whether a decoy read reached a reader jit could not name: said on
+    /// its own, never counted as a program.
+    public static func untraced(_ bursts: [DecoyBurst]) -> Bool {
+        bursts.contains { !$0.expected && ($0.by ?? "").isEmpty }
+    }
+
+    /// Whether anything unexpected read a decoy: the amber.
+    public static func anyUnexpected(_ bursts: [DecoyBurst]) -> Bool {
+        unexpectedPrograms(bursts) > 0 || untraced(bursts)
     }
 }

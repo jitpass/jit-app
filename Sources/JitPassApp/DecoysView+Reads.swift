@@ -10,10 +10,11 @@ extension DecoysView {
     /// why they got a decoy. Expected ones come last, muted.
     func readsCard(_ bursts: [DecoyBurst]) -> some View {
         let programs = DecoyBurst.unexpectedPrograms(bursts)
+        let untraced = DecoyBurst.untraced(bursts)
         let shown = Array(bursts.prefix(12))
         return AppCard(
-            eyebrow: "Reads", eyebrowTint: Color(programs > 0 ? StatusMark.amber : StatusMark.green),
-            title: Format.decoysProgramsTitle(programs),
+            eyebrow: "Reads", eyebrowTint: Color(programs > 0 || untraced ? StatusMark.amber : StatusMark.green),
+            title: Format.decoysProgramsTitle(programs, untraced: untraced),
             note: model.decoyExpected == nil ? Format.decoysReadsNote : Format.decoysReadsExpectNote
         ) {
             Button("Audit…", action: actions.openAudit).buttonStyle(AppButton(kind: .plain))

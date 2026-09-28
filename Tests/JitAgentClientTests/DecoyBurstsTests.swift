@@ -35,6 +35,18 @@ final class DecoyBurstsTests: XCTestCase {
         XCTAssertEqual(one.first?.span, 60, "one burst keeps its span")
     }
 
+    /// A read with no reader on record is said, not counted as a program:
+    /// "4 programs" counted it as a fifth.
+    func testAnUntracedReadIsNotAProgram() {
+        let rows = DecoyBurst.make([
+            read(t0, "~/work/billing/.env", by: editor, count: 5),
+            SessionEvent(unixTime: t0 + 10, kind: "serve", op: "decoy", labels: ["~/work/reports/.env"])
+        ], since: nil, expected: nil)
+        XCTAssertEqual(DecoyBurst.unexpectedPrograms(rows), 1)
+        XCTAssertTrue(DecoyBurst.untraced(rows))
+        XCTAssertEqual(PanelValue.decoys(files: 3, broken: 0, programs: 0, untraced: true), .init("unknown reader", .amber))
+    }
+
     /// A decoy read's `by` is the executable path alone, and a path may hold
     /// spaces: the program is all of it.
     func testTheProgramIsTheWholeExecutablePath() {

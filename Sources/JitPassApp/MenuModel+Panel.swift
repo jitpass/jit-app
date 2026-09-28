@@ -83,7 +83,8 @@ extension MenuModel {
 
     var decoysRow: PanelValue.Row? {
         let files = cli?.mounts?.registered ?? cli?.protectedFiles.count ?? 0
-        return PanelValue.decoys(files: files, broken: decoyReport.broken.count, programs: DecoyBurst.unexpectedPrograms(decoyBursts))
+        return PanelValue.decoys(files: files, broken: decoyReport.broken.count, programs: DecoyBurst.unexpectedPrograms(decoyBursts),
+                                 untraced: DecoyBurst.untraced(decoyBursts))
     }
 
     var doctorRow: PanelValue.Row {
