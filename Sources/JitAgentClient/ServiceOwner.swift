@@ -30,6 +30,12 @@ public enum ServiceOwner {
         return place.hasPrefix(home + "/") ? "~" + place.dropFirst(home.count) : place
     }
 
+    /// jit's "running a different build than this CLI (service …, CLI …)":
+    /// true of every service another copy of jit runs, so not news here.
+    static func isBuildMismatch(_ text: String) -> Bool {
+        text.contains("different build than this CLI")
+    }
+
     static func resolved(_ path: String) -> String {
         URL(fileURLWithPath: path).resolvingSymlinksInPath().standardizedFileURL.path
     }
@@ -67,7 +73,17 @@ public extension DoctorBoard {
                 return card
             }
             let line = "The service runs the jit in \(ServiceOwner.place(executable, home: home)); restart it from there."
-            card.reason = [card.reason, line].compactMap { $0 }.joined(separator: " ")
+            // Nothing here is for this app to do, so the card is not a
+            // recommendation (amber, with no button, read as broken): it
+            // is information, grey. A broken service stays broken. jit's
+            // build ids ("service 0facec39f025, CLI 66839ea90fec") are its
+            // own detail: the line is what the reader needs.
+            if card.tier == .recommended {
+                card.tier = .tidy
+            }
+            let other = [card.reason, card.detail].compactMap { $0 }.filter { !ServiceOwner.isBuildMismatch($0) }
+            card.reason = ([line] + other).joined(separator: " ")
+            card.detail = nil
             return card
         }
         return board

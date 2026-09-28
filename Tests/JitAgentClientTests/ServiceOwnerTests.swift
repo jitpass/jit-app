@@ -47,7 +47,13 @@ final class ServiceOwnerTests: XCTestCase {
         XCTAssertEqual(card.primary?.title, "Restart Service", "the same jit: the button stays")
         let elsewhere = try XCTUnwrap(board.restartingElsewhere(installed, home: "/Users/me").cards.first { $0.id == card.id })
         XCTAssertNil(elsewhere.primary)
-        XCTAssertTrue(elsewhere.reason?.hasSuffix("The service runs the jit in /Applications/JitPass.app; restart it from there.") == true)
+        // Leads with where to restart it, drops jit's build ids, and is
+        // grey information rather than an amber recommendation.
+        XCTAssertEqual(elsewhere.reason, "The service runs the jit in /Applications/JitPass.app; restart it from there.")
+        XCTAssertFalse((elsewhere.reason ?? "").contains("CLI dev"))
+        XCTAssertNil(elsewhere.detail)
+        XCTAssertEqual(elsewhere.tier, .tidy)
+        XCTAssertEqual(card.tier, .recommended, "the same jit keeps its tier")
         XCTAssertEqual(board.restartingElsewhere(nil), board, "unknown: as before")
     }
 
