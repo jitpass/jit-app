@@ -41,6 +41,7 @@ extension Format {
         return parts.joined(separator: " · ")
     }
 
+    static let vaultSecretsNote = "Reading one takes Touch ID or a grant."
     static let vaultSettingsNote = "Beside the vault, readable by any program. Move one in if it turns out to be a secret."
     static let vaultOnlySettingsNote = "Nothing from this file went into the vault. Scan judged every value a setting."
 

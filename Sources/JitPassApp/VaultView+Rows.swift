@@ -11,7 +11,7 @@ extension VaultView {
         AppCard(
             eyebrow: "In the vault", eyebrowTint: Color(StatusMark.green),
             title: Format.count(group.secrets.count, "secret"),
-            note: "Reading one takes Touch ID or a grant."
+            note: Format.vaultSecretsNote
         ) {
             EmptyView()
         } rows: {

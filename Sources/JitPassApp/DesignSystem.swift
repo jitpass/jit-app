@@ -109,6 +109,14 @@ enum Design {
         static func minimum(for size: NSSize) -> NSSize {
             NSSize(width: size.width, height: (size.height * 2 / 3).rounded())
         }
+
+        /// 200. A two-pane window's list of names, the Vault's profiles
+        /// (Vault v2 mockup, docs/design/mockups/Vault-v2.html). The
+        /// sidebar was a bare 230 in the view before this. Not yet in the
+        /// published system: the design-system artifact could not be read
+        /// from the session that added it, so windows.md and tokens.json
+        /// still need this entry.
+        static let sidebar: CGFloat = 200
     }
 
     /// 500 the consent sheet, 520 any sheet whose content includes a path

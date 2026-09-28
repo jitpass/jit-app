@@ -27,7 +27,7 @@ struct VaultView: View {
         VStack(spacing: 0) {
             cleanupBanner
             HStack(spacing: 0) {
-                sidebar.frame(width: 200)
+                sidebar.frame(width: Design.Window.sidebar)
                 Divider()
                 detail.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
