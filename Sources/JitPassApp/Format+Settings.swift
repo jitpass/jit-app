@@ -1,6 +1,7 @@
 // Copyright 2026 Meni Tasa
 // SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
 
+import Foundation
 import JitAgentClient
 
 /// The Vault window's words for plain settings (design/secrets-only-vault.md).
@@ -40,7 +41,44 @@ extension Format {
         return parts.joined(separator: " · ")
     }
 
-    /// The Vault window's bar with nothing selected.
-    static let vaultSelectHint = "Select a secret. Every read or change of a secret is its own Touch ID; "
-        + "nothing here rides the service session. Settings need none."
+    static let vaultSettingsNote = "Beside the vault, readable by any program. Move one in if it turns out to be a secret."
+    static let vaultOnlySettingsNote = "Nothing from this file went into the vault. Scan judged every value a setting."
+
+    /// A secret row's fact: what it is when that is more than a value,
+    /// when it expires, when it changed, who uses it. Never the vault
+    /// class ("dotenv"): that is where it came from, in jit's words.
+    static func vaultSecretFact(_ secret: VaultSecret, now: Date = Date()) -> String {
+        var parts: [String] = []
+        if secret.isLinked {
+            parts.append("1Password link")
+        }
+        if let expires = secret.expires {
+            parts.append(expiry(expires, now: now))
+        }
+        if let updated = secret.updated {
+            parts.append("updated " + ago(updated, now: now))
+        }
+        if !secret.usedBy.isEmpty {
+            parts.append("used by " + secret.usedBy.joined(separator: ", "))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// The Vault window's footer: "14 secrets · 22 settings · 38 backups".
+    static func vaultFooter(_ listing: VaultListing?, settings: Int) -> String {
+        guard let listing else {
+            return "Reading the vault…"
+        }
+        var parts = [count(listing.secrets.count, "secret")]
+        if listing.linkedCount > 0 {
+            parts.append("\(listing.linkedCount) linked")
+        }
+        if settings > 0 {
+            parts.append(count(settings, "setting"))
+        }
+        if !listing.backups.isEmpty {
+            parts.append(count(listing.backups.count, "backup"))
+        }
+        return parts.joined(separator: " · ")
+    }
 }

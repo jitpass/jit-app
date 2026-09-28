@@ -307,20 +307,6 @@ final class MenuModel: ObservableObject {
     // The last verdict stays on screen while a recheck runs; "checking…"
     // appears only before the first result exists.
 
-    var vaultSummary: String {
-        guard let listing = vaultListing else {
-            return vaultValue ?? "not read yet"
-        }
-        var parts = ["\(listing.secrets.count) secret" + (listing.secrets.count == 1 ? "" : "s")]
-        if listing.linkedCount > 0 {
-            parts.append("\(listing.linkedCount) linked")
-        }
-        if !listing.backups.isEmpty {
-            parts.append("\(listing.backups.count) backups")
-        }
-        return parts.joined(separator: " · ")
-    }
-
     // The Findings row, named for the window it opens (a list of what needs you, not a report of what is
     // protected): the count, and the day the schedule last ran. Never a folder's number, never the ledger.
 }

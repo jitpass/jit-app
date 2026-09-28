@@ -5,20 +5,22 @@ import JitAgentClient
 import SwiftUI
 
 /// The Vault window's plain settings (design/secrets-only-vault.md in the
-/// jit repo): the Settings section under a profile's secrets, and the
+/// jit repo): the Settings card beside a profile's secrets, and the
 /// banner for profiles protected before settings stayed plain.
 extension VaultView {
-    /// The profile's plain settings, under its secrets: plain text, no
-    /// Touch ID to read, each one movable into the vault (mockup section 3).
-    func settingsSection(_ kept: [VaultSettingsListing.Setting]) -> some View {
-        VStack(alignment: .leading, spacing: Win.s2) {
-            HStack(spacing: Win.s3) {
-                Text("Settings").font(Win.cardTitle)
-                Text("plain text, not in the vault").font(Win.sub).foregroundStyle(.secondary)
-            }
-            CappedScroll(maxHeight: 180) {
+    /// The profile's plain settings, on the same scroll as its secrets:
+    /// plain text, no Touch ID to read, each one movable into the vault.
+    func settingsCard(_ kept: [VaultSettingsListing.Setting], onlySettings: Bool) -> some View {
+        AppCard(
+            eyebrow: "Plain text", eyebrowTint: Color.secondary.opacity(0.5),
+            title: Format.count(kept.count, "setting"),
+            note: onlySettings ? Format.vaultOnlySettingsNote : Format.vaultSettingsNote
+        ) {
+            EmptyView()
+        } rows: {
+            AppCardRows {
                 ForEach(Array(kept.enumerated()), id: \.element.path) { index, setting in
-                    AppRow(name: setting.name, detail: setting.value, last: index == kept.count - 1) {
+                    VaultRow(name: setting.name, fact: setting.value, factMono: true, last: index == kept.count - 1) {
                         Button("Move to Vault") { actions.moveIn(setting.path) }
                             .buttonStyle(AppButton(kind: .quiet))
                             .disabled(model.vaultBusy != nil)
@@ -27,7 +29,6 @@ extension VaultView {
                 }
             }
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     /// Profiles protected before settings stayed plain: said once, above
@@ -49,7 +50,7 @@ extension VaultView {
                     .buttonStyle(AppButton(kind: .plain))
                     .disabled(model.vaultBusy != nil)
             }
-            .padding(.horizontal, 16).padding(.vertical, Win.s4)
+            .padding(.horizontal, Win.s6).padding(.vertical, Win.s4)
             .background(Color(StatusMark.amber).opacity(0.18))
         }
     }
