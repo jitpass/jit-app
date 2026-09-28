@@ -39,6 +39,7 @@ struct MoveOutSheet: View {
                     ) {}
                 }
             }
+            SheetState(model: model)
             HStack(spacing: Win.s4) {
                 Text("Touch ID follows. Move to Vault puts \(paths.count == 1 ? "it" : "them") back.")
                     .font(Win.sub).foregroundStyle(.secondary)
@@ -118,6 +119,7 @@ struct CheckSettingsSheet: View {
                     }
                 }
             }
+            SheetState(model: model)
             HStack(spacing: Win.s4) {
                 Text("Touch ID follows, once.").font(Win.sub).foregroundStyle(.secondary)
                 Spacer(minLength: Win.s5)
@@ -131,5 +133,23 @@ struct CheckSettingsSheet: View {
         .frame(width: Win.sheetWide)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .onExitCommand(perform: actions.closeSheet)
+    }
+}
+
+/// What the sheet's own command is doing, above its buttons: the Touch ID
+/// wait, then why it failed, or that the person said no. The sheet stays
+/// up on a failure, and the row it was for is behind it, so the sheet has
+/// to say it; saying nothing read as a button that does nothing.
+struct SheetState: View {
+    @ObservedObject var model: MenuModel
+
+    var body: some View {
+        if model.vaultBusy != nil {
+            RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: model.vaultBusy ?? ""))
+        } else if let message = model.vaultMessage {
+            RowState.failure(message)
+        } else if let verb = model.vaultCancelled {
+            RowState.note(Format.vaultCancelled(verb))
+        }
     }
 }
