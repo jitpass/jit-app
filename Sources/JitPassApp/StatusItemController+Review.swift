@@ -50,9 +50,14 @@ extension StatusItemController {
                 // Undo removes exactly the marks this run made, by id.
                 let result = try? JSONDecoder().decode(ScanReviewResult.self, from: Data(output.utf8))
                 let marks = (result?.reviewed ?? []).compactMap(\.markID)
+                // Only the rows jit marked leave: one it skipped (a copy
+                // Protect or Redact fixes) stays on screen. An engine whose
+                // answer does not parse gets the old word: all of them.
+                let settled = result.map { ScanReview.marked(findings, by: $0) } ?? findings
+                model.protectedSinceScan.add(reviewed: settled, at: Date())
                 model.scanLines = nil
-                model.scan = model.scan?.removingReviewed(findings)
-                model.macScan = model.macScan?.removingReviewed(findings)
+                model.scan = model.scan?.removingReviewed(settled)
+                model.macScan = model.macScan?.removingReviewed(settled)
                 if let report = model.macScan, let at = model.macScanAt, let kind = model.macScanKind {
                     LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
                 }

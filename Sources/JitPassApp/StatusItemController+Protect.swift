@@ -102,6 +102,7 @@ extension StatusItemController {
         guard !paths.isEmpty else {
             return
         }
+        model.protectedSinceScan.add(redacted: paths, lines: lines, at: Date())
         model.scan = model.scan?.removingCacheShapes(in: paths, lines: lines)
         model.macScan = model.macScan?.removingCacheShapes(in: paths, lines: lines)
         model.scanStale = true
@@ -139,7 +140,8 @@ extension StatusItemController {
     /// Findings banner. Agent caches only, and nothing here ever prompts —
     /// the command needs no vault.
     func autoRedact(after report: ScanReport, at: Date) {
-        guard !report.cacheShapes.isEmpty, model.toolsBusy == nil else {
+        // Busy is no reason to skip: runTools queues it behind the running action.
+        guard !report.cacheShapes.isEmpty else {
             return
         }
         // Every file the scan found under the global switch; otherwise only the files of
