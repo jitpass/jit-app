@@ -59,23 +59,26 @@ public enum JobAsk: String, Sendable {
 }
 
 /// One secret a job injects: its variable, its vault path, whether its value
-/// may appear in output, and whether it was rotated since approval.
+/// may appear in output, whether it was rotated since approval, and whether
+/// it is gone from the vault (the job then runs without it; jit 2.3.3).
 public struct JobSecretStatus: Codable, Sendable, Equatable {
     public var name: String
     public var path: String
     public var shown: Bool?
     public var rotated: Bool?
+    public var gone: Bool?
 
-    public init(name: String, path: String, shown: Bool? = nil, rotated: Bool? = nil) {
+    public init(name: String, path: String, shown: Bool? = nil, rotated: Bool? = nil, gone: Bool? = nil) {
         self.name = name
         self.path = path
         self.shown = shown
         self.rotated = rotated
+        self.gone = gone
     }
 
     enum CodingKeys: String, CodingKey {
         case name = "var"
-        case path, shown, rotated
+        case path, shown, rotated, gone
     }
 
     public var isShown: Bool {
