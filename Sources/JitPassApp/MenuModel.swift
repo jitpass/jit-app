@@ -181,6 +181,8 @@ final class MenuModel: ObservableObject {
     /// Who uses each secret, from any project folder (`vault list --users`),
     /// kept apart from the listing so a quick reload does not drop it.
     @Published var vaultUsers: VaultUsersListing?
+    /// The `--users` walk of home: one at a time, one rerun kept.
+    var vaultUsersRun = CoalescedRun()
     /// Move Them Out…'s first step: what a dry run said would move. Nil
     /// until checked; the sheet then shows the two lists.
     @Published var settingsCheck: MigrateSettingsResult?

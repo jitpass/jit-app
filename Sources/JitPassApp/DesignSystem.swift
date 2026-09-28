@@ -126,6 +126,12 @@ enum Design {
         static let consent: CGFloat = 500
         static let wide: CGFloat = 520
         static let alert: CGFloat = 440
+        /// 260. The tallest a list inside a sheet grows before it scrolls:
+        /// five profile rows of about 50pt in full (Move Them Out…). Not yet
+        /// in the published system: the design-system artifact could not be
+        /// read from the session that added it, so windows.md and
+        /// tokens.json still need this entry.
+        static let listMax: CGFloat = 260
     }
 
     /// Control heights.

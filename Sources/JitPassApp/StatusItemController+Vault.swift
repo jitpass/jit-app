@@ -21,11 +21,13 @@ extension StatusItemController {
             reload: { [weak self] in self?.reloadVault() },
             openSheet: { [weak self] sheet in
                 self?.model.vaultMessage = nil
+                self?.model.vaultCancelled = nil
                 self?.model.vaultSheet = sheet
             },
             closeSheet: { [weak self] in
                 self?.model.vaultSheet = nil
                 self?.model.vaultMessage = nil
+                self?.model.vaultCancelled = nil
             },
             reveal: { [weak self] path in self?.reveal(path) },
             hideReveal: { [weak self] in self?.hideReveal() },
@@ -97,7 +99,7 @@ extension StatusItemController {
             return
         }
         hideReveal()
-        let label = paths.count == 1 ? paths[0] : "\(paths.count) values"
+        let label = VaultCommandLabel.move(paths)
         runVault(
             label,
             verb: out ? "move out of the vault" : "move into the vault",

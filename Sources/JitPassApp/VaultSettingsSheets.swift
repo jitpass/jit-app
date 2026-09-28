@@ -39,7 +39,7 @@ struct MoveOutSheet: View {
                     ) {}
                 }
             }
-            SheetState(model: model)
+            SheetState(model: model, owner: VaultCommandLabel.move(paths))
             HStack(spacing: Win.s4) {
                 Text("Touch ID follows. Move to Vault puts \(paths.count == 1 ? "it" : "them") back.")
                     .font(Win.sub).foregroundStyle(.secondary)
@@ -110,7 +110,7 @@ struct CheckSettingsSheet: View {
             } else {
                 unread
             }
-            SheetState(model: model)
+            SheetState(model: model, owner: VaultCommandLabel.settingsCheck)
             footer
         }
         .padding(Win.s6)
@@ -148,20 +148,20 @@ struct CheckSettingsSheet: View {
 
     /// After it: jit's own verdict, two lists, before anything moves.
     @ViewBuilder private func checked(_ check: MigrateSettingsResult) -> some View {
-        let all = unchecked.map(\.path)
-        let moves = byGroup(Set(check.moved))
-        let stays = byGroup(Set(check.stays(of: all)))
+        let verdict = check.verdict(unchecked: unchecked.map(\.path))
+        let moves = MigrateSettingsResult.byProfile(verdict.moves)
+        let stays = MigrateSettingsResult.byProfile(verdict.stays)
         VStack(alignment: .leading, spacing: Win.s1) {
-            Text(Format.settingsCheckTitle(moves: check.moved.count)).font(Win.cardTitle)
+            Text(Format.settingsCheckTitle(moves: verdict.moves.count)).font(Win.cardTitle)
             Text(Format.settingsCheckNote).font(Win.sub).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
         if !moves.isEmpty {
-            Text(Format.settingsMovesHeading(check.moved.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+            Text(Format.settingsMovesHeading(verdict.moves.count)).font(Win.eyebrow).foregroundStyle(.secondary)
             list(moves)
         }
         if !stays.isEmpty {
-            Text(Format.settingsStaysHeading(all.count - check.moved.count)).font(Win.eyebrow).foregroundStyle(.secondary)
+            Text(Format.settingsStaysHeading(verdict.stays.count)).font(Win.eyebrow).foregroundStyle(.secondary)
             list(stays)
         }
     }
@@ -170,7 +170,7 @@ struct CheckSettingsSheet: View {
     /// short never hides its last row behind a scroll. More scroll.
     private func list(_ groups: [(String, [String])]) -> some View {
         AppPlainCard {
-            CappedScroll(maxHeight: 260) {
+            CappedScroll(maxHeight: Design.Sheet.listMax) {
                 ForEach(Array(groups.enumerated()), id: \.element.0) { index, item in
                     AppRow(name: item.0, fact: item.1.joined(separator: ", "), wraps: true, last: index == groups.count - 1) {}
                 }
@@ -207,14 +207,19 @@ struct CheckSettingsSheet: View {
 /// to say it; saying nothing read as a button that does nothing.
 struct SheetState: View {
     @ObservedObject var model: MenuModel
+    /// The label the sheet's command runs under (VaultCommandLabel): what
+    /// another command left behind, a reveal's cancel, is not this sheet's.
+    let owner: String
 
     var body: some View {
-        if model.vaultBusy != nil {
-            RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: model.vaultBusy ?? ""))
-        } else if let message = model.vaultMessage {
-            RowState.failure(message)
-        } else if let verb = model.vaultCancelled {
-            RowState.note(Format.vaultCancelled(verb))
+        if VaultCommandLabel.belongs(busy: model.vaultBusy, endedFor: model.vaultFailedFor, to: owner) {
+            if model.vaultBusy != nil {
+                RowState.waiting(Format.vaultWaiting(model.vaultBusyVerb, path: model.vaultBusy ?? ""))
+            } else if let message = model.vaultMessage {
+                RowState.failure(message)
+            } else if let verb = model.vaultCancelled {
+                RowState.note(Format.vaultCancelled(verb))
+            }
         }
     }
 }
