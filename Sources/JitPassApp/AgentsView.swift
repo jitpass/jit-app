@@ -247,6 +247,8 @@ struct WindowOutcome: Equatable {
     var text: String
     var failed = false
     var undo: [String] = []
+    /// Decoys: the expected reader the banner's Undo takes back.
+    var unexpect: ExpectedReader?
     /// The rows "What Changed…" shows, where jit's report has them (Redact,
     /// Protect); nil falls back to jit's text.
     var changes: ChangeSheet?

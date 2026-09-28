@@ -22,9 +22,9 @@ final class PanelValueTests: XCTestCase {
             PanelValue.service(running: true), PanelValue.service(running: false),
             PanelValue.service(running: true, needsRestart: true),
             PanelValue.grants(active: 0), PanelValue.grants(active: 1),
-            XCTUnwrap(PanelValue.decoys(files: 3, broken: 1, readsToday: 3)),
-            XCTUnwrap(PanelValue.decoys(files: 3, broken: 0, readsToday: 3)),
-            XCTUnwrap(PanelValue.decoys(files: 3, broken: 0, readsToday: 0)),
+            XCTUnwrap(PanelValue.decoys(files: 3, broken: 1, programs: 3)),
+            XCTUnwrap(PanelValue.decoys(files: 3, broken: 0, programs: 3)),
+            XCTUnwrap(PanelValue.decoys(files: 3, broken: 0, programs: 0)),
             PanelValue.doctor(problems: 3, warnings: 2, checked: true, checking: false),
             PanelValue.doctor(problems: 0, warnings: 2, checked: true, checking: false),
             PanelValue.doctor(problems: 0, warnings: 0, checked: true, checking: false),
@@ -57,10 +57,10 @@ final class PanelValueTests: XCTestCase {
         XCTAssertEqual(PanelValue.service(running: true), .init("running", .green))
         XCTAssertEqual(PanelValue.service(running: false), .init("not running", .red))
         XCTAssertEqual(PanelValue.grants(active: 1), .init("1 active"))
-        XCTAssertNil(PanelValue.decoys(files: 0, broken: 0, readsToday: 0))
-        XCTAssertEqual(PanelValue.decoys(files: 3, broken: 1, readsToday: 3), .init("1 broken", .red))
-        XCTAssertEqual(PanelValue.decoys(files: 3, broken: 0, readsToday: 1), .init("1 read today", .amber))
-        XCTAssertEqual(PanelValue.decoys(files: 3, broken: 0, readsToday: 0), .init("3 files"))
+        XCTAssertNil(PanelValue.decoys(files: 0, broken: 0, programs: 0))
+        XCTAssertEqual(PanelValue.decoys(files: 3, broken: 1, programs: 3), .init("1 broken", .red))
+        XCTAssertEqual(PanelValue.decoys(files: 3, broken: 0, programs: 1), .init("1 program", .amber))
+        XCTAssertEqual(PanelValue.decoys(files: 3, broken: 0, programs: 0), .init("3 files"))
         XCTAssertEqual(PanelValue.doctor(problems: 3, warnings: 2, checked: true, checking: false), .init("3 problems", .red))
         XCTAssertEqual(PanelValue.doctor(problems: 0, warnings: 0, checked: true, checking: false), .init("healthy", .green))
         XCTAssertEqual(PanelValue.findings(todos: 2, worst: .amber, scanned: true, scanning: false), .init("2 to do", .amber))

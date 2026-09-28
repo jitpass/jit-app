@@ -15,6 +15,7 @@ struct DecoysView: View {
 
     var body: some View {
         let report = report()
+        let bursts = model.decoyBursts
         let open = model.macScan?.groups(in: .protect) ?? []
         VStack(spacing: 0) {
             // Its own banner: what a Protect started here did. Findings'
@@ -23,6 +24,9 @@ struct DecoysView: View {
                 WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
                     if !outcome.text.isEmpty {
                         Button("What Changed…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
+                    }
+                    if let reader = outcome.unexpect {
+                        Button("Undo") { actions.setExpected(reader, true) }.buttonStyle(AppButton())
                     }
                 }
             }
@@ -41,8 +45,11 @@ struct DecoysView: View {
                         if !report.protected.isEmpty {
                             protectedCard(report)
                         }
-                        if !report.reads.isEmpty {
-                            readsCard(report)
+                        if !bursts.isEmpty {
+                            readsCard(bursts)
+                        }
+                        if let expected = model.decoyExpected?.expected, !expected.isEmpty {
+                            expectedCard(expected)
                         }
                     }
                     .padding(Win.s6)
@@ -53,6 +60,9 @@ struct DecoysView: View {
         }
         .frame(minWidth: Win.width, maxWidth: .infinity, minHeight: Win.minimum(Win.height), maxHeight: .infinity, alignment: .top)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .sheet(item: $model.decoyExpectAsk) { burst in
+            ExpectedSheet(burst: burst, close: actions.closeExpected) { actions.setExpected($0, false) }
+        }
         .sheet(item: $model.decoysSheet) { sheet in
             if case let .result(title, text) = sheet {
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
@@ -104,7 +114,7 @@ struct DecoysView: View {
         if !report.broken.isEmpty || !open.isEmpty {
             return Color(StatusMark.red)
         }
-        return Color(report.decoyReads > 0 ? StatusMark.amber : StatusMark.green)
+        return Color(DecoyBurst.unexpectedPrograms(model.decoyBursts) > 0 ? StatusMark.amber : StatusMark.green)
     }
 
     private func todos(_ report: DecoyReport, open: [ScanFileGroup]) -> [HeaderTodo] {
@@ -121,10 +131,11 @@ struct DecoysView: View {
                 verb: "fix it", tint: Color(StatusMark.red), action: actions.openVault
             ))
         }
-        if report.decoyReads > 0 {
+        let bursts = model.decoyBursts
+        if DecoyBurst.unexpectedPrograms(bursts) > 0 {
             lines.append(HeaderTodo(
                 id: "reads",
-                text: Format.decoysReadsLine(report),
+                text: Format.decoysProgramsLine(bursts, allWhileLocked: report.allWhileLocked),
                 verb: "see them",
                 tint: Color(StatusMark.amber),
                 action: actions.openAudit
@@ -223,33 +234,6 @@ struct DecoysView: View {
         }
     }
 
-    private func readsCard(_ report: DecoyReport) -> some View {
-        AppCard(
-            eyebrow: "Reads", eyebrowTint: Color(report.decoyReads > 0 ? StatusMark.amber : StatusMark.green),
-            title: Format.count(report.decoyReads, "decoy read") + " in the last 24 hours · " + Format.count(
-                report.realReads,
-                "real read",
-                plural: "real reads"
-            ),
-            note: Format.decoysReadsNote
-        ) {
-            Button("Audit…", action: actions.openAudit).buttonStyle(AppButton(kind: .plain))
-        } rows: {
-            AppCardRows {
-                ForEach(Array(report.reads.prefix(12).enumerated()), id: \.element.id) { index, read in
-                    AppRow(
-                        name: ScanWording.when(read.at),
-                        detail: Format.decoyReadFiles(read),
-                        fact: Format.decoyReadFact(read),
-                        last: index == min(report.reads.count, 12) - 1
-                    ) {
-                        EmptyView()
-                    }
-                }
-            }
-        }
-    }
-
     private var empty: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
@@ -294,4 +278,9 @@ struct DecoysActions {
     /// A file picker, then jit migrate on the file: the Protect verb for a
     /// file the scan did not list.
     var protectAnother: () -> Void = {}
+    /// Expected…: the question for this burst's program.
+    var askExpected: (DecoyBurst) -> Void = { _ in }
+    var closeExpected: () -> Void = {}
+    /// Mark a reader expected, or with `true`, take the mark back.
+    var setExpected: (ExpectedReader, Bool) -> Void = { _, _ in }
 }

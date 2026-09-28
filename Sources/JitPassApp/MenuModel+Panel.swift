@@ -75,9 +75,15 @@ extension MenuModel {
         )
     }
 
+    /// The last 24 hours of decoy reads as bursts, for the row and the
+    /// Decoys window alike.
+    var decoyBursts: [DecoyBurst] {
+        DecoyBurst.make(decoyEvents, since: Date().addingTimeInterval(-DecoyReport.readWindow), expected: decoyExpected)
+    }
+
     var decoysRow: PanelValue.Row? {
         let files = cli?.mounts?.registered ?? cli?.protectedFiles.count ?? 0
-        return PanelValue.decoys(files: files, broken: decoyReport.broken.count, readsToday: decoyReads24h ?? 0)
+        return PanelValue.decoys(files: files, broken: decoyReport.broken.count, programs: DecoyBurst.unexpectedPrograms(decoyBursts))
     }
 
     var doctorRow: PanelValue.Row {

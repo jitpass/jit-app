@@ -85,6 +85,7 @@ extension StatusItemController {
     /// thread: the Decoys row's count of the last 24 hours, with the live notices whose record
     /// has not landed yet. The stream keeps it current between reads.
     func refreshDecoyReads() {
+        loadDecoyExpected()
         // The week, not the day: the Decoys row and window read the same
         // events, and a file naming a missing secret is a week-old fact.
         let filter = AuditFilter(kinds: ["serve"], since: "7d", limit: 0)
@@ -126,7 +127,12 @@ extension StatusItemController {
             return
         }
         model.decoyReads24h = (model.decoyReads24h ?? 0) + 1
-        if model.notifyDecoys {
+        model.decoyEvents.append(event)
+        // An expected reader still gets decoys and is still logged; it just
+        // is not news (approved: expected readers never notify).
+        let labels = event.labels ?? []
+        let expected = !labels.isEmpty && labels.allSatisfy { model.decoyExpected?.covers(by: event.by, label: $0) ?? false }
+        if model.notifyDecoys, !expected {
             let who = event.by.map { String($0.split(separator: "/").last ?? Substring($0)) } ?? "an unknown reader"
             let launcher = event.launchedBy.map { ", launched by \($0)" } ?? ""
             let file = event.labels?.first ?? "a protected file"

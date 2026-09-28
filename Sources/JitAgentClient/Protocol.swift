@@ -170,11 +170,14 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     /// the job (`JobOutcome`'s words). Absent on every other event, and
     /// from a jit older than the field.
     public var jobOutcome: String?
+    /// On a serve: the reader is one the user marked expected for this file
+    /// (`jit decoys expect`). Still a decoy; it only stops counting as news.
+    public var expected: Bool?
 
     public init(
         unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, byPID: Int32? = nil, byLikely: Bool? = nil,
         launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil,
-        undelivered: Bool? = nil, job: String? = nil, jobOutcome: String? = nil
+        undelivered: Bool? = nil, job: String? = nil, jobOutcome: String? = nil, expected: Bool? = nil
     ) {
         self.unixTime = unixTime
         self.kind = kind
@@ -190,6 +193,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         self.undelivered = undelivered
         self.job = job
         self.jobOutcome = jobOutcome
+        self.expected = expected
     }
 
     enum CodingKeys: String, CodingKey {
@@ -202,6 +206,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         case consentID = "consent_id"
         case undelivered, job
         case jobOutcome = "job_outcome"
+        case expected
     }
 
     public var date: Date {
