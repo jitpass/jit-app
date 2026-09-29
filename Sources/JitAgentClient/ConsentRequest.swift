@@ -63,6 +63,14 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
         event.cause?.hasPrefix("unlock the vault") ?? false
     }
 
+    /// True when approving also unlocks the vault: on a locked vault, the
+    /// agent folds the unlock into a credential or `--with` prompt instead of
+    /// asking twice, and says so inside its sentence (agent/consent.go
+    /// unlockAsWell). Never at the start, so `isUnlock` stays false for it.
+    public var alsoUnlocks: Bool {
+        !isUnlock && (event.cause?.contains(" and unlock the vault") ?? false)
+    }
+
     /// What kind of authority the request is for, from the agent's op and
     /// wording.
     public var purpose: String {
@@ -70,6 +78,14 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
             return "unlock the vault: every secret it holds, until it locks again"
         }
         let cause = event.cause ?? ""
+        // The larger half leads: the whole vault opens as well, and the bold
+        // line is the one read before pressing Allow.
+        if alsoUnlocks {
+            if event.op == "reveal_pid", cause.hasPrefix("grant this run access to") {
+                return "give this run a machine-wide credential file and unlock the vault: every secret it holds, until it locks again"
+            }
+            return "use a credential and unlock the vault: every secret it holds, until it locks again"
+        }
         switch event.op {
         // A standing grant (`jit grant --until-revoked`) has no deadline;
         // the agent's sentence ends "until you revoke it" (agent/grant.go).

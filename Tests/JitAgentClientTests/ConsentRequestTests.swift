@@ -80,6 +80,28 @@ final class ConsentRequestTests: XCTestCase {
         XCTAssertEqual(ConsentRequest(event: event)?.purpose, "give this run a machine-wide credential file, for this run only")
     }
 
+    /// On a locked vault the agent asks once for the credential and the
+    /// unlock together (agent/consent.go unlockAsWell). The bold line must
+    /// name the unlock: it is the larger authority, and the sub line alone
+    /// used to carry it.
+    func testACredentialPromptThatAlsoUnlocksSaysSo() throws {
+        var event = try pending()
+        event.cause = "use your aws credential and unlock the vault for terraform, via claude"
+        let request = try XCTUnwrap(ConsentRequest(event: event))
+        XCTAssertFalse(request.isUnlock)
+        XCTAssertTrue(request.alsoUnlocks)
+        XCTAssertEqual(request.purpose, "use a credential and unlock the vault: every secret it holds, until it locks again")
+
+        event.cause = "grant this run access to your acme credentials file and unlock the vault"
+        XCTAssertEqual(
+            ConsentRequest(event: event)?.purpose,
+            "give this run a machine-wide credential file and unlock the vault: every secret it holds, until it locks again"
+        )
+
+        event.cause = "use your aws credential for terraform, via claude"
+        XCTAssertFalse(ConsentRequest(event: event)?.alsoUnlocks ?? true)
+    }
+
     /// `jit grant --until-revoked` has no deadline (agent/grant.go).
     func testAStandingGrantHasNoDeadline() throws {
         var event = try pending()
