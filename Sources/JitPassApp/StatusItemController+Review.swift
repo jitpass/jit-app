@@ -61,7 +61,9 @@ extension StatusItemController {
                 if let report = model.macScan, let at = model.macScanAt, let kind = model.macScanKind {
                     LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
                 }
-                model.findingsOutcome = WindowOutcome(title: Format.reviewedBanner(findings), text: "", unreview: marks)
+                model.findingsOutcome = WindowOutcome(
+                    title: Format.reviewedBanner(settled, missed: result?.missed?.count ?? 0), text: "", unreview: marks
+                )
             }
         )
     }

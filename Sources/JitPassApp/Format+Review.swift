@@ -19,22 +19,23 @@ extension Format {
         return files > 1 ? what + " in " + count(files, "file") : what
     }
 
-    static func reviewedBanner(_ findings: [ScanFinding]) -> String {
-        reviewedCount(findings) + " marked reviewed"
+    /// "6 findings marked reviewed", and when some rows changed since the
+    /// scan: "… · 2 changed since the scan, scan again".
+    static func reviewedBanner(_ findings: [ScanFinding], missed: Int = 0) -> String {
+        let banner = reviewedCount(findings) + " marked reviewed"
+        return missed > 0 ? banner + " · \(missed) changed since the scan, scan again" : banner
     }
 
     static func reviewAllQuestion(_ findings: [ScanFinding]) -> (title: String, message: String) {
         (
             "Mark \(reviewedCount(findings)) reviewed?",
-            "They leave Findings. One comes back if what was found changes. "
-                + "If any of these keys is live, rotate it instead: marking it reviewed doesn't make it safe."
+            "If any of these keys is live, rotate it instead. They leave Findings until what was found changes."
         )
     }
 
     static let reviewRiskyQuestion = (
         title: "Mark this finding reviewed?",
-        message: "This looks like a live key. Mark it reviewed only if you know it's not one. "
-            + "It leaves Findings, and comes back if what was found changes."
+        message: "This looks like a live key, so mark it only if you know it isn't. It leaves Findings until it changes."
     )
 
     static func unreviewedBanner(_ n: Int) -> String {
