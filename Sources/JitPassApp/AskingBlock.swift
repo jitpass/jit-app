@@ -5,7 +5,8 @@ import JitAgentClient
 import SwiftUI
 
 /// A request the agent shows beside its Touch ID (jitpass/jit#200), on top
-/// of the menu bar panel: the consent sheet's facts in the agent's words,
+/// of the menu bar panel (the design system's ConsentSheet page, which now
+/// describes this block): the consent sheet's facts in the agent's words,
 /// and Deny. There is no Allow. The fingerprint allows it, and Deny takes
 /// the Touch ID down. The app decides nothing: Deny only refuses.
 struct AskingBlock: View {
@@ -19,7 +20,7 @@ struct AskingBlock: View {
                 Text(Format.askingTitle(request)).font(Design.Text.cardTitle)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(request.isJobRun ? Format.jobRunSentence(request, job: job) : request.headline)
-                    .font(Design.Text.cardNote).foregroundStyle(.secondary)
+                    .font(Design.Text.rowFact).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             VStack(alignment: .leading, spacing: Design.Space.three) {
@@ -34,19 +35,22 @@ struct AskingBlock: View {
                     .font(Design.Text.rowFact).foregroundStyle(Color(StatusMark.amber))
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text(Format.askingNote).font(Design.Text.rowFact).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: Design.Space.four) {
+                Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
+                Text(Format.askingNote).font(Design.Text.rowFact).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack(spacing: Design.Space.four) {
-                Text(Format.askingAllows).font(Design.Text.rowFact).foregroundStyle(.secondary)
+                Text(Format.askingAllows).font(Design.Text.cardNote)
                 Spacer()
                 Button("Deny") { deny(request.id) }.buttonStyle(AppButton(kind: .secondary))
             }
         }
-        .padding(Design.Space.five)
+        // No card: the mockup's block sits at the panel's own inset, the
+        // header above already says it is a question.
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Design.Surface.card, in: RoundedRectangle(cornerRadius: Design.Radius.callout, style: .continuous))
-        .padding(.horizontal, Design.Space.three)
-        .padding(.bottom, Design.Space.three)
+        .padding(.horizontal, 14)
+        .padding(.bottom, Design.Space.four)
     }
 
     @ViewBuilder
@@ -88,12 +92,12 @@ struct AskingBlock: View {
 
     private func fact(_ label: String, @ViewBuilder _ value: () -> some View) -> some View {
         HStack(alignment: .top, spacing: Design.Space.four) {
-            Text(label).foregroundStyle(.secondary).frame(width: 70, alignment: .trailing)
+            Text(label).foregroundStyle(.secondary).frame(width: 76, alignment: .trailing)
             VStack(alignment: .leading, spacing: Design.Space.two) { value() }
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .font(Design.Text.rowFact)
+        .font(Design.Text.cardNote)
     }
 }
 
