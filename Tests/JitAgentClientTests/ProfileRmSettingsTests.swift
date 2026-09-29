@@ -27,4 +27,21 @@ final class ProfileRmSettingsTests: XCTestCase {
                 + "billing-sync/REGION (setting)\nbilling-sync/API_KEY"
         ), message)
     }
+
+    /// Only a kept setting: nothing but the profile goes, and the line says
+    /// so without calling the setting a secret.
+    func testAKeptSettingIsNotCalledASecret() {
+        let kept = ProfileRmPlan(profile: "billing-sync", keepSecrets: ["jit://setting/shared/REGION"], coverageComplete: true)
+        let message = kept.confirmation(home: home).message
+        XCTAssertTrue(message.contains("It deletes the profile. Nothing else goes with it."), message)
+        XCTAssertTrue(message.contains("Kept, because something else uses it:\nshared/REGION (setting)"), message)
+        XCTAssertFalse(message.contains("secret"), message)
+    }
+
+    func testAGoneSettingIsNamedByItsNoun() {
+        let gone = ProfileRmPlan(profile: "billing-sync", missingSecrets: ["jit://setting/billing-sync/REGION"], coverageComplete: true)
+        XCTAssertTrue(gone.confirmation(home: home).message.contains(
+            "It deletes the profile; its setting is already gone:\nbilling-sync/REGION (setting)"
+        ), gone.confirmation(home: home).message)
+    }
 }

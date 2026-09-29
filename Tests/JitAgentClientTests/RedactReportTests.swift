@@ -46,6 +46,14 @@ final class RedactReportTests: XCTestCase {
         XCTAssertFalse(outcome.failed)
     }
 
+    /// Two kinds left: the count alone, never one file's reason for both.
+    func testMixedKindsLeftGiveNoOneReason() {
+        let outcome = ScanWording.redactOutcome(report(removed: [], left: [
+            file("Claude Code", "transcripts", kind: "unreadable"), file("Cursor", "chat database", kind: "binary")
+        ]))
+        XCTAssertEqual(outcome.title, "2 left")
+    }
+
     func testParseAndNotice() throws {
         let doc = """
         {"files":[],"applied":true,"caches":{"removed":[{"agent":"Claude Code","area":"transcripts","path":"/h/a","copies":7}],

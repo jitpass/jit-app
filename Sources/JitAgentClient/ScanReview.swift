@@ -55,11 +55,29 @@ public struct ScanReviewResult: Decodable, Sendable, Equatable {
 
 public enum ScanReview {
     /// The findings a review run marked: those whose file and line jit
-    /// names in its answer. jit echoes the path it was given.
+    /// names in its answer (jit echoes the path it was given), and the
+    /// other rows of the same record. A mark matches the value, so the same
+    /// key on lines 1 and 9 is one mark, named at line 1, covering both. A
+    /// row jit lists as missed stays, whatever its record.
     public static func marked(_ findings: [ScanFinding], by result: ScanReviewResult) -> [ScanFinding] {
         let key = { (path: String, line: Int?) in path + ":" + String(line ?? 0) }
         let done = Set((result.reviewed ?? []).map { key($0.path, $0.line) })
-        return findings.filter { done.contains(key($0.filePath, $0.line)) }
+        let records = Set(findings.filter { done.contains(key($0.filePath, $0.line)) }.map(\.id))
+        let missed = result.missed ?? []
+        return findings.filter { f in
+            if done.contains(key(f.filePath, f.line)) {
+                return true
+            }
+            return records.contains(f.id) && !missed.contains { isTarget($0, of: f) }
+        }
+    }
+
+    /// Whether jit's `~/dir/file:LINE` names this finding: jit shortens the
+    /// home folder, so the file name and line decide.
+    static func isTarget(_ target: String, of f: ScanFinding) -> Bool {
+        let name = (f.filePath as NSString).lastPathComponent
+        let spot = f.line.map { name + ":" + String($0) } ?? name
+        return target == spot || target.hasSuffix("/" + spot)
     }
 
     /// The `FILE[:LINE]` arguments that mark exactly these findings: one per

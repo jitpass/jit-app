@@ -57,15 +57,18 @@ public extension ScanWording {
             parts.append(agentPlaces(report.caches.removed.map { (agent: $0.agent, area: $0.area) }).joined(separator: " and "))
         }
         if !report.caches.left.isEmpty {
-            let live = report.caches.left.filter { $0.kind == "live" }
+            // One reason only when it is every file's: two kinds get the
+            // count alone, never one file's reason stretched over the rest.
             let n = report.caches.left.count
             var left = "\(n) left"
-            if let first = live.first {
-                left += live.count == 1 ? ", \(first.agent) is writing it" : ", \(first.agent) is writing them"
-            } else if let first = report.caches.left.first, first.kind == "binary" {
-                left += n == 1 ? ", a binary store jit won't rewrite" : ", binary stores jit won't rewrite"
-            } else if let first = report.caches.left.first, first.kind == "unreadable" {
-                left += n == 1 ? ", it changed since the scan" : ", they changed since the scan"
+            let kinds = Set(report.caches.left.map { $0.kind ?? "" })
+            if kinds.count == 1, let first = report.caches.left.first {
+                switch first.kind {
+                case "live": left += n == 1 ? ", \(first.agent) is writing it" : ", \(first.agent) is writing them"
+                case "binary": left += n == 1 ? ", a binary store jit won't rewrite" : ", binary stores jit won't rewrite"
+                case "unreadable": left += n == 1 ? ", it changed since the scan" : ", they changed since the scan"
+                default: break
+                }
             }
             parts.append(left)
         }

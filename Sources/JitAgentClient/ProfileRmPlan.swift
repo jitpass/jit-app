@@ -144,7 +144,7 @@ public extension ProfileRmPlan {
                 + (missing == 1 ? "is" : "are") + " already gone:\n"
                 + missingSecrets.map(Self.entryLine).joined(separator: "\n")]
         } else {
-            parts.append("It deletes the profile. No secret goes with it.")
+            parts.append("It deletes the profile. Nothing else goes with it.")
         }
         if keep > 0 {
             parts.append((keep == 1 ? "Kept, because something else uses it:\n" : "Kept, because something else uses them:\n")
