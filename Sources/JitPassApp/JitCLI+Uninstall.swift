@@ -44,8 +44,6 @@ extension JitCLI {
         } catch {
             return .failed(Format.error(error))
         }
-        spawned.insert(process.processIdentifier)
-        defer { spawned.remove(process.processIdentifier) }
 
         let collected = collect(err)
         var failures: [UninstallEvent.Failure]?

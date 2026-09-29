@@ -60,8 +60,6 @@ extension JitCLI {
         } catch {
             return .failure(error)
         }
-        spawned.insert(process.processIdentifier)
-        defer { spawned.remove(process.processIdentifier) }
         let collected = collect(err)
         let data = out.fileHandleForReading.readDataToEndOfFile()
         let errData = collected()

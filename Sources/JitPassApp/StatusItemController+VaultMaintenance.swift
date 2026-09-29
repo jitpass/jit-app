@@ -194,8 +194,7 @@ extension StatusItemController {
 
     /// `jit vault duplicates --format json`, after a dialog saying what it
     /// costs: every value is decrypted to compare, so the unlock and one
-    /// Touch ID per gated class (the consent sheet stays out of the way
-    /// for a process the app spawned). The result opens as a sheet.
+    /// Touch ID per gated class. The result opens as a sheet.
     func compareDuplicates() {
         let alert = NSAlert()
         alert.messageText = "Compare every secret?"

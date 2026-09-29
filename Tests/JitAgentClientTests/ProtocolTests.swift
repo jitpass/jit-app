@@ -63,6 +63,19 @@ final class ProtocolTests: XCTestCase {
         XCTAssertNil(obj["min_protocol"])
     }
 
+    /// The wire name jit reads (agent/protocol.go), on the encoded bytes: a
+    /// round trip through the same CodingKeys would pass a typo. Absent
+    /// unless asked for.
+    func testShowsProposalsEncodesJitsName() throws {
+        let asked = try JSONEncoder().encode(AgentRequest(op: .subscribe, showsProposals: true))
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: asked) as? [String: Any])
+        XCTAssertEqual(obj["op"] as? String, "subscribe")
+        XCTAssertEqual(obj["shows_proposals"] as? Bool, true)
+        let plain = try JSONEncoder().encode(AgentRequest(op: .subscribe))
+        let none = try XCTUnwrap(JSONSerialization.jsonObject(with: plain) as? [String: Any])
+        XCTAssertNil(none["shows_proposals"])
+    }
+
     func testGrantCreateEncodesEveryField() throws {
         let request = AgentRequest(
             op: .grantCreate,
@@ -138,16 +151,6 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(roots[0]["name"] as? String, "mcp-caido")
         XCTAssertEqual(roots[0]["root"] as? String, "/Users/me/Security-Ops")
         XCTAssertNil(roots[1]["root"], "a global profile sends no folder")
-    }
-
-    func testConsentAnswerEncodesIDAndDecision() throws {
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(AgentRequest(
-            op: .consentAnswer, consentID: "ab12", decision: .deny
-        ))) as? [String: Any])
-        XCTAssertEqual(json["op"] as? String, "consent_answer")
-        XCTAssertEqual(json["consent_id"] as? String, "ab12")
-        XCTAssertEqual(json["decision"] as? String, "deny")
-        XCTAssertNil(json["broker"])
     }
 
     func testEventDecodesTheBrokeringFields() throws {

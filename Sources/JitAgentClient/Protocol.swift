@@ -24,17 +24,6 @@ public enum AgentOp: String, Codable, Sendable, CaseIterable {
     /// acknowledges, then one `SessionEvent` line per event until the peer
     /// hangs up. Never `wrap`, `unwrap` or `reveal_pid`; see the test.
     case subscribe
-    /// Consent brokering (jitpass/jit#113): a `subscribe` with `broker` set
-    /// is also streamed a `pending` event for each disclosed challenge before
-    /// its Touch ID appears; `consent_list` returns the ones waiting, and
-    /// `consent_answer` carries the human's answer. An allow only lets the
-    /// agent go on to its own Touch ID; a deny refuses without one.
-    case consentList = "consent_list"
-    case consentAnswer = "consent_answer"
-    /// A request marked `touchIDFollows` is on screen beside its Touch ID
-    /// (jitpass/jit#200): the agent then raises the dialog without waiting
-    /// out its quarter second. It grants nothing.
-    case consentShown = "consent_shown"
     /// AI Jobs (jit design/agent-jobs.md): a command the human approves, run
     /// by the service for any caller, with the output returned and the secret
     /// values hidden. `job_list`, `job_preview`, `job_proposals` and
@@ -47,12 +36,6 @@ public enum AgentOp: String, Codable, Sendable, CaseIterable {
     case jobRemove = "job_remove"
     case jobProposals = "job_proposals"
     case jobDismiss = "job_dismiss"
-}
-
-/// The two answers `consent_answer` accepts.
-public enum ConsentDecision: String, Codable, Sendable {
-    case allow
-    case deny
 }
 
 public struct AgentRequest: Codable, Sendable {
@@ -83,16 +66,6 @@ public struct AgentRequest: Codable, Sendable {
     /// for naming no profiles, which is the safe answer.
     public var grantProfileRoots: [GrantProfile]?
     public var standing: Bool?
-    /// `subscribe`: this stream will answer consent requests. Ignored by an
-    /// agent that predates brokering, whose stream then never carries one.
-    public var broker: Bool?
-    /// `subscribe`, with `broker`: this app shows each request beside its
-    /// Touch ID and never answers allow. An agent that predates it ignores
-    /// the field, and its requests arrive without `touchIDFollows`.
-    public var touchIDFollows: Bool?
-    /// `consent_answer`: which pending request, and the answer.
-    public var consentID: String?
-    public var decision: ConsentDecision?
     /// AI Jobs: which job, the proposal to approve it from (`job_allow`,
     /// `job_preview`), and the proposal a `job_allow` or `job_dismiss`
     /// answers. The spec is a PROPOSAL: the service resolves, fingerprints
@@ -100,14 +73,18 @@ public struct AgentRequest: Codable, Sendable {
     public var jobName: String?
     public var jobSpec: JobSpec?
     public var proposalID: String?
+    /// `subscribe`: this app shows the human what an AI tool proposes, so
+    /// the stream carries each `job_proposal`, and `job_request` is accepted
+    /// while it is open (jitpass/jit#201). It is never asked about a prompt.
+    /// An agent that predates it ignores the field and refuses proposals.
+    public var showsProposals: Bool?
 
     public init(
         op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil,
         targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil,
         grantName: String? = nil, anchorExplicit: Bool? = nil,
         grantProfileRoots: [GrantProfile]? = nil, standing: Bool? = nil,
-        broker: Bool? = nil, touchIDFollows: Bool? = nil, consentID: String? = nil, decision: ConsentDecision? = nil,
-        jobName: String? = nil, jobSpec: JobSpec? = nil, proposalID: String? = nil
+        jobName: String? = nil, jobSpec: JobSpec? = nil, proposalID: String? = nil, showsProposals: Bool? = nil
     ) {
         self.op = op
         self.minProtocol = minProtocol
@@ -120,13 +97,10 @@ public struct AgentRequest: Codable, Sendable {
         self.anchorExplicit = anchorExplicit
         self.grantProfileRoots = grantProfileRoots
         self.standing = standing
-        self.broker = broker
-        self.touchIDFollows = touchIDFollows
-        self.consentID = consentID
-        self.decision = decision
         self.jobName = jobName
         self.jobSpec = jobSpec
         self.proposalID = proposalID
+        self.showsProposals = showsProposals
     }
 
     enum CodingKeys: String, CodingKey {
@@ -141,13 +115,10 @@ public struct AgentRequest: Codable, Sendable {
         case anchorExplicit = "anchor_explicit"
         case grantProfileRoots = "grant_profile_roots"
         case standing
-        case broker
-        case touchIDFollows = "touch_id_follows"
-        case consentID = "consent_id"
-        case decision
         case jobName = "job_name"
         case jobSpec = "job_spec"
         case proposalID = "proposal_id"
+        case showsProposals = "shows_proposals"
     }
 }
 
@@ -167,13 +138,9 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     /// Secret names a use touched, and how many uses one event collapses.
     public var labels: [String]?
     public var count: Int?
-    /// Links a brokered challenge's `pending` event to the `approved` or
-    /// `denied` that answers it.
+    /// jit's id for a challenge and the outcome that answers it. The app
+    /// reads it on a `job_proposal` only, where it is the proposal's id.
     public var consentID: String?
-    /// On a `pending` event: its Touch ID is appearing now and no allow is
-    /// awaited, so the request is shown beside the dialog with Deny only.
-    /// Absent from an agent that still waits for the answer first.
-    public var touchIDFollows: Bool?
     /// On a serve: the reader was gone before anything was written, so it
     /// received nothing. The verdict in `op` is what it would have got.
     public var undelivered: Bool?
@@ -191,8 +158,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     public init(
         unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, byPID: Int32? = nil, byLikely: Bool? = nil,
         launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil,
-        undelivered: Bool? = nil, job: String? = nil, jobOutcome: String? = nil, expected: Bool? = nil,
-        touchIDFollows: Bool? = nil
+        undelivered: Bool? = nil, job: String? = nil, jobOutcome: String? = nil, expected: Bool? = nil
     ) {
         self.unixTime = unixTime
         self.kind = kind
@@ -209,7 +175,6 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         self.job = job
         self.jobOutcome = jobOutcome
         self.expected = expected
-        self.touchIDFollows = touchIDFollows
     }
 
     enum CodingKeys: String, CodingKey {
@@ -220,7 +185,6 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         case launchedBy = "launched_by"
         case cause, labels, count
         case consentID = "consent_id"
-        case touchIDFollows = "touch_id_follows"
         case undelivered, job
         case jobOutcome = "job_outcome"
         case expected

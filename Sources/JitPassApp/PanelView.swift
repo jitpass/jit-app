@@ -78,23 +78,7 @@ struct PanelView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
-            // A request shown beside its Touch ID sits on top, where the
-            // question comes first; once answered, one line says how it
-            // ended, in the same place.
-            if let request = model.consentRequests.first, request.touchIDFollows {
-                AskingBlock(request: request, job: model.jobs.first { $0.name == request.job }, deny: actions.denyConsent)
-            } else if model.consentRequests.isEmpty, let outcome = model.consentOutcome {
-                ConsentOutcomeRow(outcome: outcome)
-            }
-
             VStack(spacing: 0) {
-                if let request = model.consentRequests.first, !request.touchIDFollows {
-                    Button(action: actions.openConsent) {
-                        row("hand.raised", "Asking", "\(request.program) · answer", dot: Color(StatusMark.amber))
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(HoverRowStyle())
-                }
                 if let vault = model.vaultRow {
                     Button(action: actions.openVault) {
                         row("archivebox", "Vault", vault.display, dot: dot(vault.tone))
@@ -196,25 +180,12 @@ struct PanelView: View {
 
     // MARK: - Pieces
 
-    /// While a request waits, the header says so and the session state moves
-    /// to the second line, so nothing is lost and the question comes first.
     private var header: some View {
-        let asking = model.consentRequests.first
-        return HStack(spacing: 10) {
-            StatusMarkView(state: model.state, asking: asking != nil, size: 34)
+        HStack(spacing: 10) {
+            StatusMarkView(state: model.state, size: 34)
             VStack(alignment: .leading, spacing: 2) {
-                if let asking, asking.touchIDFollows {
-                    Text("Asking").font(.system(size: 15, weight: .bold))
-                    Text(Format.askingSub(count: model.consentRequests.count))
-                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-                } else if let asking {
-                    Text("Asking").font(.system(size: 15, weight: .bold))
-                    Text("\(asking.program) · \(model.state.headline.lowercased()) · \(model.state.detail)")
-                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-                } else {
-                    Text(model.state.headline).font(.system(size: 15, weight: .bold))
-                    Text(model.state.detail).font(.system(size: 12)).foregroundStyle(.secondary)
-                }
+                Text(model.state.headline).font(.system(size: 15, weight: .bold))
+                Text(model.state.detail).font(.system(size: 12)).foregroundStyle(.secondary)
             }
         }
     }
@@ -242,8 +213,8 @@ struct PanelView: View {
                 Circle().fill(dot).frame(width: 8, height: 8)
             }
             // The row is 26pt tall: a value that wrapped drew over the
-            // rows beside it. It gives way in its middle, so "· answer"
-            // stays, and the tooltip has the rest.
+            // rows beside it. It gives way in its middle, and the tooltip
+            // has the rest.
             Text(value).lineLimit(1).truncationMode(.middle).help(value)
         }
         .font(.system(size: 13))
@@ -306,8 +277,6 @@ struct PanelActions {
     var openAudit: () -> Void = {}
     var openDecoys: () -> Void = {}
     var openSettings: () -> Void = {}
-    var openConsent: () -> Void = {}
-    var denyConsent: (String) -> Void = { _ in }
     var about: () -> Void = {}
     var installUpdate: () -> Void = {}
     var continueSetup: () -> Void = {}
@@ -357,12 +326,11 @@ private struct HoverHighlight<Label: View>: View {
 /// status item draws.
 struct StatusMarkView: View {
     let state: SessionState
-    var asking = false
     var needsSetup = false
     let size: CGFloat
 
     var body: some View {
-        if needsSetup, !asking {
+        if needsSetup {
             ZStack {
                 Circle().fill(Color(StatusMark.amber).opacity(0.16))
                 Circle().strokeBorder(Color(StatusMark.amber), lineWidth: size * 0.085).padding(size * 0.25)
@@ -374,13 +342,11 @@ struct StatusMarkView: View {
     }
 
     private var filled: some View {
-        let tint = Color(StatusMark.color(for: state, asking: asking))
+        let tint = Color(StatusMark.color(for: state))
         return ZStack {
             Circle().fill(tint.opacity(0.22))
             Circle().fill(tint).padding(size * 0.22)
-            if asking {
-                Image(systemName: "questionmark").font(.system(size: size * 0.32, weight: .bold)).foregroundStyle(.white)
-            } else if case .locked = state {
+            if case .locked = state {
                 Image(systemName: "lock.fill").font(.system(size: size * 0.28, weight: .bold)).foregroundStyle(.white)
             }
         }

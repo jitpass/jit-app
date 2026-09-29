@@ -101,29 +101,6 @@ enum JitCLI {
         throw CLIError.failed("jit wrap list produced no listing")
     }
 
-    /// The jit processes this app has running right now, by pid. A consent
-    /// request from one of them is for an action the app's own dialog
-    /// already asked about, so the consent sheet lets it through to the
-    /// Touch ID instead of asking twice.
-    static let spawned = SpawnedProcesses()
-
-    final class SpawnedProcesses: @unchecked Sendable {
-        private let lock = NSLock()
-        private var pids = Set<Int32>()
-
-        func insert(_ pid: Int32) {
-            lock.withLock { _ = pids.insert(pid) }
-        }
-
-        func remove(_ pid: Int32) {
-            lock.withLock { _ = pids.remove(pid) }
-        }
-
-        func contains(_ pid: Int32) -> Bool {
-            lock.withLock { pids.contains(pid) }
-        }
-    }
-
     /// Decrypts every secret to compare them: an unlock and one consent per
     /// gated class, all the CLI's. Off the main thread.
     static func vaultDuplicates() -> Result<VaultDuplicates, Error> {
@@ -172,8 +149,6 @@ enum JitCLI {
         } catch {
             return .failure(error)
         }
-        spawned.insert(process.processIdentifier)
-        defer { spawned.remove(process.processIdentifier) }
         let collected = collect(err)
         var data = out.fileHandleForReading.readDataToEndOfFile()
         let stderr = collected()
@@ -256,8 +231,6 @@ enum JitCLI {
         } catch {
             return .failure(error)
         }
-        spawned.insert(process.processIdentifier)
-        defer { spawned.remove(process.processIdentifier) }
         if let stdin {
             input.fileHandleForWriting.write(Data((stdin + "\n").utf8))
         }

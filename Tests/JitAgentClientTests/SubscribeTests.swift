@@ -39,38 +39,23 @@ final class SubscribeTests: XCTestCase {
         XCTAssertEqual(received.value, ["unlock", "lock"])
     }
 
-    func testBrokerFlagRidesTheSubscribeRequest() throws {
+    /// The app's stream says it shows proposals; a plain one does not.
+    func testShowsProposalsRidesTheSubscribeRequest() throws {
         let sent = Locked<[Bool?]>([])
         let server = try FakeAgent(path: path, stream: []) { request in
-            sent.append(request.broker)
+            sent.append(request.showsProposals)
             return self.ack
         }
         defer { server.stop() }
-        let ended = expectation(description: "onEnd")
-        let sub = AgentClient(socketPath: path).subscribe(broker: true, onEvent: { _ in }, onEnd: { _ in ended.fulfill() })
-        defer { sub.cancel() }
-        wait(for: [ended], timeout: 5)
-        XCTAssertEqual(sent.value, [true])
-    }
-
-    /// Only a broker can show requests beside the Touch ID; the flag never
-    /// rides a plain stream, and never rides unasked.
-    func testBesideTouchIDRidesOnlyABrokersSubscribe() throws {
-        let sent = Locked<[Bool?]>([])
-        let server = try FakeAgent(path: path, stream: []) { request in
-            sent.append(request.touchIDFollows)
-            return self.ack
-        }
-        defer { server.stop() }
-        for (broker, beside) in [(true, true), (true, false), (false, true)] {
+        for shows in [true, false] {
             let ended = expectation(description: "onEnd")
             let sub = AgentClient(socketPath: path).subscribe(
-                broker: broker, besideTouchID: beside, onEvent: { _ in }, onEnd: { _ in ended.fulfill() }
+                showsProposals: shows, onEvent: { _ in }, onEnd: { _ in ended.fulfill() }
             )
             wait(for: [ended], timeout: 5)
             sub.cancel()
         }
-        XCTAssertEqual(sent.value, [true, nil, nil])
+        XCTAssertEqual(sent.value, [true, nil])
     }
 
     func testRefusalSurfacesAsAnError() throws {
