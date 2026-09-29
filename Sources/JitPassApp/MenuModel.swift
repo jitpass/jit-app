@@ -16,6 +16,9 @@ final class MenuModel: ObservableObject {
     /// Disclosed challenges the agent has parked with this app, oldest
     /// first; the consent sheet shows the first.
     @Published var consentRequests: [ConsentRequest] = []
+    /// How the last request shown beside its Touch ID ended: said once in
+    /// the Asking block's place, then cleared.
+    @Published var consentOutcome: ConsentOutcome?
     @Published var consentEnabled: Bool?
     @Published var ttlSeconds: Int64?
     @Published var cli: CLIStatus?

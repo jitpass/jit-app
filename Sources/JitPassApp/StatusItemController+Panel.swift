@@ -25,6 +25,7 @@ extension StatusItemController {
             openDecoys: { [weak self] in self?.openDecoys() },
             openSettings: { [weak self] in self?.openSettings() },
             openConsent: { [weak self] in self?.openConsent() },
+            denyConsent: { [weak self] id in self?.denyBeside(id) },
             about: { [weak self] in self?.showAbout() },
             installUpdate: { [weak self] in self?.installUpdate() },
             continueSetup: { [weak self] in self?.continueSetup() },

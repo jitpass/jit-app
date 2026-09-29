@@ -83,6 +83,10 @@ final class AgentClientTests: XCTestCase {
         XCTAssertEqual(seen.value.last?.op, .consentAnswer)
         XCTAssertEqual(seen.value.last?.consentID, "ab12")
         XCTAssertEqual(seen.value.last?.decision, .allow)
+        try client.consentShown(id: "ab12")
+        XCTAssertEqual(seen.value.last?.op, .consentShown)
+        XCTAssertEqual(seen.value.last?.consentID, "ab12")
+        XCTAssertNil(seen.value.last?.decision, "consent_shown carries no answer")
     }
 
     func testPathTooLongIsAnError() {

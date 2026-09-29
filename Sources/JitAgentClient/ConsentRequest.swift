@@ -138,4 +138,45 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
     public var date: Date {
         event.date
     }
+
+    /// True when the agent is raising the Touch ID for this request now and
+    /// awaits no allow: the app shows it beside the dialog, with Deny only.
+    /// False from an agent that still asks the app first (the sheet).
+    public var touchIDFollows: Bool {
+        event.touchIDFollows ?? false
+    }
+
+    /// What the app does with a request as it arrives.
+    public enum Handling: Equatable, Sendable {
+        /// Beside its Touch ID, and the app's own: say it is shown, so the
+        /// dialog appears at once, and show nothing.
+        case markShown
+        /// Beside its Touch ID: the Asking block, then say it is shown.
+        case showBeside
+        /// An older agent waiting on the app, for the app's own request:
+        /// allow, which only lets the agent show its Touch ID.
+        case allow
+        /// An older agent waiting on the app: the sheet.
+        case showSheet
+    }
+
+    /// `ours` is a request from this app or a jit it started for a click,
+    /// which a dialog in the app already explained. Never `.allow` for a
+    /// request beside its Touch ID: an allow there does nothing, and the
+    /// agent is waiting for `consent_shown`, not an answer.
+    public func handling(ours: Bool) -> Handling {
+        switch (touchIDFollows, ours) {
+        case (true, true): .markShown
+        case (true, false): .showBeside
+        case (false, true): .allow
+        case (false, false): .showSheet
+        }
+    }
+
+    /// Whether the outcome event that answers this request (it carries the
+    /// same consent id) allowed it: an `approved`, or the `unlock` a
+    /// program's unlock request ends in. Anything else refused it.
+    public static func allowed(by outcome: SessionEvent) -> Bool {
+        outcome.kind == "approved" || outcome.kind == "unlock"
+    }
 }
