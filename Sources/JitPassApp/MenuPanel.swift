@@ -15,6 +15,11 @@ final class MenuPanel: NSPanel {
     /// Touch ID dialog, "Use Password…"), and is the only kind that closes
     /// itself after the answer. A panel the human opened stays theirs.
     private(set) var openedForConsent = false
+    /// A request is beside the Touch ID right now, whoever opened the panel:
+    /// a click on the dialog ("Use Password…", Cancel) or the dialog taking
+    /// key must not take Deny and the explanation away while it is up. The
+    /// controller releases it when no such request is left.
+    private(set) var heldForConsent = false
 
     init(content: some View) {
         super.init(
@@ -53,7 +58,11 @@ final class MenuPanel: NSPanel {
         openedForConsent = false
         makeKeyAndOrderFront(nil)
         outsideClick = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            Task { @MainActor in self?.dismiss() }
+            Task { @MainActor in
+                if self?.heldForConsent == false {
+                    self?.dismiss()
+                }
+            }
         }
     }
 
@@ -62,6 +71,7 @@ final class MenuPanel: NSPanel {
     /// on Deny still reaches the panel (the spike, jitpass/jit#197). Already
     /// open, it only grows to fit the request.
     func showBeside(under button: NSStatusBarButton) {
+        heldForConsent = true
         if isVisible {
             refit()
             return
@@ -97,8 +107,15 @@ final class MenuPanel: NSPanel {
         return true
     }
 
+    /// No request is beside the Touch ID any more: a panel the human opened
+    /// closes on an outside click again, as a menu does.
+    func releaseConsentHold() {
+        heldForConsent = false
+    }
+
     func dismiss() {
         openedForConsent = false
+        heldForConsent = false
         if let outsideClick {
             NSEvent.removeMonitor(outsideClick)
             self.outsideClick = nil
@@ -114,7 +131,7 @@ final class MenuPanel: NSPanel {
         super.resignKey()
         // A click on Deny makes the panel key; answering the Touch ID
         // afterwards must not take the answer's line away with it.
-        if !openedForConsent {
+        if !openedForConsent, !heldForConsent {
             dismiss()
         }
     }

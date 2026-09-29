@@ -35,8 +35,7 @@ extension StatusItemController {
         guard let request = ConsentRequest(event: event) else {
             return
         }
-        let ours = request.pid == ProcessInfo.processInfo.processIdentifier || request.pid.map(JitCLI.spawned.contains) == true
-        let handling = request.handling(ours: ours)
+        let handling = request.handling(ours: isOurs(request))
         switch handling {
         case .markShown:
             markShown(request.id)
@@ -70,6 +69,9 @@ extension StatusItemController {
         let beside = model.consentRequests.first { $0.id == id && $0.touchIDFollows }
         model.consentRequests.removeAll { $0.id == id }
         render()
+        if !model.consentRequests.contains(where: \.touchIDFollows) {
+            panel.releaseConsentHold()
+        }
         if let beside {
             model.consentOutcome = ConsentOutcome(
                 id: id, program: beside.program, launchedBy: beside.launchedBy,
@@ -89,14 +91,27 @@ extension StatusItemController {
     /// while no stream was open is only in `consent_list`. The sheet comes
     /// back for a request waiting on an answer. One beside its Touch ID is
     /// only listed and marked shown: this runs as the human opens the panel,
-    /// which must not then open itself.
+    /// which must not then open itself. The app's own request beside its
+    /// Touch ID is marked shown and never listed, as on arrival.
+    ///
+    /// It is also how an outcome the stream missed (a lag, a reconnect) is
+    /// noticed: the request is simply gone. A panel the app opened for it
+    /// then closes, instead of floating with nothing to answer.
     func syncConsentRequests() {
-        let waiting = ((try? client.consentList()) ?? []).compactMap(ConsentRequest.init(event:))
+        let listed = ((try? client.consentList()) ?? []).compactMap(ConsentRequest.init(event:))
+        let waiting = listed.filter { !($0.touchIDFollows && isOurs($0)) }
         model.consentRequests = waiting
         render()
-        for request in waiting where request.touchIDFollows {
+        for request in listed where request.touchIDFollows {
             markShown(request.id)
         }
+        if !waiting.contains(where: \.touchIDFollows) {
+            panel.releaseConsentHold()
+            if panel.openedForConsent, model.consentOutcome == nil {
+                panel.dismiss()
+            }
+        }
+        refitSoon()
         if waiting.contains(where: { !$0.touchIDFollows }) {
             consentWindow.present()
         } else {
@@ -122,6 +137,12 @@ extension StatusItemController {
 
     /// On the next turn of the run loop, once the panel's content has taken
     /// the request in, so the panel opens at the size that fits it.
+    /// A request from this app, or from a jit it started for a click: a
+    /// dialog in the app already explained it.
+    private func isOurs(_ request: ConsentRequest) -> Bool {
+        request.pid == ProcessInfo.processInfo.processIdentifier || request.pid.map(JitCLI.spawned.contains) == true
+    }
+
     private func showBeside() {
         DispatchQueue.main.async { [weak self] in
             guard let self, let button = item.button else {

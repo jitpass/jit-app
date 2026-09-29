@@ -14,7 +14,9 @@ struct ConsentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            if let request = model.consentRequests.first {
+            // Only requests waiting for this answer: one beside its Touch ID
+            // is the panel's, and an Allow here would do nothing for it.
+            if let request = asking.first {
                 content(request)
             } else {
                 Text("No request is waiting.").foregroundStyle(.secondary)
@@ -26,13 +28,17 @@ struct ConsentView: View {
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
     }
 
+    private var asking: [ConsentRequest] {
+        model.consentRequests.filter { !$0.touchIDFollows }
+    }
+
     @ViewBuilder
     private func content(_ request: ConsentRequest) -> some View {
         if request.isJobRun {
             JobRunConsent(
                 request: request,
                 job: model.jobs.first { $0.name == request.job },
-                count: model.consentRequests.count,
+                count: asking.count,
                 actions: actions
             )
         } else {
@@ -65,8 +71,8 @@ struct ConsentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer()
-            if model.consentRequests.count > 1 {
-                Text("1 of \(model.consentRequests.count)").font(.caption).foregroundStyle(.secondary)
+            if asking.count > 1 {
+                Text("1 of \(asking.count)").font(.caption).foregroundStyle(.secondary)
             }
         }
     }

@@ -37,6 +37,19 @@ extension Format {
 
     static let askingAllows = "Touch ID allows it."
 
+    /// The block's labels, as the sheet had them. Runs and Secrets are a
+    /// job's run; Asked by names who ran the job.
+    enum AskingLabel {
+        static let command = "Command"
+        static let launchedBy = "Launched by"
+        static let identified = "Identified"
+        static let asked = "Asked"
+        static let runs = "Runs"
+        static let secrets = "Secrets"
+        static let askedBy = "Asked by"
+        static let deny = "Deny"
+    }
+
     /// The line that replaces the block once the Touch ID is answered.
     static func outcomeTitle(_ outcome: ConsentOutcome) -> String {
         (outcome.allowed ? "Allowed " : "Denied ") + outcome.program

@@ -43,7 +43,7 @@ struct AskingBlock: View {
             HStack(spacing: Design.Space.four) {
                 Text(Format.askingAllows).font(Design.Text.cardNote)
                 Spacer()
-                Button("Deny") { deny(request.id) }.buttonStyle(AppButton(kind: .secondary))
+                Button(Format.AskingLabel.deny) { deny(request.id) }.buttonStyle(AppButton(kind: .secondary))
             }
         }
         // No card: the mockup's block sits at the panel's own inset, the
@@ -56,35 +56,35 @@ struct AskingBlock: View {
     @ViewBuilder
     private var credentialFacts: some View {
         if let command = request.command {
-            fact("Command") {
+            fact(Format.AskingLabel.command) {
                 // Three lines, then it scrolls, so Deny never leaves the
                 // panel; it says so when there is more.
                 CappedText(text: command, font: Design.Text.commandSmall, lines: 3, saysMore: true)
             }
         }
         if let launchedBy = request.launchedBy {
-            fact("Launched by") { Text(launchedBy) }
+            fact(Format.AskingLabel.launchedBy) { Text(launchedBy) }
         }
         identified
-        fact("Asked") { Text(Format.clock(request.date)) }
+        fact(Format.AskingLabel.asked) { Text(Format.clock(request.date)) }
     }
 
     @ViewBuilder
     private var jobFacts: some View {
         if let job {
-            fact("Runs") {
+            fact(Format.AskingLabel.runs) {
                 CappedText(text: JobDraft.join(job.argv), font: Design.Text.commandSmall, lines: 3, saysMore: true)
                 Text(Format.jobRunFolder(job)).foregroundStyle(.secondary)
             }
-            fact("Secrets") { Text(Format.jobRunSecrets(job)).foregroundStyle(.secondary) }
+            fact(Format.AskingLabel.secrets) { Text(Format.jobRunSecrets(job)).foregroundStyle(.secondary) }
         }
-        fact("Asked by") { Text(request.launchedBy ?? request.program) }
+        fact(Format.AskingLabel.askedBy) { Text(request.launchedBy ?? request.program) }
         identified
     }
 
     /// A weak identity reads as weak, in the sheet's exact words and amber.
     private var identified: some View {
-        fact("Identified") {
+        fact(Format.AskingLabel.identified) {
             Text(Format.askingIdentified(request))
                 .foregroundStyle(request.identifiedByScan ? Color(StatusMark.amber) : .primary)
         }
@@ -92,6 +92,8 @@ struct AskingBlock: View {
 
     private func fact(_ label: String, @ViewBuilder _ value: () -> some View) -> some View {
         HStack(alignment: .top, spacing: Design.Space.four) {
+            // 76pt: the design system's jp-ask grid key column (bundle.css),
+            // the sheet's 90 narrowed to the panel's 300pt width.
             Text(label).foregroundStyle(.secondary).frame(width: 76, alignment: .trailing)
             VStack(alignment: .leading, spacing: Design.Space.two) { value() }
                 .fixedSize(horizontal: false, vertical: true)

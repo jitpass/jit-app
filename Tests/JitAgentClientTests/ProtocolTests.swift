@@ -63,6 +63,20 @@ final class ProtocolTests: XCTestCase {
         XCTAssertNil(obj["min_protocol"])
     }
 
+    /// The wire names jit reads (agent/protocol.go), checked on the encoded
+    /// bytes: a round trip through the same CodingKeys would pass a typo.
+    func testBesideTouchIDEncodesJitsNames() throws {
+        let subscribe = try JSONEncoder().encode(AgentRequest(op: .subscribe, broker: true, touchIDFollows: true))
+        let sub = try XCTUnwrap(JSONSerialization.jsonObject(with: subscribe) as? [String: Any])
+        XCTAssertEqual(sub["op"] as? String, "subscribe")
+        XCTAssertEqual(sub["touch_id_follows"] as? Bool, true)
+        let shown = try JSONEncoder().encode(AgentRequest(op: .consentShown, consentID: "ab12"))
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: shown) as? [String: Any])
+        XCTAssertEqual(obj["op"] as? String, "consent_shown")
+        XCTAssertEqual(obj["consent_id"] as? String, "ab12")
+        XCTAssertNil(obj["decision"], "consent_shown carries no answer")
+    }
+
     func testGrantCreateEncodesEveryField() throws {
         let request = AgentRequest(
             op: .grantCreate,

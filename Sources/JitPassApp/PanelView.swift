@@ -81,14 +81,14 @@ struct PanelView: View {
             // A request shown beside its Touch ID sits on top, where the
             // question comes first; once answered, one line says how it
             // ended, in the same place.
-            if let request = model.consentRequests.first, request.touchIDFollows {
+            if let request = model.consentRequests.first(where: \.touchIDFollows) {
                 AskingBlock(request: request, job: model.jobs.first { $0.name == request.job }, deny: actions.denyConsent)
             } else if model.consentRequests.isEmpty, let outcome = model.consentOutcome {
                 ConsentOutcomeRow(outcome: outcome)
             }
 
             VStack(spacing: 0) {
-                if let request = model.consentRequests.first, !request.touchIDFollows {
+                if let request = model.consentRequests.first(where: { !$0.touchIDFollows }) {
                     Button(action: actions.openConsent) {
                         row("hand.raised", "Asking", "\(request.program) · answer", dot: Color(StatusMark.amber))
                             .contentShape(Rectangle())
@@ -199,7 +199,8 @@ struct PanelView: View {
     /// While a request waits, the header says so and the session state moves
     /// to the second line, so nothing is lost and the question comes first.
     private var header: some View {
-        let asking = model.consentRequests.first
+        // A request beside its Touch ID leads: that dialog is up now.
+        let asking = model.consentRequests.first(where: \.touchIDFollows) ?? model.consentRequests.first
         return HStack(spacing: 10) {
             StatusMarkView(state: model.state, asking: asking != nil, size: 34)
             VStack(alignment: .leading, spacing: 2) {
