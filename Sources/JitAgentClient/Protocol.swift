@@ -73,13 +73,18 @@ public struct AgentRequest: Codable, Sendable {
     public var jobName: String?
     public var jobSpec: JobSpec?
     public var proposalID: String?
+    /// `subscribe`: this app shows the human what an AI tool proposes, so
+    /// the stream carries each `job_proposal`, and `job_request` is accepted
+    /// while it is open (jitpass/jit#201). It is never asked about a prompt.
+    /// An agent that predates it ignores the field and refuses proposals.
+    public var showsProposals: Bool?
 
     public init(
         op: AgentOp, minProtocol: Int? = nil, grantID: String? = nil,
         targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil,
         grantName: String? = nil, anchorExplicit: Bool? = nil,
         grantProfileRoots: [GrantProfile]? = nil, standing: Bool? = nil,
-        jobName: String? = nil, jobSpec: JobSpec? = nil, proposalID: String? = nil
+        jobName: String? = nil, jobSpec: JobSpec? = nil, proposalID: String? = nil, showsProposals: Bool? = nil
     ) {
         self.op = op
         self.minProtocol = minProtocol
@@ -95,6 +100,7 @@ public struct AgentRequest: Codable, Sendable {
         self.jobName = jobName
         self.jobSpec = jobSpec
         self.proposalID = proposalID
+        self.showsProposals = showsProposals
     }
 
     enum CodingKeys: String, CodingKey {
@@ -112,6 +118,7 @@ public struct AgentRequest: Codable, Sendable {
         case jobName = "job_name"
         case jobSpec = "job_spec"
         case proposalID = "proposal_id"
+        case showsProposals = "shows_proposals"
     }
 }
 

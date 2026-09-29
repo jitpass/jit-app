@@ -72,7 +72,11 @@ public struct AgentClient: Sendable {
     /// re-syncing from `history()`, since anything recorded in the gap is
     /// only there. No timeout is applied to the stream itself: silence is
     /// the normal state of an idle session.
+    ///
+    /// `showsProposals` is for the app that shows AI job proposals: the
+    /// stream also carries each `job_proposal`.
     public func subscribe(
+        showsProposals: Bool = false,
         onEvent: @escaping @Sendable (SessionEvent) -> Void,
         onEnd: @escaping @Sendable (Error?) -> Void
     ) -> Subscription {
@@ -82,7 +86,7 @@ public struct AgentClient: Sendable {
                 let fd = try connect(timeout: nil)
                 defer { close(fd) }
                 subscription.attach(fd)
-                var payload = try JSONEncoder().encode(AgentRequest(op: .subscribe))
+                var payload = try JSONEncoder().encode(AgentRequest(op: .subscribe, showsProposals: showsProposals ? true : nil))
                 payload.append(0x0A)
                 try UnixSocket.writeAll(fd, payload)
                 let decoder = JSONDecoder()

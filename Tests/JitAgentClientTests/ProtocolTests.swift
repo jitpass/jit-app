@@ -63,6 +63,19 @@ final class ProtocolTests: XCTestCase {
         XCTAssertNil(obj["min_protocol"])
     }
 
+    /// The wire name jit reads (agent/protocol.go), on the encoded bytes: a
+    /// round trip through the same CodingKeys would pass a typo. Absent
+    /// unless asked for.
+    func testShowsProposalsEncodesJitsName() throws {
+        let asked = try JSONEncoder().encode(AgentRequest(op: .subscribe, showsProposals: true))
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: asked) as? [String: Any])
+        XCTAssertEqual(obj["op"] as? String, "subscribe")
+        XCTAssertEqual(obj["shows_proposals"] as? Bool, true)
+        let plain = try JSONEncoder().encode(AgentRequest(op: .subscribe))
+        let none = try XCTUnwrap(JSONSerialization.jsonObject(with: plain) as? [String: Any])
+        XCTAssertNil(none["shows_proposals"])
+    }
+
     func testGrantCreateEncodesEveryField() throws {
         let request = AgentRequest(
             op: .grantCreate,

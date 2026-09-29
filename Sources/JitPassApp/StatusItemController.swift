@@ -196,6 +196,7 @@ final class StatusItemController {
     private func openStream() {
         stream?.cancel()
         stream = client.subscribe(
+            showsProposals: true,
             onEvent: { [weak self] event in
                 Task { @MainActor in self?.apply(event) }
             },
