@@ -55,6 +55,17 @@ final class ScanReviewTests: XCTestCase {
         XCTAssertEqual(ScanReview.marked(r.findings, by: result).map(\.id), ["b", "c"])
     }
 
+    /// A row that moved since the scan comes back as missed, and stays: jit
+    /// marked the rest instead of failing them all.
+    func testARowThatMovedIsMissedAndStays() throws {
+        let r = try report([line("a", path: "/u/x.go", line: 1), line("b", path: "/u/x.go", line: 9)])
+        let answer = #"{"reviewed":[{"id":"m1","path":"/u/x.go","line":1,"finding_type":"exposed_secret","label":"k","reviewed_at":1}],"#
+            + #""missed":["~/x.go:9"]}"#
+        let result = try JSONDecoder().decode(ScanReviewResult.self, from: Data(answer.utf8))
+        XCTAssertEqual(result.missed, ["~/x.go:9"])
+        XCTAssertEqual(ScanReview.marked(r.findings, by: result).map(\.id), ["a"])
+    }
+
     func testOnlyFixturesAndFindingsOnlyYouCanFixAreReviewable() throws {
         let r = try report([
             line("fixture", path: "/u/x_test.go", line: 1),

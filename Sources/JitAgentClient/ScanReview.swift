@@ -44,11 +44,13 @@ public struct ScanReviewEntry: Codable, Sendable, Equatable, Identifiable {
 
 /// What `jit review|unreview --format json` answers. `skipped` counts the
 /// findings on the named lines that could not be marked (a copy of a
-/// secret jit holds, one Protect can fix).
+/// secret jit holds, one Protect can fix). `missed` is each `FILE[:LINE]`
+/// the rescan found nothing on: it changed since the scan listed it.
 public struct ScanReviewResult: Decodable, Sendable, Equatable {
     public var reviewed: [ScanReviewEntry]?
     public var unreviewed: [ScanReviewEntry]?
     public var skipped: Int?
+    public var missed: [String]?
 }
 
 public enum ScanReview {
