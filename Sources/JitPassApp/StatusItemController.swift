@@ -202,11 +202,16 @@ final class StatusItemController {
         render()
     }
 
+    /// A plain stream, not a broker's. The Touch ID dialog is the whole
+    /// question: it says what is asked and who asked, and it is where the
+    /// human answers (Meni, 2026-09-29: "lets keep this in the fingerprint
+    /// popup"). With no broker connected the service raises it at once and
+    /// waits for nobody, so no sheet, panel block or Deny of this app's
+    /// stands beside it. The consent views stay in the code, unreachable,
+    /// until the design has settled.
     private func openStream() {
         stream?.cancel()
         stream = client.subscribe(
-            broker: true,
-            besideTouchID: true,
             onEvent: { [weak self] event in
                 Task { @MainActor in self?.apply(event) }
             },
