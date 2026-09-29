@@ -31,6 +31,10 @@ public enum AgentOp: String, Codable, Sendable, CaseIterable {
     /// agent go on to its own Touch ID; a deny refuses without one.
     case consentList = "consent_list"
     case consentAnswer = "consent_answer"
+    /// A request marked `touchIDFollows` is on screen beside its Touch ID
+    /// (jitpass/jit#200): the agent then raises the dialog without waiting
+    /// out its quarter second. It grants nothing.
+    case consentShown = "consent_shown"
     /// AI Jobs (jit design/agent-jobs.md): a command the human approves, run
     /// by the service for any caller, with the output returned and the secret
     /// values hidden. `job_list`, `job_preview`, `job_proposals` and
@@ -82,6 +86,10 @@ public struct AgentRequest: Codable, Sendable {
     /// `subscribe`: this stream will answer consent requests. Ignored by an
     /// agent that predates brokering, whose stream then never carries one.
     public var broker: Bool?
+    /// `subscribe`, with `broker`: this app shows each request beside its
+    /// Touch ID and never answers allow. An agent that predates it ignores
+    /// the field, and its requests arrive without `touchIDFollows`.
+    public var touchIDFollows: Bool?
     /// `consent_answer`: which pending request, and the answer.
     public var consentID: String?
     public var decision: ConsentDecision?
@@ -98,7 +106,7 @@ public struct AgentRequest: Codable, Sendable {
         targetPID: Int32? = nil, grantProfiles: [String]? = nil, projectRoot: String? = nil, ttlSeconds: Int64? = nil,
         grantName: String? = nil, anchorExplicit: Bool? = nil,
         grantProfileRoots: [GrantProfile]? = nil, standing: Bool? = nil,
-        broker: Bool? = nil, consentID: String? = nil, decision: ConsentDecision? = nil,
+        broker: Bool? = nil, touchIDFollows: Bool? = nil, consentID: String? = nil, decision: ConsentDecision? = nil,
         jobName: String? = nil, jobSpec: JobSpec? = nil, proposalID: String? = nil
     ) {
         self.op = op
@@ -113,6 +121,7 @@ public struct AgentRequest: Codable, Sendable {
         self.grantProfileRoots = grantProfileRoots
         self.standing = standing
         self.broker = broker
+        self.touchIDFollows = touchIDFollows
         self.consentID = consentID
         self.decision = decision
         self.jobName = jobName
@@ -133,6 +142,7 @@ public struct AgentRequest: Codable, Sendable {
         case grantProfileRoots = "grant_profile_roots"
         case standing
         case broker
+        case touchIDFollows = "touch_id_follows"
         case consentID = "consent_id"
         case decision
         case jobName = "job_name"
@@ -160,6 +170,10 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     /// Links a brokered challenge's `pending` event to the `approved` or
     /// `denied` that answers it.
     public var consentID: String?
+    /// On a `pending` event: its Touch ID is appearing now and no allow is
+    /// awaited, so the request is shown beside the dialog with Deny only.
+    /// Absent from an agent that still waits for the answer first.
+    public var touchIDFollows: Bool?
     /// On a serve: the reader was gone before anything was written, so it
     /// received nothing. The verdict in `op` is what it would have got.
     public var undelivered: Bool?
@@ -177,7 +191,8 @@ public struct SessionEvent: Codable, Sendable, Equatable {
     public init(
         unixTime: Int64, kind: String, op: String? = nil, by: String? = nil, byPID: Int32? = nil, byLikely: Bool? = nil,
         launchedBy: String? = nil, cause: String? = nil, labels: [String]? = nil, count: Int? = nil, consentID: String? = nil,
-        undelivered: Bool? = nil, job: String? = nil, jobOutcome: String? = nil, expected: Bool? = nil
+        undelivered: Bool? = nil, job: String? = nil, jobOutcome: String? = nil, expected: Bool? = nil,
+        touchIDFollows: Bool? = nil
     ) {
         self.unixTime = unixTime
         self.kind = kind
@@ -194,6 +209,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         self.job = job
         self.jobOutcome = jobOutcome
         self.expected = expected
+        self.touchIDFollows = touchIDFollows
     }
 
     enum CodingKeys: String, CodingKey {
@@ -204,6 +220,7 @@ public struct SessionEvent: Codable, Sendable, Equatable {
         case launchedBy = "launched_by"
         case cause, labels, count
         case consentID = "consent_id"
+        case touchIDFollows = "touch_id_follows"
         case undelivered, job
         case jobOutcome = "job_outcome"
         case expected

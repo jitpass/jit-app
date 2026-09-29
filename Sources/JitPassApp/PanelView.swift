@@ -78,8 +78,17 @@ struct PanelView: View {
                 .padding(.top, 12)
                 .padding(.bottom, 8)
 
+            // A request shown beside its Touch ID sits on top, where the
+            // question comes first; once answered, one line says how it
+            // ended, in the same place.
+            if let request = model.consentRequests.first, request.touchIDFollows {
+                AskingBlock(request: request, job: model.jobs.first { $0.name == request.job }, deny: actions.denyConsent)
+            } else if model.consentRequests.isEmpty, let outcome = model.consentOutcome {
+                ConsentOutcomeRow(outcome: outcome)
+            }
+
             VStack(spacing: 0) {
-                if let request = model.consentRequests.first {
+                if let request = model.consentRequests.first, !request.touchIDFollows {
                     Button(action: actions.openConsent) {
                         row("hand.raised", "Asking", "\(request.program) · answer", dot: Color(StatusMark.amber))
                             .contentShape(Rectangle())
@@ -194,7 +203,11 @@ struct PanelView: View {
         return HStack(spacing: 10) {
             StatusMarkView(state: model.state, asking: asking != nil, size: 34)
             VStack(alignment: .leading, spacing: 2) {
-                if let asking {
+                if let asking, asking.touchIDFollows {
+                    Text("Asking").font(.system(size: 15, weight: .bold))
+                    Text(Format.askingSub(count: model.consentRequests.count))
+                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                } else if let asking {
                     Text("Asking").font(.system(size: 15, weight: .bold))
                     Text("\(asking.program) · \(model.state.headline.lowercased()) · \(model.state.detail)")
                         .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
@@ -294,6 +307,7 @@ struct PanelActions {
     var openDecoys: () -> Void = {}
     var openSettings: () -> Void = {}
     var openConsent: () -> Void = {}
+    var denyConsent: (String) -> Void = { _ in }
     var about: () -> Void = {}
     var installUpdate: () -> Void = {}
     var continueSetup: () -> Void = {}

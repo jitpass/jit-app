@@ -53,6 +53,26 @@ final class SubscribeTests: XCTestCase {
         XCTAssertEqual(sent.value, [true])
     }
 
+    /// Only a broker can show requests beside the Touch ID; the flag never
+    /// rides a plain stream, and never rides unasked.
+    func testBesideTouchIDRidesOnlyABrokersSubscribe() throws {
+        let sent = Locked<[Bool?]>([])
+        let server = try FakeAgent(path: path, stream: []) { request in
+            sent.append(request.touchIDFollows)
+            return self.ack
+        }
+        defer { server.stop() }
+        for (broker, beside) in [(true, true), (true, false), (false, true)] {
+            let ended = expectation(description: "onEnd")
+            let sub = AgentClient(socketPath: path).subscribe(
+                broker: broker, besideTouchID: beside, onEvent: { _ in }, onEnd: { _ in ended.fulfill() }
+            )
+            wait(for: [ended], timeout: 5)
+            sub.cancel()
+        }
+        XCTAssertEqual(sent.value, [true, nil, nil])
+    }
+
     func testRefusalSurfacesAsAnError() throws {
         let server = try FakeAgent(path: path) { _ in #"{"ok":false,"error":"subscribe: this request needs agent protocol 9"}"# }
         defer { server.stop() }

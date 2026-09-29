@@ -78,8 +78,15 @@ public struct AgentClient: Sendable {
     /// until it answers with `answerConsent` or the agent's ninety seconds
     /// run out: a broker that shows nothing turns every prompt into a
     /// refusal, so only subscribe this way from code that renders each one.
+    ///
+    /// `besideTouchID` (with `broker`) says this app shows each request
+    /// beside its Touch ID: a `pending` event carrying `touchIDFollows` does
+    /// not wait for an allow, and is answered with `consentShown` once drawn
+    /// and `answerConsent(allow: false)` for Deny. One without the flag came
+    /// from an older agent and still waits for `answerConsent`.
     public func subscribe(
         broker: Bool = false,
+        besideTouchID: Bool = false,
         onEvent: @escaping @Sendable (SessionEvent) -> Void,
         onEnd: @escaping @Sendable (Error?) -> Void
     ) -> Subscription {
@@ -89,7 +96,9 @@ public struct AgentClient: Sendable {
                 let fd = try connect(timeout: nil)
                 defer { close(fd) }
                 subscription.attach(fd)
-                var payload = try JSONEncoder().encode(AgentRequest(op: .subscribe, broker: broker ? true : nil))
+                var payload = try JSONEncoder().encode(AgentRequest(
+                    op: .subscribe, broker: broker ? true : nil, touchIDFollows: broker && besideTouchID ? true : nil
+                ))
                 payload.append(0x0A)
                 try UnixSocket.writeAll(fd, payload)
                 let decoder = JSONDecoder()
@@ -194,6 +203,12 @@ public extension AgentClient {
     /// the Touch ID that follows an allow is the agent's, not this call's.
     func answerConsent(id: String, allow: Bool) throws {
         _ = try send(AgentRequest(op: .consentAnswer, consentID: id, decision: allow ? .allow : .deny))
+    }
+
+    /// Tells the agent a `touchIDFollows` request is drawn, so its Touch ID
+    /// appears without waiting any longer. It grants nothing.
+    func consentShown(id: String) throws {
+        _ = try send(AgentRequest(op: .consentShown, consentID: id))
     }
 
     /// The legacy pair an agent older than per-folder profiles reads: the

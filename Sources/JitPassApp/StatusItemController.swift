@@ -206,6 +206,7 @@ final class StatusItemController {
         stream?.cancel()
         stream = client.subscribe(
             broker: true,
+            besideTouchID: true,
             onEvent: { [weak self] event in
                 Task { @MainActor in self?.apply(event) }
             },
@@ -240,8 +241,8 @@ final class StatusItemController {
         if event.kind == "error", event.op == SessionEvent.jobRunOp {
             noteJobStop(event)
         }
-        if let consentID = event.consentID {
-            resolve(consentID: consentID)
+        if event.consentID != nil {
+            resolve(event)
         }
         model.lastEvent = event
         model.grants = (try? client.grants()) ?? []

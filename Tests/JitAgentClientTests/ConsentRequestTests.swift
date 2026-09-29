@@ -25,6 +25,36 @@ final class ConsentRequestTests: XCTestCase {
         XCTAssertTrue(request.purpose.hasPrefix("use a credential"))
     }
 
+    /// The agent's flag, read as it says: beside the Touch ID only when set,
+    /// so an older agent's request still gets the sheet.
+    func testTouchIDFollowsIsReadFromTheAgent() throws {
+        XCTAssertFalse(try XCTUnwrap(ConsentRequest(event: pending())).touchIDFollows)
+        XCTAssertTrue(try XCTUnwrap(ConsentRequest(event: pending(#","touch_id_follows":true"#))).touchIDFollows)
+        XCTAssertFalse(try XCTUnwrap(ConsentRequest(event: pending(#","touch_id_follows":false"#))).touchIDFollows)
+    }
+
+    /// The app's own request beside a Touch ID is only marked shown, never
+    /// put in the panel and never allowed; an older agent's request still
+    /// gets the sheet, or the allow the app has always given its own.
+    func testHandlingFollowsTheAgentsModeAndWhoAsked() throws {
+        let beside = try XCTUnwrap(ConsentRequest(event: pending(#","touch_id_follows":true"#)))
+        let first = try XCTUnwrap(ConsentRequest(event: pending()))
+        XCTAssertEqual(beside.handling(ours: true), .markShown)
+        XCTAssertEqual(beside.handling(ours: false), .showBeside)
+        XCTAssertEqual(first.handling(ours: true), .allow)
+        XCTAssertEqual(first.handling(ours: false), .showSheet)
+    }
+
+    /// Allowed only by an approval or the unlock it ends in; a denial, and
+    /// anything the app does not know, says Denied.
+    func testTheOutcomeIsReadFromTheAgentsKind() throws {
+        var event = try pending()
+        for (kind, allowed) in [("approved", true), ("unlock", true), ("denied", false), ("error", false)] {
+            event.kind = kind
+            XCTAssertEqual(ConsentRequest.allowed(by: event), allowed, kind)
+        }
+    }
+
     func testOnlyAPendingEventWithAnIDIsARequest() throws {
         var event = try pending()
         event.kind = "approved"
