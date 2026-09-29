@@ -20,6 +20,8 @@ final class MenuPanel: NSPanel {
     /// key must not take Deny and the explanation away while it is up. The
     /// controller releases it when no such request is left.
     private(set) var heldForConsent = false
+    /// Called whenever the panel closes, however it closed.
+    var onDismiss: (() -> Void)?
 
     init(content: some View) {
         super.init(
@@ -117,9 +119,16 @@ final class MenuPanel: NSPanel {
         heldForConsent = false
     }
 
+    /// The human opened the whole panel while a request is beside the Touch
+    /// ID: it stays through a click on the dialog, as the popup does.
+    func holdForConsent() {
+        heldForConsent = true
+    }
+
     func dismiss() {
         openedForConsent = false
         heldForConsent = false
+        onDismiss?()
         if let outsideClick {
             NSEvent.removeMonitor(outsideClick)
             self.outsideClick = nil

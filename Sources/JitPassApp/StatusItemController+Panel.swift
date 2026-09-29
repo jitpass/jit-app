@@ -26,6 +26,9 @@ extension StatusItemController {
             openSettings: { [weak self] in self?.openSettings() },
             openConsent: { [weak self] in self?.openConsent() },
             denyConsent: { [weak self] id in self?.denyBeside(id) },
+            refitPanel: { [weak self] in
+                DispatchQueue.main.async { self?.panel.refit() }
+            },
             about: { [weak self] in self?.showAbout() },
             installUpdate: { [weak self] in self?.installUpdate() },
             continueSetup: { [weak self] in self?.continueSetup() },

@@ -37,6 +37,28 @@ extension Format {
 
     static let askingAllows = "Touch ID allows it."
 
+    // MARK: The small popup the panel shrinks to when a request opens it
+
+    /// "terraform asks to use a credential and unlock the vault": the kind of
+    /// authority only; the Touch ID dialog beside it says the rest.
+    static func popupTitle(_ request: ConsentRequest) -> String {
+        request.isJobRun ? jobRunTitle(request) : "\(request.program) asks to \(request.shortPurpose)"
+    }
+
+    /// Who asked and how sure that is, in one line. A process scan reads
+    /// as weak, in amber at the call site.
+    static func popupWho(_ request: ConsentRequest) -> String {
+        let how = request.identifiedByScan ? "found by a process scan, not the kernel" : "identified by the kernel"
+        return request.launchedBy.map { "launched by \($0) · \(how)" } ?? how
+    }
+
+    static func popupRefusals(_ count: Int) -> String {
+        "Refused \(count) time\(count == 1 ? "" : "s") already this session."
+    }
+
+    static let popupDetails = "Details"
+    static let popupPID = "pid"
+
     /// The block's labels, as the sheet had them. Runs and Secrets are a
     /// job's run; Asked by names who ran the job.
     enum AskingLabel {

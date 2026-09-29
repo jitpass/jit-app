@@ -108,6 +108,15 @@ public struct ConsentRequest: Sendable, Equatable, Identifiable {
         }
     }
 
+    /// The purpose's first clause, for the small popup beside the Touch ID:
+    /// "use a credential and unlock the vault", "trust a program", "use a
+    /// credential once". The dialog beside it carries the whole sentence, so
+    /// the popup names the kind of authority and nothing more.
+    public var shortPurpose: String {
+        let head = purpose.split(separator: ":", maxSplits: 1).first.map(String.init) ?? purpose
+        return head.split(separator: ",", maxSplits: 1).first.map(String.init) ?? head
+    }
+
     /// The AI job a job prompt is about, and whether this is a job's run,
     /// which the app shows as that job's own sheet.
     public var job: String? {

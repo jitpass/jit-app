@@ -143,12 +143,40 @@ extension StatusItemController {
         request.pid == ProcessInfo.processInfo.processIdentifier || request.pid.map(JitCLI.spawned.contains) == true
     }
 
+    /// Before the menu bar icon toggles the panel: the popup the app opened
+    /// for a request gives way, so the click opens the whole panel in its
+    /// place, the request on top.
+    func closeConsentPopup() {
+        if panel.isVisible, model.consentPopup {
+            panel.dismiss()
+        }
+    }
+
+    /// After the icon toggled it: a whole panel opened while a request is
+    /// beside the Touch ID stays through a click on the dialog, and fits
+    /// its contents once SwiftUI has taken them in.
+    func panelToggled() {
+        if panel.isVisible, model.consentRequests.contains(where: \.touchIDFollows) {
+            panel.holdForConsent()
+        }
+        refitSoon()
+    }
+
+    /// A panel not already open opens as the small popup (AskingPopup); one
+    /// the human has open keeps its full contents and only refits.
     private func showBeside() {
         DispatchQueue.main.async { [weak self] in
             guard let self, let button = item.button else {
                 return
             }
-            panel.showBeside(under: button)
+            if !panel.isVisible {
+                model.consentPopup = true
+            }
+            // One more turn, so the panel is sized to the popup, not the
+            // full contents it last held.
+            DispatchQueue.main.async { [weak self] in
+                self?.panel.showBeside(under: button)
+            }
         }
     }
 
