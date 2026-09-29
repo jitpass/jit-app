@@ -13,9 +13,7 @@ struct PanelView: View {
     let actions: PanelActions
 
     var body: some View {
-        if model.consentPopup {
-            AskingPopup(model: model, deny: actions.denyConsent, resized: actions.refitPanel)
-        } else if model.showsSetup {
+        if model.showsSetup {
             setupBody
         } else {
             sessionBody
@@ -311,7 +309,6 @@ struct PanelActions {
     var openSettings: () -> Void = {}
     var openConsent: () -> Void = {}
     var denyConsent: (String) -> Void = { _ in }
-    var refitPanel: () -> Void = {}
     var about: () -> Void = {}
     var installUpdate: () -> Void = {}
     var continueSetup: () -> Void = {}

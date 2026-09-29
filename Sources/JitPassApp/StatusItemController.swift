@@ -159,7 +159,6 @@ final class StatusItemController {
         LoginShell.warm()
         item.button?.target = self
         item.button?.action = #selector(togglePanel)
-        panel.onDismiss = { [weak self] in self?.model.consentPopup = false }
         installNotifications()
         refreshDecoyReads()
         resync()
@@ -285,7 +284,6 @@ final class StatusItemController {
         guard let button = item.button else {
             return
         }
-        closeConsentPopup()
         if !panel.isVisible {
             hideReveal(reason: "panel opened")
             // Re-probed here, not only at launch: the grant is given in
@@ -298,7 +296,7 @@ final class StatusItemController {
             refreshScanIfDue()
         }
         panel.toggle(under: button)
-        panelToggled()
+        holdOpenPanel()
     }
 
     // MARK: - Actions (each is exactly one CLI-equivalent op)

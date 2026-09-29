@@ -10,18 +10,11 @@ import SwiftUI
 @MainActor
 final class MenuPanel: NSPanel {
     private var outsideClick: Any?
-    /// The panel opened itself for a request shown beside its Touch ID. It
-    /// then took no focus, closes no matter where the human clicks (the
-    /// Touch ID dialog, "Use Password…"), and is the only kind that closes
-    /// itself after the answer. A panel the human opened stays theirs.
-    private(set) var openedForConsent = false
-    /// A request is beside the Touch ID right now, whoever opened the panel:
-    /// a click on the dialog ("Use Password…", Cancel) or the dialog taking
-    /// key must not take Deny and the explanation away while it is up. The
-    /// controller releases it when no such request is left.
+    /// A request is beside the Touch ID right now and the human has the
+    /// panel open: a click on the dialog ("Use Password…", Cancel) or the
+    /// dialog taking key must not take Deny and the command line away while
+    /// it is up. The controller releases it when no such request is left.
     private(set) var heldForConsent = false
-    /// Called whenever the panel closes, however it closed.
-    var onDismiss: (() -> Void)?
 
     init(content: some View) {
         super.init(
@@ -57,8 +50,6 @@ final class MenuPanel: NSPanel {
         guard place(under: button) else {
             return
         }
-        openedForConsent = false
-        becomesKeyOnlyIfNeeded = false
         makeKeyAndOrderFront(nil)
         outsideClick = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             Task { @MainActor in
@@ -67,26 +58,6 @@ final class MenuPanel: NSPanel {
                 }
             }
         }
-    }
-
-    /// Opens the panel for a request shown beside its Touch ID, without
-    /// taking focus: the Touch ID stays the one thing to answer, and a click
-    /// on Deny still reaches the panel (the spike, jitpass/jit#197). Already
-    /// open, it only grows to fit the request.
-    func showBeside(under button: NSStatusBarButton) {
-        heldForConsent = true
-        if isVisible {
-            refit()
-            return
-        }
-        guard place(under: button) else {
-            return
-        }
-        openedForConsent = true
-        // Deny is a click, not a keystroke: the panel never needs to be key
-        // for it, so the Touch ID dialog keeps focus.
-        becomesKeyOnlyIfNeeded = true
-        orderFrontRegardless()
     }
 
     /// Resizes to the content, keeping the top right corner under the status
@@ -119,16 +90,14 @@ final class MenuPanel: NSPanel {
         heldForConsent = false
     }
 
-    /// The human opened the whole panel while a request is beside the Touch
-    /// ID: it stays through a click on the dialog, as the popup does.
+    /// The human has the panel open while a request is beside the Touch ID:
+    /// it stays through a click on the dialog.
     func holdForConsent() {
         heldForConsent = true
     }
 
     func dismiss() {
-        openedForConsent = false
         heldForConsent = false
-        onDismiss?()
         if let outsideClick {
             NSEvent.removeMonitor(outsideClick)
             self.outsideClick = nil
@@ -142,19 +111,18 @@ final class MenuPanel: NSPanel {
 
     override func resignKey() {
         super.resignKey()
-        // A click on Deny makes the panel key; answering the Touch ID
-        // afterwards must not take the answer's line away with it.
-        if !openedForConsent, !heldForConsent {
+        // The Touch ID dialog takes key when it appears or is clicked; a
+        // panel held for its request stays.
+        if !heldForConsent {
             dismiss()
         }
     }
 }
 
-/// The panel's content, taking the first click. A panel opened beside the
-/// Touch ID is not key, and the dialog keeps key; without this, macOS spends
-/// every click on Deny making the panel key and the button never sees one
-/// (found in test build 0.0.8: Deny did nothing). The spike's AppKit button
-/// never had the problem, which is why the spike passed.
+/// The panel's content, taking the first click. While the Touch ID dialog is
+/// up it holds key, not the panel; without this, macOS spends a click on
+/// Deny making the panel key and the button never sees it (found in test
+/// build 0.0.8: Deny did nothing).
 private final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
         true

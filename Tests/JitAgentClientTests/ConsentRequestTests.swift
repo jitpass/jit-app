@@ -55,20 +55,6 @@ final class ConsentRequestTests: XCTestCase {
         }
     }
 
-    /// The popup's title is the purpose up to its first clause: the kind of
-    /// authority, never cut mid-phrase, and never losing "unlock the vault".
-    func testShortPurposeIsTheFirstClause() throws {
-        var event = try pending()
-        XCTAssertEqual(ConsentRequest(event: event)?.shortPurpose, "use a credential once")
-        event.cause = "use your aws credential and unlock the vault for terraform, via claude"
-        XCTAssertEqual(ConsentRequest(event: event)?.shortPurpose, "use a credential and unlock the vault")
-        event.cause = "let jit and everything it launches reach your credentials without further prompts"
-        XCTAssertEqual(ConsentRequest(event: event)?.shortPurpose, "trust a program")
-        event.op = "grant_create"
-        event.cause = "let gh use dev until you revoke it"
-        XCTAssertEqual(ConsentRequest(event: event)?.shortPurpose, "create a grant")
-    }
-
     func testOnlyAPendingEventWithAnIDIsARequest() throws {
         var event = try pending()
         event.kind = "approved"

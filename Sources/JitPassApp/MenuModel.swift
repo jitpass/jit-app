@@ -19,8 +19,6 @@ final class MenuModel: ObservableObject {
     /// How the last request shown beside its Touch ID ended: said once in
     /// the Asking block's place, then cleared.
     @Published var consentOutcome: ConsentOutcome?
-    /// The panel opened itself for a request: it shows the small popup only.
-    @Published var consentPopup = false
     @Published var consentEnabled: Bool?
     @Published var ttlSeconds: Int64?
     @Published var cli: CLIStatus?

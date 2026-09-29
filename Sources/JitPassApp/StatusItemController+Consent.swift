@@ -9,14 +9,17 @@ import JitAgentClient
 ///
 /// An agent that knows this app shows requests beside the Touch ID marks
 /// them `touchIDFollows` (jitpass/jit#200): its Touch ID is appearing now,
-/// the menu bar panel opens beside it with the request on top, and the only
-/// answer the app can give is Deny, which takes the Touch ID down. An older
-/// agent still waits for the app's answer first, and gets the sheet: Allow
-/// only lets it show its own Touch ID; deny refuses without one. Either
-/// way the app never approves anything itself.
+/// and nothing of this app opens by itself. The Touch ID dialog says what is
+/// asked and is where the human answers (Meni, 2026-09-29, after the live
+/// test: first the whole panel opened beside it, then a small popup, and
+/// both were one thing too many). The menu bar mark turns amber, and the
+/// panel, when the human opens it, has the request on top with its command
+/// line and Deny, which takes the Touch ID down. An older agent still waits
+/// for the app's answer first, and gets the sheet: Allow only lets it show
+/// its own Touch ID; deny refuses without one. Either way the app never
+/// approves anything itself.
 extension StatusItemController {
-    /// How long the answer's line stays before the panel closes (D3 of the
-    /// plan), and only when the app opened the panel itself.
+    /// How long the answer's line stays in an open panel.
     static let outcomeHold: TimeInterval = 3
 
     var consentActions: ConsentActions {
@@ -28,9 +31,10 @@ extension StatusItemController {
 
     /// A `pending` event from the stream. This app's own requests (a grant
     /// it just asked for) and the jit processes it spawned for a click need
-    /// no explaining: a dialog here already did. Beside the Touch ID they
-    /// are only marked shown, so the dialog appears at once; an older agent
-    /// is answered allow, which still only leads to its Touch ID.
+    /// no explaining: a dialog here already did. Beside the Touch ID every
+    /// request is marked shown at once, so the dialog never waits for this
+    /// app, and the app's own are not listed; an older agent is answered
+    /// allow for them, which still only leads to its Touch ID.
     func receive(pending event: SessionEvent) {
         guard let request = ConsentRequest(event: event) else {
             return
@@ -48,8 +52,8 @@ extension StatusItemController {
             if handling == .showBeside {
                 model.consentOutcome = nil
                 render()
-                showBeside()
                 markShown(request.id)
+                holdOpenPanel()
             } else {
                 render()
                 consentWindow.present()
@@ -59,9 +63,9 @@ extension StatusItemController {
 
     /// An outcome for a request this app may still show: the agent answered
     /// it (the fingerprint, Deny, the dialog's Cancel, or its own timeout).
-    /// A request shown beside its Touch ID says how it ended, once, in the
-    /// block's place; a combined approval and unlock both carry its id, and
-    /// only the first says anything.
+    /// In an open panel, a request beside its Touch ID says how it ended,
+    /// once, in the block's place; a combined approval and unlock both carry
+    /// its id, and only the first says anything.
     func resolve(_ event: SessionEvent) {
         guard let id = event.consentID else {
             return
@@ -90,13 +94,12 @@ extension StatusItemController {
     /// Re-reads what is waiting, on every (re)connect: a request raised
     /// while no stream was open is only in `consent_list`. The sheet comes
     /// back for a request waiting on an answer. One beside its Touch ID is
-    /// only listed and marked shown: this runs as the human opens the panel,
-    /// which must not then open itself. The app's own request beside its
-    /// Touch ID is marked shown and never listed, as on arrival.
+    /// only listed and marked shown. The app's own request beside its Touch
+    /// ID is marked shown and never listed, as on arrival.
     ///
     /// It is also how an outcome the stream missed (a lag, a reconnect) is
-    /// noticed: the request is simply gone. A panel the app opened for it
-    /// then closes, instead of floating with nothing to answer.
+    /// noticed: the request is simply gone, and the panel closes on an
+    /// outside click again.
     func syncConsentRequests() {
         let listed = ((try? client.consentList()) ?? []).compactMap(ConsentRequest.init(event:))
         let waiting = listed.filter { !($0.touchIDFollows && isOurs($0)) }
@@ -107,9 +110,6 @@ extension StatusItemController {
         }
         if !waiting.contains(where: \.touchIDFollows) {
             panel.releaseConsentHold()
-            if panel.openedForConsent, model.consentOutcome == nil {
-                panel.dismiss()
-            }
         }
         refitSoon()
         if waiting.contains(where: { !$0.touchIDFollows }) {
@@ -135,49 +135,22 @@ extension StatusItemController {
         }
     }
 
-    /// On the next turn of the run loop, once the panel's content has taken
-    /// the request in, so the panel opens at the size that fits it.
     /// A request from this app, or from a jit it started for a click: a
     /// dialog in the app already explained it.
     private func isOurs(_ request: ConsentRequest) -> Bool {
         request.pid == ProcessInfo.processInfo.processIdentifier || request.pid.map(JitCLI.spawned.contains) == true
     }
 
-    /// Before the menu bar icon toggles the panel: the popup the app opened
-    /// for a request gives way, so the click opens the whole panel in its
-    /// place, the request on top.
-    func closeConsentPopup() {
-        if panel.isVisible, model.consentPopup {
-            panel.dismiss()
-        }
-    }
-
-    /// After the icon toggled it: a whole panel opened while a request is
-    /// beside the Touch ID stays through a click on the dialog, and fits
-    /// its contents once SwiftUI has taken them in.
-    func panelToggled() {
+    /// After the icon toggled the panel, and when a request arrives: a panel
+    /// the human has open while a request is beside the Touch ID stays
+    /// through a click on the dialog, so Deny and the command line do not
+    /// vanish with it, and fits its contents once SwiftUI has taken them in.
+    /// A closed panel stays closed.
+    func holdOpenPanel() {
         if panel.isVisible, model.consentRequests.contains(where: \.touchIDFollows) {
             panel.holdForConsent()
         }
         refitSoon()
-    }
-
-    /// A panel not already open opens as the small popup (AskingPopup); one
-    /// the human has open keeps its full contents and only refits.
-    private func showBeside() {
-        DispatchQueue.main.async { [weak self] in
-            guard let self, let button = item.button else {
-                return
-            }
-            if !panel.isVisible {
-                model.consentPopup = true
-            }
-            // One more turn, so the panel is sized to the popup, not the
-            // full contents it last held.
-            DispatchQueue.main.async { [weak self] in
-                self?.panel.showBeside(under: button)
-            }
-        }
     }
 
     private func refitSoon() {
@@ -186,33 +159,23 @@ extension StatusItemController {
         }
     }
 
-    /// Tells the agent the request is drawn, on the next turn of the run
-    /// loop, after the panel's frame has reached the window server. It grants
-    /// nothing; without it the Touch ID waits a quarter of a second.
+    /// Tells the agent not to wait for this app: its Touch ID appears at
+    /// once. It grants nothing; without it the dialog waits a quarter of a
+    /// second.
     private func markShown(_ id: String) {
         let client = client
-        DispatchQueue.main.async {
-            Task.detached {
-                try? client.consentShown(id: id)
-            }
+        Task.detached {
+            try? client.consentShown(id: id)
         }
     }
 
-    /// The answer's line has been said. The panel closes if the app opened
-    /// it and nothing new is asking; a panel the human opened stays.
+    /// The answer's line has been said.
     private func endOutcome(_ id: String) {
         guard model.consentOutcome?.id == id else {
             return
         }
         model.consentOutcome = nil
-        guard model.consentRequests.isEmpty else {
-            return
-        }
-        if panel.openedForConsent {
-            panel.dismiss()
-        } else {
-            refitSoon()
-        }
+        refitSoon()
     }
 
     private func answerConsent(_ id: String, allow: Bool) {
