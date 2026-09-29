@@ -50,10 +50,11 @@ tools alone, but `swift test` and `swiftlint` need Xcode's toolchain: if
   from `internal/agent/protocol.go` with snake_case coding keys. New fields
   are optional on decode so an older agent still renders.
 - **No decisions in the app.** Unlock triggers the agent's own challenge;
-  revoke is unauthenticated by design; consent brokering (phase 4) parks the
-  agent's request and returns the human's answer, nothing more.
+  revoke is unauthenticated by design; the app no longer brokers consent:
+  the Touch ID dialog is the whole question, and nothing of the app appears
+  for a request.
 - **Colour carries state, in jit's palette.** Green unlocked, red locked or
-  not running, amber a question. Values live in `StatusMark` only.
+  not running, amber something to look at or not yet set up. Values live in `StatusMark` only.
 - **Dependencies: none.** Foundation and AppKit. Adding a package needs the
   same justification jit's `TECH_STACK.md` §2 demands.
 

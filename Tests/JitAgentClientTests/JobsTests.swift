@@ -104,7 +104,6 @@ final class JobsTests: XCTestCase {
         )
         XCTAssertEqual(pending.op, SessionEvent.jobRunOp)
         XCTAssertEqual(pending.job, "notion-guests")
-        XCTAssertNotNil(ConsentRequest(event: pending), "a job run is brokered like any disclosed prompt")
         let offered = try decode(
             SessionEvent.self,
             JobsFixture.proposalEvent
@@ -157,15 +156,5 @@ final class JobsTests: XCTestCase {
         XCTAssertEqual(requests[2].proposalID, "c-1")
         XCTAssertEqual(requests[3].jobName, "notion-guests")
         XCTAssertEqual(requests[5].proposalID, "c-1")
-    }
-
-    /// The first Cowork run showed a job's run as "use a credential once,
-    /// remembered until the vault locks", which is false for a job.
-    func testJobRunPromptSaysThisRunOnly() throws {
-        let request = try XCTUnwrap(ConsentRequest(event: decode(SessionEvent.self, JobsFixture.pending)))
-        XCTAssertTrue(request.isJobRun)
-        XCTAssertEqual(request.job, "notion-guests")
-        XCTAssertFalse(request.purpose.contains("remembered"))
-        XCTAssertTrue(request.purpose.contains("asks again next time"))
     }
 }

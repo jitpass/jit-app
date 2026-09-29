@@ -79,22 +79,16 @@ final class CallerCommandTests: XCTestCase {
         XCTAssertNil(CallerCommand(nil))
     }
 
-    /// Audit titles, the panel, Decoys and consent all name the program
-    /// through it.
+    /// Audit titles, the panel and Decoys all name the program through it.
     func testEveryReaderUsesIt() {
         let event = SessionEvent(unixTime: 0, kind: "unlock", op: "unwrap", by: "/usr/local/bin/node /Users/x/proj/server.js")
         XCTAssertEqual(AuditReport.title(for: event), "unlocked by node /Users/x/proj/server.js")
         XCTAssertEqual(AuditReport.program("/Applications/Acme Studio.app/Contents/MacOS/acme"), "acme")
         XCTAssertEqual(
-            ConsentRequest(event: SessionEvent(
-                unixTime: 0,
-                kind: "pending",
-                // A helper in its own bundle, as Electron and Chrome lay them
-                // out. Off disk, a spaced name sitting straight in another
-                // bundle's MacOS cannot be told from "acme serve" by the text.
-                by: "/Applications/Acme.app/Contents/Frameworks/Acme Helper.app/Contents/MacOS/Acme Helper --type=x",
-                consentID: "c1"
-            ))?.program,
+            // A helper in its own bundle, as Electron and Chrome lay them
+            // out. Off disk, a spaced name sitting straight in another
+            // bundle's MacOS cannot be told from "acme serve" by the text.
+            CallerCommand("/Applications/Acme.app/Contents/Frameworks/Acme Helper.app/Contents/MacOS/Acme Helper --type=x")?.program,
             "Acme Helper"
         )
     }

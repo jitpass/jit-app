@@ -340,8 +340,7 @@ public extension SessionEvent {
     /// An agent's job proposal, streamed to the app; `consentID` carries the
     /// proposal's id and `job` its name.
     static let jobProposalKind = "job_proposal"
-    /// The ops of the prompts that are about an AI job.
-    static let jobAllowOp = "job_allow"
+    /// The op of a job's run, on the events that record one.
     static let jobRunOp = "job_run"
 }
 

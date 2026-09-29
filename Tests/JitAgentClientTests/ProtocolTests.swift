@@ -63,20 +63,6 @@ final class ProtocolTests: XCTestCase {
         XCTAssertNil(obj["min_protocol"])
     }
 
-    /// The wire names jit reads (agent/protocol.go), checked on the encoded
-    /// bytes: a round trip through the same CodingKeys would pass a typo.
-    func testBesideTouchIDEncodesJitsNames() throws {
-        let subscribe = try JSONEncoder().encode(AgentRequest(op: .subscribe, broker: true, touchIDFollows: true))
-        let sub = try XCTUnwrap(JSONSerialization.jsonObject(with: subscribe) as? [String: Any])
-        XCTAssertEqual(sub["op"] as? String, "subscribe")
-        XCTAssertEqual(sub["touch_id_follows"] as? Bool, true)
-        let shown = try JSONEncoder().encode(AgentRequest(op: .consentShown, consentID: "ab12"))
-        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: shown) as? [String: Any])
-        XCTAssertEqual(obj["op"] as? String, "consent_shown")
-        XCTAssertEqual(obj["consent_id"] as? String, "ab12")
-        XCTAssertNil(obj["decision"], "consent_shown carries no answer")
-    }
-
     func testGrantCreateEncodesEveryField() throws {
         let request = AgentRequest(
             op: .grantCreate,
@@ -152,16 +138,6 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(roots[0]["name"] as? String, "mcp-caido")
         XCTAssertEqual(roots[0]["root"] as? String, "/Users/me/Security-Ops")
         XCTAssertNil(roots[1]["root"], "a global profile sends no folder")
-    }
-
-    func testConsentAnswerEncodesIDAndDecision() throws {
-        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(AgentRequest(
-            op: .consentAnswer, consentID: "ab12", decision: .deny
-        ))) as? [String: Any])
-        XCTAssertEqual(json["op"] as? String, "consent_answer")
-        XCTAssertEqual(json["consent_id"] as? String, "ab12")
-        XCTAssertEqual(json["decision"] as? String, "deny")
-        XCTAssertNil(json["broker"])
     }
 
     func testEventDecodesTheBrokeringFields() throws {

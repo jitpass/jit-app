@@ -119,11 +119,10 @@ enum Design {
         static let sidebar: CGFloat = 200
     }
 
-    /// 500 the consent sheet, 520 any sheet whose content includes a path
-    /// (it must not wrap mid-word), 440 an alert. A question needing more
-    /// than 440 is a sheet; one needing a scroll is a window.
+    /// 520 any sheet whose content includes a path (it must not wrap
+    /// mid-word), 440 an alert. A question needing more than 440 is a
+    /// sheet; one needing a scroll is a window.
     enum Sheet {
-        static let consent: CGFloat = 500
         static let wide: CGFloat = 520
         static let alert: CGFloat = 440
         /// 260. The tallest a list inside a sheet grows before it scrolls:

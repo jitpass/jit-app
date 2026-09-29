@@ -115,19 +115,6 @@ final class StatusItemController {
     let offboarding = OffboardingModel()
     lazy var offboardingWindow = makeOffboardingWindow()
 
-    /// Floats above other windows: it appears in the middle of someone
-    /// else's work, and the program that asked is waiting on the answer.
-    lazy var consentWindow: ReportWindow = {
-        let window = ReportWindow(
-            title: "JitPass",
-            content: ConsentView(model: model, actions: consentActions),
-            size: NSSize(width: 500, height: 380),
-            minSize: NSSize(width: 500, height: 300)
-        )
-        window.level = .floating
-        return window
-    }()
-
     private var tick: Timer?
     var lastPoll = Date.distantPast
     var profilesGeneration = 0
@@ -191,12 +178,10 @@ final class StatusItemController {
             model.grants = (try? client.grants()) ?? []
             reloadJobs()
             model.lastEvent = (try? client.history())?.first
-            syncConsentRequests()
             render()
             return
         }
         model.grants = []
-        model.consentRequests = []
         model.jobs = []
         model.jobProposals = []
         render()
@@ -207,8 +192,7 @@ final class StatusItemController {
     /// human answers (Meni, 2026-09-29: "lets keep this in the fingerprint
     /// popup"). With no broker connected the service raises it at once and
     /// waits for nobody, so no sheet, panel block or Deny of this app's
-    /// stands beside it. The consent views stay in the code, unreachable,
-    /// until the design has settled.
+    /// stands beside it.
     private func openStream() {
         stream?.cancel()
         stream = client.subscribe(
@@ -225,11 +209,8 @@ final class StatusItemController {
     /// change, so this is where they are re-read. Grants are re-listed rather
     /// than patched: the agent is the record, and one round trip is cheap.
     private func apply(_ event: SessionEvent) {
+        // Only a broker is sent these, and this app is not one.
         if event.kind == "pending" {
-            if event.job != nil {
-                reloadJobs() // the job-run sheet shows that job's command and folder
-            }
-            receive(pending: event)
             return
         }
         // Live only: nothing was recorded, so grants and the tail stand.
@@ -245,9 +226,6 @@ final class StatusItemController {
         }
         if event.kind == "error", event.op == SessionEvent.jobRunOp {
             noteJobStop(event)
-        }
-        if event.consentID != nil {
-            resolve(event)
         }
         model.lastEvent = event
         model.grants = (try? client.grants()) ?? []
@@ -274,15 +252,12 @@ final class StatusItemController {
     // MARK: - Rendering
 
     /// The menu bar item itself: mark colour and tooltip. Re-run on every
-    /// state change and whenever a consent request arrives or resolves.
+    /// state change.
     func render() {
-        let asking = model.consentRequests.first
-        item.button?.image = StatusMark.image(for: model.state, asking: asking != nil, needsSetup: model.showsSetup)
+        item.button?.image = StatusMark.image(for: model.state, needsSetup: model.showsSetup)
         item.button?.imagePosition = .imageOnly
         item.button?.title = ""
-        item.button?.toolTip = StatusMark.tooltip(
-            for: model.state, asking: asking, needsSetup: model.needsSetup, needsRestore: model.needsRestore
-        )
+        item.button?.toolTip = StatusMark.tooltip(for: model.state, needsSetup: model.needsSetup, needsRestore: model.needsRestore)
     }
 
     @objc private func togglePanel() {
@@ -301,7 +276,6 @@ final class StatusItemController {
             refreshScanIfDue()
         }
         panel.toggle(under: button)
-        holdOpenPanel()
     }
 
     // MARK: - Actions (each is exactly one CLI-equivalent op)

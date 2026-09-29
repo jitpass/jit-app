@@ -15,27 +15,16 @@ enum StatusMark {
     /// terminal's cyan role.
     static let accent = NSColor(srgbRed: 0x7F / 255, green: 0xD4 / 255, blue: 0xFF / 255, alpha: 1)
 
-    /// `asking` is a consent request waiting for an answer: amber wins over
-    /// the session state for as long as it waits, because a question the
-    /// user has not seen is the one thing the mark must not hide.
-    static func color(for state: SessionState, asking: Bool = false) -> NSColor {
-        if asking {
-            return amber
-        }
+    static func color(for state: SessionState) -> NSColor {
         switch state {
-        case .unlocked: return green
-        case .locked, .notRunning: return red
+        case .unlocked: green
+        case .locked, .notRunning: red
         }
     }
 
     /// The tooltip on the menu bar item, which shows only the mark: its
     /// colour is the state, and this names it for anyone who hovers.
-    static func tooltip(
-        for state: SessionState, asking request: ConsentRequest? = nil, needsSetup: Bool = false, needsRestore: Bool = false
-    ) -> String {
-        if let request {
-            return "Asking · \(request.program) · \(request.headline)"
-        }
+    static func tooltip(for state: SessionState, needsSetup: Bool = false, needsRestore: Bool = false) -> String {
         if needsRestore {
             return "JitPass · vault cannot be opened"
         }
@@ -53,9 +42,9 @@ enum StatusMark {
     /// `needsSetup` draws the ring hollow and amber: the GUI twin of the
     /// terminal's `○`, "not yet". A Mac that was never set up is not a fault,
     /// so it must not be the red of a locked or stopped session.
-    static func image(for state: SessionState, asking: Bool = false, needsSetup: Bool = false, size: CGFloat = 16) -> NSImage {
+    static func image(for state: SessionState, needsSetup: Bool = false, size: CGFloat = 16) -> NSImage {
         let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-            if needsSetup, !asking {
+            if needsSetup {
                 amber.withAlphaComponent(0.16).setFill()
                 NSBezierPath(ovalIn: rect).fill()
                 let ring = NSBezierPath(ovalIn: rect.insetBy(dx: size * 0.25, dy: size * 0.25))
@@ -64,7 +53,7 @@ enum StatusMark {
                 ring.stroke()
                 return true
             }
-            let tint = color(for: state, asking: asking)
+            let tint = color(for: state)
             tint.withAlphaComponent(0.22).setFill()
             NSBezierPath(ovalIn: rect).fill()
             tint.setFill()
