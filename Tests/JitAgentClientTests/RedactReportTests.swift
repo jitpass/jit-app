@@ -38,6 +38,14 @@ final class RedactReportTests: XCTestCase {
         XCTAssertTrue(failed.title.hasPrefix("Redact did not finish · disk full · Redacted 2 tokens in 1 file"))
     }
 
+    /// A row's file that changed after the scan: jit says it couldn't read
+    /// it again, and the banner says why the row is still there.
+    func testOutcomeWhenTheFileChangedSinceTheScan() {
+        let outcome = ScanWording.redactOutcome(report(removed: [], left: [file("Claude Code", "transcripts", kind: "unreadable")]))
+        XCTAssertEqual(outcome.title, "1 left, it changed since the scan")
+        XCTAssertFalse(outcome.failed)
+    }
+
     func testParseAndNotice() throws {
         let doc = """
         {"files":[],"applied":true,"caches":{"removed":[{"agent":"Claude Code","area":"transcripts","path":"/h/a","copies":7}],

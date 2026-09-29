@@ -126,32 +126,61 @@ public extension ProfileRmPlan {
         )
     }
 
-    /// What goes, what stays, what was already gone.
+    /// What goes, what stays, what was already gone. A plain setting is
+    /// named as one: it is not a secret and has no history.
     private var secretsParts: [String] {
         let del = deleteSecrets.count
         let keep = keepSecrets.count
         let missing = missingSecrets.count
         var parts: [String] = []
         if del > 0 {
-            parts.append((del == 1
-                    ? "It deletes the profile and the secret nothing else uses, history and all:\n"
-                    : "It deletes the profile and the \(del) secrets nothing else uses, history and all:\n")
-                + deleteSecrets.joined(separator: "\n"))
+            let history = deleteSecrets.contains { !Self.isSetting($0) } ? ", history and all" : ""
+            let what = Self.entries(deleteSecrets)
+            let join = what.contains(" and ") ? ", " : " and "
+            parts.append("It deletes the profile\(join)\(what) nothing else uses\(history):\n"
+                + deleteSecrets.map(Self.entryLine).joined(separator: "\n"))
         } else if missing > 0, keep == 0 {
-            return [(missing == 1 ? "It deletes the profile; its secret is already gone:\n"
-                    : "It deletes the profile; its \(missing) secrets are already gone:\n")
-                + missingSecrets.joined(separator: "\n")]
+            return ["It deletes the profile; its \(Self.entries(missingSecrets, the: false)) "
+                + (missing == 1 ? "is" : "are") + " already gone:\n"
+                + missingSecrets.map(Self.entryLine).joined(separator: "\n")]
         } else {
             parts.append("It deletes the profile. No secret goes with it.")
         }
         if keep > 0 {
             parts.append((keep == 1 ? "Kept, because something else uses it:\n" : "Kept, because something else uses them:\n")
-                + keepSecrets.joined(separator: "\n"))
+                + keepSecrets.map(Self.entryLine).joined(separator: "\n"))
         }
         if missing > 0 {
-            parts.append("Already gone: " + missingSecrets.joined(separator: ", ") + ".")
+            parts.append("Already gone: " + missingSecrets.map(Self.entryLine).joined(separator: ", ") + ".")
         }
         return parts
+    }
+
+    static let settingPrefix = "jit://setting/"
+
+    static func isSetting(_ entry: String) -> Bool {
+        entry.hasPrefix(settingPrefix)
+    }
+
+    /// A plan's entry as a line: a secret's vault path, or a setting's path
+    /// marked as one, never the `jit://setting/` pointer.
+    static func entryLine(_ entry: String) -> String {
+        isSetting(entry) ? String(entry.dropFirst(settingPrefix.count)) + " (setting)" : entry
+    }
+
+    /// "the secret", "the 3 secrets", "the setting", "1 setting and 2
+    /// secrets"; without "the" for "its secret".
+    static func entries(_ list: [String], the: Bool = true) -> String {
+        let settings = list.filter(isSetting).count
+        let secrets = list.count - settings
+        func word(_ n: Int, _ noun: String) -> String {
+            n == 1 ? noun : "\(n) \(noun)s"
+        }
+        if settings > 0, secrets > 0 {
+            return "\(settings) setting\(settings == 1 ? "" : "s") and \(secrets) secret\(secrets == 1 ? "" : "s")"
+        }
+        let one = settings > 0 ? word(settings, "setting") : word(secrets, "secret")
+        return the ? "the " + one : one
     }
 
     /// The tool that uses it and where, as `jit profile rm` says it:

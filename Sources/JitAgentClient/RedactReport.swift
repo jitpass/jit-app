@@ -64,6 +64,8 @@ public extension ScanWording {
                 left += live.count == 1 ? ", \(first.agent) is writing it" : ", \(first.agent) is writing them"
             } else if let first = report.caches.left.first, first.kind == "binary" {
                 left += n == 1 ? ", a binary store jit won't rewrite" : ", binary stores jit won't rewrite"
+            } else if let first = report.caches.left.first, first.kind == "unreadable" {
+                left += n == 1 ? ", it changed since the scan" : ", they changed since the scan"
             }
             parts.append(left)
         }
