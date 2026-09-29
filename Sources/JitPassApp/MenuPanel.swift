@@ -35,7 +35,7 @@ final class MenuPanel: NSPanel {
         hasShadow = true
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
-        contentView = NSHostingView(rootView: content)
+        contentView = FirstClickHostingView(rootView: content)
         contentView?.wantsLayer = true
     }
 
@@ -56,6 +56,7 @@ final class MenuPanel: NSPanel {
             return
         }
         openedForConsent = false
+        becomesKeyOnlyIfNeeded = false
         makeKeyAndOrderFront(nil)
         outsideClick = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             Task { @MainActor in
@@ -80,6 +81,9 @@ final class MenuPanel: NSPanel {
             return
         }
         openedForConsent = true
+        // Deny is a click, not a keystroke: the panel never needs to be key
+        // for it, so the Touch ID dialog keeps focus.
+        becomesKeyOnlyIfNeeded = true
         orderFrontRegardless()
     }
 
@@ -134,5 +138,16 @@ final class MenuPanel: NSPanel {
         if !openedForConsent, !heldForConsent {
             dismiss()
         }
+    }
+}
+
+/// The panel's content, taking the first click. A panel opened beside the
+/// Touch ID is not key, and the dialog keeps key; without this, macOS spends
+/// every click on Deny making the panel key and the button never sees one
+/// (found in test build 0.0.8: Deny did nothing). The spike's AppKit button
+/// never had the problem, which is why the spike passed.
+private final class FirstClickHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for _: NSEvent?) -> Bool {
+        true
     }
 }
