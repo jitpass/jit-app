@@ -28,7 +28,7 @@
 <p align="center"><sub>Free for personal and internal company use · Source-available · No account · No telemetry · Nothing leaves your Mac · Secure Enclave ready</sub></p>
 
 <p align="center">
-  <a href="docs/assets/readme/hero.png"><img src="docs/assets/readme/hero.png" width="880" alt="The JitPass Setup scan: 23 secrets in plain text, found in ~/.aws/credentials, a project .env, ~/.npmrc and ~/.zshrc, with masked values and a Protect 18 Secrets button. Beside it, JitPass asks: aws wants to use a credential, via claude. Deny, or Allow with Touch ID."></a>
+  <a href="docs/assets/readme/hero.png"><img src="docs/assets/readme/hero.png" width="880" alt="The JitPass Setup scan: 23 secrets in plain text, found in ~/.aws/credentials, a project .env, ~/.npmrc and ~/.zshrc, with masked values and a Protect 18 Secrets button. Beside it, the Touch ID dialog: JitPass is trying to let aws use your aws credential, via claude."></a>
   <br>
   <sub><b>What's the number on your Mac?</b> The scan only reads, and changes nothing until you say so.</sub>
 </p>
@@ -67,9 +67,9 @@ Touch ID, and asks you before any program uses one.
       <b>One click</b> moves each secret into the vault and leaves a decoy. Every file is backed up first.
     </td>
     <td width="33%" valign="top">
-      <a href="docs/assets/readme/step-approve.png"><img src="docs/assets/readme/step-approve.png" alt="The approval window: aws asks to use a credential, via claude. Deny, or Allow with Touch ID."></a>
+      <a href="docs/assets/readme/step-approve.png"><img src="docs/assets/readme/step-approve.png" alt="The macOS Touch ID dialog: JitPass is trying to let aws use your aws credential, via claude. Use Password or Cancel."></a>
       <h3>3. Approve</h3>
-      A program that wants a real key is named, with what launched it. <b>Allow with Touch ID</b>, or deny.
+      A program that wants a real key is named in the Touch ID dialog, with what launched it. <b>Touch to allow</b>, or cancel.
     </td>
   </tr>
 </table>
@@ -84,8 +84,8 @@ Touch ID, and asks you before any program uses one.
 
 <a href="docs/assets/readme/panel.png"><img align="right" src="docs/assets/readme/panel.png" width="300" alt="The JitPass menu bar panel, unlocked: Vault 18 secrets, AI Agents all set, Tools 4 wrapped, Service running, Grants 1 active, AI Jobs 3 ready, Decoys 2 reads today, Doctor healthy, Findings 3 to do. Then Lock Now, New Grant, New Scan and Open Audit."></a>
 
-- **The ring tells you.** Green unlocked, red locked, amber a program is
-  asking.
+- **The ring tells you.** Green unlocked, red locked, amber not set up
+  yet.
 - **One click to see everything.** Your vault, your AI agents, your tools,
   grants, AI jobs, today's decoy reads and what is left to do.
 - **Scans run on a schedule.** A new finding tells you once, and waits in
