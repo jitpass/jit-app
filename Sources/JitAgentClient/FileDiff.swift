@@ -1,0 +1,184 @@
+// Copyright 2026 Meni Tasa
+// SPDX-License-Identifier: LicenseRef-PolyForm-Perimeter-1.0.0
+
+import Foundation
+
+/// One file's change since git's last commit, as the AI job review's
+/// Show Changes draws it: a title, one sentence, and the diff as lines with
+/// their line numbers. Parsed from `git diff --no-color HEAD -- <file>`, so
+/// the sheet never shows git's headers (`diff --git`, `index`, `---`,
+/// `+++`) or its `@@ -12,4 +12,5 @@` syntax; a hunk becomes a quiet
+/// "lines 12–16" label. The lines stay code: monospaced, and only the
+/// sign is replaced by colour.
+public struct FileDiff: Equatable, Sendable {
+    public enum Kind: Equatable, Sendable {
+        /// The start of a hunk; `text` is its "lines a–b" label.
+        case hunk
+        case context, added, removed
+        /// git's "\ No newline at end of file", said as a quiet note.
+        case note
+    }
+
+    /// One drawn line. `number` is the line's number in the file it is
+    /// from: the old file for a removed line, the new file for the rest.
+    /// Nil for a hunk label and a note.
+    public struct Line: Equatable, Sendable, Identifiable {
+        public var id: Int
+        public var kind: Kind
+        public var number: Int?
+        public var text: String
+    }
+
+    public enum Outcome: Equatable, Sendable {
+        /// git showed changes.
+        case changed
+        /// git answered with nothing: the file was rewritten as it was.
+        case unchanged
+        /// git could not answer for this file.
+        case failed
+    }
+
+    public var outcome: Outcome
+    public var title: String
+    public var sentence: String
+    public var lines: [Line]
+    public var added: Int
+    public var removed: Int
+    /// The diff ran past `limit` lines and the rest is not drawn.
+    public var truncated: Bool
+
+    /// The most lines drawn: a review needs the change, not a megabyte
+    /// of it.
+    public static let limit = 2000
+
+    /// `output` is git's stdout, nil when git did not exit 0. `file` is
+    /// the path git was asked about; only its name is shown.
+    public static func make(file: String, output: String?, limit: Int = limit) -> FileDiff {
+        let name = (file as NSString).lastPathComponent
+        guard let output else {
+            return FileDiff(
+                outcome: .failed, title: "Couldn't show the changes to \(name)",
+                sentence: "git could not compare this file with its last commit.",
+                lines: [], added: 0, removed: 0, truncated: false
+            )
+        }
+        var diff = parse(output, limit: limit)
+        if diff.lines.isEmpty {
+            diff.outcome = .unchanged
+            diff.title = "\(name) is the same as git's last commit"
+            diff.sentence = "It was rewritten with the same content."
+            return diff
+        }
+        diff.title = "\(name) changed since git's last commit"
+        diff.sentence = sentence(added: diff.added, removed: diff.removed)
+        if diff.truncated {
+            diff.sentence += " Only the first \(limit) lines are shown."
+        }
+        return diff
+    }
+
+    /// The lines of a unified diff, with git's file headers dropped and
+    /// each hunk's numbers carried onto its lines. Counts cover the whole
+    /// diff even past `limit`.
+    static func parse(_ text: String, limit: Int = limit) -> FileDiff {
+        var diff = FileDiff(outcome: .changed, title: "", sentence: "", lines: [], added: 0, removed: 0, truncated: false)
+        var old = 0, new = 0
+        var inHunk = false
+        func append(_ kind: Kind, _ number: Int?, _ text: String) {
+            guard diff.lines.count < limit else {
+                diff.truncated = true
+                return
+            }
+            diff.lines.append(Line(id: diff.lines.count, kind: kind, number: number, text: text))
+        }
+        var rows = text.components(separatedBy: "\n")
+        if rows.last == "" {
+            rows.removeLast()
+        }
+        for row in rows {
+            if row.hasPrefix("@@"), let hunk = Hunk(row) {
+                inHunk = true
+                old = hunk.oldStart
+                new = hunk.newStart
+                append(.hunk, nil, hunk.label)
+                continue
+            }
+            // Before the first hunk, and between files, everything is
+            // git's header: diff --git, index, ---/+++, mode lines.
+            guard inHunk else {
+                continue
+            }
+            if row.hasPrefix("diff --git ") {
+                inHunk = false
+                continue
+            }
+            switch row.first {
+            case "+":
+                diff.added += 1
+                append(.added, new, String(row.dropFirst()))
+                new += 1
+            case "-":
+                diff.removed += 1
+                append(.removed, old, String(row.dropFirst()))
+                old += 1
+            case "\\":
+                append(.note, nil, "No newline at end of file")
+            default:
+                // " text", or "" where a tool stripped an empty context
+                // line's trailing space.
+                append(.context, new, row.isEmpty ? "" : String(row.dropFirst()))
+                old += 1
+                new += 1
+            }
+        }
+        return diff
+    }
+
+    static func sentence(added: Int, removed: Int) -> String {
+        let lines = { (n: Int) in n == 1 ? "1 line" : "\(n) lines" }
+        switch (added, removed) {
+        case (0, _): return "\(lines(removed)) removed."
+        case (_, 0): return "\(lines(added)) added."
+        default: return "\(lines(added)) added, \(removed) removed."
+        }
+    }
+
+    /// `@@ -oldStart[,oldCount] +newStart[,newCount] @@ …`. A count left
+    /// out is 1, as in git.
+    struct Hunk {
+        var oldStart: Int, oldCount: Int, newStart: Int, newCount: Int
+
+        init?(_ row: String) {
+            let parts = row.split(separator: " ")
+            guard parts.count >= 3, parts[1].hasPrefix("-"), parts[2].hasPrefix("+"),
+                  let old = Self.range(parts[1].dropFirst()), let new = Self.range(parts[2].dropFirst())
+            else {
+                return nil
+            }
+            (oldStart, oldCount, newStart, newCount) = (old.start, old.count, new.start, new.count)
+        }
+
+        private static func range(_ text: Substring) -> (start: Int, count: Int)? {
+            let pieces = text.split(separator: ",", omittingEmptySubsequences: false)
+            guard let start = Int(pieces[0]) else {
+                return nil
+            }
+            guard pieces.count > 1 else {
+                return (start, 1)
+            }
+            guard let count = Int(pieces[1]) else {
+                return nil
+            }
+            return (start, count)
+        }
+
+        /// The new file's lines the hunk covers; a hunk that only removes
+        /// lines covers none there, so it names where they were.
+        var label: String {
+            if newCount == 0 {
+                return oldCount == 1 ? "line \(oldStart), removed" : "lines \(oldStart)–\(oldStart + oldCount - 1), removed"
+            }
+            return newCount == 1 ? "line \(newStart)" : "lines \(newStart)–\(newStart + newCount - 1)"
+        }
+    }
+}

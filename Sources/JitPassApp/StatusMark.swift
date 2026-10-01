@@ -14,6 +14,11 @@ enum StatusMark {
     /// The one colour for the one thing you can act on, matching the
     /// terminal's cyan role.
     static let accent = NSColor(srgbRed: 0x7F / 255, green: 0xD4 / 255, blue: 0xFF / 255, alpha: 1)
+    /// A diff's added and removed lines: green and red as a wash behind
+    /// the code, at the strengths the result-sheets mockup drew (section
+    /// 6), so the line's own text keeps the label colour.
+    static let diffAdded = green.withAlphaComponent(0.12)
+    static let diffRemoved = red.withAlphaComponent(0.14)
 
     static func color(for state: SessionState) -> NSColor {
         switch state {
