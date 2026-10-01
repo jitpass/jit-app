@@ -62,7 +62,7 @@ extension StatusItemController {
                     LastScanStore.save(LastScan(report: report, at: at, kind: kind, deepAt: model.macDeepScanAt))
                 }
                 model.findingsOutcome = WindowOutcome(
-                    title: Format.reviewedBanner(settled, missed: result?.missed?.count ?? 0), text: "", unreview: marks
+                    title: Format.reviewedBanner(settled, missed: result?.missed?.count ?? 0), unreview: marks
                 )
             }
         )
@@ -80,8 +80,7 @@ extension StatusItemController {
             then: { [weak self] output in
                 let result = try? JSONDecoder().decode(ScanReviewResult.self, from: Data(output.utf8))
                 self?.model.findingsOutcome = WindowOutcome(
-                    title: Format.unreviewedBanner(result?.unreviewed?.count ?? markIDs.count),
-                    text: ""
+                    title: Format.unreviewedBanner(result?.unreviewed?.count ?? markIDs.count)
                 )
                 self?.runScan(wholeMac: true, kind: .afterProtect)
             }
@@ -128,7 +127,7 @@ extension StatusItemController {
         let removed = model.scanReviewed?.removed ?? 0
         model.scanReviewed = nil
         if removed > 0 {
-            model.findingsOutcome = WindowOutcome(title: Format.unreviewedBanner(removed), text: "")
+            model.findingsOutcome = WindowOutcome(title: Format.unreviewedBanner(removed))
             runScan(wholeMac: true, kind: .afterProtect)
         }
     }

@@ -33,12 +33,11 @@ extension StatusItemController {
                     // change: read them again so the audit agrees too.
                     reloadDecoys()
                     model.decoysOutcome = WindowOutcome(
-                        title: Format.decoyExpectedBanner(reader, remove: remove), text: "", unexpect: remove ? nil : reader
+                        title: Format.decoyExpectedBanner(reader, remove: remove), unexpect: remove ? nil : reader
                     )
                 case let .failure(error):
                     model.decoysOutcome = WindowOutcome(
                         title: Format.decoyExpectFailed(remove: remove, Self.describeTools(error)),
-                        text: "",
                         failed: true
                     )
                 }

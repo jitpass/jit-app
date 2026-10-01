@@ -110,7 +110,7 @@ extension StatusItemController {
             model.scanStale = true
             settle(after: ProtectRun(reports: reports))
             let outcome = Self.protectOutcome(ProtectRun(reports: reports))
-            showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
+            showResult(title: outcome.title, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
             vaultChanged()
             runScan(wholeMac: true, kind: .afterProtect)
         })
@@ -221,19 +221,32 @@ extension StatusItemController {
             runInTerminal(hint)
             return
         }
-        let printsSecret = record.verifyPrintsSecret
+        let printsSecret = record.verifyMayPrintSecret
         runTools(tool, refresh: false, work: {
-            let plain = JitCLI.check(hint, keep: !printsSecret)
-            var gh: GhAuthStatus?
-            if tool == "gh", case let .success(json) = JitCLI.check((["gh"] + GhAuthStatus.arguments).joined(separator: " ")) {
-                gh = try? GhAuthStatus.parse(Data(json.output.utf8))
+            // gh's own JSON first: its accounts are the answer, and the
+            // plain check would only run gh a second time.
+            if tool == "gh", let sheet = Self.verifyGh(hint: hint) {
+                return .success(sheet)
             }
-            return plain.map {
-                ChangeSheet.verify(tool: tool, hint: hint, status: $0.status, output: $0.output, printsSecret: printsSecret, gh: gh)
+            return JitCLI.check(hint, keep: !printsSecret).map {
+                ChangeSheet.verify(tool: tool, hint: hint, status: $0.status, output: $0.output, printsSecret: printsSecret)
             }
         }, then: { [weak self] sheet in
             self?.showChanges(sheet)
         })
+    }
+
+    /// gh's accounts from `gh auth status --json hosts`, read from stdout
+    /// alone so a notice on stderr can't spoil the JSON. Nil when gh has
+    /// no JSON (an old gh): Verify then runs the plain hint.
+    nonisolated static func verifyGh(hint: String) -> ChangeSheet? {
+        let line = (["gh"] + GhAuthStatus.arguments).joined(separator: " ")
+        guard case let .success(json) = JitCLI.check(line, stdoutOnly: true),
+              let gh = try? GhAuthStatus.parse(Data(json.output.utf8)), !gh.accounts.isEmpty
+        else {
+            return nil
+        }
+        return ChangeSheet.verify(tool: "gh", hint: hint, status: json.status, output: "", printsSecret: false, gh: gh)
     }
 
     /// `jit migrate caches --yes`: its plan needs the vault open, so there

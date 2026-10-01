@@ -138,10 +138,19 @@ public extension ChangeSheet {
     /// After Clean AI agent caches: each file rewritten, what was left.
     static func caches(_ report: MigrateReport) -> ChangeSheet {
         let removed = report.caches.removed
+        let left = report.caches.left
         let copies = removed.reduce(0) { $0 + ($1.copies ?? 0) }
-        let title = !report.errors.isEmpty ? "Cleaning did not finish"
-            : copies == 0 ? "No AI agent cache holds a copy of a vaulted secret"
-            : "Cleaned " + plural(copies, "copy", "copies") + " in " + plural(removed.count, "file")
+        // From the files, not the copy count: jit may leave `copies` out,
+        // and a run that only left files did not find the caches clean.
+        let title = if !report.errors.isEmpty {
+            "Cleaning did not finish"
+        } else if !removed.isEmpty {
+            "Cleaned " + (copies > 0 ? plural(copies, "copy", "copies") + " in " : "") + plural(removed.count, "file")
+        } else if !left.isEmpty {
+            "Nothing was cleaned · " + plural(left.count, "file") + " left for later"
+        } else {
+            "No AI agent cache holds a copy of a vaulted secret"
+        }
         var notes: [Note] = []
         if !report.errors.isEmpty {
             notes.append(Note(
@@ -150,7 +159,6 @@ public extension ChangeSheet {
                 verbatim: VaultOrphans.capped(report.errors, NameList.shown)
             ))
         }
-        let left = report.caches.left
         if !left.isEmpty {
             let live = left.filter { $0.kind == "live" }
             let places = ScanWording.agentPlaces(left.map { (agent: $0.agent, area: $0.area) }).joined(separator: " and ")
@@ -163,7 +171,7 @@ public extension ChangeSheet {
         }
         return ChangeSheet(
             title: title,
-            sentence: copies == 0 ? "Nothing was changed." :
+            sentence: removed.isEmpty ? "Nothing was changed." :
                 "Each copy of a vaulted secret is now a marker. Each file was backed up first.",
             files: removed.map {
                 File(path: $0.path, fact: ([$0.agent, $0.area].filter { !$0.isEmpty } + [plural($0.copies ?? 0, "copy", "copies")])
@@ -200,7 +208,10 @@ public extension ChangeSheet {
             notes: notes,
             undo: [],
             report: report.report,
-            again: done.filter { $0.action != "remove" }.map(\.path)
+            // Only a file with secrets of its own: an AI agent's cache file
+            // restored by undoing a clean has none, and `jit migrate` on it
+            // is not the sweep that cleaned it.
+            again: done.filter { $0.action != "remove" && !$0.secrets.isEmpty }.map(\.path)
         )
     }
 
@@ -256,7 +267,13 @@ public extension ChangeSheet {
 
     private static func verifyGh(_ gh: GhAuthStatus, output: String) -> ChangeSheet {
         let accounts = gh.accounts
-        let active = accounts.first(where: \.active) ?? accounts[0]
+        guard let active = accounts.first(where: \.active) else {
+            return ChangeSheet(
+                title: "gh's check failed", sentence: "gh isn't using any of the accounts signed in on this Mac.",
+                files: [], notes: [Note(mark: .failed, name: "No active account", fact: "Run gh auth switch, or wrap gh again.")],
+                undo: [], report: output, reportLabel: "gh's output"
+            )
+        }
         let broken = accounts.filter { $0.state != "success" }
         let fromJit = active.tokenSource == "GH_TOKEN"
         var notes = broken.filter(\.active).map {

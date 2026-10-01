@@ -132,7 +132,7 @@ extension StatusItemController {
                 }
                 switch origin {
                 case .agents:
-                    model.agentsOutcome = WindowOutcome(title: text, text: text, failed: failed)
+                    model.agentsOutcome = WindowOutcome(title: text, failed: failed)
                 case .aiJobs:
                     model.jobsBanner = text
                     model.jobsBannerFailed = failed

@@ -77,8 +77,10 @@ extension StatusItemController {
         doctorProgress.presence = false
         doctorProgress.outcome = nil
         let chosen = targets
+        // A category names no file; the card's findings do.
+        let named = (target.card?.items ?? []).compactMap(\.path).filter { $0.hasPrefix("/") || $0.hasPrefix("~") }
         Task.detached {
-            let answer = (plan: JitCLI.migratePlan(mode, chosen), rows: Self.planRows(mode, chosen))
+            let answer = (plan: JitCLI.migratePlan(mode, chosen), rows: Self.planRows(mode, chosen, named: named))
             await MainActor.run { [weak self] in
                 self?.model.doctorBusy = nil
                 self?.confirmMigrate(answer, mode: mode, targets: chosen, action: action, target: target)
@@ -88,12 +90,12 @@ extension StatusItemController {
 
     /// The dialog's rows, from jit's JSON: `migrate preview` for the files
     /// a migrate names, `migrate undo --dry-run` for an undo. A migrate by
-    /// category names no file to preview, and a jit without these has no
-    /// JSON: then the dialog's sentence stands alone.
-    nonisolated static func planRows(_ mode: MigratePlan.Mode, _ targets: [String]) -> [PlanRow] {
+    /// category names no file, so its rows are the files its findings
+    /// named (`named`). A jit without the JSON leaves the sentence alone.
+    nonisolated static func planRows(_ mode: MigratePlan.Mode, _ targets: [String], named: [String] = []) -> [PlanRow] {
         let files = targets.filter { $0.hasPrefix("/") }
         guard !files.isEmpty else {
-            return []
+            return mode == .migrate ? PlanRow.jitPathRefresh(named.map { ($0 as NSString).expandingTildeInPath }) : []
         }
         switch mode {
         case .migrate:
@@ -143,8 +145,6 @@ extension StatusItemController {
             runInTerminal(command)
         case .review:
             break
-        case .open(.serviceLog):
-            showServiceLog()
         case let .open(surface):
             openVaultSurface(surface)
         case let .ignore(commands):

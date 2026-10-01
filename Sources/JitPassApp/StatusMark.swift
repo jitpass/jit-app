@@ -18,6 +18,8 @@ enum StatusMark {
     /// the code, at the strengths the result-sheets mockup drew (section
     /// 6), so the line's own text keeps the label colour.
     static let diffAdded = green.withAlphaComponent(0.12)
+    /// A vault badge's fill: green at the artifact's accent-dim alpha.
+    static let greenDim = green.withAlphaComponent(0.13)
     static let diffRemoved = red.withAlphaComponent(0.14)
 
     static func color(for state: SessionState) -> NSColor {

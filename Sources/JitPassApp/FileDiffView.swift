@@ -25,14 +25,15 @@ struct FileDiffView: View {
                 // a horizontal scroll sized each row to its text, so the
                 // green and red stopped short of the box's edge.
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
+                    // Lazy: up to 2,000 rows, drawn as they scroll in.
+                    LazyVStack(alignment: .leading, spacing: 0) {
                         ForEach(diff.lines) { line in
                             row(line)
                         }
                     }
                     .padding(.vertical, Win.s3)
                 }
-                .frame(maxHeight: 220)
+                .frame(maxHeight: Design.Sheet.listMax)
                 .fixedSize(horizontal: false, vertical: true)
                 .background(WindowSurface.verbatim, in: RoundedRectangle(cornerRadius: Win.control, style: .continuous))
             }
@@ -44,10 +45,16 @@ struct FileDiffView: View {
         // Every column holds at least a space: an empty Text has no
         // baseline, and the row it sat in drew taller than its neighbours.
         HStack(alignment: .firstTextBaseline, spacing: Win.s3) {
-            Text(line.number.map(String.init) ?? " ")
-                .foregroundStyle(.tertiary)
-                .frame(width: 30, alignment: .trailing)
-            Text(sign(line.kind)).foregroundStyle(signColor(line.kind)).frame(width: 8)
+            // Each column as wide as its widest content (the longest line
+            // number, one sign), so every row's text starts in one place.
+            ZStack(alignment: .trailing) {
+                Text(widestNumber).hidden()
+                Text(line.number.map(String.init) ?? " ").foregroundStyle(.tertiary)
+            }
+            ZStack {
+                Text("+").hidden()
+                Text(sign(line.kind)).foregroundStyle(signColor(line.kind))
+            }
             Text(line.text.isEmpty ? " " : line.text)
                 .foregroundStyle(textStyle(line.kind))
                 .fixedSize(horizontal: false, vertical: true)
@@ -59,6 +66,10 @@ struct FileDiffView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(wash(line.kind))
         .textSelection(.enabled)
+    }
+
+    private var widestNumber: String {
+        String(repeating: "0", count: String(diff.lines.compactMap(\.number).max() ?? 0).count)
     }
 
     private func sign(_ kind: FileDiff.Kind) -> String {

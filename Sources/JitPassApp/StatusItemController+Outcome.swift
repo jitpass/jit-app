@@ -24,8 +24,8 @@ extension StatusItemController {
     /// Agents have a banner region, so there it is a sentence in the
     /// window with jit's own words one click away, and not a modal on top
     /// of the state it just changed.
-    func showResult(title: String, text: String, failed: Bool = false, undo: [String] = [], changes: ChangeSheet) {
-        let outcome = WindowOutcome(title: title, text: text, failed: failed, undo: undo, changes: changes)
+    func showResult(title: String, failed: Bool = false, undo: [String] = [], changes: ChangeSheet) {
+        let outcome = WindowOutcome(title: title, failed: failed, undo: undo, changes: changes)
         // Inside a tools action's landing, the window it was asked from
         // (runTools); otherwise the window in front.
         switch outcomeWindowOverride ?? frontOutcomeWindow {
@@ -38,7 +38,7 @@ extension StatusItemController {
 
     /// A result as rows, in the window it was asked from.
     func showChanges(_ sheet: ChangeSheet) {
-        showResult(title: sheet.title, text: sheet.report, failed: sheet.failed, undo: sheet.undo, changes: sheet)
+        showResult(title: sheet.title, failed: sheet.failed, undo: sheet.undo, changes: sheet)
     }
 
     /// A failed run, said in the window the action came from. `toolsMessage`
@@ -48,7 +48,7 @@ extension StatusItemController {
         guard window.needsFailureBanner else {
             return
         }
-        let outcome = WindowOutcome(title: ScanWording.actionFailed(verb, line: line), text: "", failed: true)
+        let outcome = WindowOutcome(title: ScanWording.actionFailed(verb, line: line), failed: true)
         if window == .findings {
             model.findingsOutcome = outcome
         } else {

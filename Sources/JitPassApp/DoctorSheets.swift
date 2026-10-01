@@ -160,7 +160,7 @@ struct ServiceLogSheet: View {
             }
             if !log.entries.isEmpty {
                 AppPlainCard {
-                    CappedScroll(maxHeight: 320) {
+                    CappedScroll(maxHeight: Design.Sheet.listMax) {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(Array(days.enumerated()), id: \.offset) { _, day in
                                 Text(day.label).font(Win.rowFact).fontWeight(.semibold).foregroundStyle(.secondary)
@@ -191,12 +191,9 @@ struct ServiceLogSheet: View {
         .onExitCommand(perform: done)
     }
 
+    /// Labelled in jit's own Gregorian calendar (`ServiceLog.day`).
     private var days: [ServiceLog.Day] {
-        let format = DateFormatter()
-        format.dateFormat = "yyyy-MM-dd"
-        let now = Date()
-        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
-        return log.days(today: format.string(from: now), yesterday: format.string(from: yesterday))
+        log.days(now: Date())
     }
 
     @ViewBuilder
@@ -209,7 +206,7 @@ struct ServiceLogSheet: View {
         } else {
             HStack(alignment: .firstTextBaseline, spacing: Design.Space.four) {
                 Text(entry.time ?? "").font(Win.rowFact).monospacedDigit().foregroundStyle(.secondary)
-                Circle().fill(dot(entry.level)).frame(width: 7, height: 7)
+                Circle().fill(dot(entry.level)).frame(width: Design.Size.dot, height: Design.Size.dot)
                 VStack(alignment: .leading, spacing: Design.Space.one) {
                     Text(entry.message ?? "").font(Win.sub).fixedSize(horizontal: false, vertical: true)
                     if let about = subjects(entry) {
