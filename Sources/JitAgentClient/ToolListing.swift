@@ -41,6 +41,10 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
     public var with: String?
     public var capture: String?
     public var verifyHint: String?
+    /// The hint's output is itself a credential (gcloud's
+    /// print-access-token): Verify keeps its exit status and drops the
+    /// output unread. False from an engine older than 2.3.8.
+    public var verifyPrintsSecret = false
     public var sources: [String]
     public var tokenCommand: String?
     public var nativeCategory: String?
@@ -59,6 +63,7 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         case addedUnix = "added_unix"
         case shimDetail = "shim_detail"
         case verifyHint = "verify_hint"
+        case verifyPrintsSecret = "verify_prints_secret"
         case tokenCommand = "token_command"
         case nativeCategory = "native_category"
         case vaultSecrets = "vault_secrets"
@@ -111,6 +116,7 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         with = try box.decodeIfPresent(String.self, forKey: .with)
         capture = try box.decodeIfPresent(String.self, forKey: .capture)
         verifyHint = try box.decodeIfPresent(String.self, forKey: .verifyHint)
+        verifyPrintsSecret = try box.decodeIfPresent(Bool.self, forKey: .verifyPrintsSecret) ?? false
         sources = try box.decodeIfPresent([String].self, forKey: .sources) ?? []
         tokenCommand = try box.decodeIfPresent(String.self, forKey: .tokenCommand)
         nativeCategory = try box.decodeIfPresent(String.self, forKey: .nativeCategory)

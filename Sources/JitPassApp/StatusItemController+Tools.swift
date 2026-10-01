@@ -30,6 +30,13 @@ extension StatusItemController {
             protectFile: { [weak self] path in self?.protectFile(path) },
             unwrap: { [weak self] tool in self?.unwrapTool(tool) },
             verify: { [weak self] tool in self?.verifyTool(tool) },
+            reveal: { path in Editor.reveal(path) },
+            copyPath: { path in
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(path, forType: .string)
+            },
+            undoProtect: { [weak self] paths in self?.undoProtect(paths) },
+            protectAgain: { [weak self] paths in self?.protectFiles(paths) },
             mintInTerminal: { [weak self] command in self?.runInTerminal(command) },
             cleanCaches: { [weak self] in self?.cleanCaches() },
             openVault: { [weak self] in self?.openVault() },
@@ -71,22 +78,32 @@ extension StatusItemController {
     /// env-block tokens move into the vault, the file is rewritten to
     /// point at them, and it is backed up encrypted first.
     func protectFile(_ path: String) {
+        protectFiles([path])
+    }
+
+    /// `jit migrate <files> --yes`, after the same dialog: one file from a
+    /// grant tool's row, or every file an undo restored (Protect Again).
+    func protectFiles(_ paths: [String]) {
+        guard !paths.isEmpty else {
+            return
+        }
         // The same sweep sentence the Findings window's Protect carries:
-        // migrate will also remove the cached copies of this file's secrets
+        // migrate will also remove the cached copies of these files' secrets
         // the last whole-Mac scan found, and says so before Touch ID.
-        let copies = model.macScan?.copies(from: [path]) ?? []
+        let copies = model.macScan?.copies(from: paths) ?? []
         let sweep = ScanWording.sweepSentence(copies: copies).map { " " + $0 } ?? ""
         let alert = NSAlert()
-        alert.messageText = "Protect \(Format.home(path))?"
-        alert.informativeText = "The credentials move into the vault; the file keeps working through jit." + sweep
-            + "\n\nA backup restores it. Touch ID follows."
+        alert.messageText = paths.count == 1 ? "Protect \(Format.home(paths[0]))?" : "Protect \(paths.count) files?"
+        alert.informativeText = "The credentials move into the vault; "
+            + (paths.count == 1 ? "the file keeps" : "each file keeps") + " working through jit." + sweep
+            + "\n\nA backup restores " + (paths.count == 1 ? "it" : "each one") + ". Touch ID follows."
         alert.addButton(withTitle: "Protect")
         alert.addButton(withTitle: "Cancel")
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
         model.findingsOutcome = nil
-        runTools(path, failed: "Protect", work: { JitCLI.migrate([path]).map { [$0] } }, then: { [weak self] reports in
+        runTools(paths[0], failed: "Protect", work: { JitCLI.migrate(paths).map { [$0] } }, then: { [weak self] reports in
             guard let self else {
                 return
             }
@@ -145,16 +162,16 @@ extension StatusItemController {
 
     // MARK: - Wrap, protect, unwrap
 
-    /// A native tool: `jit migrate ~ --only <category> --yes`, the migration
-    /// `jit wrap <tool>` delegates to, after a dialog that names what
-    /// migrate does and that it backs up first. The home path is passed
-    /// absolute: migrate takes a path, and jit's own delegation spells it
-    /// "home", which migrate reads relative to the working directory.
+    /// A native tool: `jit wrap <tool> --yes --format json`, after a dialog
+    /// that names what it does and that it backs up first. jit names the
+    /// tool's own credential file (`~/.aws/credentials`); the app used to
+    /// run `jit migrate ~ --only <category>`, which walks a folder for
+    /// project files only and so found nothing to protect (jit #206). The
+    /// result is the What Changed rows of the migration jit ran.
     private func protectTool(_ tool: String) {
-        guard let record = model.toolListing?.tool(named: tool), let category = record.nativeCategory else {
+        guard let record = model.toolListing?.tool(named: tool), record.nativeCategory != nil else {
             return
         }
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
         let alert = NSAlert()
         alert.messageText = "Protect \(tool)?"
         alert.informativeText = "\(record.doc ?? "The credential") moves into the vault; \(tool) keeps working."
@@ -164,15 +181,17 @@ extension StatusItemController {
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
-        runTools(tool, work: { JitCLI.execute(["migrate", home, "--only", category, "--yes"]) }, then: { [weak self] output in
+        runTools(tool, work: { JitCLI.wrap(tool, yes: true) }, then: { [weak self] report in
             self?.model.scanStale = true
-            self?.showResult(title: "Protected \(tool)", text: output)
+            self?.showChanges(.wrapped(report))
             self?.vaultChanged()
         })
     }
 
     /// `jit wrap undo <tool>`: prompt-free; the dialog exists because the
     /// shim comes out at once and open shells notice on their next call.
+    /// No result sheet: the dialog said what happens, and the row turning
+    /// Not wrapped says it again. A failure keeps its one-line message.
     func unwrapTool(_ tool: String) {
         let alert = NSAlert()
         alert.messageText = "Unwrap \(tool)?"
@@ -182,25 +201,38 @@ extension StatusItemController {
         guard alert.runFrontmost() == .alertFirstButtonReturn else {
             return
         }
-        runTools(tool, work: { JitCLI.execute(["wrap", "undo", tool]) }, then: { [weak self] output in
+        runTools(tool, work: { JitCLI.execute(["wrap", "undo", tool]) }, then: { [weak self] _ in
             self?.model.scanStale = true
-            self?.showResult(title: "Unwrapped \(tool)", text: output)
         })
     }
 
-    /// The catalog's verify hint, run under the app's PATH with its output
-    /// in a sheet. A hint with a placeholder (`clisso get <app>`) cannot run
-    /// unattended and goes to the terminal instead.
-    private func verifyTool(_ tool: String) {
-        guard let hint = model.toolListing?.tool(named: tool)?.verifyHint else {
+    /// The catalog's verify hint, run under the app's PATH: does the tool
+    /// work with jit's key? The sheet answers that, and keeps the tool's
+    /// words for a failure and a disclosure. A check that prints a secret
+    /// (verify_prints_secret) runs with its output thrown away unread.
+    /// gh's own JSON names its accounts, so they become rows. A hint with a
+    /// placeholder (`clisso get <app>`) cannot run unattended and goes to
+    /// the terminal instead.
+    func verifyTool(_ tool: String) {
+        guard let record = model.toolListing?.tool(named: tool), let hint = record.verifyHint else {
             return
         }
         if hint.contains("<") {
             runInTerminal(hint)
             return
         }
-        runTools(tool, refresh: false, work: { JitCLI.shell(hint) }, then: { [weak self] output in
-            self?.showResult(title: hint, text: output.isEmpty ? "(no output, exit 0)" : output)
+        let printsSecret = record.verifyPrintsSecret
+        runTools(tool, refresh: false, work: {
+            let plain = JitCLI.check(hint, keep: !printsSecret)
+            var gh: GhAuthStatus?
+            if tool == "gh", case let .success(json) = JitCLI.check((["gh"] + GhAuthStatus.arguments).joined(separator: " ")) {
+                gh = try? GhAuthStatus.parse(Data(json.output.utf8))
+            }
+            return plain.map {
+                ChangeSheet.verify(tool: tool, hint: hint, status: $0.status, output: $0.output, printsSecret: printsSecret, gh: gh)
+            }
+        }, then: { [weak self] sheet in
+            self?.showChanges(sheet)
         })
     }
 
@@ -224,10 +256,10 @@ extension StatusItemController {
             "caches",
             refresh: false,
             failed: "Clean Caches",
-            work: { JitCLI.execute(["migrate", "caches", "--yes"]) },
-            then: { [weak self] output in
+            work: { JitCLI.migrateCaches() },
+            then: { [weak self] report in
                 self?.model.scanStale = true
-                self?.showResult(title: "Cleaned AI agent caches", text: output)
+                self?.showChanges(.caches(report))
                 self?.runScan(wholeMac: true, kind: .afterProtect)
             }
         )

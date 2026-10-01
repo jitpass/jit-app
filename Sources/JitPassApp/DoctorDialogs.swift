@@ -3,6 +3,7 @@
 
 import AppKit
 import JitAgentClient
+import SwiftUI
 
 /// The dialogs a doctor action needs before the app can run its command:
 /// a hidden value, a passphrase typed twice, and the plan behind a
@@ -77,12 +78,12 @@ enum DoctorDialogs {
     /// one (an undo that writes plaintext back) is red and not the default,
     /// so Return never presses it and Escape cancels.
     @MainActor
-    static func confirmPlan(_ confirmation: DeleteConfirmation, plan: String?, reveal: RevealLink?) -> Bool {
+    static func confirmPlan(_ confirmation: DeleteConfirmation, rows: [PlanRow], reveal: RevealLink?) -> Bool {
         let alert = NSAlert()
         alert.messageText = confirmation.title
         alert.informativeText = confirmation.message
         alert.alertStyle = confirmation.button == nil || !confirmation.destructive ? .informational : .warning
-        alert.accessoryView = planAccessory(plan, reveal: reveal)
+        alert.accessoryView = planAccessory(rows, reveal: reveal)
         guard let button = confirmation.button else {
             alert.addButton(withTitle: "OK")
             alert.runFrontmost()
@@ -98,27 +99,25 @@ enum DoctorDialogs {
         return alert.runFrontmost() == .alertFirstButtonReturn
     }
 
-    /// The plan in a scroll view, the reveal link under it.
+    /// The plan as rows (each variable or file and where it goes), the
+    /// reveal link under them. jit's dry-run text is never shown: the
+    /// dialog's sentence says what happens, the rows say to what.
     @MainActor
-    private static func planAccessory(_ plan: String?, reveal: RevealLink?) -> NSView? {
+    private static func planAccessory(_ rows: [PlanRow], reveal: RevealLink?) -> NSView? {
         let link = reveal.map(RevealButton.init)
-        guard let plan, !plan.isEmpty else {
+        guard !rows.isEmpty else {
             return link
         }
-        let width: CGFloat = 480
-        let lines = CGFloat(plan.components(separatedBy: "\n").count)
-        let height = min(240, lines * 15 + 12)
+        let width: CGFloat = 400
+        let host = NSHostingView(rootView: PlanRowsView(rows: rows).frame(width: width))
+        let height = min(240, host.fittingSize.height)
         let below = link.map { $0.frame.height + 6 } ?? 0
         let box = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height + below))
         let scroll = NSScrollView(frame: NSRect(x: 0, y: below, width: width, height: height))
-        scroll.hasVerticalScroller = true
-        scroll.borderType = .bezelBorder
-        let view = NSTextView(frame: scroll.bounds)
-        view.isEditable = false
-        view.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
-        view.string = plan
-        view.autoresizingMask = [.width]
-        scroll.documentView = view
+        scroll.hasVerticalScroller = host.fittingSize.height > height
+        scroll.drawsBackground = false
+        host.frame = NSRect(x: 0, y: 0, width: width, height: host.fittingSize.height)
+        scroll.documentView = host
         box.addSubview(scroll)
         if let link {
             link.setFrameOrigin(NSPoint(x: 0, y: 0))
@@ -248,5 +247,38 @@ private final class PassphraseFields: NSView {
         field.placeholderString = placeholder
         field.widthAnchor.constraint(equalToConstant: fieldWidth).isActive = true
         return field
+    }
+}
+
+/// The rows under a Migrate or Undo Migration question: each variable or
+/// file, its folder or setting value in grey, and where it goes.
+struct PlanRowsView: View {
+    let rows: [PlanRow]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                HStack(spacing: Design.Space.four) {
+                    HStack(spacing: Design.Space.three) {
+                        Text(row.name).font(Win.sub).fontWeight(.semibold)
+                        if !row.detail.isEmpty {
+                            Text(row.detail).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        }
+                    }
+                    Spacer(minLength: Design.Space.four)
+                    Text(row.badge).font(Win.rowFact)
+                        .foregroundStyle(row.toVault ? Color(StatusMark.green) : .secondary)
+                        .padding(.horizontal, Design.Space.three).padding(.vertical, Design.Space.one)
+                        .background(
+                            row.toVault ? Color(StatusMark.green).opacity(0.13) : Color.primary.opacity(0.07),
+                            in: RoundedRectangle(cornerRadius: Design.Radius.box)
+                        )
+                }
+                .padding(.vertical, Design.Space.three)
+                if index < rows.count - 1 {
+                    Divider()
+                }
+            }
+        }
     }
 }

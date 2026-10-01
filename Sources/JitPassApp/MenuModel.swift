@@ -129,7 +129,7 @@ final class MenuModel: ObservableObject {
     @Published var jobReviewSheet = false
     @Published var jobReview: JobReview?
     @Published var jobReviewTracked: Set<String> = []
-    @Published var jobReviewDiff: String?
+    @Published var jobReviewDiff: FileDiff?
     @Published var jobsBanner: String?
     @Published var jobsBannerFailed = false
     @Published var doctor: DoctorReport?

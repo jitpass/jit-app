@@ -22,12 +22,11 @@ struct AgentsView: View {
         VStack(spacing: 0) {
             if let outcome = model.agentsOutcome {
                 WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
-                    // Findings' sheet where jit's report has rows (Redact);
-                    // jit's words where they say more than the banner; no
-                    // button where they would only repeat it.
-                    if ChangeSheet.addsTo(banner: outcome.title, text: outcome.text, sheet: outcome.changes) {
+                    // The rows of what changed; no button where there are
+                    // none, since jit's words alone are never a sheet.
+                    if let changes = outcome.changes {
                         Button("What Changed…") {
-                            actions.openSheet(outcome.changes.map { .changes($0) } ?? .result(title: outcome.title, text: outcome.text))
+                            actions.openSheet(.changes(changes))
                         }
                         .buttonStyle(AppButton(kind: .plain))
                     }
@@ -51,15 +50,15 @@ struct AgentsView: View {
         }
         .sheet(item: $model.agentsSheet) { sheet in
             switch sheet {
-            case let .result(title, text):
-                ResultSheet(title: title, text: text, close: actions.closeSheet)
             case let .changes(changes):
                 ChangeSheetView(
                     sheet: changes,
                     reveal: actions.reveal,
                     copyPath: actions.copyPath,
                     undo: { actions.closeSheet(); actions.undoProtect(changes.undo) },
-                    close: actions.closeSheet
+                    close: actions.closeSheet,
+                    verify: { actions.closeSheet(); actions.verify($0) },
+                    protectAgain: { actions.closeSheet(); actions.protectAgain($0) }
                 )
             case .wrap, .handWrap, .scanDepth:
                 // The Tools and Findings windows' sheets; never opened here.
@@ -225,6 +224,8 @@ struct AgentsActions {
     var reveal: (String) -> Void = { _ in }
     var copyPath: (String) -> Void = { _ in }
     var undoProtect: ([String]) -> Void = { _ in }
+    var verify: (String) -> Void = { _ in }
+    var protectAgain: ([String]) -> Void = { _ in }
     var setRedactAfterScan: (ToolRecord, Bool) -> Void = { _, _ in }
     var openGrants: () -> Void = {}
     var openAIJobs: () -> Void = {}

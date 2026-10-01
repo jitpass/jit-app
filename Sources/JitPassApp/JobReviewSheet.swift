@@ -38,13 +38,7 @@ struct JobReviewSheet: View {
                     .background(WindowSurface.card, in: RoundedRectangle(cornerRadius: Win.card, style: .continuous))
                 }
                 if let diff = model.jobReviewDiff {
-                    ScrollView {
-                        Text(diff).font(Win.command).foregroundStyle(.secondary).textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(Win.s4)
-                    }
-                    .frame(maxHeight: 180)
-                    .background(WindowSurface.verbatim, in: RoundedRectangle(cornerRadius: Win.control, style: .continuous))
+                    FileDiffView(diff: diff)
                 }
                 if let error = model.jobError {
                     AppNoteRow(mark: .failed, name: Format.jobFailure, verbatim: error, last: true) { EmptyView() }

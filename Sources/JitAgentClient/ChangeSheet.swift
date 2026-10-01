@@ -6,7 +6,9 @@ import Foundation
 /// A note's mark on the change sheet: a promise kept (a tick), something
 /// left for later (amber), or a failure (a cross).
 public enum ChangeMark: Equatable, Sendable {
-    case done, left, failed
+    /// `info` is a neutral dot: a fact with no verdict (another signed-in
+    /// account beside the one in use).
+    case done, left, failed, info
 }
 
 /// What a Redact or a Protect changed, as the sheet behind the banner's
@@ -42,6 +44,13 @@ public struct ChangeSheet: Equatable, Sendable {
     public var undo: [String]
     /// jit's text report, behind "Show jit's report".
     public var report: String
+    /// Whose words `report` is, for the disclosure: "jit's report", or a
+    /// tool's own output after a Verify ("gh's output").
+    public var reportLabel = "jit's report"
+    /// After a wrap, the tool whose check the sheet's Verify runs.
+    public var verify: String?
+    /// After an undo, the files Protect Again protects once more.
+    public var again: [String] = []
 
     /// Past this many files the rest fold into one row until asked for.
     public static let shown = 3
@@ -53,18 +62,6 @@ public struct ChangeSheet: Equatable, Sendable {
 }
 
 public extension ChangeSheet {
-    /// Whether a banner's "What Changed…" has anything the banner does not
-    /// already say: this sheet's rows, or jit's words where they are more
-    /// than the banner's sentence. A result whose words are its sentence
-    /// (Connect, Disconnect) would only say it again, so it has no button.
-    static func addsTo(banner title: String, text: String, sheet: ChangeSheet?) -> Bool {
-        if sheet != nil {
-            return true
-        }
-        let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !words.isEmpty && words != title.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     /// After a Redact: every file is an agent's cache, so the sentence says
     /// the reader's own files were not touched.
     static func redact(_ report: RedactReport) -> ChangeSheet {

@@ -50,6 +50,11 @@ public struct DoctorAction: Equatable, Sendable {
         case orphans
         /// One secret's archived versions, each with its Restore.
         case history(path: String)
+        /// The duplicates comparison, as the Vault window's rows.
+        case duplicates
+        /// The service log, as rows over the Doctor window
+        /// (`jit service log --format json`).
+        case serviceLog
     }
 
     public var title: String
@@ -65,9 +70,6 @@ public struct DoctorAction: Equatable, Sendable {
     /// argument is replaced by the path `needs` chose.
     public var argv: [[String]]?
     public var input: Input?
-    /// The command's output is what the user wanted (a history, a log, a
-    /// list), so the app shows it instead of only rechecking.
-    public var showsOutput: Bool
     /// jit asks for a fresh Touch ID or passcode itself, per the engine's
     /// `fixes` (false when the report predates them).
     public var presence: Bool
@@ -84,7 +86,7 @@ public struct DoctorAction: Equatable, Sendable {
 
     public init(
         _ title: String, _ command: String, destructive: Bool = false, needs: Needs = .nothing,
-        argv: [[String]]? = nil, input: Input? = nil, showsOutput: Bool = false, presence: Bool = false,
+        argv: [[String]]? = nil, input: Input? = nil, presence: Bool = false,
         planned: Planned? = nil, opens: Surface? = nil
     ) {
         self.title = title
@@ -93,7 +95,6 @@ public struct DoctorAction: Equatable, Sendable {
         self.needs = needs
         self.argv = argv
         self.input = input
-        self.showsOutput = showsOutput
         self.presence = presence
         self.planned = planned
         self.opens = opens
@@ -201,7 +202,11 @@ public enum DoctorAdvice {
         // button into the Vault window's list (`orphanCard`), where they
         // are read by project and deleted by choice.
         "orphan": { _ in [] },
-        "duplicates": { _ in [show("Compare", ["vault", "duplicates"])] },
+        // Compare used to paste `jit vault duplicates`' text into a sheet.
+        // The Vault window reads the same comparison as JSON and shows it
+        // as rows, with its own question first (the unlock and a Touch ID
+        // per kind of secret), so the button goes there and runs nothing.
+        "duplicates": { _ in [DoctorAction("Compare", "jit vault duplicates", opens: .duplicates)] },
         // Doctor's advice here is two-sided ("nothing, if you still use
         // these; `jit vault rm` if the project is gone") and only the user
         // knows which side they are on: a one-click delete broke two live
@@ -210,7 +215,7 @@ public enum DoctorAdvice {
         "origin_gone": { _ in [] },
         "service": { item in item.commands.map {
             $0.hasPrefix("jit service log")
-                ? show("Show Log", ["service", "log"])
+                ? DoctorAction("Show Log", "jit service log", opens: .serviceLog)
                 : DoctorAction("Restart Service", $0, argv: [["service", "restart"]])
         } },
         "backup": { _ in [DoctorAction(
@@ -330,11 +335,6 @@ public enum DoctorAdvice {
             return []
         }
         return [DoctorAction(title, fix.command, argv: [fix.argv + ["--yes"]], presence: fix.presence)]
-    }
-
-    /// A read-only command whose output is the point.
-    private static func show(_ title: String, _ arguments: [String]) -> DoctorAction {
-        DoctorAction(title, "jit " + arguments.joined(separator: " "), argv: [arguments], showsOutput: true)
     }
 
     /// `jit unmount <path>` as the terminal runs it: the home-relative path

@@ -5,19 +5,19 @@ import JitAgentClient
 import SwiftUI
 
 /// What the Doctor window has open over it: the one question before a
-/// destructive fix, the profiles review, or the output of an action whose
-/// output was the whole request. All three are sheets on the window that
-/// raised them, never windows of their own.
+/// destructive fix, the profiles review, or the service log's rows. All
+/// three are sheets on the window that raised them, never windows of their
+/// own.
 enum DoctorSheet: Identifiable, Equatable {
     case review
     case confirm(DoctorConfirmRequest)
-    case output(DoctorOutput)
+    case log(ServiceLog)
 
     var id: String {
         switch self {
         case .review: "review"
         case let .confirm(request): "confirm:" + request.id.uuidString
-        case let .output(output): "output:" + output.id.uuidString
+        case .log: "log"
         }
     }
 }
@@ -30,12 +30,6 @@ struct DoctorConfirmRequest: Identifiable, Equatable {
     /// What the row said about the file, carried through so the sheet and
     /// the row agree on why this is being deleted.
     var fact: String?
-}
-
-struct DoctorOutput: Identifiable, Equatable {
-    var id = UUID()
-    var title: String
-    var text: String
 }
 
 /// The one question before a destructive fix.
@@ -148,36 +142,104 @@ struct DoctorFileChip: View {
     }
 }
 
-/// The output of an action whose output was the whole request (a
-/// comparison, a service log). In the window's own type on the window's
-/// own material: it replaces a black monospaced pane that opened as a
-/// separate modal window over the app.
-struct DoctorOutputSheet: View {
-    let output: DoctorOutput
+/// Doctor › Show Log: what the service did, as rows (`jit service log
+/// --format json`), newest first under a day label. Each row is a time, a
+/// dot for its level (red failed, amber a reader worth a look), the
+/// message, and the protected files it was about, name first. Copy keeps
+/// the lines' words for a bug report.
+struct ServiceLogSheet: View {
+    let log: ServiceLog
     let done: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Design.Space.five) {
-            Text(output.title).font(Design.Text.windowHead).foregroundStyle(Design.Label.primary)
-            ScrollView {
-                Text(output.text.isEmpty ? "jit printed nothing." : output.text)
-                    .font(Design.Text.command)
-                    .foregroundStyle(Design.Label.primary)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: Design.Space.one) {
+                Text("Service log").font(Win.cardTitle)
+                Text(log.entries.isEmpty ? "The service hasn't written anything yet." : "What the service did, newest first.")
+                    .font(Win.sub).foregroundStyle(.secondary)
             }
-            .frame(maxHeight: 320)
+            if !log.entries.isEmpty {
+                AppPlainCard {
+                    CappedScroll(maxHeight: 320) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(days.enumerated()), id: \.offset) { _, day in
+                                Text(day.label).font(Win.rowFact).fontWeight(.semibold).foregroundStyle(.secondary)
+                                    .padding(.top, Design.Space.three).padding(.bottom, Design.Space.two)
+                                ForEach(Array(day.entries.enumerated()), id: \.offset) { _, entry in
+                                    row(entry)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             HStack(spacing: Design.Space.four) {
-                Button("Copy") {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(output.text, forType: .string)
+                if !log.entries.isEmpty {
+                    Button("Copy") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(log.plainText, forType: .string)
+                    }
+                    .buttonStyle(AppButton())
                 }
                 Spacer()
-                Button("Done", action: done).keyboardShortcut(.defaultAction).font(Design.Text.button)
+                Button("Done", action: done).buttonStyle(AppButton(kind: .primary)).keyboardShortcut(.defaultAction)
             }
         }
         .padding(Design.Space.six)
         .frame(width: Design.Sheet.wide)
+        .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
+        .onExitCommand(perform: done)
+    }
+
+    private var days: [ServiceLog.Day] {
+        let format = DateFormatter()
+        format.dateFormat = "yyyy-MM-dd"
+        let now = Date()
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now) ?? now
+        return log.days(today: format.string(from: now), yesterday: format.string(from: yesterday))
+    }
+
+    @ViewBuilder
+    private func row(_ entry: ServiceLog.Entry) -> some View {
+        if let raw = entry.raw {
+            // A line jit didn't recognise (a panic, a stack frame): it is
+            // evidence, so it stays exactly as written.
+            Text(raw).font(Win.command).foregroundStyle(.secondary).textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, Design.Space.two)
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: Design.Space.four) {
+                Text(entry.time ?? "").font(Win.rowFact).monospacedDigit().foregroundStyle(.secondary)
+                Circle().fill(dot(entry.level)).frame(width: 7, height: 7)
+                VStack(alignment: .leading, spacing: Design.Space.one) {
+                    Text(entry.message ?? "").font(Win.sub).fixedSize(horizontal: false, vertical: true)
+                    if let about = subjects(entry) {
+                        Text(about).font(Win.rowFact).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, Design.Space.three)
+        }
+    }
+
+    private func dot(_ level: String?) -> Color {
+        switch level {
+        case "risk": Color(StatusMark.red)
+        case "warn": Color(StatusMark.amber)
+        default: Color(nsColor: .secondaryLabelColor)
+        }
+    }
+
+    /// The files a row is about: one by name and folder, several by count
+    /// and their folders' names (they are usually all `.env`).
+    private func subjects(_ entry: ServiceLog.Entry) -> String? {
+        let paths = entry.subjects ?? []
+        guard let first = paths.first else {
+            return nil
+        }
+        if paths.count == 1 {
+            return Format.fileName(first) + " · " + Format.parentFolder(first)
+        }
+        return "\(paths.count) protected files · " + NameList.capped(paths.map { Format.fileName(Format.parentFolder($0)) })
     }
 }

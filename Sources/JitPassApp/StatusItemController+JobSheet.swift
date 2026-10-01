@@ -323,17 +323,11 @@ extension StatusItemController {
         git(["ls-files", "--error-unmatch", "--", (file as NSString).lastPathComponent], in: file)?.status == 0
     }
 
-    /// `git diff` of one file against its last commit, capped: a review
-    /// needs the change, not a megabyte of it.
-    nonisolated static func gitDiff(_ file: String) -> String {
-        guard let result = git(["diff", "--no-color", "HEAD", "--", (file as NSString).lastPathComponent], in: file),
-              result.status == 0
-        else {
-            return "git could not show the changes for this file."
-        }
-        let text = result.output.isEmpty ? "No difference from git's last commit: the file was rewritten with the same content." : result
-            .output
-        return String(text.prefix(20000))
+    /// `git diff` of one file against its last commit, as lines with their
+    /// numbers (`FileDiff`, which caps how many are drawn).
+    nonisolated static func gitDiff(_ file: String) -> FileDiff {
+        let result = git(["diff", "--no-color", "HEAD", "--", (file as NSString).lastPathComponent], in: file)
+        return FileDiff.make(file: file, output: result?.status == 0 ? result?.output : nil)
     }
 
     private nonisolated static func git(_ arguments: [String], in file: String) -> (status: Int32, output: String)? {

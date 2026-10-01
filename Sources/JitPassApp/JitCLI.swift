@@ -241,29 +241,37 @@ enum JitCLI {
         return .success(Outcome(status: process.terminationStatus, output: text))
     }
 
-    /// Runs one shell line (a catalog verify hint such as `gh auth status`)
-    /// under the app's PATH and returns what it printed, for a result
-    /// sheet. The line is the catalog's, never the user's.
-    static func shell(_ line: String) -> Result<String, Error> {
+    /// A catalog check (`vercel whoami`), for Verify: its exit status and
+    /// everything it printed, success or not. The line is the catalog's,
+    /// never the user's. Run through the shims on PATH, so a wrapped tool
+    /// gets jit's key.
+    /// `keep` false (a check that prints a secret) sends the output to
+    /// /dev/null: the app never reads it, so it can't show or hold it.
+    static func check(_ line: String, keep: Bool = true) -> Result<Outcome, Error> {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-c", line]
         process.environment = environment
         process.currentDirectoryURL = workingDirectory
         let out = Pipe()
-        process.standardOutput = out
-        process.standardError = out
+        if keep {
+            process.standardOutput = out
+            process.standardError = out
+        } else {
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+        }
         process.standardInput = FileHandle.nullDevice
         do {
             try process.run()
         } catch {
             return .failure(error)
         }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
+        try? out.fileHandleForWriting.close()
+        let data = keep ? out.fileHandleForReading.readDataToEndOfFile() : Data()
         process.waitUntilExit()
         let text = (String(data: data, encoding: .utf8) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        return process
-            .terminationStatus == 0 ? .success(text) : .failure(CLIError.failed(text.isEmpty ? "exit \(process.terminationStatus)" : text))
+        return .success(Outcome(status: process.terminationStatus, output: text))
     }
 
     enum CLIError: Error {

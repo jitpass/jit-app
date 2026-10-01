@@ -161,8 +161,7 @@ final class DoctorAdviceTests: XCTestCase {
         )
         let action = try XCTUnwrap(DoctorAdvice.actions(for: corrupt).first { $0.title == "Show History" })
         XCTAssertEqual(action.opens, .history(path: "p/V"))
-        XCTAssertNil(action.argv, "it runs nothing")
-        XCTAssertFalse(action.showsOutput, "and shows no command output")
+        XCTAssertNil(action.argv, "it runs nothing, so no command output can be shown")
     }
 
     func testDestructiveCommandsAreMarked() {

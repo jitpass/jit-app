@@ -78,7 +78,7 @@ extension StatusItemController {
         doctorProgress.outcome = nil
         let chosen = targets
         Task.detached {
-            let answer = JitCLI.migratePlan(mode, chosen)
+            let answer = (plan: JitCLI.migratePlan(mode, chosen), rows: Self.planRows(mode, chosen))
             await MainActor.run { [weak self] in
                 self?.model.doctorBusy = nil
                 self?.confirmMigrate(answer, mode: mode, targets: chosen, action: action, target: target)
@@ -86,23 +86,42 @@ extension StatusItemController {
         }
     }
 
+    /// The dialog's rows, from jit's JSON: `migrate preview` for the files
+    /// a migrate names, `migrate undo --dry-run` for an undo. A migrate by
+    /// category names no file to preview, and a jit without these has no
+    /// JSON: then the dialog's sentence stands alone.
+    nonisolated static func planRows(_ mode: MigratePlan.Mode, _ targets: [String]) -> [PlanRow] {
+        let files = targets.filter { $0.hasPrefix("/") }
+        guard !files.isEmpty else {
+            return []
+        }
+        switch mode {
+        case .migrate:
+            return (try? JitCLI.migratePreview(files).get()).map(PlanRow.migrate) ?? []
+        case .undo:
+            return (try? JitCLI.migrateUndoPlan(files).get()).map(PlanRow.undo) ?? []
+        }
+    }
+
+    /// `answer` is jit's dry run (the dialog's wording) and its JSON rows.
     private func confirmMigrate(
-        _ answer: Result<MigratePlan, Error>, mode: MigratePlan.Mode, targets: [String], action: DoctorAction, target: DoctorTarget
+        _ answer: (plan: Result<MigratePlan, Error>, rows: [PlanRow]), mode: MigratePlan.Mode, targets: [String],
+        action: DoctorAction, target: DoctorTarget
     ) {
         doctorWindow.reclaimFocus()
         let confirmation: DeleteConfirmation
-        var plan: String?
-        switch answer {
+        var shown: [PlanRow] = []
+        switch answer.plan {
         case let .success(worded):
             confirmation = worded.confirmation()
-            plan = worded.hasWork ? worded.text : nil
+            shown = worded.hasWork ? answer.rows : []
         case let .failure(error):
             confirmation = MigratePlan.unavailable(mode, targets: targets, reason: Self.describe(error))
         }
         let file = targets.first { $0.hasPrefix("/") }
         let reveal = file.map { RevealLink(title: "Show Config", path: $0) }
-        guard DoctorDialogs.confirmPlan(confirmation, plan: plan, reveal: reveal) else {
-            if confirmation.button == nil, case .success = answer {
+        guard DoctorDialogs.confirmPlan(confirmation, rows: shown, reveal: reveal) else {
+            if confirmation.button == nil, case .success = answer.plan {
                 runDoctor(afterAction: true)
             }
             return
@@ -124,6 +143,8 @@ extension StatusItemController {
             runInTerminal(command)
         case .review:
             break
+        case .open(.serviceLog):
+            showServiceLog()
         case let .open(surface):
             openVaultSurface(surface)
         case let .ignore(commands):
