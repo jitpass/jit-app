@@ -4,7 +4,8 @@
 import JitAgentClient
 import SwiftUI
 
-/// "What Changed…": what a Redact or a Protect did, as rows
+/// "What Changed…": what an action did, as rows: a Redact, a Protect, a
+/// wrap, a cache clean, an undo, a Verify
 /// (docs/design/mockups/WhatChanged-sheet.html). The result in one line,
 /// what was not touched, one row per file, the promises kept, what was
 /// left. jit's words are on screen only under a failure; its full report
@@ -15,6 +16,10 @@ struct ChangeSheetView: View {
     let copyPath: (String) -> Void
     let undo: () -> Void
     let close: () -> Void
+    /// The sheet's Verify, after a wrap (`ChangeSheet.verify`).
+    var verify: (String) -> Void = { _ in }
+    /// Protect Again, after an undo (`ChangeSheet.again`).
+    var protectAgain: ([String]) -> Void = { _ in }
 
     @State private var allFiles = false
     @State private var showReport = false
@@ -53,10 +58,16 @@ struct ChangeSheetView: View {
             }
             HStack(spacing: Win.s4) {
                 if !sheet.report.isEmpty {
-                    Button(showReport ? "Hide jit's report" : "Show jit's report ›") { showReport.toggle() }
+                    Button(showReport ? "Hide " + sheet.reportLabel : "Show " + sheet.reportLabel + " ›") { showReport.toggle() }
                         .buttonStyle(AppButton(kind: .plain))
                 }
                 Spacer(minLength: Win.s5)
+                if let tool = sheet.verify {
+                    Button("Verify") { verify(tool) }.buttonStyle(AppButton())
+                }
+                if !sheet.again.isEmpty {
+                    Button("Protect Again") { protectAgain(sheet.again) }.buttonStyle(AppButton())
+                }
                 if !sheet.undo.isEmpty {
                     Button("Undo", action: undo).buttonStyle(AppButton())
                 }
@@ -113,6 +124,8 @@ struct ChangeSheetView: View {
         case .done: .done
         case .left: .dot(Color(StatusMark.amber))
         case .failed: .failed
+        // A fact with no verdict: the label's own grey, not a state colour.
+        case .info: .dot(Color(nsColor: .secondaryLabelColor))
         }
     }
 }

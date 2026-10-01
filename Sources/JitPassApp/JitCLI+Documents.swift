@@ -37,6 +37,40 @@ extension JitCLI {
         )
     }
 
+    /// `jit wrap <tool> --format json`: what the wrap did. `yes` skips a
+    /// native tool's migration prompt (aws, docker, git, terraform), which
+    /// the app's own dialog has already asked.
+    static func wrap(_ tool: String, yes: Bool = false) -> Result<WrapReport, Error> {
+        document(["wrap", tool] + (yes ? ["--yes"] : []) + ["--format", "json"]) { try WrapReport.parse(Data($0.utf8)) }
+    }
+
+    /// `jit wrap add <tool> --env VAR=<path> --format json`.
+    static func wrapAdd(_ tool: String, env: String) -> Result<WrapReport, Error> {
+        document(["wrap", "add", tool, "--env", env, "--format", "json"]) { try WrapReport.parse(Data($0.utf8)) }
+    }
+
+    /// `jit migrate caches --yes --format json`: the whole-vault cache
+    /// sweep, as the migrate report's document.
+    static func migrateCaches() -> Result<MigrateReport, Error> {
+        document(["migrate", "caches", "--yes", "--format", "json"], parse: MigrateReport.parse)
+    }
+
+    /// `jit migrate undo <paths> --yes --format json`.
+    static func migrateUndo(_ paths: [String]) -> Result<UndoReport, Error> {
+        document(["migrate", "undo"] + paths + ["--yes", "--format", "json"]) { try UndoReport.parse(Data($0.utf8)) }
+    }
+
+    /// `jit migrate undo <paths> --dry-run --format json`: the plan, from
+    /// envelope metadata alone, no unlock.
+    static func migrateUndoPlan(_ paths: [String]) -> Result<UndoReport, Error> {
+        document(["migrate", "undo"] + paths + ["--dry-run", "--format", "json"]) { try UndoReport.parse(Data($0.utf8)) }
+    }
+
+    /// `jit service log --format json`: the last `lines` lines as rows.
+    static func serviceLog(lines: Int = 200) -> Result<ServiceLog, Error> {
+        document(["service", "log", "-n", String(lines), "--format", "json"]) { try ServiceLog.parse(Data($0.utf8)) }
+    }
+
     /// Runs a command that writes one JSON document, stderr kept apart so a
     /// progress line cannot land inside it. A run that failed but still
     /// wrote its document returns it — the partial result is real and its

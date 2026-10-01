@@ -72,8 +72,8 @@ struct DoctorView: View {
                 DoctorReviewSheet(model: model, actions: actions) { model.doctorSheet = nil }
             case let .confirm(request):
                 DoctorConfirmSheet(request: request, answer: actions.answer)
-            case let .output(output):
-                DoctorOutputSheet(output: output) { model.doctorSheet = nil }
+            case let .log(log):
+                ServiceLogSheet(log: log) { model.doctorSheet = nil }
             }
         }
     }

@@ -5,9 +5,11 @@ import AppKit
 import JitAgentClient
 
 /// Wrapping a tool from the Tools and AI Agents windows. Each of these
-/// runs a step before the wrap that changes something on its own (a key
+/// can run a step before the wrap that changes something on its own (a key
 /// stored, an rc file migrated); when that step worked and the wrap did
-/// not, the result says both (`WrapSteps`), never "Nothing was changed".
+/// not, the sheet says both (`ChangeSheet.wrapped`), never "Nothing was
+/// changed". The wrap itself is `--format json`: its rows are jit's
+/// report, not its text.
 extension StatusItemController {
     /// `jit wrap <tool>`, after the sheet said what it does. With a value,
     /// `jit vault set <path> --stdin` runs first: the CLI cannot take the
@@ -21,21 +23,21 @@ extension StatusItemController {
         }
         let path = record?.injects.first?.vaultPath
         let stores = value.map { !$0.isEmpty } == true && path != nil
-        let work: @Sendable () -> Result<WrapSteps, Error> = {
+        let verify = record?.verifyHint != nil
+        let work: @Sendable () -> Result<WrapReport, Error> = {
             guard stores, let value, let path else {
-                return JitCLI.execute(["wrap", tool]).map { WrapSteps(text: [$0]) }
+                return Self.wrapRun(tool: tool) { JitCLI.wrap(tool) }
             }
-            return Self.wrapSteps(first: ["vault", "set", path, "--stdin", "--yes"], stdin: value, wrap: ["wrap", tool])
+            return Self.wrapRun(tool: tool, first: ["vault", "set", path, "--stdin", "--yes"], stdin: value) { JitCLI.wrap(tool) }
         }
-        runTools(tool, work: work, then: { [weak self] steps in
+        runTools(tool, work: work, then: { [weak self] report in
             guard let self else {
                 return
             }
             model.scanStale = true
             model.toolsSheet = nil
             model.agentsSheet = nil
-            let title = steps.title(success: "Wrapped \(tool)", done: Format.keyStored(path ?? tool), tool: tool)
-            showResult(title: title, text: steps.report, failed: steps.failed)
+            showChanges(.wrapped(report, stored: stores ? path : nil, verify: verify))
             if stores {
                 vaultChanged()
             }
@@ -48,19 +50,18 @@ extension StatusItemController {
     /// tool, so Unwrap and the listing treat it like one.
     func handWrap(_ tool: String, name: String, value: String) {
         let path = "wrap-\(tool)/\(name)"
-        let work: @Sendable () -> Result<WrapSteps, Error> = {
-            Self.wrapSteps(
-                first: ["vault", "set", path, "--stdin", "--yes"], stdin: value, wrap: ["wrap", "add", tool, "--env", name + "=" + path]
-            )
+        let work: @Sendable () -> Result<WrapReport, Error> = {
+            Self.wrapRun(tool: tool, first: ["vault", "set", path, "--stdin", "--yes"], stdin: value) {
+                JitCLI.wrapAdd(tool, env: name + "=" + path)
+            }
         }
-        runTools(tool, work: work, then: { [weak self] steps in
+        runTools(tool, work: work, then: { [weak self] report in
             guard let self else {
                 return
             }
             model.toolsSheet = nil
             model.toolsSelected = tool
-            let title = steps.title(success: "Wrapped \(tool)", done: Format.keyStored(path), tool: tool)
-            showResult(title: title, text: steps.report, failed: steps.failed)
+            showChanges(.wrapped(report, stored: path))
             vaultChanged()
         })
     }
@@ -71,39 +72,40 @@ extension StatusItemController {
     /// then `jit wrap add <tool> --env VAR=<rc name>/VAR` points the shim
     /// at that copy. One Touch ID: the wrap only checks the path exists.
     private func wrapFromShellConfig(_ tool: String, key: ShellConfigKey) {
-        let work: @Sendable () -> Result<WrapSteps, Error> = {
-            Self.wrapSteps(first: ["migrate", key.file, "--yes"], wrap: ["wrap", "add", tool, "--env", key.name + "=" + key.vaultPath])
+        let verify = model.toolListing?.tool(named: tool)?.verifyHint != nil
+        let work: @Sendable () -> Result<WrapReport, Error> = {
+            Self.wrapRun(tool: tool, first: ["migrate", key.file, "--yes"]) {
+                JitCLI.wrapAdd(tool, env: key.name + "=" + key.vaultPath)
+            }
         }
-        runTools(tool, work: work, then: { [weak self] steps in
+        runTools(tool, work: work, then: { [weak self] report in
             guard let self else {
                 return
             }
             model.scanStale = true
             model.toolsSheet = nil
             model.agentsSheet = nil
-            let protected = "Protected \(Format.home(key.file))"
-            showResult(
-                title: steps.title(success: protected + ", wrapped \(tool)", done: protected, tool: tool),
-                text: steps.report,
-                failed: steps.failed
-            )
+            showChanges(.wrapped(report, protected: Format.home(key.file), verify: verify))
             vaultChanged()
             runScan(wholeMac: true, kind: .afterProtect)
         })
     }
 
     /// The first step, then the wrap. A first step that failed changed
-    /// nothing and is the run's failure; a wrap that failed after it is
-    /// recorded in the result, since the first step's change stands.
-    nonisolated static func wrapSteps(first: [String], stdin: String? = nil, wrap: [String]) -> Result<WrapSteps, Error> {
-        let done: String
-        switch JitCLI.execute(first, stdin: stdin) {
-        case let .success(text): done = text
-        case let .failure(error): return .failure(error)
+    /// nothing and is the run's failure; a wrap that wrote no report after
+    /// it is recorded as the report's error, since the first step's change
+    /// stands.
+    nonisolated static func wrapRun(
+        tool: String, first: [String]? = nil, stdin: String? = nil, wrap: @Sendable () -> Result<WrapReport, Error>
+    ) -> Result<WrapReport, Error> {
+        if let first, case let .failure(error) = JitCLI.execute(first, stdin: stdin) {
+            return .failure(error)
         }
-        switch JitCLI.execute(wrap) {
-        case let .success(text): return .success(WrapSteps(text: [done, text]))
-        case let .failure(error): return .success(WrapSteps(text: [done], wrapFailed: describeTools(error)))
+        switch wrap() {
+        case let .success(report):
+            return .success(report)
+        case let .failure(error):
+            return .success(WrapReport(tool: tool, kind: "", wrapped: false, errors: [describeTools(error)]))
         }
     }
 }

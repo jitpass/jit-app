@@ -107,19 +107,6 @@ final class ChangeSheetTests: XCTestCase {
         XCTAssertEqual(sheet.notes.first?.fact, "Nothing was changed.")
     }
 
-    /// "What Changed…" shows only what the banner does not already say: a
-    /// Connect's words are its banner, so it has no button; a Redact's
-    /// rows, or jit's longer text, keep it.
-    func testWhatChangedIsOfferedOnlyWhenItAddsToTheBanner() {
-        let said = "Cursor will start jit's MCP server. Quit and reopen Cursor to pick this up."
-        XCTAssertFalse(ChangeSheet.addsTo(banner: said, text: said, sheet: nil))
-        XCTAssertFalse(ChangeSheet.addsTo(banner: said, text: said + "\n", sheet: nil))
-        XCTAssertFalse(ChangeSheet.addsTo(banner: "Cleaned AI agent caches", text: "", sheet: nil))
-        XCTAssertTrue(ChangeSheet.addsTo(banner: "Cleaned AI agent caches", text: "removed 3 files", sheet: nil))
-        let rows = ChangeSheet.redact(RedactReport(files: [], applied: true, caches: .init(removed: []), errors: [], report: ""))
-        XCTAssertTrue(ChangeSheet.addsTo(banner: rows.title, text: rows.title, sheet: rows))
-    }
-
     /// A Protect of a big .env vaults every variable, and the sheet has no
     /// scroll area: the note names the first few and counts the rest, and
     /// jit's failure lines are capped the same way, so Done stays on screen.

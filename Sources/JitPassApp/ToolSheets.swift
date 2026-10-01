@@ -12,10 +12,9 @@ enum ToolsSheet: Identifiable, Equatable {
     /// Wrap a tool outside the catalog: name, the variable it reads, the
     /// key. `jit wrap add`.
     case handWrap
-    /// What a command printed, verbatim: the CLI is the one that says what
-    /// it found and moved.
-    case result(title: String, text: String)
-    /// What a Redact or a Protect changed, as rows (`ChangeSheet`).
+    /// What an action did, as rows (`ChangeSheet`). There is no sheet of
+    /// a command's printout: its words are under a failure or behind the
+    /// disclosure.
     case changes(ChangeSheet)
     /// The Findings window's question before a scan: how far to look, for
     /// this scope (nil: the whole Mac).
@@ -25,7 +24,6 @@ enum ToolsSheet: Identifiable, Equatable {
         switch self {
         case let .wrap(tool): "wrap:" + tool
         case .handWrap: "handwrap"
-        case let .result(title, _): "result:" + title
         case let .changes(sheet): "changes:" + sheet.title
         case let .scanDepth(scope): "depth:" + (scope ?? "mac")
         }
@@ -181,36 +179,6 @@ struct WrapSheet: View {
     }
 }
 
-/// What a command printed, verbatim. The CLI is the one that says what it
-/// found, moved and backed up; the sheet only frames it.
-struct ResultSheet: View {
-    let title: String
-    let text: String
-    let close: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.headline)
-            ScrollView {
-                Text(text)
-                    .font(.system(size: 12, design: .monospaced))
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(minHeight: 120, maxHeight: 320)
-            .padding(8)
-            .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
-            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            HStack {
-                Spacer()
-                Button("Close", action: close).keyboardShortcut(.defaultAction)
-            }
-        }
-        .padding(20)
-        .frame(width: 560)
-    }
-}
-
 /// Wrap a tool the catalog does not know: its name (what you type in the
 /// terminal), the environment variable it reads its token from, and the
 /// token. The value goes to jit through a pipe, never an argument; the
@@ -297,5 +265,37 @@ enum HandWrap {
             return false
         }
         return name.allSatisfy { $0 == "_" || $0.isLetter || $0.isNumber }
+    }
+}
+
+/// What the Tools window has open over it: a wrap's question, or what an
+/// action did, as rows.
+struct ToolsSheetHost: View {
+    @ObservedObject var model: MenuModel
+    let actions: ToolsActions
+    let sheet: ToolsSheet
+
+    var body: some View {
+        switch sheet {
+        case let .wrap(tool):
+            if let record = model.toolListing?.tool(named: tool) {
+                WrapSheet(model: model, actions: actions, tool: record)
+            }
+        case .handWrap:
+            HandWrapSheet(model: model, actions: actions)
+        case let .changes(changes):
+            ChangeSheetView(
+                sheet: changes,
+                reveal: actions.reveal,
+                copyPath: actions.copyPath,
+                undo: { actions.closeSheet(); actions.undoProtect(changes.undo) },
+                close: actions.closeSheet,
+                verify: { actions.closeSheet(); actions.verify($0) },
+                protectAgain: { actions.closeSheet(); actions.protectAgain($0) }
+            )
+        case .scanDepth:
+            // Findings' sheet; never opened here.
+            EmptyView()
+        }
     }
 }

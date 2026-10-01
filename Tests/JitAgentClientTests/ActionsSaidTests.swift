@@ -94,24 +94,6 @@ final class ActionsSaidTests: XCTestCase {
         XCTAssertEqual(ProtectRun(wrapped: ["acme", "globex"], wrappedText: ["", ""]).outcome(home: "/h").title, "Wrapped 2 tools")
     }
 
-    // MARK: - A wrap after a step that changed something
-
-    func testAWrapThatFailsAfterItsFirstStepSaysWhatChanged() {
-        let steps = WrapSteps(text: ["stored acme/ACME_TOKEN"], wrapFailed: "acme: no such command")
-        XCTAssertTrue(steps.failed)
-        XCTAssertEqual(
-            steps.title(success: "Wrapped acme", done: "Protected ~/acme.rc", tool: "acme"),
-            "Protected ~/acme.rc · wrap acme failed: acme: no such command"
-        )
-        XCTAssertEqual(steps.report, "stored acme/ACME_TOKEN\n\nacme: no such command")
-    }
-
-    func testAWrapThatWorkedSaysItsSuccess() {
-        let steps = WrapSteps(text: ["stored", "wrapped"])
-        XCTAssertFalse(steps.failed)
-        XCTAssertEqual(steps.title(success: "Wrapped acme", done: "Protected ~/acme.rc", tool: "acme"), "Wrapped acme")
-    }
-
     // MARK: - Reloads
 
     func testAReloadAskedDuringAReadRunsOnceItLands() {

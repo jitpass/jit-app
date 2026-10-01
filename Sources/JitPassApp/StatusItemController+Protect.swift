@@ -47,9 +47,8 @@ extension StatusItemController {
 
     /// The banner's sentence and jit's words, from the run's fields
     /// (`ProtectRun.outcome`). Undo carries the files a migrate applied to.
-    static func protectOutcome(_ run: ProtectRun) -> WindowOutcome {
-        let outcome = run.outcome(home: FileManager.default.homeDirectoryForCurrentUser.path)
-        return WindowOutcome(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
+    static func protectOutcome(_ run: ProtectRun) -> ProtectRunOutcome {
+        run.outcome(home: FileManager.default.homeDirectoryForCurrentUser.path)
     }
 
     /// Redact… on a row, Redact All… on a sheet or the card: the tokens the
@@ -202,10 +201,9 @@ extension StatusItemController {
             return
         }
         model.findingsOutcome = nil
-        let title = paths.count == 1 ? "Restored \(Format.home(paths[0]))" : "Restored \(paths.count) files"
-        runTools("undo", failed: "Undo", work: { JitCLI.execute(["migrate", "undo"] + paths + ["--yes"]) }, then: { [weak self] output in
+        runTools("undo", failed: "Undo", work: { JitCLI.migrateUndo(paths) }, then: { [weak self] report in
             self?.model.scanStale = true
-            self?.showResult(title: title, text: output)
+            self?.showChanges(.restored(report))
             self?.vaultChanged()
             self?.runScan(wholeMac: true, kind: .afterProtect)
         })

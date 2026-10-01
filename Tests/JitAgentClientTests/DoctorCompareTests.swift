@@ -13,7 +13,6 @@ final class DoctorCompareTests: XCTestCase {
         let action = try XCTUnwrap(DoctorAdvice.actions(for: duplicates).first)
         XCTAssertEqual(action.title, "Compare")
         XCTAssertEqual(action.opens, .duplicates)
-        XCTAssertNil(action.argv, "it runs nothing")
-        XCTAssertFalse(action.showsOutput, "and shows no command output")
+        XCTAssertNil(action.argv, "it runs nothing, so no command output can be shown")
     }
 }

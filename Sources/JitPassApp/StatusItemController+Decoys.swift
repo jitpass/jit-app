@@ -45,10 +45,10 @@ extension StatusItemController {
         DecoysActions(
             reload: { [weak self] in self?.reloadDecoys() },
             closeSheet: { [weak self] in self?.model.decoysSheet = nil },
-            // The rows jit's report has (a Protect's What Changed), else
-            // jit's words: the same sheet Findings opens for the same run.
+            // The rows of what changed: the same sheet Findings opens for
+            // the same run.
             showOutcome: { [weak self] outcome in
-                self?.model.decoysSheet = outcome.changes.map { .changes($0) } ?? .result(title: outcome.title, text: outcome.text)
+                self?.model.decoysSheet = outcome.changes.map { .changes($0) }
             },
             open: { path, line in Editor.open(path, line: line) },
             reveal: { path in Editor.reveal(path) },
@@ -57,6 +57,8 @@ extension StatusItemController {
                 NSPasteboard.general.setString(path, forType: .string)
             },
             undoProtect: { [weak self] paths in self?.undoProtect(paths) },
+            verify: { [weak self] tool in self?.verifyTool(tool) },
+            protectAgain: { [weak self] paths in self?.protectFiles(paths) },
             openVault: { [weak self] in self?.openVault() },
             openScan: { [weak self] in self?.openScan() },
             openAudit: { [weak self] in self?.openAudit(filter: AuditFilter(kinds: ["serve"], since: "24h", limit: 0)) },

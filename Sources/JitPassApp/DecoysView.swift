@@ -22,7 +22,7 @@ struct DecoysView: View {
             // banner (a scheduled redact, a Protect from there) stays there.
             if let outcome = model.decoysOutcome {
                 WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
-                    if ChangeSheet.addsTo(banner: outcome.title, text: outcome.text, sheet: outcome.changes) {
+                    if outcome.changes != nil {
                         Button("What Changed…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
                     }
                     if let reader = outcome.unexpect {
@@ -65,15 +65,15 @@ struct DecoysView: View {
         }
         .sheet(item: $model.decoysSheet) { sheet in
             switch sheet {
-            case let .result(title, text):
-                ResultSheet(title: title, text: text, close: actions.closeSheet)
             case let .changes(changes):
                 ChangeSheetView(
                     sheet: changes,
                     reveal: actions.reveal,
                     copyPath: actions.copyPath,
                     undo: { actions.closeSheet(); actions.undoProtect(changes.undo) },
-                    close: actions.closeSheet
+                    close: actions.closeSheet,
+                    verify: { actions.closeSheet(); actions.verify($0) },
+                    protectAgain: { actions.closeSheet(); actions.protectAgain($0) }
                 )
             default:
                 EmptyView()
@@ -290,6 +290,8 @@ struct DecoysActions {
     /// What Changed's Undo: `jit migrate undo` on the files the Protect
     /// changed, after its own question.
     var undoProtect: ([String]) -> Void = { _ in }
+    var verify: (String) -> Void = { _ in }
+    var protectAgain: ([String]) -> Void = { _ in }
     var openVault: () -> Void = {}
     var openScan: () -> Void = {}
     var openAudit: () -> Void = {}

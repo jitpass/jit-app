@@ -47,19 +47,7 @@ struct ToolsView: View {
         .frame(minWidth: Win.width, maxWidth: .infinity, minHeight: Win.minimum(Win.height), maxHeight: .infinity, alignment: .top)
         .background(VisualEffectBackground(material: .underWindowBackground, cornerRadius: 0))
         .sheet(item: $model.toolsSheet) { sheet in
-            switch sheet {
-            case let .wrap(tool):
-                if let record = model.toolListing?.tool(named: tool) {
-                    WrapSheet(model: model, actions: actions, tool: record)
-                }
-            case .handWrap:
-                HandWrapSheet(model: model, actions: actions)
-            case let .result(title, text):
-                ResultSheet(title: title, text: text, close: actions.closeSheet)
-            case .scanDepth, .changes:
-                // Findings' sheets; never opened here.
-                EmptyView()
-            }
+            ToolsSheetHost(model: model, actions: actions, sheet: sheet)
         }
         .onAppear(perform: actions.reload)
     }
@@ -371,6 +359,12 @@ struct ToolsActions {
     var protectFile: (String) -> Void = { _ in }
     var unwrap: (String) -> Void = { _ in }
     var verify: (String) -> Void = { _ in }
+    /// The result sheet's rows: Show in Finder, Copy Path, Undo and
+    /// Protect Again, the same as Findings'.
+    var reveal: (String) -> Void = { _ in }
+    var copyPath: (String) -> Void = { _ in }
+    var undoProtect: ([String]) -> Void = { _ in }
+    var protectAgain: ([String]) -> Void = { _ in }
     var mintInTerminal: (String) -> Void = { _ in }
     var cleanCaches: () -> Void = {}
     var openVault: () -> Void = {}

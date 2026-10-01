@@ -43,15 +43,15 @@ struct ScanReportView: View {
         .onChange(of: model.scan) { _ in tier = nil }
         .sheet(item: $model.scanSheet) { sheet in
             switch sheet {
-            case let .result(title, text):
-                ResultSheet(title: title, text: text, close: actions.closeSheet)
             case let .changes(changes):
                 ChangeSheetView(
                     sheet: changes,
                     reveal: actions.reveal,
                     copyPath: actions.copyPath,
                     undo: { actions.closeSheet(); actions.undoProtect(changes.undo) },
-                    close: actions.closeSheet
+                    close: actions.closeSheet,
+                    verify: { actions.closeSheet(); actions.verify($0) },
+                    protectAgain: { actions.closeSheet(); actions.protectAgain($0) }
                 )
             case let .scanDepth(scope):
                 ScanDepthSheet(model: model, scope: scope, start: { actions.startScan(scope, $0) }, close: actions.closeSheet)
@@ -99,7 +99,7 @@ struct ScanReportView: View {
     private var banner: some View {
         if let outcome = model.findingsOutcome {
             WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
-                if !outcome.text.isEmpty {
+                if outcome.changes != nil {
                     Button("What Changed…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
                 }
                 if !outcome.undo.isEmpty {
@@ -314,6 +314,8 @@ struct ScanActions {
     var grantFullDiskAccess: () -> Void = {}
     var cleanCaches: () -> Void = {}
     var undoProtect: ([String]) -> Void = { _ in }
+    var verify: (String) -> Void = { _ in }
+    var protectAgain: ([String]) -> Void = { _ in }
     var showOutcome: (WindowOutcome) -> Void = { _ in }
     /// Redact tokens found by format: in these files (empty: every agent
     /// cache), on these lines (empty: every line); `what` names it for the

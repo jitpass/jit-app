@@ -64,6 +64,10 @@ extension StatusItemController {
     /// two sheets read what they need on appear, so opening one is the
     /// whole action; the comparison asks its question first.
     func openVaultSurface(_ surface: DoctorAction.Surface) {
+        if surface == .serviceLog {
+            showServiceLog()
+            return
+        }
         openVault()
         model.vaultMessage = nil
         switch surface {
@@ -74,6 +78,8 @@ extension StatusItemController {
         case .duplicates:
             // The Vault window's own Compare: its question, then the rows.
             compareDuplicates()
+        case .serviceLog:
+            break // Doctor's own sheet, above.
         }
     }
 

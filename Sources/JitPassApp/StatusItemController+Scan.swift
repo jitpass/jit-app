@@ -38,8 +38,10 @@ extension StatusItemController {
             grantFullDiskAccess: { FullDiskAccess.openSettings() },
             cleanCaches: { [weak self] in self?.cleanCaches() },
             undoProtect: { [weak self] paths in self?.undoProtect(paths) },
+            verify: { [weak self] tool in self?.verifyTool(tool) },
+            protectAgain: { [weak self] paths in self?.protectFiles(paths) },
             showOutcome: { [weak self] outcome in
-                self?.model.scanSheet = outcome.changes.map { .changes($0) } ?? .result(title: outcome.title, text: outcome.text)
+                self?.model.scanSheet = outcome.changes.map { .changes($0) }
             },
             redact: { [weak self] files, lines, what, place in self?.redact(files: files, lines: lines, what: what, place: place) },
             askDepth: { [weak self] scope in self?.askDepth(scope: scope) },

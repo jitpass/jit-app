@@ -210,13 +210,23 @@ extension StatusItemController {
             vaultChanged()
         }
         // A failure says so in the row that asked, with jit's own words
-        // under it: there is no output window any more, and a black pane
-        // over a window that already knows was never the answer. What
-        // still opens is an action whose output IS the request (a
-        // comparison, a service log), and it opens as a sheet in the
-        // window's own type.
-        if result.failure == nil, action.showsOutput {
-            model.doctorSheet = .output(DoctorOutput(title: action.title, text: text))
+        // under it: there is no output window. What the user asked to see
+        // (a comparison, the service log) opens as rows, from its surface.
+    }
+
+    /// Doctor › Show Log: `jit service log --format json`, prompt-free and
+    /// off the main thread, as rows over the Doctor window.
+    func showServiceLog() {
+        Task.detached {
+            let result = JitCLI.serviceLog()
+            await MainActor.run { [weak self] in
+                switch result {
+                case let .success(log):
+                    self?.model.doctorSheet = .log(log)
+                case let .failure(error):
+                    self?.model.doctorMessage = "Can't read the service log: " + Self.describeTools(error)
+                }
+            }
         }
     }
 

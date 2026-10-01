@@ -62,6 +62,8 @@ extension StatusItemController {
                 NSPasteboard.general.setString(path, forType: .string)
             },
             undoProtect: { [weak self] paths in self?.undoProtect(paths) },
+            verify: { [weak self] tool in self?.verifyTool(tool) },
+            protectAgain: { [weak self] paths in self?.protectFiles(paths) },
             setRedactAfterScan: { [weak self] agent, on in self?.setRedactAfterScan(agent: agent, on: on) },
             openGrants: { [weak self] in self?.openGrants() },
             openAIJobs: { [weak self] in self?.openAIJobs() },
