@@ -59,9 +59,10 @@ extension StatusItemController {
         )
     }
 
-    /// A doctor button's way into this window: the orphaned secrets, or
-    /// one secret's archived versions. The sheet's own onAppear reads what
-    /// it needs, so opening it is the whole action.
+    /// A doctor button's way into this window: the orphaned secrets, one
+    /// secret's archived versions, or the duplicates comparison. The first
+    /// two sheets read what they need on appear, so opening one is the
+    /// whole action; the comparison asks its question first.
     func openVaultSurface(_ surface: DoctorAction.Surface) {
         openVault()
         model.vaultMessage = nil
@@ -70,6 +71,9 @@ extension StatusItemController {
             model.vaultSheet = .orphans
         case let .history(path):
             model.vaultSheet = .history(path: path)
+        case .duplicates:
+            // The Vault window's own Compare: its question, then the rows.
+            compareDuplicates()
         }
     }
 

@@ -50,6 +50,8 @@ public struct DoctorAction: Equatable, Sendable {
         case orphans
         /// One secret's archived versions, each with its Restore.
         case history(path: String)
+        /// The duplicates comparison, as the Vault window's rows.
+        case duplicates
     }
 
     public var title: String
@@ -201,7 +203,11 @@ public enum DoctorAdvice {
         // button into the Vault window's list (`orphanCard`), where they
         // are read by project and deleted by choice.
         "orphan": { _ in [] },
-        "duplicates": { _ in [show("Compare", ["vault", "duplicates"])] },
+        // Compare used to paste `jit vault duplicates`' text into a sheet.
+        // The Vault window reads the same comparison as JSON and shows it
+        // as rows, with its own question first (the unlock and a Touch ID
+        // per kind of secret), so the button goes there and runs nothing.
+        "duplicates": { _ in [DoctorAction("Compare", "jit vault duplicates", opens: .duplicates)] },
         // Doctor's advice here is two-sided ("nothing, if you still use
         // these; `jit vault rm` if the project is gone") and only the user
         // knows which side they are on: a one-click delete broke two live

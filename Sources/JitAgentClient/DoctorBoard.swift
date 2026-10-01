@@ -252,6 +252,7 @@ public struct DoctorButton: Equatable, Sendable, Identifiable {
             switch surface {
             case .orphans: "Read them by project, and choose which go"
             case let .history(path): "The archived versions of " + path
+            case .duplicates: "Compare the copies' values, in the Vault window"
             }
         case let .ignore(commands): commands.map { "jit " + $0.joined(separator: " ") }.joined(separator: "\n")
         case let .unignore(command): "jit " + command.joined(separator: " ")
