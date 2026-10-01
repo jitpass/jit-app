@@ -22,7 +22,7 @@ struct DecoysView: View {
             // banner (a scheduled redact, a Protect from there) stays there.
             if let outcome = model.decoysOutcome {
                 WindowBanner(tint: Color(outcome.failed ? StatusMark.red : StatusMark.green), text: outcome.title) {
-                    if !outcome.text.isEmpty {
+                    if ChangeSheet.addsTo(banner: outcome.title, text: outcome.text, sheet: outcome.changes) {
                         Button("What Changed…") { actions.showOutcome(outcome) }.buttonStyle(AppButton(kind: .plain))
                     }
                     if let reader = outcome.unexpect {
@@ -64,8 +64,19 @@ struct DecoysView: View {
             ExpectedSheet(burst: burst, close: actions.closeExpected) { actions.setExpected($0, false) }
         }
         .sheet(item: $model.decoysSheet) { sheet in
-            if case let .result(title, text) = sheet {
+            switch sheet {
+            case let .result(title, text):
                 ResultSheet(title: title, text: text, close: actions.closeSheet)
+            case let .changes(changes):
+                ChangeSheetView(
+                    sheet: changes,
+                    reveal: actions.reveal,
+                    copyPath: actions.copyPath,
+                    undo: { actions.closeSheet(); actions.undoProtect(changes.undo) },
+                    close: actions.closeSheet
+                )
+            default:
+                EmptyView()
             }
         }
         .onAppear(perform: actions.reload)
@@ -275,6 +286,10 @@ struct DecoysActions {
     var showOutcome: (WindowOutcome) -> Void = { _ in }
     var open: (String, Int?) -> Void = { _, _ in }
     var reveal: (String) -> Void = { _ in }
+    var copyPath: (String) -> Void = { _ in }
+    /// What Changed's Undo: `jit migrate undo` on the files the Protect
+    /// changed, after its own question.
+    var undoProtect: ([String]) -> Void = { _ in }
     var openVault: () -> Void = {}
     var openScan: () -> Void = {}
     var openAudit: () -> Void = {}
