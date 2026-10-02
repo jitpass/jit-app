@@ -108,9 +108,9 @@ enum DoctorDialogs {
         guard !rows.isEmpty else {
             return link
         }
-        let width: CGFloat = 400
+        let width = Design.Sheet.alert
         let host = NSHostingView(rootView: PlanRowsView(rows: rows).frame(width: width))
-        let height = min(240, host.fittingSize.height)
+        let height = min(Design.Sheet.listMax, host.fittingSize.height)
         let below = link.map { $0.frame.height + 6 } ?? 0
         let box = NSView(frame: NSRect(x: 0, y: 0, width: width, height: height + below))
         let scroll = NSScrollView(frame: NSRect(x: 0, y: below, width: width, height: height))
@@ -270,7 +270,7 @@ struct PlanRowsView: View {
                         .foregroundStyle(row.toVault ? Color(StatusMark.green) : .secondary)
                         .padding(.horizontal, Design.Space.three).padding(.vertical, Design.Space.one)
                         .background(
-                            row.toVault ? Color(StatusMark.green).opacity(0.13) : Color.primary.opacity(0.07),
+                            row.toVault ? Color(StatusMark.greenDim) : Design.Surface.field,
                             in: RoundedRectangle(cornerRadius: Design.Radius.box)
                         )
                 }

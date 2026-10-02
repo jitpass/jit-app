@@ -247,7 +247,10 @@ enum JitCLI {
     /// gets jit's key.
     /// `keep` false (a check that prints a secret) sends the output to
     /// /dev/null: the app never reads it, so it can't show or hold it.
-    static func check(_ line: String, keep: Bool = true) -> Result<Outcome, Error> {
+    /// `stdoutOnly` keeps stderr out of the text, for a check whose stdout
+    /// is a document (gh's --json): a "new release" notice on stderr must
+    /// not land inside it.
+    static func check(_ line: String, keep: Bool = true, stdoutOnly: Bool = false) -> Result<Outcome, Error> {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-c", line]
@@ -256,7 +259,7 @@ enum JitCLI {
         let out = Pipe()
         if keep {
             process.standardOutput = out
-            process.standardError = out
+            process.standardError = stdoutOnly ? FileHandle.nullDevice : out
         } else {
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice

@@ -34,6 +34,22 @@ public extension ServiceLog {
         }
     }
 
+    /// `date` as jit writes a log day: Gregorian `YYYY-MM-DD`, Latin
+    /// digits, in the Mac's time zone, whatever its calendar or locale (a
+    /// Mac on the Hebrew calendar would otherwise never match "Today").
+    static func day(_ date: Date, timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let parts = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
+
+    /// `days(today:yesterday:)` for `now`, labelled in jit's own calendar.
+    func days(now: Date, timeZone: TimeZone = .current) -> [Day] {
+        let yesterday = now.addingTimeInterval(-24 * 60 * 60)
+        return days(today: Self.day(now, timeZone: timeZone), yesterday: Self.day(yesterday, timeZone: timeZone))
+    }
+
     /// The rows as plain lines, for Copy: a bug report wants the words, not
     /// the layout.
     var plainText: String {
@@ -90,6 +106,15 @@ public struct PlanRow: Equatable, Sendable {
         }
     }
 
+    /// A migrate by category (`jit migrate --only aws`): doctor asks it to
+    /// refresh the jit path recorded in a credential helper, and names
+    /// each file on its finding. No preview exists for a category, so the
+    /// rows are those files.
+    public static func jitPathRefresh(_ paths: [String]) -> [PlanRow] {
+        paths
+            .map { PlanRow(name: ($0 as NSString).lastPathComponent, detail: folder($0), badge: "Gets jit's current path", toVault: false) }
+    }
+
     /// An undo's rows, from `jit migrate undo --dry-run --format json`.
     public static func undo(_ plan: UndoReport) -> [PlanRow] {
         plan.files.map { file in
@@ -112,6 +137,10 @@ public struct PlanRow: Equatable, Sendable {
     private static func folder(_ path: String) -> String {
         let parent = (path as NSString).deletingLastPathComponent
         let home = NSHomeDirectory()
-        return parent.hasPrefix(home) ? "~" + parent.dropFirst(home.count) : parent
+        if parent == home {
+            return "~"
+        }
+        // With the slash: /Users/dana2 is not inside /Users/dana.
+        return parent.hasPrefix(home + "/") ? "~" + parent.dropFirst(home.count) : parent
     }
 }

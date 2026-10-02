@@ -43,8 +43,26 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
     public var verifyHint: String?
     /// The hint's output is itself a credential (gcloud's
     /// print-access-token): Verify keeps its exit status and drops the
-    /// output unread. False from an engine older than 2.3.8.
+    /// output unread. False from an engine older than 2.3.8, which is why
+    /// Verify asks `verifyMayPrintSecret` instead.
     public var verifyPrintsSecret = false
+
+    /// Commands that print the credential they check: the list jit's
+    /// catalog test pins (TestVerifyHintsThatPrintASecretSayItSo). jit
+    /// 2.3.7's catalog still ran gcloud's print-access-token and
+    /// `snyk config get api` without saying so, and an engine that leaves
+    /// the field out must not get the output shown.
+    public static let secretPrintingChecks = [
+        "print-access-token", "print-identity-token", "auth token", "--decrypt", "token lookup", "config get api",
+        "config --list", "--show-token"
+    ]
+
+    /// Whether Verify must throw the check's output away: jit says so, or
+    /// the hint is one of the known secret-printing commands.
+    public var verifyMayPrintSecret: Bool {
+        verifyPrintsSecret || Self.secretPrintingChecks.contains { verifyHint?.contains($0) == true }
+    }
+
     public var sources: [String]
     public var tokenCommand: String?
     public var nativeCategory: String?

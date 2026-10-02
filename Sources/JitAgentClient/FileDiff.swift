@@ -44,12 +44,32 @@ public struct FileDiff: Equatable, Sendable {
     public var lines: [Line]
     public var added: Int
     public var removed: Int
-    /// The diff ran past `limit` lines and the rest is not drawn.
+    /// The diff ran past `limit` lines, or past `budget` characters, and
+    /// the rest is not drawn.
     public var truncated: Bool
+    /// git named the file but drew no lines for it: a binary file, or a
+    /// change of its mode alone. Said in the sentence, never as unchanged.
+    public var binary = false
+    public var mode: Mode?
+
+    /// A file's mode before and after, as git prints it ("100644").
+    public struct Mode: Equatable, Sendable {
+        public var old: String
+        public var new: String
+    }
+
+    /// git printed its header for the file (`diff --git`), so something
+    /// changed even when no line can be drawn.
+    var sawHeader = false
 
     /// The most lines drawn: a review needs the change, not a megabyte
     /// of it.
     public static let limit = 2000
+    /// The most characters drawn on one line (a minified bundle is one
+    /// line), and in the whole diff: a review sheet must not lay out
+    /// megabytes of text on the main thread.
+    public static let lineBudget = 400
+    public static let budget = 100_000
 
     /// `output` is git's stdout, nil when git did not exit 0. `file` is
     /// the path git was asked about; only its name is shown.
@@ -64,9 +84,23 @@ public struct FileDiff: Equatable, Sendable {
         }
         var diff = parse(output, limit: limit)
         if diff.lines.isEmpty {
-            diff.outcome = .unchanged
-            diff.title = "\(name) is the same as git's last commit"
-            diff.sentence = "It was rewritten with the same content."
+            // Only an empty answer means unchanged. A header with no hunk
+            // is a change git can't draw: a binary file (an AI job that
+            // rewrote a key file), or new permissions.
+            guard diff.sawHeader || diff.binary || diff.mode != nil else {
+                diff.outcome = .unchanged
+                diff.title = "\(name) is the same as git's last commit"
+                diff.sentence = "It was rewritten with the same content."
+                return diff
+            }
+            diff.title = "\(name) changed since git's last commit"
+            if diff.binary {
+                diff.sentence = "It's a binary file, so the change can't be drawn. Open it to check what changed."
+            } else if let mode = diff.mode {
+                diff.sentence = "Only its permissions changed: \(mode.old) to \(mode.new)."
+            } else {
+                diff.sentence = "git reports a change it can't draw. Open the file to check it."
+            }
             return diff
         }
         diff.title = "\(name) changed since git's last commit"
@@ -84,12 +118,10 @@ public struct FileDiff: Equatable, Sendable {
         var diff = FileDiff(outcome: .changed, title: "", sentence: "", lines: [], added: 0, removed: 0, truncated: false)
         var old = 0, new = 0
         var inHunk = false
+        var drawn = 0
+        var oldMode: String?
         func append(_ kind: Kind, _ number: Int?, _ text: String) {
-            guard diff.lines.count < limit else {
-                diff.truncated = true
-                return
-            }
-            diff.lines.append(Line(id: diff.lines.count, kind: kind, number: number, text: text))
+            diff.draw(kind, number, text, limit: limit, drawn: &drawn)
         }
         var rows = text.components(separatedBy: "\n")
         if rows.last == "" {
@@ -103,13 +135,16 @@ public struct FileDiff: Equatable, Sendable {
                 append(.hunk, nil, hunk.label)
                 continue
             }
-            // Before the first hunk, and between files, everything is
-            // git's header: diff --git, index, ---/+++, mode lines.
-            guard inHunk else {
-                continue
-            }
             if row.hasPrefix("diff --git ") {
                 inHunk = false
+                diff.sawHeader = true
+                continue
+            }
+            // Before the first hunk, and between files, everything is
+            // git's header: diff --git, index, ---/+++, mode lines. Two of
+            // them are the change itself when no hunk follows.
+            guard inHunk else {
+                header(row, into: &diff, oldMode: &oldMode)
                 continue
             }
             switch row.first {
@@ -132,6 +167,30 @@ public struct FileDiff: Equatable, Sendable {
             }
         }
         return diff
+    }
+
+    /// One line onto the sheet, unless `limit` lines or `budget`
+    /// characters are already drawn; a line past `lineBudget` is cut.
+    private mutating func draw(_ kind: Kind, _ number: Int?, _ text: String, limit: Int, drawn: inout Int) {
+        guard lines.count < limit, drawn < Self.budget else {
+            truncated = true
+            return
+        }
+        let shown = text.count > Self.lineBudget ? String(text.prefix(Self.lineBudget)) + "…" : text
+        drawn += shown.count
+        lines.append(Line(id: lines.count, kind: kind, number: number, text: shown))
+    }
+
+    /// A header line that is the change itself when no hunk follows: a
+    /// binary file, or a mode changed alone.
+    private static func header(_ row: String, into diff: inout FileDiff, oldMode: inout String?) {
+        if row.hasPrefix("Binary files "), row.hasSuffix(" differ") {
+            diff.binary = true
+        } else if row.hasPrefix("old mode ") {
+            oldMode = String(row.dropFirst("old mode ".count))
+        } else if row.hasPrefix("new mode "), let was = oldMode {
+            diff.mode = Mode(old: was, new: String(row.dropFirst("new mode ".count)))
+        }
     }
 
     static func sentence(added: Int, removed: Int) -> String {

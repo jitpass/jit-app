@@ -86,7 +86,7 @@ extension StatusItemController {
                     return
                 }
                 let outcome = ScanWording.redactOutcome(report)
-                showResult(title: outcome.title, text: report.report, failed: outcome.failed, changes: .redact(report))
+                showResult(title: outcome.title, failed: outcome.failed, changes: .redact(report))
                 settle(after: report, lines: lines)
             }
         )
@@ -166,7 +166,7 @@ extension StatusItemController {
                 }
                 let outcome = ScanWording.redactOutcome(result)
                 model.findingsOutcome = WindowOutcome(
-                    title: outcome.title, text: result.report, failed: outcome.failed, changes: .redact(result)
+                    title: outcome.title, failed: outcome.failed, changes: .redact(result)
                 )
                 if model.notifyScans, let notice = ScanNotices.redacted(result, at: at) {
                     Notifier.post(

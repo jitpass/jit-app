@@ -384,7 +384,7 @@ extension StatusItemController {
                 model.scanStale = true
                 settle(after: run)
                 let outcome = Self.protectOutcome(run)
-                showResult(title: outcome.title, text: outcome.text, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
+                showResult(title: outcome.title, failed: outcome.failed, undo: outcome.undo, changes: outcome.changes)
                 vaultChanged()
                 runScan(wholeMac: true, kind: .afterProtect)
             }

@@ -241,3 +241,119 @@ final class ResultSheetsTests: XCTestCase {
         }
     }
 }
+
+/// The code review of #96: each test failed with its fix taken out.
+final class ResultSheetsReviewTests: XCTestCase {
+    /// jit 2.3.7's catalog ran gcloud's print-access-token and `snyk config
+    /// get api` without verify_prints_secret. A missing mark must not let
+    /// Verify show a token.
+    func testAnOlderEngineStillCannotShowAToken() throws {
+        let listing = try JSONDecoder().decode(ToolListing.self, from: Data(#"""
+        {"tools":[
+          {"tool":"gcloud","kind":"grant","catalog":true,"wrapped":true,"verify_hint":"gcloud auth application-default print-access-token"},
+          {"tool":"snyk","kind":"shim","catalog":true,"wrapped":true,"verify_hint":"snyk config get api"},
+          {"tool":"vault","kind":"shim","catalog":true,"wrapped":true,"verify_hint":"vault token lookup"},
+          {"tool":"gh","kind":"shim","catalog":true,"wrapped":true,"verify_hint":"gh auth status"}
+        ]}
+        """#.utf8))
+        for tool in ["gcloud", "snyk", "vault"] {
+            XCTAssertEqual(listing.tool(named: tool)?.verifyPrintsSecret, false, "\(tool): the engine said nothing")
+            XCTAssertEqual(listing.tool(named: tool)?.verifyMayPrintSecret, true, "\(tool): its check prints a token")
+        }
+        XCTAssertEqual(listing.tool(named: "gh")?.verifyMayPrintSecret, false)
+    }
+
+    /// A binary file has no hunk: git says "Binary files … differ". It is
+    /// a change, never "the same as git's last commit".
+    func testABinaryFilesChangeIsNotReadAsUnchanged() {
+        let binary = FileDiff.make(file: "/h/keys/client.p12", output: """
+        diff --git a/keys/client.p12 b/keys/client.p12
+        index 3b18e51..a1f3c2d 100644
+        Binary files a/keys/client.p12 and b/keys/client.p12 differ
+
+        """)
+        XCTAssertEqual(binary.outcome, .changed)
+        XCTAssertEqual(binary.title, "client.p12 changed since git's last commit")
+        XCTAssertTrue(binary.sentence.hasPrefix("It's a binary file"))
+
+        let mode = FileDiff.make(file: "/h/run.sh", output: "diff --git a/run.sh b/run.sh\nold mode 100644\nnew mode 100755\n")
+        XCTAssertEqual(mode.outcome, .changed)
+        XCTAssertEqual(mode.sentence, "Only its permissions changed: 100644 to 100755.")
+
+        XCTAssertEqual(FileDiff.make(file: "/h/run.sh", output: "").outcome, .unchanged, "only an empty answer is unchanged")
+    }
+
+    /// One minified line is drawn capped, and the whole diff has a budget.
+    func testAHugeLineIsCapped() {
+        let long = String(repeating: "a", count: 50000)
+        let diff = FileDiff.make(file: "/h/app.min.js", output: "diff --git a/x b/x\n@@ -1 +1 @@\n-" + long + "\n+" + long + "b\n")
+        XCTAssertEqual(diff.added, 1)
+        XCTAssertTrue(diff.lines.allSatisfy { $0.text.count <= FileDiff.lineBudget + 1 }, "each line is capped")
+        XCTAssertTrue(diff.lines.contains { $0.text.hasSuffix("…") })
+
+        let many = (1 ... 400).map { "+" + String(repeating: "x", count: 390) + "\($0)" }.joined(separator: "\n")
+        let big = FileDiff.make(file: "/h/x", output: "diff --git a/x b/x\n@@ -0,0 +1,400 @@\n" + many + "\n")
+        XCTAssertTrue(big.truncated, "past the character budget the rest is not drawn")
+        XCTAssertEqual(big.added, 400, "the count still covers the whole diff")
+    }
+
+    /// Undoing a cache clean restores AI agent cache files, which have no
+    /// secrets of their own. Protect Again (`jit migrate <file>`) is not the
+    /// sweep that cleaned them, so it is not offered for them.
+    func testProtectAgainIsOnlyForFilesThatHadSecrets() {
+        let sheet = ChangeSheet.restored(UndoReport(dryRun: false, files: [
+            .init(path: "/h/.claude/history.jsonl", secrets: [], restored: true),
+            .init(path: "/h/billing/.env", secrets: ["billing/STRIPE_KEY"], restored: true)
+        ]))
+        XCTAssertEqual(sheet.again, ["/h/billing/.env"])
+    }
+
+    func testACleanThatOnlyLeftFilesDoesNotSayTheCachesAreClean() {
+        let left = MigrateReport(targets: [], applied: true, vaulted: [], caches: .init(
+            removed: [], left: [.init(agent: "Claude Code", area: "transcripts", path: "/h/t.jsonl", kind: "live")]
+        ), errors: [], report: "")
+        XCTAssertEqual(ChangeSheet.caches(left).title, "Nothing was cleaned · 1 file left for later")
+        let noCounts = MigrateReport(targets: [], applied: true, vaulted: [], caches: .init(removed: [
+            .init(agent: "Codex", area: "settings", path: "/h/a"), .init(agent: "Codex", area: "settings", path: "/h/b")
+        ]), errors: [], report: "")
+        XCTAssertEqual(ChangeSheet.caches(noCounts).title, "Cleaned 2 files", "jit may leave the copy count out")
+    }
+
+    func testGhWithNoActiveAccountIsAFailure() {
+        let gh = GhAuthStatus(hosts: ["github.com": [.init(state: "success", active: false, host: "github.com", login: "dana")]])
+        let sheet = ChangeSheet.verify(tool: "gh", hint: "gh auth status", status: 0, output: "", printsSecret: false, gh: gh)
+        XCTAssertEqual(sheet.title, "gh's check failed")
+        XCTAssertTrue(sheet.failed)
+    }
+
+    /// Doctor's migrate by category (`jit migrate --only aws`) names no
+    /// file; its rows are the files its findings named.
+    func testACategoryMigrateListsItsFindingsFiles() {
+        let rows = PlanRow.jitPathRefresh(["/h/.aws/config"])
+        XCTAssertEqual(rows.map(\.name), ["config"])
+        XCTAssertEqual(rows.map(\.badge), ["Gets jit's current path"])
+    }
+
+    /// /Users/dana2 is not inside /Users/dana.
+    func testAFolderBesideHomeIsNotShortened() {
+        let beside = NSHomeDirectory() + "2/projects/.env"
+        let rows = PlanRow.undo(UndoReport(dryRun: true, files: [.init(path: beside)]))
+        XCTAssertFalse(rows[0].detail.hasPrefix("~"), "got \(rows[0].detail)")
+        let inside = PlanRow.undo(UndoReport(dryRun: true, files: [.init(path: NSHomeDirectory() + "/projects/.env")]))
+        XCTAssertEqual(inside[0].detail, "~/projects")
+    }
+
+    /// jit writes Gregorian dates whatever the Mac's calendar. 2026-10-01
+    /// 12:00 UTC is "2026-10-01", never a Hebrew or Buddhist year.
+    func testTheLogsDaysAreJitsGregorianDays() throws {
+        let utc = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let noon = Date(timeIntervalSince1970: 1_790_856_000)
+        XCTAssertEqual(ServiceLog.day(noon, timeZone: utc), "2026-10-01")
+        // Oldest first, as jit writes it.
+        let log = ServiceLog(
+            path: "",
+            entries: [.init(date: "2026-09-30", time: "09:00", message: "m"), .init(date: "2026-10-01", time: "11:00", message: "m")]
+        )
+        XCTAssertEqual(log.days(now: noon, timeZone: utc).map(\.label), ["Today", "Yesterday"])
+    }
+}

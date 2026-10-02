@@ -245,7 +245,6 @@ struct AgentsActions {
 /// Undo would restore.
 struct WindowOutcome: Equatable {
     var title: String
-    var text: String
     var failed = false
     var undo: [String] = []
     /// Decoys: the expected reader the banner's Undo takes back.
@@ -253,7 +252,7 @@ struct WindowOutcome: Equatable {
     /// The ids of the review marks Undo removes (`jit unreview --id`),
     /// after a Mark Reviewed.
     var unreview: [String] = []
-    /// The rows "What Changed…" shows, where jit's report has them (Redact,
-    /// Protect); nil falls back to jit's text.
+    /// The rows "What Changed…" shows; nil means the banner's line is the
+    /// whole result, and there is no button.
     var changes: ChangeSheet?
 }

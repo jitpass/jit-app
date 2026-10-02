@@ -32,6 +32,21 @@ jobs:
             *) echo "::error::tag v$version does not match jit.version ($jit): tag v$jit, or v$jit.N for an app-only release"; exit 1 ;;
           esac
 
+      # The app calls jit commands only a newer jit has (the result sheets
+      # read 2.3.8's --format json from wrap, migrate caches, migrate undo
+      # and service log). jit.minimum is the oldest jit the app works with;
+      # a pin below it would ship windows that fail on every click.
+      - name: Require the pinned jit to be new enough for the app
+        run: |
+          set -euo pipefail
+          jit=$(tr -d '[:space:]' < jit.version)
+          minimum=$(tr -d '[:space:]' < jit.minimum)
+          lowest=$(printf '%s\n%s\n' "$jit" "$minimum" | sort -V | head -1)
+          if [ "$lowest" != "$minimum" ]; then
+            echo "::error::jit.version ($jit) is older than jit.minimum ($minimum): the app needs jit $minimum; release jit first and bump jit.version"
+            exit 1
+          fi
+
       - name: Require Developer ID signing and notary secrets
         env:
           P12: ${{ secrets.MACOS_SIGN_P12 }}
