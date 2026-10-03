@@ -115,8 +115,19 @@ public struct AuditReport: Codable, Sendable, Equatable {
         case "start":
             return "service started"
         default:
-            return who.isEmpty ? event.kind : "\(event.kind) · \(who)"
+            return otherTitle(event, who: who, secrets: secrets)
         }
+    }
+
+    /// A kind with no wording of its own, as jit names it; and a cache fill
+    /// jit turned away, where a process with no AWS read behind it tried to
+    /// plant credentials, named as the attempt it is.
+    static func otherTitle(_ event: SessionEvent, who: String, secrets: String) -> String {
+        if event.kind == "error", event.op == "aws-cache-refused" {
+            let what = secrets.isEmpty ? "" : " (\(secrets))"
+            return (who.isEmpty ? "refused AWS credentials" : "refused AWS credentials from \(who)") + what
+        }
+        return who.isEmpty ? event.kind : "\(event.kind) · \(who)"
     }
 
     /// How many secrets a title names one by one; more are counted.
@@ -148,16 +159,23 @@ public struct AuditReport: Codable, Sendable, Equatable {
         if event.op == "grant_use" {
             return who.isEmpty ? "read \(what) via grant" : "\(who) read \(what) via grant"
         }
-        // A cache hit (jit's aws_cache_get, labelled aws-sso:<profile>):
-        // short-lived AWS credentials jit cached, in jit's own words.
-        if event.op == "aws_cache_get" {
-            return (who.isEmpty ? "" : who + " ") + "read cached AWS credentials (\(what))"
+        // The AWS credential cache (labelled aws-sso:<profile>), in jit's
+        // own words (agent.DescribeUse). A clear names no profile.
+        if let verb = awsCacheVerbs[event.op ?? ""] {
+            let subject = (who.isEmpty ? "" : who + " ") + verb
+            return event.op == "aws_cache_clear" ? subject : subject + " (\(what))"
         }
         if who.isEmpty {
             return event.op == "serve_mounts" ? "served mounts (\(what))" : "used \(what)"
         }
         return "\(who) used \(what)"
     }
+
+    static let awsCacheVerbs = [
+        "aws_cache_get": "read cached AWS credentials",
+        "aws_cache_put": "cached AWS credentials",
+        "aws_cache_clear": "cleared cached AWS credentials"
+    ]
 
     /// A grant's birth is an approval with the grant op; the detail line
     /// carries the sentence that was approved, word for word.

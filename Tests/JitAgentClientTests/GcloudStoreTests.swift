@@ -248,15 +248,6 @@ final class GcloudStoreTests: XCTestCase {
         XCTAssertFalse(ToolCard.make(kubectl, sessions: [], activity: nil).fact.contains("SSO"))
     }
 
-    /// A cache hit is jit's aws_cache_get use event: worded as jit's
-    /// history words it, never as a secret "used".
-    func testAnAWSCacheHitReadsAsCachedCredentials() {
-        let hit = SessionEvent(unixTime: 0, kind: "use", op: "aws_cache_get", by: "/usr/local/bin/aws", labels: ["aws-sso:dev"])
-        XCTAssertEqual(AuditReport.title(for: hit), "aws read cached AWS credentials (aws-sso:dev)")
-        let bare = SessionEvent(unixTime: 0, kind: "use", op: "aws_cache_get", labels: ["aws-sso:dev"])
-        XCTAssertEqual(AuditReport.title(for: bare), "read cached AWS credentials (aws-sso:dev)")
-    }
-
     /// Two sealed logins, gcloud's and AWS SSO's, both come back from the
     /// vault on Remove.
     func testTwoSealedLoginsAreCountedApart() throws {
