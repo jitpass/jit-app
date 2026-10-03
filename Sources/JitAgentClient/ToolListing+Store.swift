@@ -57,3 +57,32 @@ public extension ToolListing {
         return ordered.isEmpty ? [name] : ordered.map(\.tool)
     }
 }
+
+/// One Log In item on the aws row: the profile, and the command handed
+/// to the terminal for it.
+public struct SSOLogIn: Sendable, Equatable {
+    public var profile: String
+    public var command: String
+}
+
+public extension ToolRecord {
+    /// The aws row's Log In items, one per profile fetching through
+    /// `jit aws-sso`, whenever a sign-in was ever sealed: jit's signed-in
+    /// is the whole store's, true while any one session is left, so one
+    /// profile can need its login while it says so. None when nothing was
+    /// ever sealed.
+    var ssoLogIns: [SSOLogIn] {
+        guard ssoSignedIn != nil else {
+            return []
+        }
+        return ssoProfiles.map { SSOLogIn(profile: $0, command: Self.ssoLoginCommand($0)) }
+    }
+
+    /// Logging a sealed AWS profile in again, straight into the vault. The
+    /// same for an SSO and an `aws login` profile: jit picks the flow from
+    /// the sealed config. Quoted for the terminal's shell, where a name
+    /// with a space or a quote would otherwise split.
+    static func ssoLoginCommand(_ profile: String) -> String {
+        JobDraft.join(["jit", "aws-sso", "login", "--profile", profile])
+    }
+}

@@ -64,13 +64,6 @@ extension Format {
             + "\n\nTouch ID follows."
     }
 
-    /// Logging a sealed AWS profile in again, straight into the vault: a
-    /// browser or a pasted code, so it runs in the terminal, which keeps
-    /// the command line. Plain `aws login` refuses a sealed profile.
-    static func ssoLoginCommand(_ profile: String) -> String {
-        "jit aws-sso login --profile " + profile
-    }
-
     static func toolsFooter(_ board: ToolsBoard) -> String {
         var parts = [count(board.installed, "tool") + " installed", "\(board.rows.count) through jit"]
         if board.hasWraps, !board.activity.isEmpty {
