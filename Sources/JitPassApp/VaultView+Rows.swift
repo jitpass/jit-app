@@ -67,6 +67,24 @@ extension VaultView {
     /// on the row whose value is showing, at the same width so the row's
     /// buttons do not jog.
     @ViewBuilder func secretButtons(_ secret: VaultSecret) -> some View {
+        // A sealed login is a tool's whole login: nothing to read or copy.
+        if !secret.isSealedLogin {
+            valueButtons(secret)
+        }
+        Menu {
+            secretMenu(secret)
+        } label: {
+            Text("···")
+        }
+        .menuStyle(.button)
+        .buttonStyle(AppButton(kind: .quiet))
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(model.vaultBusy != nil)
+    }
+
+    /// Reveal and Copy.
+    private func valueButtons(_ secret: VaultSecret) -> some View {
         Group {
             let shown = model.vaultReveal?.path == secret.path
             Button {
@@ -81,38 +99,34 @@ extension VaultView {
         }
         .buttonStyle(AppButton(kind: .quiet))
         .disabled(model.vaultBusy != nil)
-        Menu {
-            secretMenu(secret)
-        } label: {
-            Text("···")
-        }
-        .menuStyle(.button)
-        .buttonStyle(AppButton(kind: .quiet))
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .disabled(model.vaultBusy != nil)
     }
 
     /// What the row's ⋯ holds: nothing used every day, Delete last and apart.
+    /// A sealed login keeps Delete alone: jit refuses a set, keeps it no
+    /// history, and it comes out by its unwrap or sign-out.
     @ViewBuilder func secretMenu(_ secret: VaultSecret) -> some View {
-        Button("Replace…") { actions.openSheet(replaceSheet(secret)) }
-        Button("History…") { actions.openSheet(.history(path: secret.path)) }
-        if !secret.isLinked, model.vaultSettings != nil {
-            Button("Move Out of Vault…") { actions.openSheet(.moveOut(paths: [secret.path])) }
+        if !secret.isSealedLogin {
+            Button("Replace…") { actions.openSheet(replaceSheet(secret)) }
+            Button("History…") { actions.openSheet(.history(path: secret.path)) }
+            if !secret.isLinked, model.vaultSettings != nil {
+                Button("Move Out of Vault…") { actions.openSheet(.moveOut(paths: [secret.path])) }
+            }
+            Divider()
         }
-        Divider()
         Button("Delete…") { actions.delete([secret.path]) }
     }
 
     /// Right-click: the row's two buttons, then its ⋯.
     @ViewBuilder func rowMenu(_ secret: VaultSecret) -> some View {
-        if model.vaultReveal?.path == secret.path {
-            Button("Hide", action: actions.hideReveal)
-        } else {
-            Button("Reveal for \(StatusItemController.revealSeconds)s") { actions.reveal(secret.path) }
+        if !secret.isSealedLogin {
+            if model.vaultReveal?.path == secret.path {
+                Button("Hide", action: actions.hideReveal)
+            } else {
+                Button("Reveal for \(StatusItemController.revealSeconds)s") { actions.reveal(secret.path) }
+            }
+            Button("Copy to Clipboard") { actions.copy(secret.path) }
+            Divider()
         }
-        Button("Copy to Clipboard") { actions.copy(secret.path) }
-        Divider()
         secretMenu(secret)
     }
 

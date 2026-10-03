@@ -29,6 +29,10 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
     /// The name alone names a credential (jit 2.3.3's `name_looks_secret`):
     /// the settings cleanup never moves it. Nil from an older engine.
     public var nameLooksSecret: Bool?
+    /// A sealed login's store ("gcloud", "az", "aws-sso", jit #223): a
+    /// tool's whole login, unsealed per run, never a value to read, set or
+    /// restore. Nil for every ordinary secret.
+    public var store: String?
 
     enum CodingKeys: String, CodingKey {
         case path
@@ -44,6 +48,7 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         case usedBy = "used_by"
         case scan
         case nameLooksSecret = "name_looks_secret"
+        case store
     }
 
     public init(
@@ -77,6 +82,7 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
         usedBy = try container.decodeIfPresent([String].self, forKey: .usedBy) ?? []
         nameLooksSecret = try container.decodeIfPresent(Bool.self, forKey: .nameLooksSecret)
         scan = try container.decodeIfPresent(String.self, forKey: .scan)
+        store = try container.decodeIfPresent(String.self, forKey: .store).flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// Whether moving this value out of the vault needs the careful
@@ -105,6 +111,13 @@ public struct VaultSecret: Codable, Sendable, Equatable, Identifiable {
 
     public var isLinked: Bool {
         storage == "op-ref"
+    }
+
+    /// A sealed login: the row offers Delete alone. jit consent-gates a
+    /// read but returns the packed store, refuses a set, keeps no history,
+    /// and a store comes out by its unwrap or sign-out, not by moving out.
+    public var isSealedLogin: Bool {
+        store != nil
     }
 
     /// Version-1 envelopes predate timestamps; nil rather than 1970.
