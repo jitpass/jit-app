@@ -5,7 +5,8 @@
 import XCTest
 
 /// The aws row's "Log In as <profile> in Terminal": the command handed to
-/// the terminal, and when the items appear.
+/// the terminal, and when the items appear. And the AWS credential cache's
+/// events, as History words them.
 final class AWSLogInTests: XCTestCase {
     private func aws(_ extra: String) throws -> ToolRecord {
         try JSONDecoder().decode(
@@ -52,5 +53,28 @@ final class AWSLogInTests: XCTestCase {
             SSOLogIn(profile: "sso-dev", command: "jit aws-sso login --profile sso-dev"),
             SSOLogIn(profile: "console-admin", command: "jit aws-sso login --profile console-admin")
         ])
+    }
+
+    // MARK: - The AWS credential cache in History
+
+    /// A cache hit is jit's aws_cache_get use event: worded as jit's
+    /// history words it, never as a secret "used".
+    func testAnAWSCacheHitReadsAsCachedCredentials() {
+        let hit = SessionEvent(unixTime: 0, kind: "use", op: "aws_cache_get", by: "/usr/local/bin/aws", labels: ["aws-sso:dev"])
+        XCTAssertEqual(AuditReport.title(for: hit), "aws read cached AWS credentials (aws-sso:dev)")
+        let bare = SessionEvent(unixTime: 0, kind: "use", op: "aws_cache_get", labels: ["aws-sso:dev"])
+        XCTAssertEqual(AuditReport.title(for: bare), "read cached AWS credentials (aws-sso:dev)")
+    }
+
+    /// jit 2.4.0 records the cache's fills, clears and refused fills,
+    /// worded as jit's DescribeUse words them; a refused fill is the
+    /// planting attempt the proof stops, and reads as one.
+    func testTheAWSCachesOtherEventsAreWordedAsJitWordsThem() {
+        let put = SessionEvent(unixTime: 0, kind: "use", op: "aws_cache_put", by: "/usr/local/bin/aws", labels: ["aws-sso:dev"])
+        XCTAssertEqual(AuditReport.title(for: put), "aws cached AWS credentials (aws-sso:dev)")
+        let clear = SessionEvent(unixTime: 0, kind: "use", op: "aws_cache_clear")
+        XCTAssertEqual(AuditReport.title(for: clear), "cleared cached AWS credentials")
+        let refused = SessionEvent(unixTime: 0, kind: "error", op: "aws-cache-refused", by: "/usr/bin/python3", labels: ["aws-sso:evil"])
+        XCTAssertEqual(AuditReport.title(for: refused), "refused AWS credentials from python3 (aws-sso:evil)")
     }
 }
