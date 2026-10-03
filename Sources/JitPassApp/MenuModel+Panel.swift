@@ -116,7 +116,7 @@ extension MenuModel {
                 false
             }
         }
-        let tiers = report.tiersPresent.filter { $0 != .testFixtures }
+        let tiers = report.tiersPresent.filter { $0 != .testFixtures && $0 != .rotatesItself }
         let worst: PanelValue.Tone = tiers.isEmpty ? .none : tiers.contains { $0 != .protect } ? .red : .amber
         return PanelValue.findings(todos: todos.count, worst: worst, scanned: true, scanning: scanning)
     }

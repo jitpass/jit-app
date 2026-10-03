@@ -67,6 +67,12 @@ extension DoctorAdvice {
         // (`DoctorBoard.vaultKeyLost`).
         "vault_key_copy": ("A key under the vault key's name is still in your keychain", nil),
         "wrap": ("Broken wrapped tools", "The tool now runs unwrapped, or not at all."),
+        // A store wrap's login out of the vault (jit's kindWrapStore): the
+        // tool works, which is why it is not "wrap" and its card not red.
+        "wrap_store": (
+            "A sealed login is back on disk",
+            "The tool still works, but its login sits unsealed in a file any program can read until this is fixed."
+        ),
         "mcp": ("Broken MCP entries", nil),
         "mcp_nested": (
             "Doubly wrapped MCP entries",

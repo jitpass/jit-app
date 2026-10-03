@@ -182,6 +182,7 @@ struct ToolsView: View {
                 if row.tool.wrapped, !row.tool.isNative {
                     Button("Unwrap…") { actions.unwrap(row.tool.tool) }.disabled(busy)
                 }
+                awsSignInItems(row.tool, busy: busy)
             } label: {
                 Text("···")
             }
@@ -204,7 +205,11 @@ struct ToolsView: View {
         } rows: {
             AppCardRows {
                 ForEach(Array(tools.enumerated()), id: \.element.id) { index, tool in
-                    AppRow(name: tool.tool, fact: Format.knownToolFact(tool, scan: model.macScan), last: index == tools.count - 1) {
+                    AppRow(
+                        name: tool.tool,
+                        fact: Format.knownToolFact(tool, scan: model.macScan, family: model.toolListing?.family(of: tool.tool) ?? []),
+                        last: index == tools.count - 1
+                    ) {
                         if model.toolsBusy == tool.tool {
                             Text("Touch ID…").font(Win.sub).foregroundStyle(.secondary)
                         } else if tool.isNative {
@@ -334,14 +339,19 @@ struct ToolsBoard {
         board.rows = tools.filter { $0.wrapped || $0.isProtected }.map { tool in
             Row(
                 tool: tool,
-                card: ToolCard.make(tool, sessions: model.cli?.sessions(mintedBy: tool.tool) ?? [], activity: model.toolActivity[tool.tool])
+                card: ToolCard.make(
+                    tool, sessions: model.cli?.sessions(mintedBy: tool.tool) ?? [], activity: model.toolActivity[tool.tool],
+                    family: model.toolListing?.family(of: tool.tool) ?? []
+                )
             )
         }
         // A key in a file is Findings' fact and amber; a token in the
         // tool's own keychain is encrypted at rest, so its line is an
         // offer, grey, and only this listing can see it.
-        board.toWrap = tools.filter { !$0.wrapped && !$0.isProtected && $0.keyState(scan: model.macScan).found }
-        board.known = tools.filter { !$0.wrapped && !$0.isProtected }
+        // A store family is one row, its namesake's: one wrap takes them all.
+        let alone = tools.filter { !$0.wrapped && !$0.isProtected && model.toolListing?.standsAlone($0) != false }
+        board.toWrap = alone.filter { $0.keyState(scan: model.macScan).found }
+        board.known = alone
         return board
     }
 }
@@ -358,6 +368,9 @@ struct ToolsActions {
     /// migrate one credential file, for a grant tool whose mount is not there yet
     var protectFile: (String) -> Void = { _ in }
     var unwrap: (String) -> Void = { _ in }
+    /// `jit aws-sso logout`, after a question; signs out every sealed AWS
+    /// sign-in, SSO and `aws login` alike
+    var signOutSSO: () -> Void = {}
     var verify: (String) -> Void = { _ in }
     /// The result sheet's rows: Show in Finder, Copy Path, Undo and
     /// Protect Again, the same as Findings'.

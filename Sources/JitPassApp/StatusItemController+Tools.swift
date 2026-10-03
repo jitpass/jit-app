@@ -29,6 +29,7 @@ extension StatusItemController {
             protect: { [weak self] tool in self?.protectTool(tool) },
             protectFile: { [weak self] path in self?.protectFile(path) },
             unwrap: { [weak self] tool in self?.unwrapTool(tool) },
+            signOutSSO: { [weak self] in self?.signOutSSO() },
             verify: { [weak self] tool in self?.verifyTool(tool) },
             reveal: { path in Editor.reveal(path) },
             copyPath: { path in
@@ -67,7 +68,13 @@ extension StatusItemController {
                 }
                 var activity: [String: ToolActivity] = [:]
                 for tool in model.toolListing?.others ?? [] where tool.wrapped || tool.isProtected {
-                    activity[tool.tool] = report.toolActivity(vaultPaths: tool.injects.compactMap(\.vaultPath))
+                    // A store row whose engine does not name the store's
+                    // vault path has nothing to count: no entry reads "not
+                    // checked yet", where zero reads would call it silent.
+                    if tool.isStore, tool.readPaths.isEmpty {
+                        continue
+                    }
+                    activity[tool.tool] = report.toolActivity(vaultPaths: tool.readPaths)
                 }
                 model.toolActivity = activity
             }
@@ -185,24 +192,6 @@ extension StatusItemController {
             self?.model.scanStale = true
             self?.showChanges(.wrapped(report))
             self?.vaultChanged()
-        })
-    }
-
-    /// `jit wrap undo <tool>`: prompt-free; the dialog exists because the
-    /// shim comes out at once and open shells notice on their next call.
-    /// No result sheet: the dialog said what happens, and the row turning
-    /// Not wrapped says it again. A failure keeps its one-line message.
-    func unwrapTool(_ tool: String) {
-        let alert = NSAlert()
-        alert.messageText = "Unwrap \(tool)?"
-        alert.informativeText = "\(tool) runs without jit from its next run. Its key stays in the vault."
-        alert.addButton(withTitle: "Unwrap")
-        alert.addButton(withTitle: "Cancel")
-        guard alert.runFrontmost() == .alertFirstButtonReturn else {
-            return
-        }
-        runTools(tool, work: { JitCLI.execute(["wrap", "undo", tool]) }, then: { [weak self] _ in
-            self?.model.scanStale = true
         })
     }
 

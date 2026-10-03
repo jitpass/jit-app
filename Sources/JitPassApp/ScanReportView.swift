@@ -182,7 +182,7 @@ struct ScanReportView: View {
         switch tier {
         case .protect: StatusMark.amber
         case .vaultCopies, .needsYou, .agentCaches: StatusMark.red
-        case .testFixtures: .tertiaryLabelColor
+        case .rotatesItself, .testFixtures: .tertiaryLabelColor
         }
     }
 

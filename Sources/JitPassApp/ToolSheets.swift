@@ -132,6 +132,8 @@ struct WrapSheet: View {
             lines = ["Each run of \(name) gets the \(tool.with ?? "") file after its own Touch ID. Everything else keeps getting decoys."]
         case "rungrant":
             lines = ["Each run of \(name) happens inside a jit grant. Nothing is stored."]
+        case "store":
+            lines = [Format.storeWrapLine(tool, family: model.toolListing?.family(of: name) ?? [name])]
         default:
             lines = ["\(name) gets its key from the vault, only while it runs."]
             if let key = tool.shellConfigKey(scan: model.macScan) {

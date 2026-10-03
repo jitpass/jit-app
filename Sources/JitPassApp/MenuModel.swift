@@ -325,7 +325,10 @@ final class MenuModel: ObservableObject {
     /// Installed tools whose key sits in the open: a plaintext file, the
     /// tool's own login, or a shell export. What "to protect" counts.
     var toolsWithKeyInTheOpen: [ToolRecord] {
-        (toolListing?.installed ?? []).filter { $0.keyState(scan: macScan).needsAction }
+        guard let listing = toolListing else {
+            return []
+        }
+        return listing.installed.filter { listing.standsAlone($0) && $0.keyState(scan: macScan).needsAction }
     }
 
     // The Tools row's dot: red for a broken shim, amber for an expired

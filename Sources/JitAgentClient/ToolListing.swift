@@ -24,7 +24,8 @@ public struct ToolInject: Codable, Sendable, Equatable {
 
 /// One tool jit knows: wrapped (from `~/.jit/wrap.json`) or in the catalog.
 /// Every state word here is jit's own verdict; the app adds no check of its
-/// own. `kind` is "shim", "grant", "capture", "rungrant" or "native".
+/// own. `kind` is "shim", "grant", "capture", "rungrant", "store" or
+/// "native".
 public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
     public var tool: String
     public var kind: String
@@ -40,6 +41,17 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
     public var injects: [ToolInject]
     public var with: String?
     public var capture: String?
+    /// A store wrap's login store ("gcloud"): the family of tools that
+    /// share it is wrapped, and unwrapped, as one.
+    public var store: String?
+    /// The sealed store's vault path, when jit names it: what the audit
+    /// counts reads of. Nil from an engine that leaves it out.
+    public var storePath: String?
+    /// The aws row only: the profiles that fetch through `jit aws-sso`,
+    /// and whether the vault holds an AWS sign-in, SSO or `aws login` (nil
+    /// when none was ever sealed). What Sign Out and Log In are offered from.
+    public var ssoProfiles: [String] = []
+    public var ssoSignedIn: Bool?
     public var verifyHint: String?
     /// The hint's output is itself a credential (gcloud's
     /// print-access-token): Verify keeps its exit status and drops the
@@ -74,7 +86,10 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
     public var keySource: String?
 
     enum CodingKeys: String, CodingKey {
-        case tool, kind, catalog, doc, wrapped, shim, profile, injects, with, capture, sources
+        case tool, kind, catalog, doc, wrapped, shim, profile, injects, with, capture, store, sources
+        case storePath = "store_path"
+        case ssoProfiles = "sso_profiles"
+        case ssoSignedIn = "sso_signed_in"
         case keyFound = "key_found"
         case keySource = "key_source"
         case installedPath = "installed_path"
@@ -98,6 +113,7 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         shimDetail: String? = nil,
         injects: [ToolInject] = [],
         capture: String? = nil,
+        store: String? = nil,
         verifyHint: String? = nil,
         nativeCategory: String? = nil,
         vaultSecrets: Int = 0
@@ -112,6 +128,7 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         self.shimDetail = shimDetail
         self.injects = injects
         self.capture = capture
+        self.store = store
         self.verifyHint = verifyHint
         self.nativeCategory = nativeCategory
         self.vaultSecrets = vaultSecrets
@@ -133,6 +150,10 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         injects = try box.decodeIfPresent([ToolInject].self, forKey: .injects) ?? []
         with = try box.decodeIfPresent(String.self, forKey: .with)
         capture = try box.decodeIfPresent(String.self, forKey: .capture)
+        store = try box.decodeIfPresent(String.self, forKey: .store)
+        storePath = try box.decodeIfPresent(String.self, forKey: .storePath)
+        ssoProfiles = try box.decodeIfPresent([String].self, forKey: .ssoProfiles) ?? []
+        ssoSignedIn = try box.decodeIfPresent(Bool.self, forKey: .ssoSignedIn)
         verifyHint = try box.decodeIfPresent(String.self, forKey: .verifyHint)
         verifyPrintsSecret = try box.decodeIfPresent(Bool.self, forKey: .verifyPrintsSecret) ?? false
         sources = try box.decodeIfPresent([String].self, forKey: .sources) ?? []
@@ -249,7 +270,7 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         if let source = keySource, keyFound == true {
             return .found(source)
         }
-        if let f = scan?.findings.first(where: { $0.fixCommand == "jit wrap " + tool && !$0.scaffolding }) {
+        if let f = scan?.findings.first(where: { $0.fixCommand == "jit wrap " + wrapName && !$0.scaffolding }) {
             return .found(f.filePath)
         }
         if let f = scan?.findings.first(where: { finding in
@@ -295,30 +316,6 @@ public struct ToolRecord: Codable, Sendable, Equatable, Identifiable {
         }
         let base = (f.filePath as NSString).lastPathComponent
         return ShellConfigKey(file: f.filePath, name: name, profile: base.hasPrefix(".") ? String(base.dropFirst()) : base)
-    }
-
-    /// Which global mount a finding's file feeds, by finding type or place.
-    static func mountFile(_ f: ScanFinding, matches mount: String) -> Bool {
-        switch mount {
-        case "sops": f.findingType == "sops_age_key" || f.filePath.contains("/sops/age/")
-        case "gcp": f.filePath.contains("/gcloud/")
-        case "npm": f.filePath.hasSuffix("/.npmrc")
-        case "netrc": f.filePath.hasSuffix("/.netrc")
-        case "pypi": f.filePath.hasSuffix("/.pypirc")
-        default: false
-        }
-    }
-
-    /// Which native category a credential file belongs to, by the file's
-    /// place: the scanner reports the file, migrate names the category.
-    static func nativeFile(_ path: String, matches category: String) -> Bool {
-        switch category {
-        case "aws": path.contains("/.aws/")
-        case "docker": path.contains("/.docker/")
-        case "git": path.hasSuffix("/.git-credentials") || path.hasSuffix("/.gitconfig")
-        case "terraform": path.contains("/.terraform.d/") || path.hasSuffix("/.terraformrc")
-        default: false
-        }
     }
 }
 
@@ -374,7 +371,7 @@ public struct ToolListing: Codable, Sendable, Equatable {
     /// Installed, wrappable, and not yet wrapped: shim, capture and run-grant
     /// kinds. Native tools are counted by their own protection, not here.
     public var toWrap: [ToolRecord] {
-        installed.filter { !$0.wrapped && !$0.isNative }
+        installed.filter { !$0.wrapped && !$0.isNative && standsAlone($0) }
     }
 
     public var broken: [ToolRecord] {

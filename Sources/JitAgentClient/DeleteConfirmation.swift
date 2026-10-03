@@ -163,6 +163,9 @@ public extension VaultRmPlan {
     /// when jit names them (2.0+), else the configs that start them.
     private static func describe(_ user: VaultRmUser, total: Int, home: String) -> String {
         let what = usesWhat(user.paths, total: total)
+        if let sealed = sealedLogin(user, home: home) {
+            return "• \(sealed.who) unseal \(what) on each run"
+        }
         if let pointer = user.pointerFile {
             return "• \(short(pointer, home)) points at \(what) (jit://)"
         }
@@ -203,7 +206,10 @@ public extension VaultRmPlan {
             }
             out.append(line + ": a profile missing a secret can't start its tool.")
         }
-        let pointers = users.compactMap(\.pointerFile)
+        for sealed in users.compactMap({ sealedLogin($0, home: home) }) {
+            out.append(sealed.who.prefix(1).uppercased() + sealed.who.dropFirst() + " are signed out: the login is gone with it.")
+        }
+        let pointers = users.filter { sealedLogin($0, home: home) == nil }.compactMap(\.pointerFile)
         if !pointers.isEmpty {
             out.append("\(list(pointers.map { short($0, home) })) "
                 + (pointers.count == 1 ? "stops working: its jit:// pointer names" : "stop working: their jit:// pointers name")
@@ -228,6 +234,8 @@ public extension VaultRmPlan {
         switch (profiles.count, pointers.count) {
         case (1, 0):
             return ellipsis(profiles[0], 32)
+        case (0, 1) where users.count == 1 && sealedLogin(users[0], home: home) != nil:
+            return sealedLogin(users[0], home: home)?.label ?? ""
         case (0, 1):
             return ellipsis(short(pointers[0], home), 32)
         case (_, 0):
@@ -256,6 +264,21 @@ public extension VaultRmPlan {
             return "project " + short(project, home)
         }
         return user.scope ?? "profile"
+    }
+
+    /// A user that unseals a sealed login (jit's `store`): the file names
+    /// no jit:// pointer, it unseals the login on each run, and deleting
+    /// the login signs it out. The AWS profiles through ~/.aws/config; every
+    /// other store (gcloud's family, az) through jit's wrap manifest.
+    static func sealedLogin(_ user: VaultRmUser, home: String) -> (who: String, label: String)? {
+        guard let store = user.store, let file = user.pointerFile else {
+            return nil
+        }
+        let shown = short(file, home)
+        return switch store {
+        case "aws-sso": ("the AWS profiles in " + shown, "AWS Profiles")
+        default: ("the tools wrapped in " + shown, "Wrapped Tools")
+        }
     }
 
     private static func list(_ names: [String]) -> String {

@@ -78,6 +78,7 @@ enum Format {
         case .protect: "Protect"
         case .needsYou: "Needs you"
         case .agentCaches: "Agent caches"
+        case .rotatesItself: "Rotates itself"
         case .testFixtures: "Test fixtures"
         }
     }
@@ -94,6 +95,7 @@ enum Format {
         case .protect: return "jit can move " + (files == 1 ? "this one" : "these") + " into the vault"
         case .needsYou: return files == 1 ? "Only you can fix this one" : "Only you can fix these"
         case .agentCaches: return n + " of agent caches hold copies"
+        case .rotatesItself: return files == 1 ? "1 file holds a login that renews itself" : n + " hold logins that renew themselves"
         case .testFixtures: return n + " hold real-looking examples"
         }
     }
@@ -108,6 +110,8 @@ enum Format {
         case .protect: "A decoy takes each value's place. Every file is backed up first."
         case .needsYou: "jit can't rewrite these safely. Rotate each value, or move it yourself."
         case .agentCaches: ScanReportView.agentNote
+        case .rotatesItself: "A tool writes and renews each of these itself, so they don't count toward the score. "
+            + "Each row says how to keep its login off disk."
         case .testFixtures: "Real-looking values in test files and examples. They don't count toward the score. Check they are not live."
         }
     }

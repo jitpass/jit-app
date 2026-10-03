@@ -19,6 +19,9 @@ public enum ScanTier: String, Sendable, CaseIterable, Identifiable {
     case needsYou
     /// Verbatim copies an AI agent kept of a credential confirmed elsewhere.
     case agentCaches
+    /// Logins a tool writes and renews itself (jit's `tool_minted`): shown,
+    /// never counted, and nothing to rotate.
+    case rotatesItself
     /// Real-looking values in test files and documentation.
     case testFixtures
 
@@ -37,6 +40,7 @@ public extension ScanReport {
         case .protect: ScanFileGroup.group(migratable)
         case .needsYou: manualByFile
         case .agentCaches: []
+        case .rotatesItself: ScanFileGroup.group(selfRenewing)
         case .testFixtures: ScanFileGroup.group(scaffolding)
         }
     }
@@ -143,6 +147,11 @@ public extension ScanFileGroup {
     var fact: String {
         guard let first = findings.first else {
             return ""
+        }
+        // jit's own words for a self-renewing login: what it is, and how
+        // to keep it off disk.
+        if let minted = first.toolMinted {
+            return minted.title + " · " + minted.advice.replacingOccurrences(of: "`", with: "")
         }
         if findings.count == 1 {
             var parts: [String] = []

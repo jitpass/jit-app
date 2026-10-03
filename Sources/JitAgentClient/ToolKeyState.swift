@@ -48,3 +48,31 @@ public enum ToolKeyState: Sendable, Equatable {
         return false
     }
 }
+
+/// Which credential file a scan finding is, for a tool's key state: the
+/// scanner reports the file, the listing names the mount or category.
+extension ToolRecord {
+    /// Which global mount a finding's file feeds, by finding type or place.
+    static func mountFile(_ f: ScanFinding, matches mount: String) -> Bool {
+        switch mount {
+        case "sops": f.findingType == "sops_age_key" || f.filePath.contains("/sops/age/")
+        case "gcp": f.filePath.contains("/gcloud/")
+        case "npm": f.filePath.hasSuffix("/.npmrc")
+        case "netrc": f.filePath.hasSuffix("/.netrc")
+        case "pypi": f.filePath.hasSuffix("/.pypirc")
+        default: false
+        }
+    }
+
+    /// Which native category a credential file belongs to, by the file's
+    /// place: the scanner reports the file, migrate names the category.
+    static func nativeFile(_ path: String, matches category: String) -> Bool {
+        switch category {
+        case "aws": path.contains("/.aws/")
+        case "docker": path.contains("/.docker/")
+        case "git": path.hasSuffix("/.git-credentials") || path.hasSuffix("/.gitconfig")
+        case "terraform": path.contains("/.terraform.d/") || path.hasSuffix("/.terraformrc")
+        default: false
+        }
+    }
+}

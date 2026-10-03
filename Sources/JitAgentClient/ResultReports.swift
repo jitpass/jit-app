@@ -14,7 +14,7 @@ public struct WrapReport: Codable, Sendable, Equatable {
     public typealias Inject = WrapReportInject
 
     public var tool: String
-    /// "shim", "native", "grant", "capture" or "rungrant".
+    /// "shim", "native", "grant", "capture", "rungrant" or "store".
     public var kind: String
     public var wrapped: Bool
     public var key: Key?
@@ -22,6 +22,12 @@ public struct WrapReport: Codable, Sendable, Equatable {
     public var profile: String?
     public var grant: String?
     public var grantMigrated: Bool?
+    /// A store wrap's login store ("gcloud"), the ~-paths of every shim
+    /// its family installed, and whether the store holds no login yet (the
+    /// next login through the shim is caught into the vault).
+    public var store: String?
+    public var shims: [String]
+    public var storeLoggedOut: Bool
     public var vaulted: [String]
     public var injects: [Inject]?
     public var pathAddedTo: String?
@@ -31,13 +37,14 @@ public struct WrapReport: Codable, Sendable, Equatable {
     public var report: String
 
     enum CodingKeys: String, CodingKey {
-        case tool, kind, wrapped, key, shim, profile, grant, vaulted, injects, migrate, errors, report
-        case grantMigrated = "grant_migrated", pathAddedTo = "path_added_to"
+        case tool, kind, wrapped, key, shim, profile, grant, store, shims, vaulted, injects, migrate, errors, report
+        case grantMigrated = "grant_migrated", pathAddedTo = "path_added_to", storeLoggedOut = "store_logged_out"
     }
 
     public init(
         tool: String, kind: String, wrapped: Bool, key: Key? = nil, shim: String? = nil, profile: String? = nil,
-        grant: String? = nil, grantMigrated: Bool? = nil, vaulted: [String] = [], injects: [Inject]? = nil,
+        grant: String? = nil, grantMigrated: Bool? = nil, store: String? = nil, shims: [String] = [],
+        storeLoggedOut: Bool = false, vaulted: [String] = [], injects: [Inject]? = nil,
         pathAddedTo: String? = nil, migrate: MigrateReport? = nil, errors: [String] = [], report: String = ""
     ) {
         self.tool = tool
@@ -48,6 +55,9 @@ public struct WrapReport: Codable, Sendable, Equatable {
         self.profile = profile
         self.grant = grant
         self.grantMigrated = grantMigrated
+        self.store = store
+        self.shims = shims
+        self.storeLoggedOut = storeLoggedOut
         self.vaulted = vaulted
         self.injects = injects
         self.pathAddedTo = pathAddedTo
@@ -66,6 +76,9 @@ public struct WrapReport: Codable, Sendable, Equatable {
         profile = try box.decodeIfPresent(String.self, forKey: .profile)
         grant = try box.decodeIfPresent(String.self, forKey: .grant)
         grantMigrated = try box.decodeIfPresent(Bool.self, forKey: .grantMigrated)
+        store = try box.decodeIfPresent(String.self, forKey: .store)
+        shims = try box.decodeIfPresent([String].self, forKey: .shims) ?? []
+        storeLoggedOut = try box.decodeIfPresent(Bool.self, forKey: .storeLoggedOut) ?? false
         vaulted = try box.decodeIfPresent([String].self, forKey: .vaulted) ?? []
         injects = try box.decodeIfPresent([Inject].self, forKey: .injects)
         pathAddedTo = try box.decodeIfPresent(String.self, forKey: .pathAddedTo)

@@ -33,6 +33,10 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
     /// The variable or key the finding is about ("ANTHROPIC_API_KEY",
     /// "github.com/oauth_token"), when the scanner knows it.
     public var keyName: String?
+    /// A login a tool writes and renews itself (schema 0.26.0), in jit's
+    /// words: what it is, and how to keep it off disk. Only on a manual
+    /// finding, and left out of the summary's counts.
+    public var toolMinted: ToolMintedLogin?
 
     enum CodingKeys: String, CodingKey {
         case id = "record_id"
@@ -50,6 +54,7 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         case cacheArea = "cache_area"
         case originPath = "origin_path"
         case keyName = "key_name"
+        case toolMinted = "tool_minted"
     }
 
     public init(from decoder: Decoder) throws {
@@ -69,6 +74,7 @@ public struct ScanFinding: Codable, Sendable, Equatable, Identifiable {
         cacheArea = try container.decodeIfPresent(String.self, forKey: .cacheArea).flatMap { $0.isEmpty ? nil : $0 }
         originPath = try container.decodeIfPresent(String.self, forKey: .originPath)
         keyName = try container.decodeIfPresent(String.self, forKey: .keyName)
+        toolMinted = try container.decodeIfPresent(ToolMintedLogin.self, forKey: .toolMinted)
     }
 
     /// A verbatim copy of a confirmed credential in an AI agent's cache.
@@ -129,7 +135,9 @@ public struct ScanReport: Codable, Sendable, Equatable {
     /// Findings only the user can fix, less the agent-cache copies and the
     /// vault copies, which each have their own section.
     public var manual: [ScanFinding] {
-        findings.filter { !$0.migratable && !$0.scaffolding && !$0.isAgentCopy && !$0.isVaultCopy && !$0.isCacheShape }
+        findings.filter {
+            !$0.migratable && !$0.scaffolding && !$0.isAgentCopy && !$0.isVaultCopy && !$0.isCacheShape && $0.toolMinted == nil
+        }
     }
 
     /// Tokens found by format in agent caches, and the same by file: the

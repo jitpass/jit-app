@@ -148,6 +148,11 @@ public struct AuditReport: Codable, Sendable, Equatable {
         if event.op == "grant_use" {
             return who.isEmpty ? "read \(what) via grant" : "\(who) read \(what) via grant"
         }
+        // A cache hit (jit's aws_cache_get, labelled aws-sso:<profile>):
+        // short-lived AWS credentials jit cached, in jit's own words.
+        if event.op == "aws_cache_get" {
+            return (who.isEmpty ? "" : who + " ") + "read cached AWS credentials (\(what))"
+        }
         if who.isEmpty {
             return event.op == "serve_mounts" ? "served mounts (\(what))" : "used \(what)"
         }
