@@ -6,10 +6,11 @@ import Foundation
 public extension ScanReport {
     /// The findings this scan has that a previous whole-Mac scan did not,
     /// by record id. Scaffolding is left out: a test fixture is counted by
-    /// the scanner but is not news. What the Findings header counts and
-    /// the "new" mark on a row means.
+    /// the scanner but is not news, and neither is a login a tool renewed
+    /// itself. What the Findings header counts and the "new" mark on a row
+    /// means.
     func newFindings(known: Set<String>) -> [ScanFinding] {
-        findings.filter { !$0.scaffolding && !known.contains($0.id) }
+        findings.filter { !$0.scaffolding && $0.toolMinted == nil && !known.contains($0.id) }
     }
 
     /// The published design system says nothing about row order; this is an
