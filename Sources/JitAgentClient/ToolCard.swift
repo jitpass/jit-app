@@ -34,7 +34,38 @@ public struct ToolCard: Equatable, Sendable {
     /// The header's line for this tool; nil when it asks nothing.
     public var todo: String?
 
-    public static func make(_ record: ToolRecord, sessions: [CLISession], activity: ToolActivity?, now: Date = Date()) -> ToolCard {
+    /// `family` is every tool that reads the same key (a store family): a
+    /// read by one of them is not another program's.
+    public static func make(
+        _ record: ToolRecord, sessions: [CLISession], activity: ToolActivity?, family: [String] = [], now: Date = Date()
+    ) -> ToolCard {
+        var card = base(record, sessions: sessions, activity: activity, family: family, now: now)
+        if let sso = ssoFact(record) {
+            card.fact += " · " + sso
+        }
+        return card
+    }
+
+    /// The aws row's sealed sign-in (SSO and `aws login` sessions), when
+    /// one was ever sealed: signed in, and for which profiles, or signed
+    /// out. Sign Out and Log In change it, so the row is where they read.
+    /// Signed in is the store's, true while any session is left, so the
+    /// profiles are named as the ones that use it, never as each signed in.
+    static func ssoFact(_ record: ToolRecord) -> String? {
+        guard let signedIn = record.ssoSignedIn else {
+            return nil
+        }
+        guard signedIn else {
+            return "signed out of AWS"
+        }
+        let profiles = record.ssoProfiles
+        return "signed in to AWS"
+            + (profiles.isEmpty ? "" : " · " + NameList.spoken(profiles) + (profiles.count == 1 ? " uses it" : " use it"))
+    }
+
+    private static func base(
+        _ record: ToolRecord, sessions: [CLISession], activity: ToolActivity?, family: [String], now: Date
+    ) -> ToolCard {
         if record.wrapped, !record.isHealthy {
             return ToolCard(
                 tool: record.tool, tier: .fixNow, detail: detail(record),
@@ -52,7 +83,7 @@ public struct ToolCard: Equatable, Sendable {
                 : live.map { $0.profile + " live" + ($0.expires.map { ", " + left($0, now: now) } ?? "") }.joined(separator: " · ")
             return ToolCard(tool: record.tool, tier: .working, detail: detail(record), fact: fact, verb: verb, todo: nil)
         }
-        return readCard(record, activity: activity, verb: verb, now: now)
+        return readCard(record, activity: activity, family: family, verb: verb, now: now)
     }
 
     /// A captured session has run out: the next call fails until the tool
@@ -74,7 +105,7 @@ public struct ToolCard: Equatable, Sendable {
 
     /// What the audit says about the key: never read (silent), or read,
     /// when, by whom, and by whom else.
-    private static func readCard(_ record: ToolRecord, activity: ToolActivity?, verb: Verb, now: Date) -> ToolCard {
+    private static func readCard(_ record: ToolRecord, activity: ToolActivity?, family: [String], verb: Verb, now: Date) -> ToolCard {
         guard let activity else {
             return ToolCard(tool: record.tool, tier: .working, detail: detail(record), fact: "reads not checked yet", verb: verb, todo: nil)
         }
@@ -91,7 +122,7 @@ public struct ToolCard: Equatable, Sendable {
             parts.append("last read " + when(last, now: now) + (activity.readers.first.map { " by " + $0 } ?? ""))
         }
         parts.append("\(activity.reads) read" + (activity.reads == 1 ? "" : "s") + " this week")
-        let others = activity.others(than: record.tool)
+        let others = activity.others(than: [record.tool] + family)
         parts.append(others.isEmpty ? "no other program" : "also read by " + others.joined(separator: ", "))
         return ToolCard(
             tool: record.tool,
@@ -116,6 +147,10 @@ public struct ToolCard: Equatable, Sendable {
         }
         if let mount = record.with {
             return "grants the " + mount + " mount"
+        }
+        if record.isStore {
+            // The sealed login, unpacked for one run (`jit gcloud-run`).
+            return "unseals the " + (record.store ?? record.tool) + " login per run"
         }
         if record.kind == "rungrant" {
             // `jit run --grant-only`: the mounts of the project it is run

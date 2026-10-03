@@ -218,6 +218,7 @@ public enum DoctorAdvice {
                 ? DoctorAction("Show Log", "jit service log", opens: .serviceLog)
                 : DoctorAction("Restart Service", $0, argv: [["service", "restart"]])
         } },
+        "wrap_store": storeFixes,
         "backup": { _ in [DoctorAction(
             "Export Backup", "jit vault export <file>", needs: .newFile(placeholder: "<file>"),
             argv: [["vault", "export", "<file>", "--stdin"]], input: .passphrase(prompt: "A passphrase for the backup file")

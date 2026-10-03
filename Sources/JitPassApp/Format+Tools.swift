@@ -33,12 +33,55 @@ extension Format {
         return text
     }
 
+    /// The Wrap sheet's sentence for a store wrap: the login moves, every
+    /// installed member of the family comes with it, and each run gets the
+    /// login only while it runs.
+    static func storeWrapLine(_ tool: ToolRecord, family: [String]) -> String {
+        let store = tool.store ?? tool.tool
+        let login = store + "'s login moves into the vault, and each run unseals it for that run only."
+        guard family.count > 1 else {
+            return login
+        }
+        return "This wraps " + NameList.spoken(family) + " together: " + login
+    }
+
+    /// The Unwrap question's body for a store wrap: the whole family comes
+    /// out, and the login goes back on disk after a fresh Touch ID.
+    static func storeUnwrapText(_ tool: ToolRecord, family: [String]) -> String {
+        let store = tool.store ?? tool.tool
+        let who = family.count > 1 ? NameList.spoken(family) + " run" : store + " runs"
+        return who + " without jit from the next run. " + store + "'s login goes back into its config folder, "
+            + "readable by any program; the vault keeps a copy.\n\nTouch ID follows."
+    }
+
+    /// Sign Out of AWS's question: what goes, what stops working until the
+    /// next login, and the Touch ID jit asks for.
+    static func ssoSignOutText(profiles: [String]) -> String {
+        let who = profiles.isEmpty ? "Your AWS profiles"
+            : (profiles.count == 1 ? "The profile " : "The profiles ") + NameList.spoken(profiles)
+        return "The AWS sign-in in the vault is deleted, and AWS is told to end it. "
+            + who + (profiles.count == 1 ? " fails" : " fail") + " until you log in again."
+            + "\n\nTouch ID follows."
+    }
+
+    /// Logging a sealed AWS profile in again, straight into the vault: a
+    /// browser or a pasted code, so it runs in the terminal, which keeps
+    /// the command line. Plain `aws login` refuses a sealed profile.
+    static func ssoLoginCommand(_ profile: String) -> String {
+        "jit aws-sso login --profile " + profile
+    }
+
     static func toolsFooter(_ board: ToolsBoard) -> String {
         var parts = [count(board.installed, "tool") + " installed", "\(board.rows.count) through jit"]
         if board.hasWraps, !board.activity.isEmpty {
-            let reads = board.activity.values.reduce(0) { $0 + $1.reads }
+            // A store family reads one key: counted once, on its namesake.
+            let keys = board.rows.filter { board.listing?.standsAlone($0.tool) != false }
+            let reads = keys.reduce(0) { $0 + (board.activity[$1.id]?.reads ?? 0) }
             parts.append(count(reads, "read") + " this week")
-            let others = board.rows.filter { !(board.activity[$0.id]?.others(than: $0.id).isEmpty ?? true) }.count
+            let others = keys.filter { row in
+                let family = [row.id] + (board.listing?.family(of: row.id) ?? [])
+                return !(board.activity[row.id]?.others(than: family).isEmpty ?? true)
+            }.count
             parts.append(others == 0 ? "0 by another program" : count(others, "key") + " read by another program")
         }
         return parts.joined(separator: " · ")
@@ -115,9 +158,15 @@ extension Format {
     }
 
     /// The row for a tool jit recognises on this Mac but does not run
-    /// yet: what its credential is, and where its key sits.
-    static func knownToolFact(_ tool: ToolRecord, scan: ScanReport?) -> String {
+    /// yet: what its credential is, and where its key sits. `family` is
+    /// every tool one wrap of it takes (a store family), named when there
+    /// is more than the tool itself.
+    static func knownToolFact(_ tool: ToolRecord, scan: ScanReport?, family: [String] = []) -> String {
         var parts = [tool.shortDoc.isEmpty ? tool.kind : tool.shortDoc]
+        let others = family.filter { $0 != tool.tool }
+        if !others.isEmpty {
+            parts.append("wraps with " + NameList.spoken(others))
+        }
         switch tool.keyState(scan: scan) {
         case let .found(source) where source.hasPrefix("~") || source.hasPrefix("/"):
             parts.append("key in " + home(source))

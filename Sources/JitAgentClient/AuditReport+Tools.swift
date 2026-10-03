@@ -22,7 +22,12 @@ public struct ToolActivity: Equatable, Sendable {
 
     /// Readers other than the tool the key belongs to.
     public func others(than tool: String) -> [String] {
-        readers.filter { $0 != tool }
+        others(than: [tool])
+    }
+
+    /// Readers other than any of `tools`: a store family shares one key.
+    public func others(than tools: [String]) -> [String] {
+        readers.filter { !tools.contains($0) }
     }
 }
 

@@ -20,7 +20,8 @@ public enum OffboardingStep: Equatable, Sendable {
     case done
 }
 
-/// One file Remove puts back.
+/// One file Remove puts back. `kind` is jit's restore kind: "store" is a
+/// sealed login store, written back from the vault rather than a backup.
 public struct UninstallPlanItem: Decodable, Equatable, Sendable, Identifiable {
     public let path: String
     public let kind: String
@@ -136,6 +137,12 @@ public struct UninstallPlan: Decodable, Equatable, Sendable {
 
     public var drifted: [Item] {
         restore.filter(\.drifted)
+    }
+
+    /// Sealed login stores (gcloud's): written back from their latest copy
+    /// in the vault, which is newer than any backup of the file.
+    public var stores: [Item] {
+        restore.filter { $0.kind == "store" }
     }
 }
 

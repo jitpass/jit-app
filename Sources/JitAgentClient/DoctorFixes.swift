@@ -79,4 +79,19 @@ extension DoctorAdvice {
         }
         return text
     }
+
+    /// A sealed login back on disk (wrap_store): wrapping the store's tool
+    /// seals it again; a restart sweeps the folder a killed run left.
+    static func storeFixes(_ item: DoctorItem) -> [DoctorAction] {
+        item.commands.compactMap { command in
+            switch command.split(separator: " ").map(String.init) {
+            case let words where words.count == 3 && words[0] == "jit" && words[1] == "wrap":
+                DoctorAction("Seal Again", command, argv: [Array(words.dropFirst())])
+            case ["jit", "service", "restart"]:
+                DoctorAction("Restart Service", command, argv: [["service", "restart"]])
+            default:
+                nil
+            }
+        }
+    }
 }

@@ -65,6 +65,12 @@ public extension ChangeSheet {
                 mark: .left, name: inject.name + " has no value yet", fact: "Nothing is stored at " + (inject.vaultPath ?? inject.name)
             ))
         }
+        if report.kind == "store" {
+            if !failed {
+                notes += storeNotes(report)
+            }
+            return notes
+        }
         if !report.vaulted.isEmpty {
             notes.append(Note(mark: .done, name: secretsInVault(report.vaulted.count), fact: NameList.capped(report.vaulted)))
         }
@@ -72,6 +78,36 @@ public extension ChangeSheet {
             notes += shimNotes(report)
         }
         return notes
+    }
+
+    /// A store wrap: where the login is now, then every tool of the
+    /// family that runs through jit. `vaulted` is the store itself when
+    /// the wrap moved it; empty and not logged out, it was already sealed.
+    private static func storeNotes(_ report: WrapReport) -> [Note] {
+        let store = report.store ?? report.tool
+        var notes: [Note] = if report.storeLoggedOut {
+            [Note(mark: .left, name: "No \(store) login yet", fact: "Your next \(store) login goes straight to the vault")]
+        } else if let path = report.vaulted.first {
+            [Note(mark: .done, name: "\(store)'s login moved to the vault", fact: "Nothing of it is left on disk · " + path)]
+        } else {
+            [Note(mark: .done, name: "\(store)'s login was already in the vault", fact: "Nothing of it is on disk")]
+        }
+        let family = storeFamily(report)
+        notes.append(Note(
+            mark: .done, name: NameList.spoken(family) + (family.count == 1 ? " now runs" : " now run") + " through jit",
+            fact: report.pathAddedTo.map { "New terminals use " + (family.count == 1 ? "it" : "them") + ". jit added its line to " + $0 }
+                ?? "Each run unseals the login, and seals it again after"
+        ))
+        return notes
+    }
+
+    /// The tools a store wrap shimmed, by the shims' names, the namesake
+    /// first; the tool itself from an engine that lists none.
+    static func storeFamily(_ report: WrapReport) -> [String] {
+        let names = report.shims.map { ($0 as NSString).lastPathComponent }
+        let lead = report.store ?? report.tool
+        let ordered = names.filter { $0 == lead } + names.filter { $0 != lead }
+        return ordered.isEmpty ? [report.tool] : ordered
     }
 
     /// Where a shim tool's key came from.
@@ -122,9 +158,13 @@ public extension ChangeSheet {
             case "grant": "\(tool) runs inside a jit grant, so it reads the real file and anything else reads a decoy."
             case "capture": "What \(tool) mints goes to the vault, not to a file."
             case "rungrant": "\(tool) runs inside a jit grant."
+            case "store": report.storeLoggedOut
+                ? "Each \(report.store ?? tool) login from now on is kept in the vault, not on disk."
+                : "\(report.store ?? tool)'s login is in the vault. Each run unseals it for that run only."
             default: "\(tool)'s key is in the vault. jit hands it to \(tool) each time it runs."
             }
-            return ("Wrapped " + tool, sentence)
+            let named = report.kind == "store" ? NameList.spoken(storeFamily(report)) : tool
+            return ("Wrapped " + named, sentence)
         }
         if let stored {
             return ("Stored \(tool)'s key · the wrap failed", "The key is in the vault at \(stored).")

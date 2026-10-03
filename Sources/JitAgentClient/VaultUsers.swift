@@ -11,15 +11,18 @@ public struct VaultSecretUser: Codable, Sendable, Equatable, Hashable {
     public var profile: String?
     public var project: String?
     public var pointerFile: String?
+    /// The sealed login a pointer-file user unseals ("gcloud", "aws-sso").
+    public var store: String?
 
-    public init(profile: String? = nil, project: String? = nil, pointerFile: String? = nil) {
+    public init(profile: String? = nil, project: String? = nil, pointerFile: String? = nil, store: String? = nil) {
         self.profile = profile
         self.project = project
         self.pointerFile = pointerFile
+        self.store = store
     }
 
     enum CodingKeys: String, CodingKey {
-        case profile, project
+        case profile, project, store
         case pointerFile = "pointer_file"
     }
 }

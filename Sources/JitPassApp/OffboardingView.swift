@@ -230,6 +230,11 @@ private struct OffboardingPlanScreen: View {
 
     private var filesDetail: String {
         var text = "Their secrets are written back, readable by anything on this Mac, as before JitPass."
+        if !plan.stores.isEmpty {
+            text += plan.stores.count == 1
+                ? " A sealed login comes back from its latest copy in the vault."
+                : " \(plan.stores.count) sealed logins come back from their latest copies in the vault."
+        }
         let drifted = plan.drifted.count
         if drifted > 0 {
             text += drifted == 1

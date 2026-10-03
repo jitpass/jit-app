@@ -21,4 +21,14 @@ public enum NameList {
         }
         return names.prefix(limit).joined(separator: separator) + " and \(names.count - limit) more"
     }
+
+    /// The names as a sentence says them: "a", "a and b", "a, b and c".
+    /// Uncapped, for a list that is short by nature (a store family).
+    public static func spoken(_ names: [String]) -> String {
+        switch names.count {
+        case 0: ""
+        case 1: names[0]
+        default: names.dropLast().joined(separator: ", ") + " and " + (names.last ?? "")
+        }
+    }
 }

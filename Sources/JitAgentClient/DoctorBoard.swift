@@ -89,7 +89,7 @@ public struct DoctorBoard: Equatable, Sendable {
     /// Tidy up, and so is a kind this app doesn't know yet.
     public static let recommendedKinds: Set<String> = [
         "config_deleted", "config_not_recorded", "mcp_nested", "jit_path_upgrade", "mount_stale", "mount", "duplicates",
-        "service", "install", "completion", "not_logged_in"
+        "service", "install", "completion", "not_logged_in", "wrap_store"
     ]
 
     /// The tier of a finding: a problem is always Broken now.

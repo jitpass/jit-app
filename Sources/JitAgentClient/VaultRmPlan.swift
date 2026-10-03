@@ -94,6 +94,9 @@ public struct VaultRmUse: Decodable, Sendable, Equatable {
     public var project: String?
     public var mount: String?
     public var pointerFile: String?
+    /// The sealed login this use unseals ("gcloud", "aws-sso"); the
+    /// pointer file is then what unseals it, not a jit:// pointer.
+    public var store: String?
     /// The configs that start the profile's tools (jit 1.9+).
     public var launchedBy: [String]
     /// The tools themselves, by name and config (jit 2.0+); empty from an
@@ -101,14 +104,15 @@ public struct VaultRmUse: Decodable, Sendable, Equatable {
     public var tools: [VaultRmTool]
 
     enum CodingKeys: String, CodingKey {
-        case path, profile, scope, project, mount, tools
+        case path, profile, scope, project, mount, tools, store
         case pointerFile = "pointer_file"
         case launchedBy = "launched_by"
     }
 
     public init(
         path: String, profile: String? = nil, scope: String? = nil, project: String? = nil,
-        mount: String? = nil, pointerFile: String? = nil, launchedBy: [String] = [], tools: [VaultRmTool] = []
+        mount: String? = nil, pointerFile: String? = nil, store: String? = nil, launchedBy: [String] = [],
+        tools: [VaultRmTool] = []
     ) {
         self.path = path
         self.profile = profile
@@ -116,6 +120,7 @@ public struct VaultRmUse: Decodable, Sendable, Equatable {
         self.project = project
         self.mount = mount
         self.pointerFile = pointerFile
+        self.store = store
         self.launchedBy = launchedBy
         self.tools = tools
     }
@@ -128,6 +133,7 @@ public struct VaultRmUse: Decodable, Sendable, Equatable {
         project = try box.decodeIfPresent(String.self, forKey: .project).flatMap { $0.isEmpty ? nil : $0 }
         mount = try box.decodeIfPresent(String.self, forKey: .mount).flatMap { $0.isEmpty ? nil : $0 }
         pointerFile = try box.decodeIfPresent(String.self, forKey: .pointerFile).flatMap { $0.isEmpty ? nil : $0 }
+        store = try box.decodeIfPresent(String.self, forKey: .store).flatMap { $0.isEmpty ? nil : $0 }
         launchedBy = try box.decodeIfPresent([String].self, forKey: .launchedBy) ?? []
         tools = try box.decodeIfPresent([VaultRmTool].self, forKey: .tools) ?? []
     }
@@ -163,6 +169,8 @@ public struct VaultRmUser: Sendable, Equatable {
     public var project: String?
     public var mount: String?
     public var pointerFile: String?
+    /// The sealed login a pointer-file user unseals (`VaultRmUse.store`).
+    public var store: String?
     public var launchedBy: [String]
     public var tools: [VaultRmTool]
     public var paths: [String]
@@ -173,6 +181,7 @@ public struct VaultRmUser: Sendable, Equatable {
         project = use.project
         mount = use.mount
         pointerFile = use.pointerFile
+        store = use.store
         launchedBy = use.launchedBy
         tools = use.tools
         paths = [use.path]
