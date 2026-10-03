@@ -55,6 +55,9 @@ extension Format {
     /// class ("dotenv"): that is where it came from, in jit's words.
     static func vaultSecretFact(_ secret: VaultSecret, now: Date = Date()) -> String {
         var parts: [String] = []
+        if let store = secret.store {
+            parts.append(sealedLoginFact(store))
+        }
         if secret.isLinked {
             parts.append("1Password link")
         }
@@ -68,6 +71,14 @@ extension Format {
             parts.append("used by " + secret.usedBy.joined(separator: ", "))
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// What a sealed login is and what unseals it, in place of the verbs a
+    /// value has: the row offers Delete alone.
+    static func sealedLoginFact(_ store: String) -> String {
+        store == "aws-sso"
+            ? "sealed AWS sign-in · your AWS profiles unseal it per call"
+            : "sealed \(store) login · the wrapped \(store) tools unseal it per run"
     }
 
     /// The Vault window's footer: "14 secrets · 22 settings · 38 backups".
